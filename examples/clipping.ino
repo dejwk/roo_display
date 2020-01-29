@@ -37,15 +37,7 @@ void setup() {
   clipmask = new uint8_t[clipmask_size];
 }
 
-// Note: graphic primitives are small objects, and it's quite OK to pass them
-// by value, particularly that the compiler can optimize most copying away.
-FilledCircle CenteredCircle(Color color, int16_t hoffset) {
-  return FilledCircle::ByRadius(display.width() / 2,
-                                display.height() / 2 + hoffset,
-                                display.height() / 2 - 10, color);
-}
-
-void basicBitPatterns() {
+void basicBitPatterns1() {
   DrawingContext dc(&display);
   dc.fill(color::LightGray);
   // ClipMask can be narrowed by a box rectangle. Here, we're just using full
@@ -53,9 +45,36 @@ void basicBitPatterns() {
   ClipMask mask(clipmask, display.extents());
   dc.setClipMask(&mask);
   memset(clipmask, 0xCC, clipmask_size);
-  dc.draw(CenteredCircle(color::DarkRed, 5));
+  dc.draw(
+      FilledCircle::ByRadius(0, 0, display.height() / 2 - 10, color::DarkRed),
+      display.width() / 2, display.height() / 2 + 5);
   memset(clipmask, 0x33, clipmask_size);
-  dc.draw(CenteredCircle(color::Yellow, -5));
+  dc.draw(
+      FilledCircle::ByRadius(0, 0, display.height() / 2 - 10, color::Yellow),
+      display.width() / 2, display.height() / 2 - 5);
+}
+
+void basicBitPatterns2() {
+  // This is almost exactly like above, except for one small detail: we're
+  // drawing the circles 'vertically' instead of 'horizontally'. (Not much
+  // of a difference for a circle, isn't it?) But, because the clip mask is
+  // vertical stripes, this trick allows the underlying driver to draw the
+  // picture much faster, since it does not need to send as many window change
+  // commands.
+  DrawingContext dc(&display);
+  dc.fill(color::LightGray);
+  ClipMask mask(clipmask, display.extents());
+  dc.setClipMask(&mask);
+  // This is where the magic happens.
+  dc.setTransform(Transform().rotateRight());
+  memset(clipmask, 0xCC, clipmask_size);
+  dc.draw(
+      FilledCircle::ByRadius(0, 0, display.height() / 2 - 10, color::DarkRed),
+      display.width() / 2, display.height() / 2 + 5);
+  memset(clipmask, 0x33, clipmask_size);
+  dc.draw(
+      FilledCircle::ByRadius(0, 0, display.height() / 2 - 10, color::Yellow),
+      display.width() / 2, display.height() / 2 - 5);
 }
 
 constexpr double pi() { return std::atan(1) * 4; }
@@ -120,6 +139,8 @@ void pieChart() {
   }
 }
 
+// Note: graphic primitives are small objects, and it's quite OK to pass them
+// by value, particularly that the compiler can optimize most copying away.
 TileOf<TextLabel> centeredLabel(const std::string& content, Color color,
                                 Color bgcolor = color::Transparent) {
   return MakeTileOf(TextLabel(font_NotoSerif_Italic_90(), content, color),
@@ -171,7 +192,9 @@ void clippedFont2() {
 }
 
 void loop() {
-  basicBitPatterns();
+  basicBitPatterns1();
+  delay(2000);
+  basicBitPatterns2();
   delay(2000);
   pieChart();
   delay(2000);

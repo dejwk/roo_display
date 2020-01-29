@@ -9,7 +9,11 @@
 
 using namespace roo_display;
 
-// This example showcases offscreen drawing capabilities.
+// This example showcases transformation capabilities.
+//
+// Every drawable object can be rescaled (by integer factors), moved, flipped,
+// and rotated (by multiple of 90 degrees). This is most useful for things like
+// string labels, as is demonstrated in this example.
 
 // Change these two lines to use a different driver, transport, or pins.
 #include "roo_display/driver/st7789.h" 

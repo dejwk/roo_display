@@ -121,7 +121,7 @@ class AddrWindowDevice : public DisplayDevice {
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     while (count-- > 0) {
       uint32_t pixel_count = (*x1 - *x0 + 1) * (*y1 - *y0 + 1);
-      setAddress(*x0++, *y0++, *x1++, *y1++);
+      AddrWindowDevice::setAddress(*x0++, *y0++, *x1++, *y1++);
       fillBuffer(mode, *color++, std::min(pixel_count, (uint32_t)64));
       while (pixel_count > 64) {
         write_buffer();
@@ -136,7 +136,7 @@ class AddrWindowDevice : public DisplayDevice {
     fillBuffer(mode, color, 64);
     while (count-- > 0) {
       uint32_t pixel_count = (*x1 - *x0 + 1) * (*y1 - *y0 + 1);
-      setAddress(*x0++, *y0++, *x1++, *y1++);
+      AddrWindowDevice::setAddress(*x0++, *y0++, *x1++, *y1++);
       while (pixel_count > 64) {
         write_buffer();
         pixel_count -= 64;

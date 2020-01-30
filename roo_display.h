@@ -202,6 +202,11 @@ class DrawingContext {
     Surface s(output, dx, dy, clip_box_, bgcolor);
     if (!transformed_) {
       s.drawObject(object);
+    } else if (!transform_.is_rescaled() && !transform_.xy_swap()) {
+      // Translation only.
+      s.dx += transform_.x_offset();
+      s.dy += transform_.y_offset();
+      s.drawObject(object);
     } else {
       s.drawObject(TransformedDrawable(transform_, &object));
     }

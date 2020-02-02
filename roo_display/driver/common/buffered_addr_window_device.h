@@ -2,6 +2,7 @@
 
 #include "roo_display/hal/gpio.h"
 #include "roo_display/hal/transport.h"
+#include "roo_display/core/offscreen.h"
 #include "roo_display/driver/common/compactor.h"
 
 namespace roo_display {

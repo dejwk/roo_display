@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <SPI.h>
+
 #include "roo_display/core/orientation.h"
 #include "roo_display/driver/common/buffered_addr_window_device.h"
 #include "roo_display/hal/gpio.h"
@@ -16,9 +17,9 @@ enum Command { CASET = 0x15, RASET = 0x75 };
 static const int16_t kWidth = 128;
 static const int16_t kHeight = 128;
 
-typedef BoundGenericSpi<16000000, MSBFIRST, SPI_MODE0> SpiTransport;
+typedef SpiSettings<16000000, MSBFIRST, SPI_MODE0> DefaultSpiSettings;
 
-template <int pinCS, int pinDC, int pinRST, typename Transport = SpiTransport,
+template <typename Transport, int pinCS, int pinDC, int pinRST,
           typename Gpio = DefaultGpio>
 class Ssd1327Target {
  public:
@@ -144,10 +145,17 @@ class Ssd1327Target {
 
 }  // namespace ssd1327
 
-template <int pinCS, int pinDC, int pinRST,
-          typename Transport = ssd1327::SpiTransport,
+template <typename Transport, int pinCS, int pinDC, int pinRST,
           typename Gpio = DefaultGpio>
 using Ssd1327 = BufferedAddrWindowDevice<
-    ssd1327::Ssd1327Target<pinCS, pinDC, pinRST, Transport, Gpio>>;
+    ssd1327::Ssd1327Target<Transport, pinCS, pinDC, pinRST, Gpio>>;
+
+template <int pinCS, int pinDC, int pinRST,
+          typename SpiInterface = DefaultSpiInterface,
+          typename SpiSettings = ssd1327::DefaultSpiSettings,
+          typename Gpio = DefaultGpio>
+using Ssd1327spi =
+    Ssd1327<typename SpiInterface::template Transport<SpiSettings>, pinCS,
+            pinDC, pinRST, Gpio>;
 
 }  // namespace roo_display

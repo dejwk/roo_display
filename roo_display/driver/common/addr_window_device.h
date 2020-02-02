@@ -20,6 +20,8 @@ namespace roo_display {
 //
 // class Target {
 //  public:
+//   typedef ColorMode;
+//   static constexpr ByteOrder byte_order;
 //   Target();
 //   Target(Target&&);
 //   Target(int16_t width, int16_t height);
@@ -28,11 +30,13 @@ namespace roo_display {
 //   void init();
 //   void begin();
 //   void end();
+//   void setOrientation(Orientation);
 //   void setXaddr(uint16_t x0, uint16_t x1);
 //   void setYaddr(uint16_t y0, uint16_t y1);
-//   void setOrientation(Orientation);
 //   void beginRamWrite();
-//   void ramWrite(uint8_t* data, size_t size);
+//   void ramWrite(raw_color* data, size_t size);
+//   void ramWrite(raw_color data);
+//   void ramFill(raw_color data, size_t count);
 //};
 //
 // See ili9341.h for a specific example.
@@ -42,11 +46,11 @@ namespace roo_display {
 // it has dedicated pins for 'chip select' (CS), 'data / command' (DC), and
 // optionally reset (RST). If your device fits this description, you can use
 // TransportBus (see transport_bus.h) to implement the Target.
-template <typename Target, typename ColorMode = Rgb565,
-          ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+template <typename Target>
 class AddrWindowDevice : public DisplayDevice {
  public:
-  typedef typename ColorTraits<ColorMode>::storage_type raw_color_type;
+  typedef typename ColorTraits<typename Target::ColorMode>::storage_type
+      raw_color_type;
 
   AddrWindowDevice(Orientation orientation, uint16_t width, uint16_t height)
       : AddrWindowDevice(orientation, Target(width, height)) {}
@@ -108,13 +112,14 @@ class AddrWindowDevice : public DisplayDevice {
   }
 
   void write(PaintMode mode, Color* color, uint32_t pixel_count) override {
+    raw_color_type buffer[64];
     while (pixel_count > 64) {
-      color = processColorSequence(mode, color, 64);
+      color = processColorSequence(mode, color, buffer, 64);
+      target_.ramWrite(buffer, 64);
       pixel_count -= 64;
-      write_buffer();
     }
-    processColorSequence(mode, color, pixel_count);
-    write_buffer(pixel_count);
+    processColorSequence(mode, color, buffer, pixel_count);
+    target_.ramWrite(buffer, pixel_count);
   }
 
   void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
@@ -122,26 +127,26 @@ class AddrWindowDevice : public DisplayDevice {
     while (count-- > 0) {
       uint32_t pixel_count = (*x1 - *x0 + 1) * (*y1 - *y0 + 1);
       AddrWindowDevice::setAddress(*x0++, *y0++, *x1++, *y1++);
-      fillBuffer(mode, *color++, std::min(pixel_count, (uint32_t)64));
-      while (pixel_count > 64) {
-        write_buffer();
-        pixel_count -= 64;
+      Color mycolor = *color++;
+      if (mode == PAINT_MODE_BLEND) {
+        mycolor = alphaBlend(bgcolor_, mycolor);
       }
-      write_buffer(pixel_count);
+      raw_color_type raw_color = to_raw_color(mycolor);
+      target_.ramFill(raw_color, pixel_count);
     }
   }
 
   void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
-    fillBuffer(mode, color, 64);
+    if (mode == PAINT_MODE_BLEND) {
+      color = alphaBlend(bgcolor_, color);
+    }
+    raw_color_type raw_color = to_raw_color(color);
+
     while (count-- > 0) {
       uint32_t pixel_count = (*x1 - *x0 + 1) * (*y1 - *y0 + 1);
       AddrWindowDevice::setAddress(*x0++, *y0++, *x1++, *y1++);
-      while (pixel_count > 64) {
-        write_buffer();
-        pixel_count -= 64;
-      }
-      write_buffer(pixel_count);
+      target_.ramFill(raw_color, pixel_count);
     }
   }
 
@@ -178,11 +183,14 @@ class AddrWindowDevice : public DisplayDevice {
 
   void fillPixels(PaintMode mode, Color color, int16_t* xs, int16_t* ys,
                   uint16_t pixel_count) override {
-    fillBuffer(mode, color, 64);
+    if (mode == PAINT_MODE_BLEND) {
+      color = alphaBlend(bgcolor_, color);
+    }
+    raw_color_type raw_color = to_raw_color(color);
     compactor_.drawPixels(
         xs, ys, pixel_count,
-        [this](int16_t offset, int16_t x, int16_t y,
-               Compactor::WriteDirection direction, int16_t count) {
+        [this, raw_color](int16_t offset, int16_t x, int16_t y,
+                          Compactor::WriteDirection direction, int16_t count) {
           switch (direction) {
             case Compactor::RIGHT: {
               AddrWindowDevice::setAddress(x, y, x + count - 1, y);
@@ -201,19 +209,15 @@ class AddrWindowDevice : public DisplayDevice {
               break;
             }
           }
-          while (count >= 64) {
-            write_buffer();
-            count -= 64;
-          }
-          write_buffer(count);
+          target_.ramFill(raw_color, count);
         });
   }
 
   void orientationUpdated() override { target_.setOrientation(orientation()); }
 
   static inline raw_color_type to_raw_color(Color color) {
-    ColorMode mode;
-    return byte_order::hto<raw_color_type, byte_order>(
+    typename Target::ColorMode mode;
+    return byte_order::hto<raw_color_type, Target::byte_order>(
         mode.fromArgbColor(color));
   }
 
@@ -221,9 +225,8 @@ class AddrWindowDevice : public DisplayDevice {
   Target target_;
 
  private:
-  Color* processColorSequence(PaintMode mode, Color* src,
+  Color* processColorSequence(PaintMode mode, Color* src, raw_color_type* dest,
                               uint32_t pixel_count) {
-    raw_color_type* dest = (raw_color_type*)buffer_;
     switch (mode) {
       case PAINT_MODE_REPLACE: {
         while (pixel_count-- > 0) {
@@ -242,28 +245,9 @@ class AddrWindowDevice : public DisplayDevice {
     return src;
   }
 
-  inline void fillBuffer(PaintMode mode, Color color, uint16_t count) {
-    if (mode == PAINT_MODE_BLEND) {
-      color = alphaBlend(bgcolor_, color);
-    }
-    raw_color_type raw_color = to_raw_color(color);
-    pattern_fill<sizeof(raw_color_type)>((uint8_t*)buffer_, count,
-                                         (const uint8_t*)&raw_color);
-  }
-
-  void write_buffer() {
-    target_.ramWrite(buffer_, sizeof(raw_color_type) * 64);
-  }
-
-  void write_buffer(int pixel_count) {
-    target_.ramWrite(buffer_, sizeof(raw_color_type) * pixel_count);
-  }
-
   Color bgcolor_;
   uint16_t last_x0_, last_x1_, last_y0_, last_y1_;
   Compactor compactor_;
-  // Holds pixel data in the format and endian mode as expected by the device.
-  uint8_t buffer_[64 * sizeof(raw_color_type)];
 };
 
 }  // namespace roo_display

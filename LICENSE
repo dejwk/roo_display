@@ -52,9 +52,10 @@ POSSIBILITY OF SUCH DAMAGE.
 
 This library has been inspired by https://github.com/Bodmer/TFT_eSPI.
 Certain optimizations in the driver code, e.g. direct GPIO for ESP32
-in hal/gpio.h, as well as the technique for minimizing address window changes
-used in driver/common/addr_window_device.h, have been copied from TFT_eSPI,
-and are subject to the following license:
+in hal/gpio.h, the technique for minimizing address window changes
+used in driver/common/addr_window_device.h, and direct register access
+for ESP32 in hal/transport_esp32.h, have been copied (with modifications)
+from TFT_eSPI, and are subject to the following license:
 
 vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvStartvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 Software License Agreement (FreeBSD License)

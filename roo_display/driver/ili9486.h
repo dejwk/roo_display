@@ -15,7 +15,7 @@ static const int16_t kDefaultHeight = 480;
 
 static const uint32_t SpiFrequency = 20 * 1000 * 1000;
 
-typedef BoundGenericSpi<SpiFrequency, MSBFIRST, SPI_MODE0> SpiTransport;
+typedef SpiSettings<SpiFrequency, MSBFIRST, SPI_MODE0> DefaultSpiSettings;
 
 enum Command {
   NOP = 0x00,
@@ -58,6 +58,9 @@ template <int pinCS, int pinDC, int pinRST, typename Transport = GenericSpi,
           typename Gpio = DefaultGpio>
 class Ili9486Target {
  public:
+  typedef Rgb565 ColorMode;
+  static constexpr ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN;
+
   Ili9486Target(uint16_t width = kDefaultWidth,
                 uint16_t height = kDefaultHeight)
       : bus_(), transport_(), width_(width), height_(height) {}
@@ -136,8 +139,12 @@ class Ili9486Target {
 
   void beginRamWrite() { writeCommand(RAMWR); }
 
-  void ramWrite(uint8_t* data, size_t size) {
-    transport_.writeBytes(data, size);
+  void ramWrite(uint16_t* data, size_t count) {
+    transport_.writeBytes((uint8_t*)data, count * 2);
+  }
+
+  void ramFill(uint16_t data, size_t count) {
+    transport_.fill16be(data, count);
   }
 
  private:
@@ -159,10 +166,18 @@ class Ili9486Target {
 
 }  // namespace ili9486
 
-template <int pinCS, int pinDC, int pinRST,
-          typename Transport = ili9486::SpiTransport,
+template <typename Transport,
+          int pinCS, int pinDC, int pinRST,
           typename Gpio = DefaultGpio>
 using Ili9486 = AddrWindowDevice<
     ili9486::Ili9486Target<pinCS, pinDC, pinRST, Transport, Gpio>>;
+
+template <int pinCS, int pinDC, int pinRST,
+          typename SpiInterface = DefaultSpiInterface,
+          typename SpiSettings = ili9486::DefaultSpiSettings,
+          typename Gpio = DefaultGpio>
+using Ili9486spi = Ili9486<
+    typename SpiInterface::template Transport<SpiSettings>,
+    pinCS, pinDC, pinRST, Gpio>;
 
 }  // namespace roo_display

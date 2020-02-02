@@ -41,6 +41,9 @@ template <typename Initializer, int pinCS, int pinDC, int pinRST,
           typename Gpio = DefaultGpio>
 class St77xxTarget {
  public:
+  typedef Rgb565 ColorMode;
+  static constexpr ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN;
+
   St77xxTarget(Transport transport = Transport())
       : bus_(),
         transport_(std::move(transport)),
@@ -94,8 +97,16 @@ class St77xxTarget {
 
   void beginRamWrite() { writeCommand(RAMWR); }
 
-  void ramWrite(uint8_t* data, size_t size) {
-    transport_.writeBytes(data, size);
+  void ramWrite(uint16_t data) {
+    transport_.write16be(data);
+  }
+
+  void ramWrite(uint16_t* data, size_t count) {
+    transport_.writeBytes((uint8_t*)data, count * 2);
+  }
+
+  void ramFill(uint16_t data, size_t count) {
+    transport_.fill16be(data, count);
   }
 
   void writeCommand(uint8_t c) {

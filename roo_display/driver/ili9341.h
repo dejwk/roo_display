@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <SPI.h>
+
 #include "roo_display/driver/common/addr_window_device.h"
 #include "roo_display/hal/gpio.h"
 #include "roo_display/hal/transport_bus.h"
@@ -10,12 +11,12 @@ namespace roo_display {
 
 namespace ili9341 {
 
-static const int16_t kDefaultWidth = 320;
+static const int16_t kDefaultWidth = 240;
 static const int16_t kDefaultHeight = 320;
 
 static const uint32_t SpiFrequency = 20 * 1000 * 1000;
 
-typedef BoundGenericSpi<20000000, MSBFIRST, SPI_MODE0> SpiTransport;
+typedef SpiSettings<SpiFrequency, MSBFIRST, SPI_MODE0> DefaultSpiSettings;
 
 enum Command {
   NOP = 0x00,
@@ -72,6 +73,9 @@ enum MadCtl {
 template <int pinCS, int pinDC, int pinRST, typename Transport, typename Gpio>
 class Ili9341Target {
  public:
+  typedef Rgb565 ColorMode;
+  static constexpr ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN;
+
   Ili9341Target(uint16_t width = ili9341::kDefaultWidth,
                 uint16_t height = ili9341::kDefaultHeight)
       : bus_(), transport_(), width_(width), height_(height) {}
@@ -163,8 +167,12 @@ class Ili9341Target {
 
   void beginRamWrite() { writeCommand(RAMWR); }
 
-  void ramWrite(uint8_t* data, size_t size) {
-    transport_.writeBytes(data, size);
+  void ramWrite(uint16_t* data, size_t count) {
+    transport_.writeBytes((uint8_t*)data, count * 2);
+  }
+
+  void ramFill(uint16_t data, size_t count) {
+    transport_.fill16be(data, count);
   }
 
  private:
@@ -186,10 +194,17 @@ class Ili9341Target {
 
 }  // namespace ili9341
 
-template <int pinCS, int pinDC, int pinRST,
-          typename Transport = ili9341::SpiTransport,
+template <typename Transport, int pinCS, int pinDC, int pinRST,
           typename Gpio = DefaultGpio>
 using Ili9341 = AddrWindowDevice<
     ili9341::Ili9341Target<pinCS, pinDC, pinRST, Transport, Gpio>>;
+
+template <int pinCS, int pinDC, int pinRST,
+          typename SpiInterface = DefaultSpiInterface,
+          typename SpiSettings = ili9341::DefaultSpiSettings,
+          typename Gpio = DefaultGpio>
+using Ili9341spi =
+    Ili9341<typename SpiInterface::template Transport<SpiSettings>, pinCS,
+            pinDC, pinRST, Gpio>;
 
 }  // namespace roo_display

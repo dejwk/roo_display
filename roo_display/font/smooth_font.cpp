@@ -225,7 +225,7 @@ void SmoothFont::drawKernedGlyphsWithBackground(
     int16_t left_offset, const GlyphMetrics &right_metrics,
     const uint8_t *PROGMEM right_data, int16_t right_offset,
     const Box &clip_box, Color color, Color bgColor) const {
-  Surface s(output, x, y, clip_box, bgColor);
+  Surface s(output, x, y, clip_box);
   StreamableFilledRect bg(bgwidth, metrics().maxHeight(), bgColor);
   if (rle()) {
     RleImage4bppxPolarized<Alpha4> left(

@@ -15,9 +15,12 @@ using namespace testing;
 
 namespace roo_display {
 
-template <typename ColorMode, ByteOrder byte_order>
+template <typename ColorModeP, ByteOrder byte_order_p>
 class TestTarget {
  public:
+  typedef ColorModeP ColorMode;
+  static constexpr ByteOrder byte_order = byte_order_p;
+
   TestTarget(int16_t width, int16_t height)
       : width_(width),
         height_(height),
@@ -68,15 +71,28 @@ class TestTarget {
     inRamWrite_ = true;
   }
 
-  void ramWrite(uint8_t* data, size_t size) {
+  void ramWrite(ColorStorageType<ColorMode>* raw_color, size_t count) {
     EXPECT_TRUE(inRamWrite_);
-    typedef ColorStorageType<ColorMode> raw_color_type;
-    raw_color_type* rdata = (raw_color_type*)data;
-    size_t rsize = size / sizeof(raw_color_type);
     ColorMode color_mode;
-    while (rsize-- > 0) {
+    while (count-- > 0) {
       Color color = color_mode.toArgbColor(
-          byte_order::toh<raw_color_type, byte_order>(*rdata++));
+          byte_order::toh<ColorStorageType<ColorMode>, byte_order>(
+              *raw_color++));
+      setPixel(xCursor_, yCursor_, color);
+      xCursor_++;
+      if (xCursor_ > xMax_) {
+        xCursor_ = xMin_;
+        yCursor_++;
+      }
+    }
+  }
+
+  void ramFill(ColorStorageType<ColorMode> raw_color, size_t count) {
+    EXPECT_TRUE(inRamWrite_);
+    ColorMode color_mode;
+    Color color = color_mode.toArgbColor(
+        byte_order::toh<ColorStorageType<ColorMode>, byte_order>(raw_color));
+    while (count-- > 0) {
       setPixel(xCursor_, yCursor_, color);
       xCursor_++;
       if (xCursor_ > xMax_) {
@@ -115,12 +131,9 @@ class TestTarget {
 };
 
 template <typename ColorMode, ByteOrder byte_order>
-class TestDevice : public AddrWindowDevice<TestTarget<ColorMode, byte_order>,
-                                           ColorMode, byte_order> {
+class TestDevice : public AddrWindowDevice<TestTarget<ColorMode, byte_order>> {
  public:
-  typedef AddrWindowDevice<TestTarget<ColorMode, byte_order>, ColorMode,
-                           byte_order>
-      Base;
+  typedef AddrWindowDevice<TestTarget<ColorMode, byte_order>> Base;
 
   TestDevice(int16_t width, int16_t height) : Base(width, height) {}
 

@@ -6,6 +6,7 @@
 #include "roo_display/core/streamable_overlay.h"
 #include "roo_display/filter/clip_mask.h"
 #include "roo_display/filter/transformed.h"
+#include "roo_display/filter/background.h"
 
 namespace roo_display {
 
@@ -108,6 +109,7 @@ class DrawingContext {
         bgcolor_(color::Transparent),
         clip_box_(0, 0, display->width() - 1, display->height() - 1),
         clip_mask_(nullptr),
+        background_(nullptr),
         transformed_(false),
         transform_() {
     display_->nest();
@@ -134,6 +136,10 @@ class DrawingContext {
   void setClipMask(const ClipMask *clip_mask) { clip_mask_ = clip_mask; }
 
   const Box &getClipBox() const { return clip_box_; }
+
+  void setBackground(const Synthetic* bg) {
+    background_ = bg;
+  }
 
   // void applyTransform(Transform t) {
   //   transform_ = transform_.transform(t);
@@ -190,9 +196,19 @@ class DrawingContext {
   void drawInternal(const Drawable &object, int16_t dx, int16_t dy,
                     Color bgcolor) {
     if (clip_mask_ == nullptr) {
-      drawInternalTransformed(output(), object, dx, dy, bgcolor);
+      drawInternalWithBackground(output(), object, dx, dy, bgcolor);
     } else {
       ClipMaskFilter filter(output(), clip_mask_);
+      drawInternalWithBackground(&filter, object, dx, dy, bgcolor);
+    }
+  }
+
+  void drawInternalWithBackground(DisplayOutput *output, const Drawable &object,
+                                  int16_t dx, int16_t dy, Color bgcolor) {
+    if (background_ == nullptr) {
+      drawInternalTransformed(output, object, dx, dy, bgcolor);
+    } else {
+      BackgroundFilter filter(output, background_);
       drawInternalTransformed(&filter, object, dx, dy, bgcolor);
     }
   }
@@ -218,6 +234,7 @@ class DrawingContext {
   // Absolute coordinates of the clip region in the device space. Inclusive.
   Box clip_box_;
   const ClipMask *clip_mask_;
+  const Synthetic* background_;
   bool transformed_;
   Transform transform_;
 };

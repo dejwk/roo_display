@@ -225,7 +225,7 @@ void SmoothFont::drawKernedGlyphsWithBackground(
     int16_t left_offset, const GlyphMetrics &right_metrics,
     const uint8_t *PROGMEM right_data, int16_t right_offset,
     const Box &clip_box, Color color, Color bgColor) const {
-  Surface s(output, x, y, clip_box, bgColor);
+  Surface s(output, x, y, clip_box);
   StreamableFilledRect bg(bgwidth, metrics().maxHeight(), bgColor);
   if (rle()) {
     RleImage4bppxPolarized<Alpha4> left(
@@ -363,7 +363,7 @@ void SmoothFont::drawHorizontalString(const Surface &s,
     return;
   }
   unicode_t next_code = decoder.next();
-  bool has_background = (s.bgcolor.a() != 0);
+  bool has_background = (s.bgcolor.asArgb() != 0);
   int16_t x = s.dx;
   int16_t y = s.dy;
   DisplayOutput *output = s.out;

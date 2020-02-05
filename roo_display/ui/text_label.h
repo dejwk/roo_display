@@ -52,6 +52,7 @@ class TextLabel : public Drawable {
   const GlyphMetrics& metrics() const { return metrics_; }
   const std::string& label() const { return label_; }
   const Color color() const { return color_; }
+  void setColor(Color color) { color_ = color; }
 
  private:
   const Font* font_;

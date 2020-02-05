@@ -35,7 +35,7 @@ class BufferedPixelWriter {
 
   void writePixel(int16_t x, int16_t y, Color color) {
     if (buffer_size_ == kPixelWritingBufferSize) flush();
-    if (color.a() == 0 && mode_ == PAINT_MODE_BLEND) return;
+    if (color.asArgb() == 0 && mode_ == PAINT_MODE_BLEND) return;
     x_buffer_[buffer_size_] = x;
     y_buffer_[buffer_size_] = y;
     color_buffer_[buffer_size_] = color;

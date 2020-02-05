@@ -95,7 +95,9 @@ class AddrWindowDevice : public DisplayDevice {
 
   void setBgColorHint(Color bgcolor) override { bgcolor_ = bgcolor; }
 
-  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) override {
+  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
+                  PaintMode mode) override {
+    paint_mode_ = mode;
     if (last_x0_ != x0 || last_x1_ != x1) {
       target_.setXaddr(x0, x1);
       last_x0_ = x0;
@@ -111,14 +113,14 @@ class AddrWindowDevice : public DisplayDevice {
     target_.beginRamWrite();
   }
 
-  void write(PaintMode mode, Color* color, uint32_t pixel_count) override {
+  void write(Color* color, uint32_t pixel_count) override {
     raw_color_type buffer[64];
     while (pixel_count > 64) {
-      color = processColorSequence(mode, color, buffer, 64);
+      color = processColorSequence(paint_mode_, color, buffer, 64);
       target_.ramWrite(buffer, 64);
       pixel_count -= 64;
     }
-    processColorSequence(mode, color, buffer, pixel_count);
+    processColorSequence(paint_mode_, color, buffer, pixel_count);
     target_.ramWrite(buffer, pixel_count);
   }
 
@@ -126,7 +128,8 @@ class AddrWindowDevice : public DisplayDevice {
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     while (count-- > 0) {
       uint32_t pixel_count = (*x1 - *x0 + 1) * (*y1 - *y0 + 1);
-      AddrWindowDevice::setAddress(*x0++, *y0++, *x1++, *y1++);
+      AddrWindowDevice::setAddress(*x0++, *y0++, *x1++, *y1++,
+                                   PAINT_MODE_REPLACE);
       Color mycolor = *color++;
       if (mode == PAINT_MODE_BLEND) {
         mycolor = alphaBlend(bgcolor_, mycolor);
@@ -145,7 +148,8 @@ class AddrWindowDevice : public DisplayDevice {
 
     while (count-- > 0) {
       uint32_t pixel_count = (*x1 - *x0 + 1) * (*y1 - *y0 + 1);
-      AddrWindowDevice::setAddress(*x0++, *y0++, *x1++, *y1++);
+      AddrWindowDevice::setAddress(*x0++, *y0++, *x1++, *y1++,
+                                   PAINT_MODE_REPLACE);
       target_.ramFill(raw_color, pixel_count);
     }
   }
@@ -159,25 +163,25 @@ class AddrWindowDevice : public DisplayDevice {
                              int16_t count) {
           switch (direction) {
             case Compactor::RIGHT: {
-              AddrWindowDevice::setAddress(x, y, x + count - 1, y);
+              AddrWindowDevice::setAddress(x, y, x + count - 1, y, mode);
               break;
             }
             case Compactor::DOWN: {
-              AddrWindowDevice::setAddress(x, y, x, y + count - 1);
+              AddrWindowDevice::setAddress(x, y, x, y + count - 1, mode);
               break;
             }
             case Compactor::LEFT: {
-              AddrWindowDevice::setAddress(x - count + 1, y, x, y);
+              AddrWindowDevice::setAddress(x - count + 1, y, x, y, mode);
               std::reverse(colors + offset, colors + offset + count);
               break;
             }
             case Compactor::UP: {
-              AddrWindowDevice::setAddress(x, y - count + 1, x, y);
+              AddrWindowDevice::setAddress(x, y - count + 1, x, y, mode);
               std::reverse(colors + offset, colors + offset + count);
               break;
             }
           }
-          AddrWindowDevice::write(mode, colors + offset, count);
+          AddrWindowDevice::write(colors + offset, count);
         });
   }
 
@@ -193,19 +197,23 @@ class AddrWindowDevice : public DisplayDevice {
                           Compactor::WriteDirection direction, int16_t count) {
           switch (direction) {
             case Compactor::RIGHT: {
-              AddrWindowDevice::setAddress(x, y, x + count - 1, y);
+              AddrWindowDevice::setAddress(x, y, x + count - 1, y,
+                                           PAINT_MODE_REPLACE);
               break;
             }
             case Compactor::DOWN: {
-              AddrWindowDevice::setAddress(x, y, x, y + count - 1);
+              AddrWindowDevice::setAddress(x, y, x, y + count - 1,
+                                           PAINT_MODE_REPLACE);
               break;
             }
             case Compactor::LEFT: {
-              AddrWindowDevice::setAddress(x - count + 1, y, x, y);
+              AddrWindowDevice::setAddress(x - count + 1, y, x, y,
+                                           PAINT_MODE_REPLACE);
               break;
             }
             case Compactor::UP: {
-              AddrWindowDevice::setAddress(x, y - count + 1, x, y);
+              AddrWindowDevice::setAddress(x, y - count + 1, x, y,
+                                           PAINT_MODE_REPLACE);
               break;
             }
           }
@@ -247,6 +255,8 @@ class AddrWindowDevice : public DisplayDevice {
 
   Color bgcolor_;
   uint16_t last_x0_, last_x1_, last_y0_, last_y1_;
+  // Set by setAddress and used by write().
+  PaintMode paint_mode_;
   Compactor compactor_;
 };
 

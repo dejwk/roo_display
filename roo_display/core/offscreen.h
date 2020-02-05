@@ -203,9 +203,10 @@ class Offscreen : public DisplayDevice, public Drawable {
 
   void orientationUpdated();
 
-  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) override;
+  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
+                  PaintMode mode) override;
 
-  void write(PaintMode mode, Color *color, uint32_t pixel_count) override;
+  void write(Color *color, uint32_t pixel_count) override;
 
   void writePixels(PaintMode mode, Color *color, int16_t *x, int16_t *y,
                    uint16_t pixel_count) override;
@@ -254,6 +255,7 @@ class Offscreen : public DisplayDevice, public Drawable {
   // Streaming read acess.
   Raster<ConstDramResource, ColorMode, pixel_order, byte_order> raster_;
   internal::AddressWindow window_;
+  PaintMode paint_mode_;
 };
 
 // A convenience class that bundles 'Offscreen' and 'Display', so that you can
@@ -278,9 +280,7 @@ class OffscreenDisplay : public Display, public Drawable {
   OffscreenDisplay(Args &&... args)
       : Display(new OffscreenDevice(std::forward<Args>(args)...), nullptr) {}
 
-  ~OffscreenDisplay() {
-    delete offscreen();
-  }
+  ~OffscreenDisplay() { delete offscreen(); }
 
   const OffscreenDevice &offscreen() const {
     return (const OffscreenDevice &)output();
@@ -787,17 +787,17 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
 void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
                storage_type>::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
-                                         uint16_t y1) {
+                                         uint16_t y1, PaintMode mode) {
   window_.setAddress(x0, y0, x1, y1, raw_width(), raw_height(),
                      orienter_.orientation());
+  paint_mode_ = mode;
 }
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
 void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
-               storage_type>::write(PaintMode mode, Color *color,
-                                    uint32_t pixel_count) {
-  switch (mode) {
+               storage_type>::write(Color *color, uint32_t pixel_count) {
+  switch (paint_mode_) {
     case PAINT_MODE_REPLACE: {
       internal::ReplaceWriter<ColorMode, pixel_order, byte_order> writer(
           color_mode(), color);

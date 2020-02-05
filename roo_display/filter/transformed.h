@@ -63,9 +63,10 @@ class TransformedDisplayOutput : public DisplayOutput {
         x_cursor_(0),
         y_cursor_(0) {}
 
-  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) override;
+  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
+                  PaintMode mode) override;
 
-  void write(PaintMode mode, Color *color, uint32_t pixel_count) override;
+  void write(Color *color, uint32_t pixel_count) override;
 
   // virtual void fill(PaintMode mode, Color color, uint32_t pixel_count) = 0;
 
@@ -88,6 +89,7 @@ class TransformedDisplayOutput : public DisplayOutput {
   Transform transform_;
   Box clip_box_;
   Box addr_window_;
+  PaintMode paint_mode_;
   int16_t x_cursor_;
   int16_t y_cursor_;
 };

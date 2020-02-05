@@ -15,21 +15,22 @@ class DisplayOutput {
 
   // Convenience shortcut.
   void setAddress(const Box &bounds) {
-    setAddress(bounds.xMin(), bounds.yMin(), bounds.xMax(), bounds.yMax());
+    setAddress(bounds.xMin(), bounds.yMin(), bounds.xMax(), bounds.yMax(),
+               PAINT_MODE_REPLACE);
   }
 
   // Set a rectangular window that will be filled by subsequent calls to
-  // write().
-  virtual void setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
-                          uint16_t y1) = 0;
+  // write(), using the specified paint mode.
+  virtual void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
+                          PaintMode mode) = 0;
 
   // Writes to the subsequent pixels in the address window. The address must
   // have been previously set using setAddress, and not invalidated by calling
   // one of the 'write*' and 'fill*' methods below. Otherwise, the behavior
   // is undefined.
-  virtual void write(PaintMode mode, Color *color, uint32_t pixel_count) = 0;
+  virtual void write(Color *color, uint32_t pixel_count) = 0;
 
-  // virtual void fill(PaintMode mode, Color color, uint32_t pixel_count) = 0;
+  // virtual void fill(Color color, uint32_t pixel_count) = 0;
 
   // Draws the specified pixels. Invalidates the address window.
   virtual void writePixels(PaintMode mode, Color *color, int16_t *x, int16_t *y,

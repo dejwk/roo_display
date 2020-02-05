@@ -139,9 +139,8 @@ class ClippingBufferedPixelFiller {
 
 class BufferedColorWriter {
  public:
-  BufferedColorWriter(DisplayOutput* device,
-                      PaintMode mode = PAINT_MODE_REPLACE)
-      : device_(device), mode_(mode), buffer_size_(0) {}
+  BufferedColorWriter(DisplayOutput* device)
+      : device_(device), buffer_size_(0) {}
 
   void writeColor(Color color) {
     if (buffer_size_ == kPixelWritingBufferSize) flush();
@@ -154,12 +153,11 @@ class BufferedColorWriter {
  private:
   void flush() {
     if (buffer_size_ == 0) return;
-    device_->write(mode_, color_buffer_, buffer_size_);
+    device_->write(color_buffer_, buffer_size_);
     buffer_size_ = 0;
   }
 
   DisplayOutput* device_;
-  PaintMode mode_;
   Color color_buffer_[kPixelWritingBufferSize];
   int16_t buffer_size_;
 };

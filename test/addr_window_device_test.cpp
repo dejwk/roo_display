@@ -1,17 +1,13 @@
 
+#include "roo_display/driver/common/addr_window_device.h"
+
 #include <memory>
 #include <random>
 
 #include "gtest/gtest-param-test.h"
-// #include "roo_display/core/color.h"
-// #include "roo_display/core/color_subpixel.h"
-// #include "roo_display/core/offscreen.h"
-#include "roo_display/driver/common/addr_window_device.h"
 #include "testing_display_device.h"
 
 using namespace testing;
-
-// static std::default_random_engine generator;
 
 namespace roo_display {
 

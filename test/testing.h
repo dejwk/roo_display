@@ -865,15 +865,17 @@ class FakeOffscreen : public DisplayDevice {
     return std::unique_ptr<TestColorStream>(new TestColorStream(buffer_.get()));
   }
 
-  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) override {
+  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
+                  PaintMode mode) override {
     window_ = Box(x0, y0, x1, y1);
+    paint_mode_ = mode;
     cursor_x_ = x0;
     cursor_y_ = y0;
   }
 
-  void write(PaintMode mode, Color* color, uint32_t pixel_count) override {
+  void write(Color* color, uint32_t pixel_count) override {
     while (pixel_count-- > 0) {
-      writePixel(mode, cursor_x_, cursor_y_, *color++);
+      writePixel(paint_mode_, cursor_x_, cursor_y_, *color++);
       ++cursor_x_;
       if (cursor_x_ > window_.xMax()) {
         cursor_x_ = window_.xMin();
@@ -953,6 +955,7 @@ class FakeOffscreen : public DisplayDevice {
   ColorMode color_mode_;
   std::unique_ptr<Color[]> buffer_;
   Box window_;
+  PaintMode paint_mode_;
   int16_t cursor_x_;
   int16_t cursor_y_;
 };

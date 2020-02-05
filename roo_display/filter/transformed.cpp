@@ -147,24 +147,25 @@ Box Transform::smallestBoundingRect() const {
 }
 
 void TransformedDisplayOutput::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
-                                          uint16_t y1) {
+                                          uint16_t y1, PaintMode mode) {
   if (!transform_.is_rescaled() && !transform_.xy_swap()) {
     delegate_->setAddress(
         x0 + transform_.x_offset(), y0 + transform_.y_offset(),
-        x1 + transform_.x_offset(), y1 + transform_.y_offset());
+        x1 + transform_.x_offset(), y1 + transform_.y_offset(),
+        mode);
   } else {
     addr_window_ = Box(x0, y0, x1, y1);
+    paint_mode_ = mode;
     x_cursor_ = x0;
     y_cursor_ = y0;
   }
 }
 
-void TransformedDisplayOutput::write(PaintMode mode, Color *color,
-                                     uint32_t pixel_count) {
+void TransformedDisplayOutput::write(Color *color, uint32_t pixel_count) {
   if (!transform_.is_rescaled() && !transform_.xy_swap()) {
-    delegate_->write(mode, color, pixel_count);
+    delegate_->write(color, pixel_count);
   } else {
-    ClippingBufferedRectWriter writer(delegate_, clip_box_, mode);
+    ClippingBufferedRectWriter writer(delegate_, clip_box_, paint_mode_);
     while (pixel_count-- > 0) {
       int16_t x0 = x_cursor_;
       int16_t y0 = y_cursor_;

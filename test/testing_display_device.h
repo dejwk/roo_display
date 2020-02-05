@@ -31,14 +31,15 @@ class TestDisplayDevice : public DisplayDevice {
     test_.setOrientation(orientation());
   }
 
-  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) override {
-    refc_.setAddress(x0, y0, x1, y1);
-    test_.setAddress(x0, y0, x1, y1);
+  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
+                  PaintMode mode) override {
+    refc_.setAddress(x0, y0, x1, y1, mode);
+    test_.setAddress(x0, y0, x1, y1, mode);
   }
 
-  void write(PaintMode mode, Color* color, uint32_t pixel_count) override {
-    refc_.write(mode, color, pixel_count);
-    test_.write(mode, color, pixel_count);
+  void write(Color* color, uint32_t pixel_count) override {
+    refc_.write(color, pixel_count);
+    test_.write(color, pixel_count);
   }
 
   void writePixels(PaintMode mode, Color* color, int16_t* x, int16_t* y,
@@ -317,7 +318,7 @@ void fillRandom(TestDisplayDevice<TestedDevice, ColorMode>* screen,
                 int16_t y1) {
   std::uniform_int_distribution<ColorStorageType<ColorMode>> color_distribution;
   std::uniform_int_distribution<uint16_t> len_distribution(1, 128);
-  screen->setAddress(x0, y0, x1, y1);
+  screen->setAddress(x0, y0, x1, y1, mode);
   uint32_t remaining = (x1 - x0 + 1) * (y1 - y0 + 1);
   Color colors[128];
   ColorMode color_mode;
@@ -327,7 +328,7 @@ void fillRandom(TestDisplayDevice<TestedDevice, ColorMode>* screen,
   while (remaining > 0) {
     uint32_t batch = len_distribution(generator);
     if (batch > remaining) batch = remaining;
-    screen->write(mode, colors, batch);
+    screen->write(colors, batch);
     remaining -= batch;
   }
 }

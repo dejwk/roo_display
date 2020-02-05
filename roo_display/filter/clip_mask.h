@@ -46,16 +46,18 @@ class ClipMaskFilter : public DisplayOutput {
 
   virtual ~ClipMaskFilter() {}
 
-  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) override {
+  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
+                  PaintMode mode) override {
     address_window_ = Box(x0, y0, x1, y1);
+    paint_mode_ = mode;
     cursor_x_ = x0;
     cursor_y_ = y0;
   }
 
-  void write(PaintMode mode, Color* color, uint32_t pixel_count) override {
+  void write(Color* color, uint32_t pixel_count) override {
     // Naive implementation, for now.
     uint32_t i = 0;
-    BufferedPixelWriter writer(output_, mode);
+    BufferedPixelWriter writer(output_, paint_mode_);
     while (i < pixel_count) {
       if (clip_mask_->isSet(cursor_x_, cursor_y_)) {
         writer.writePixel(cursor_x_, cursor_y_, color[i]);
@@ -163,6 +165,7 @@ class ClipMaskFilter : public DisplayOutput {
   DisplayOutput* output_;
   const ClipMask* clip_mask_;
   Box address_window_;
+  PaintMode paint_mode_;
   int16_t cursor_x_;
   int16_t cursor_y_;
 };

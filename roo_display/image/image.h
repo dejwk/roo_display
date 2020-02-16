@@ -34,22 +34,6 @@
 
 namespace roo_display {
 
-// A simple monochrome bit raster. Lines rounded to 8 pixel width.
-template <typename Resource = PrgMemResource>
-class XBitmap
-    : public Clipping<Raster<Resource, Monochrome, COLOR_PIXEL_ORDER_LSB_FIRST,
-                             BYTE_ORDER_NATIVE>> {
- public:
-  typedef Clipping<Raster<Resource, Monochrome, COLOR_PIXEL_ORDER_LSB_FIRST,
-                          BYTE_ORDER_NATIVE>>
-      Base;
-
-  XBitmap(int16_t width, int16_t height, const Resource& input, Color fg,
-          Color bg = color::Transparent)
-      : Base(Box(0, 0, width - 1, height - 1), ((width + 7) / 8) * 8, height,
-             std::move(input), Monochrome(fg, bg)) {}
-};
-
 // Run-length-encoded image, for color modes with >= 8 bits_per_pixel.
 template <typename ColorMode, typename Resource = PrgMemResource>
 using RleImage =
@@ -69,5 +53,76 @@ using RleImage4bppxPolarized =
 // using Rgb565Alpha4RleImage =
 //     SimpleStreamable<Resource, Argb8888,
 //                      internal::Rgb565Alpha4RleStream<Resource>>;
+
+// Uncompressed image.
+template <typename Resource, typename ColorMode,
+          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
+          ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+using SimpleImage =
+    SimpleStreamable<Resource, ColorMode,
+                     PixelStream<Resource, ColorMode, pixel_order, byte_order>>;
+
+template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+using SimpleImageArgb8888 =
+    SimpleImage<Resource, Argb8888, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
+
+template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+using SimpleImageArgb6666 =
+    SimpleImage<Resource, Argb6666, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
+
+template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+using SimpleImageArgb4444 =
+    SimpleImage<Resource, Argb4444, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
+
+template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+using SimpleImageRgb565 =
+    SimpleImage<Resource, Rgb565, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
+
+template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+using SimpleImageRgb565WithTransparency =
+    SimpleImage<Resource, Rgb565WithTransparency, COLOR_PIXEL_ORDER_MSB_FIRST,
+                byte_order>;
+
+template <typename Resource>
+using SimpleImageGrayscale8 =
+    SimpleImage<Resource, Grayscale8, COLOR_PIXEL_ORDER_MSB_FIRST,
+                BYTE_ORDER_BIG_ENDIAN>;
+
+template <typename Resource>
+using SimpleImageAlpha8 =
+    SimpleImage<Resource, Alpha8, COLOR_PIXEL_ORDER_MSB_FIRST,
+                BYTE_ORDER_BIG_ENDIAN>;
+
+template <typename Resource,
+          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>
+using SimpleImageGrayscale4 =
+    SimpleImage<Resource, Grayscale4, pixel_order, BYTE_ORDER_BIG_ENDIAN>;
+
+template <typename Resource,
+          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>
+using SimpleImageAlpha4 =
+    SimpleImage<Resource, Alpha4, pixel_order, BYTE_ORDER_BIG_ENDIAN>;
+
+template <typename Resource,
+          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>
+using SimpleImageMonochrome =
+    SimpleImage<Resource, Monochrome, pixel_order, BYTE_ORDER_BIG_ENDIAN>;
+
+// A simple monochrome bit raster. Lines rounded to 8 pixel width.
+template <typename Resource = PrgMemResource>
+class XBitmap
+    : public Clipping<
+          SimpleImage<Resource, Monochrome, COLOR_PIXEL_ORDER_LSB_FIRST,
+                      BYTE_ORDER_NATIVE>> {
+ public:
+  typedef Clipping<SimpleImage<Resource, Monochrome,
+                               COLOR_PIXEL_ORDER_LSB_FIRST, BYTE_ORDER_NATIVE>>
+      Base;
+
+  XBitmap(int16_t width, int16_t height, const Resource& input, Color fg,
+          Color bg = color::Transparent)
+      : Base(Box(0, 0, width - 1, height - 1), ((width + 7) / 8) * 8, height,
+             std::move(input), Monochrome(fg, bg)) {}
+};
 
 }  // namespace roo_display

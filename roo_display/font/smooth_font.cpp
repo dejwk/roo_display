@@ -187,8 +187,8 @@ void SmoothFont::drawGlyphNoBackground(DisplayOutput *output, int16_t x,
     streamToSurface(s, std::move(glyph));
   } else {
     // Identical as above, but using Raster<> instead of MonoAlpha4RleImage.
-    Raster<PrgMemResource, Alpha4> glyph(metrics.width(), metrics.height(),
-                                         data, color);
+    Raster<const uint8_t PROGMEM *, Alpha4> glyph(
+        metrics.width(), metrics.height(), data, color);
     streamToSurface(s, std::move(glyph));
   }
 }
@@ -210,8 +210,8 @@ void SmoothFont::drawGlyphWithBackground(DisplayOutput *output, int16_t x,
                 offset + glyph_metrics.bearingX(), -glyph_metrics.bearingY()));
   } else {
     // Identical as above, but using Raster<> instead of MonoAlpha4RleImage.
-    Raster<PrgMemResource, Alpha4> glyph(glyph_metrics.width(),
-                                         glyph_metrics.height(), data, color);
+    Raster<const uint8_t PROGMEM *, Alpha4> glyph(
+        glyph_metrics.width(), glyph_metrics.height(), data, color);
     streamToSurface(
         s,
         Overlay(std::move(bg), 0, -metrics().glyphYMax(), std::move(glyph),
@@ -241,9 +241,9 @@ void SmoothFont::drawKernedGlyphsWithBackground(
                 -right_metrics.bearingY()));
   } else {
     // Identical as above, but using Raster<> instead of MonoAlpha4RleImage.
-    Raster<PrgMemResource, Alpha4> left(
+    Raster<const uint8_t PROGMEM *, Alpha4> left(
         left_metrics.width(), left_metrics.height(), left_data, color);
-    Raster<PrgMemResource, Alpha4> right(
+    Raster<const uint8_t PROGMEM *, Alpha4> right(
         right_metrics.width(), right_metrics.height(), right_data, color);
     streamToSurface(
         s,

@@ -123,7 +123,7 @@ template <typename ColorMode,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN,
           int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           typename storage_type = ColorStorageType<ColorMode>>
-class Offscreen : public DisplayDevice, public Drawable {
+class Offscreen : public DisplayDevice, public Drawable, public Synthetic {
  public:
   // Creates an offscreen with specified geometry, using the designated buffer.
   // The buffer must have sufficient capacity, determined as
@@ -222,10 +222,17 @@ class Offscreen : public DisplayDevice, public Drawable {
 
   const ColorMode &color_mode() const { return raster_.color_mode(); }
 
-  const Raster<ConstDramResource, ColorMode, pixel_order, byte_order> &raster()
+  const Raster<const uint8_t *, ColorMode, pixel_order, byte_order> &raster()
       const {
     return raster_;
   }
+
+  TransparencyMode transparency() const override {
+    return color_mode().transparency();
+  }
+
+  virtual void ReadColors(const int16_t *x, const int16_t *y, uint32_t count,
+                          Color *result) const override;
 
   // Allows direct access to the underlying buffer.
   uint8_t *buffer() { return buffer_; }
@@ -253,7 +260,7 @@ class Offscreen : public DisplayDevice, public Drawable {
   bool owns_buffer_;
   internal::Orienter orienter_;
   // Streaming read acess.
-  Raster<ConstDramResource, ColorMode, pixel_order, byte_order> raster_;
+  Raster<const uint8_t *, ColorMode, pixel_order, byte_order> raster_;
   internal::AddressWindow window_;
   PaintMode paint_mode_;
 };
@@ -269,7 +276,7 @@ template <typename ColorMode,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN,
           int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           typename storage_type = ColorStorageType<ColorMode>>
-class OffscreenDisplay : public Display, public Drawable {
+class OffscreenDisplay : public Display, public Drawable, public Synthetic {
  public:
   typedef Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
                     storage_type>
@@ -288,7 +295,7 @@ class OffscreenDisplay : public Display, public Drawable {
 
   OffscreenDevice *offscreen() { return (OffscreenDevice *)output(); }
 
-  const Raster<ConstDramResource, ColorMode, pixel_order, byte_order> &raster()
+  const Raster<const uint8_t *, ColorMode, pixel_order, byte_order> &raster()
       const {
     return offscreen().raster();
   }
@@ -296,6 +303,15 @@ class OffscreenDisplay : public Display, public Drawable {
   void drawTo(const Surface &s) const override { streamToSurface(s, raster()); }
 
   Box extents() const override { return raster().extents(); }
+
+  TransparencyMode transparency() const override {
+    return offscreen().transparency();
+  }
+
+  void ReadColors(const int16_t *x, const int16_t *y, uint32_t count,
+                  Color *result) const override {
+    return offscreen().ReadColors(x, y, count, result);
+  }
 };
 
 // Implementation details follow.
@@ -309,8 +325,8 @@ class OffscreenDisplay : public Display, public Drawable {
 
 namespace internal {
 
-// For multi-byte color modes, supports reading and writing raw byte content
-// from and to DRAM. Used by Writers and Fillers, below.
+// Reader / writer for multi-byte color modes, supports reading and writing raw
+// byte content from and to DRAM. Used by Writers and Fillers, below.
 template <int bits_per_pixel, ByteOrder byte_order>
 class RawIterator;
 
@@ -902,6 +918,16 @@ void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
     fillVlinesAbsolute(mode, color, x0, y0, y1, count);
   } else {
     fillRectsAbsolute(mode, color, x0, y0, x1, y1, count);
+  }
+}
+
+template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
+          int8_t pixels_per_byte, typename storage_type>
+void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
+               storage_type>::ReadColors(const int16_t *x, const int16_t *y,
+                                         uint32_t count, Color *result) const {
+  while (count-- > 0) {
+    *result++ = raster_.get(*x++, *y++);
   }
 }
 

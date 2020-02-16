@@ -564,7 +564,7 @@ TEST(AddressWindow, Advance200) {
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
-const Raster<ConstDramResource, ColorMode, pixel_order, byte_order>& RasterOf(
+const Raster<const uint8_t*, ColorMode, pixel_order, byte_order>& RasterOf(
     const Offscreen<ColorMode, pixel_order, byte_order>& offscreen) {
   return offscreen.raster();
 }

@@ -133,14 +133,96 @@ class PixelStream<Resource, ColorMode, pixel_order, byte_order, 1> {
   const ColorMode& color_mode_;
 };
 
-// Allows drawing rectangular pixmaps (e.g. read from DRAM, PROGMEM, or file),
-// using various color modes.
-template <typename Resource, typename ColorMode,
+namespace internal {
+
+// For sub-byte color modes.
+template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
+          int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
+          typename storage_type = ColorStorageType<ColorMode>>
+struct Reader {
+  storage_type operator()(const uint8_t* p, uint32_t offset) const {
+    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    int pixel_index = offset % pixels_per_byte;
+    uint8_t* target = p + offset / pixels_per_byte;
+    return subpixel.ReadSubPixelColor(*target, pixel_index);
+  }
+};
+
+template <typename RawType, int bits_per_pixel, ByteOrder byte_order>
+struct ConstRawReader {
+  RawType operator()(const uint8_t* ptr, uint32_t offset) const {
+    return byte_order::toh<RawType, byte_order>(((const RawType*)ptr)[offset]);
+  }
+};
+
+template <>
+struct ConstRawReader<uint32_t, 24, BYTE_ORDER_BIG_ENDIAN> {
+  uint32_t operator()(const uint8_t* ptr, uint32_t offset) const {
+    ptr += 3 * offset;
+    return ptr[0] << 16 | ptr[1] << 8 | ptr[2];
+  }
+};
+
+template <>
+struct ConstRawReader<uint32_t, 24, BYTE_ORDER_LITTLE_ENDIAN> {
+  uint32_t operator()(const uint8_t* ptr, uint32_t offset) const {
+    ptr += 3 * offset;
+    return ptr[2] << 16 | ptr[1] << 8 | ptr[0];
+  }
+};
+
+// For color modes in which a pixel takes up at least 1 byte.
+template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
+          typename storage_type>
+struct Reader<ColorMode, pixel_order, byte_order, 1, storage_type> {
+  storage_type operator()(const uint8_t* p, uint32_t offset) const {
+    ConstRawReader<ColorStorageType<ColorMode>, ColorMode::bits_per_pixel,
+                   byte_order>
+        read;
+    return read(p, offset);
+  }
+};
+
+}  // namespace internal
+
+template <typename PtrType, typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
-using Raster =
-    SimpleStreamable<Resource, ColorMode,
-                     PixelStream<Resource, ColorMode, pixel_order, byte_order>>;
+class Raster {
+ public:
+  typedef PixelStream<MemoryResource<PtrType>, ColorMode, pixel_order,
+                      byte_order>
+      StreamType;
+
+  Raster(int16_t width, int16_t height, PtrType ptr,
+         const ColorMode& color_mode = ColorMode())
+      : Raster(Box(0, 0, width - 1, height - 1), ptr, std::move(color_mode)) {}
+
+  Raster(Box extents, PtrType ptr, const ColorMode& color_mode = ColorMode())
+      : extents_(std::move(extents)),
+        ptr_(ptr),
+        color_mode_(color_mode),
+        width_(extents_.width()) {}
+
+  const Box& extents() const { return extents_; }
+  const ColorMode& color_mode() const { return color_mode_; }
+
+  std::unique_ptr<StreamType> CreateStream() const {
+    MemoryStream<PtrType> s(ptr_);
+    return std::unique_ptr<StreamType>(new StreamType(s, color_mode_));
+  }
+
+  Color get(int16_t x, int16_t y) const {
+    internal::Reader<ColorMode, pixel_order, byte_order> read;
+    return color_mode_.toArgbColor(read(ptr_, x + y * width_));
+  }
+
+ private:
+  Box extents_;
+  int16_t width_;
+  ColorMode color_mode_;
+  PtrType ptr_;
+};
 
 template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
 using RasterArgb8888 =

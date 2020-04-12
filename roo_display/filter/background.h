@@ -38,7 +38,6 @@ class BackgroundFilter : public DisplayOutput {
         cursor_y_++;
         cursor_x_ = address_window_.xMin();
       }
-      ++i;
     }
     background_->ReadColors(x, y, pixel_count, newcolor);
     for (uint32_t i = 0; i < pixel_count; ++i) {

@@ -143,7 +143,7 @@ struct Reader {
   storage_type operator()(const uint8_t* p, uint32_t offset) const {
     SubPixelColorHelper<ColorMode, pixel_order> subpixel;
     int pixel_index = offset % pixels_per_byte;
-    uint8_t* target = p + offset / pixels_per_byte;
+    const uint8_t* target = p + offset / pixels_per_byte;
     return subpixel.ReadSubPixelColor(*target, pixel_index);
   }
 };

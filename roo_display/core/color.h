@@ -7,10 +7,13 @@ namespace roo_display {
 // When drawing using semi-transparent colors, specified if and how the
 // previous content is combined with the new content.
 enum PaintMode {
-  // The new ARBB8 value completely replaces the old one.
+  // Drawable should use a paint mode that is the most suitable for it.
+  PAINT_MODE_DEFAULT,
+
+  // The new ARGB8888 value completely replaces the old one.
   PAINT_MODE_REPLACE,
 
-  // The new ARGB8 value is alpha-blended over the old one.
+  // The new ARGB8888 value is alpha-blended over the old one.
   PAINT_MODE_BLEND
 };
 

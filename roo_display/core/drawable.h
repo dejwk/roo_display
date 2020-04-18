@@ -13,11 +13,23 @@ class Drawable;
 class Surface {
  public:
   Surface(DisplayOutput *out, int16_t dx, int16_t dy, Box clip,
-          Color bg = color::Transparent)
-      : out(out), dx(dx), dy(dy), clip_box(std::move(clip)), bgcolor(bg) {}
+          Color bg = color::Transparent,
+          PaintMode paint_mode = PAINT_MODE_DEFAULT)
+      : out(out),
+        dx(dx),
+        dy(dy),
+        clip_box(std::move(clip)),
+        bgcolor(bg),
+        paint_mode(paint_mode) {}
 
-  Surface(DisplayOutput *out, Box clip, Color bg = color::Transparent)
-      : out(out), dx(0), dy(0), clip_box(std::move(clip)), bgcolor(bg) {}
+  Surface(DisplayOutput *out, Box clip, Color bg = color::Transparent,
+          PaintMode paint_mode = PAINT_MODE_DEFAULT)
+      : out(out),
+        dx(0),
+        dy(0),
+        clip_box(std::move(clip)),
+        bgcolor(bg),
+        paint_mode(paint_mode) {}
 
   Surface(Surface &&other) = default;
   Surface(const Surface &other) = default;
@@ -36,6 +48,7 @@ class Surface {
   int16_t dy;
   Box clip_box;
   Color bgcolor;
+  PaintMode paint_mode;
 };
 
 // Interface implemented by any class that represents things (like images in

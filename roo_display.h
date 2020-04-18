@@ -4,9 +4,9 @@
 #include "roo_display/core/drawable.h"
 #include "roo_display/core/streamable.h"
 #include "roo_display/core/streamable_overlay.h"
+#include "roo_display/filter/background.h"
 #include "roo_display/filter/clip_mask.h"
 #include "roo_display/filter/transformed.h"
-#include "roo_display/filter/background.h"
 
 namespace roo_display {
 
@@ -107,6 +107,7 @@ class DrawingContext {
   DrawingContext(Display *display)
       : display_(display),
         bgcolor_(color::Transparent),
+        paint_mode_(PAINT_MODE_DEFAULT),
         clip_box_(0, 0, display->width() - 1, display->height() - 1),
         clip_mask_(nullptr),
         background_(nullptr),
@@ -123,6 +124,9 @@ class DrawingContext {
   Color bgColor() const { return bgcolor_; }
   void setBgColor(Color color) { bgcolor_ = color; }
 
+  PaintMode paintMode() const { return paint_mode_; }
+  void setPaintMode(PaintMode paint_mode) { paint_mode_ = paint_mode; }
+
   void fill(Color color);
 
   void setClipBox(const Box &clip_box) {
@@ -137,9 +141,7 @@ class DrawingContext {
 
   const Box &getClipBox() const { return clip_box_; }
 
-  void setBackground(const Synthetic* bg) {
-    background_ = bg;
-  }
+  void setBackground(const Synthetic *bg) { background_ = bg; }
 
   // void applyTransform(Transform t) {
   //   transform_ = transform_.transform(t);
@@ -152,16 +154,12 @@ class DrawingContext {
 
   const Transform &transform() const { return transform_; }
 
-  inline void drawPixel(int16_t x, int16_t y, Color color) {
+  inline void drawPixel(int16_t x, int16_t y, Color color,
+                        PaintMode paint_mode = PAINT_MODE_DEFAULT) {
     if (!clip_box_.contains(x, y)) return;
     if (clip_mask_ != nullptr && !clip_mask_->isSet(x, y)) return;
-    output()->fillPixels(PAINT_MODE_REPLACE, color, &x, &y, 1);
-  }
-
-  inline void paintPixel(int16_t x, int16_t y, Color color) {
-    if (!clip_box_.contains(x, y)) return;
-    if (clip_mask_ != nullptr && !clip_mask_->isSet(x, y)) return;
-    output()->fillPixels(PAINT_MODE_BLEND, color, &x, &y, 1);
+    if (paint_mode == PAINT_MODE_DEFAULT) paint_mode = paint_mode_;
+    output()->fillPixels(paint_mode, color, &x, &y, 1);
   }
 
   void draw(const Drawable &object) { drawInternal(object, 0, 0, bgcolor_); }
@@ -215,7 +213,7 @@ class DrawingContext {
 
   void drawInternalTransformed(DisplayOutput *output, const Drawable &object,
                                int16_t dx, int16_t dy, Color bgcolor) {
-    Surface s(output, dx, dy, clip_box_, bgcolor);
+    Surface s(output, dx, dy, clip_box_, bgcolor, paint_mode_);
     if (!transformed_) {
       s.drawObject(object);
     } else if (!transform_.is_rescaled() && !transform_.xy_swap()) {
@@ -230,15 +228,18 @@ class DrawingContext {
 
   Display *display_;
   Color bgcolor_;
+  PaintMode paint_mode_;
 
   // Absolute coordinates of the clip region in the device space. Inclusive.
   Box clip_box_;
   const ClipMask *clip_mask_;
-  const Synthetic* background_;
+  const Synthetic *background_;
   bool transformed_;
   Transform transform_;
 };
 
+// Fill is an 'infinite' single-color surface. When drawn, it will fill the
+// entire clip box with the given color.
 class Fill : public Drawable {
  public:
   Fill(Color color) : color_(color) {}

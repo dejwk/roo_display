@@ -140,7 +140,7 @@ void drawGlyph(const Surface& s, unicode_t code, Color color, bool whitespace) {
   if (code < 32 || code > 127) return;
   if (s.bgcolor.a() == 0 && color.a() == 0xFF) {
     ClippingBufferedPixelFiller filler(s.out, color, s.clip_box,
-                                       PAINT_MODE_REPLACE);
+                                       s.paint_mode);
     for (int8_t i = 0; i < 5; i++) {
       uint8_t line = pgm_read_byte(font + code * 5 + i);
       for (int8_t j = 0; j < 8; j++) {
@@ -149,7 +149,7 @@ void drawGlyph(const Surface& s, unicode_t code, Color color, bool whitespace) {
       }
     }
   } else {
-    ClippingBufferedPixelWriter writer(s.out, s.clip_box, PAINT_MODE_BLEND);
+    ClippingBufferedPixelWriter writer(s.out, s.clip_box, s.paint_mode);
     for (int8_t i = 0; i < 5; i++) {
       uint8_t line = pgm_read_byte(font + code * 5 + i);
       for (int8_t j = 0; j < 8; j++) {

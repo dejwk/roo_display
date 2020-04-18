@@ -179,8 +179,10 @@ bool is_space(unicode_t code) {
 void SmoothFont::drawGlyphNoBackground(DisplayOutput *output, int16_t x,
                                        int16_t y, const GlyphMetrics &metrics,
                                        const uint8_t *PROGMEM data,
-                                       const Box &clip_box, Color color) const {
-  Surface s(output, x + metrics.bearingX(), y - metrics.bearingY(), clip_box);
+                                       const Box &clip_box, Color color,
+                                       PaintMode paint_mode) const {
+  Surface s(output, x + metrics.bearingX(), y - metrics.bearingY(), clip_box,
+            color::Transparent, paint_mode);
   if (rle()) {
     RleImage4bppxPolarized<Alpha4> glyph(metrics.width(), metrics.height(),
                                          data, color);
@@ -198,8 +200,9 @@ void SmoothFont::drawGlyphWithBackground(DisplayOutput *output, int16_t x,
                                          const GlyphMetrics &glyph_metrics,
                                          const uint8_t *PROGMEM data,
                                          int16_t offset, const Box &clip_box,
-                                         Color color, Color bgColor) const {
-  Surface s(output, x, y, clip_box);
+                                         Color color, Color bgColor,
+                                         PaintMode paint_mode) const {
+  Surface s(output, x, y, clip_box, color::Transparent, paint_mode);
   StreamableFilledRect bg(bgwidth, metrics().maxHeight(), bgColor);
   if (rle()) {
     RleImage4bppxPolarized<Alpha4> glyph(glyph_metrics.width(),
@@ -224,8 +227,9 @@ void SmoothFont::drawKernedGlyphsWithBackground(
     const GlyphMetrics &left_metrics, const uint8_t *PROGMEM left_data,
     int16_t left_offset, const GlyphMetrics &right_metrics,
     const uint8_t *PROGMEM right_data, int16_t right_offset,
-    const Box &clip_box, Color color, Color bgColor) const {
-  Surface s(output, x, y, clip_box);
+    const Box &clip_box, Color color, Color bgColor,
+    PaintMode paint_mode) const {
+  Surface s(output, x, y, clip_box, color::Transparent, paint_mode);
   StreamableFilledRect bg(bgwidth, metrics().maxHeight(), bgColor);
   if (rle()) {
     RleImage4bppxPolarized<Alpha4> left(
@@ -392,7 +396,7 @@ void SmoothFont::drawHorizontalString(const Surface &s,
     if (!has_background) {
       // Transparent background; simply draw and shift.
       drawGlyphNoBackground(output, x - preadvanced, y, glyphs.left_metrics(),
-                            glyphs.left_data(), s.clip_box, color);
+                            glyphs.left_data(), s.clip_box, color, s.paint_mode);
       x += (glyphs.left_metrics().advance() - kern);
     } else {
       // General case. We may have two glyphs to worry about, and we may be
@@ -416,7 +420,7 @@ void SmoothFont::drawHorizontalString(const Surface &s,
             Box::intersect(s.clip_box, Box(x, y - metrics().glyphYMax(),
                                            x + total_rect_width - 1,
                                            y - metrics().glyphYMin())),
-            color, s.bgcolor);
+            color, s.bgcolor, s.paint_mode);
       } else {
         // Glyphs do not overlap; can draw them one by one.
         if (has_more) {
@@ -434,7 +438,7 @@ void SmoothFont::drawHorizontalString(const Surface &s,
             Box::intersect(s.clip_box, Box(x, y - metrics().glyphYMax(),
                                            x + total_rect_width - 1,
                                            y - metrics().glyphYMin())),
-            color, s.bgcolor);
+            color, s.bgcolor, s.paint_mode);
       }
       x += total_rect_width;
       preadvanced = total_rect_width - (advance - preadvanced);

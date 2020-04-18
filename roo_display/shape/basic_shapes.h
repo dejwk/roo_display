@@ -9,40 +9,18 @@ namespace roo_display {
 class BasicShape : public Drawable {
  public:
   Color color() const { return color_; }
-  PaintMode mode() const { return mode_; }
-  bool opaque() const { return mode() == PAINT_MODE_REPLACE; }
-
-  Color effective_color(Color bgcolor) const {
-    switch (mode_) {
-      case PAINT_MODE_REPLACE: {
-        return color_;
-      }
-      case PAINT_MODE_BLEND: {
-        return bgcolor.a() == 0 ? color_
-                                : alphaBlendOverOpaque(bgcolor, color_);
-      }
-      default: {
-        return color::Transparent;
-      }
-    }
-  }
 
  protected:
-  BasicShape(Color color, PaintMode mode = PAINT_MODE_REPLACE)
-      : color_(color),
-        mode_(mode == PAINT_MODE_BLEND && color.opaque() ? PAINT_MODE_REPLACE
-                                                         : mode) {}
+  BasicShape(Color color) : color_(color) {}
 
  private:
   Color color_;
-  PaintMode mode_;
 };
 
 class Line : public BasicShape {
  public:
-  Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Color color,
-       PaintMode mode = PAINT_MODE_REPLACE)
-      : BasicShape(color, mode),
+  Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Color color)
+      : BasicShape(color),
         x0_(x0),
         y0_(y0),
         x1_(x1),
@@ -76,9 +54,8 @@ class Line : public BasicShape {
 
 class RectBase : public BasicShape {
  public:
-  RectBase(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Color color,
-           PaintMode mode = PAINT_MODE_REPLACE)
-      : BasicShape(color, mode), x0_(x0), y0_(y0), x1_(x1), y1_(y1) {
+  RectBase(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Color color)
+      : BasicShape(color), x0_(x0), y0_(y0), x1_(x1), y1_(y1) {
     if (x1 < x0) std::swap(x0_, x1_);
     if (y1 < y0) std::swap(y0_, y1_);
   }
@@ -94,9 +71,8 @@ class RectBase : public BasicShape {
 
 class Rect : public RectBase {
  public:
-  Rect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Color color,
-       PaintMode mode = PAINT_MODE_REPLACE)
-      : RectBase(x0, y0, x1, y1, color, mode) {}
+  Rect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Color color)
+      : RectBase(x0, y0, x1, y1, color) {}
 
  private:
   void drawTo(const Surface &s) const override;
@@ -104,9 +80,8 @@ class Rect : public RectBase {
 
 class FilledRect : public RectBase {
  public:
-  FilledRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Color color,
-             PaintMode mode = PAINT_MODE_REPLACE)
-      : RectBase(x0, y0, x1, y1, color, mode) {}
+  FilledRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Color color)
+      : RectBase(x0, y0, x1, y1, color) {}
 
  private:
   void drawTo(const Surface &s) const override;
@@ -115,8 +90,8 @@ class FilledRect : public RectBase {
 class RoundRectBase : public BasicShape {
  public:
   RoundRectBase(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t radius,
-                Color color, PaintMode mode = PAINT_MODE_REPLACE)
-      : BasicShape(color, mode),
+                Color color)
+      : BasicShape(color),
         x0_(x0),
         y0_(y0),
         x1_(x1),
@@ -143,8 +118,8 @@ class RoundRectBase : public BasicShape {
 class RoundRect : public RoundRectBase {
  public:
   RoundRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t radius,
-            Color color, PaintMode mode = PAINT_MODE_REPLACE)
-      : RoundRectBase(x0, y0, x1, y1, radius, color, mode) {}
+            Color color)
+      : RoundRectBase(x0, y0, x1, y1, radius, color) {}
 
  private:
   void drawInteriorTo(const Surface &s) const override;
@@ -153,9 +128,8 @@ class RoundRect : public RoundRectBase {
 class FilledRoundRect : public RoundRectBase {
  public:
   FilledRoundRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
-                  int16_t radius, Color color,
-                  PaintMode mode = PAINT_MODE_REPLACE)
-      : RoundRectBase(x0, y0, x1, y1, radius, color, mode) {}
+                  int16_t radius, Color color)
+      : RoundRectBase(x0, y0, x1, y1, radius, color) {}
 
  private:
   void drawInteriorTo(const Surface &s) const override;
@@ -168,9 +142,8 @@ class CircleBase : public BasicShape {
   }
 
  protected:
-  CircleBase(int16_t x0, int16_t y0, int16_t diameter, Color color,
-             PaintMode mode)
-      : BasicShape(color, mode), x0_(x0), y0_(y0), diameter_(diameter) {}
+  CircleBase(int16_t x0, int16_t y0, int16_t diameter, Color color)
+      : BasicShape(color), x0_(x0), y0_(y0), diameter_(diameter) {}
 
   int16_t x0_;
   int16_t y0_;
@@ -179,20 +152,18 @@ class CircleBase : public BasicShape {
 
 class Circle : public CircleBase {
  public:
-  static Circle ByRadius(int16_t x_center, int16_t y_center, int16_t radius,
-                         Color color, PaintMode mode = PAINT_MODE_REPLACE) {
+  static Circle ByRadius(int16_t x_center, int16_t y_center, int16_t radius, Color color) {
     return Circle(x_center - radius, y_center - radius, (radius << 1) + 1,
-                  color, mode);
+                  color);
   }
 
-  static Circle ByExtents(int16_t x0, int16_t y0, int16_t diameter, Color color,
-                          PaintMode mode = PAINT_MODE_REPLACE) {
-    return Circle(x0, y0, diameter, color, mode);
+  static Circle ByExtents(int16_t x0, int16_t y0, int16_t diameter, Color color) {
+    return Circle(x0, y0, diameter, color);
   }
 
  private:
-  Circle(int16_t x0, int16_t y0, int16_t diameter, Color color, PaintMode mode)
-      : CircleBase(x0, y0, diameter, color, mode) {}
+  Circle(int16_t x0, int16_t y0, int16_t diameter, Color color)
+      : CircleBase(x0, y0, diameter, color) {}
 
   void drawInteriorTo(const Surface &s) const override;
 };
@@ -200,22 +171,19 @@ class Circle : public CircleBase {
 class FilledCircle : public CircleBase {
  public:
   static FilledCircle ByRadius(int16_t x_center, int16_t y_center,
-                               int16_t radius, Color color,
-                               PaintMode mode = PAINT_MODE_REPLACE) {
+                               int16_t radius, Color color) {
     return FilledCircle(x_center - radius, y_center - radius, (radius << 1) + 1,
-                        color, mode);
+                        color);
   }
 
   static FilledCircle ByExtents(int16_t x0, int16_t y0, int16_t diameter,
-                                Color color,
-                                PaintMode mode = PAINT_MODE_REPLACE) {
-    return FilledCircle(x0, y0, diameter, color, mode);
+                                Color color) {
+    return FilledCircle(x0, y0, diameter, color);
   }
 
  private:
-  FilledCircle(int16_t x0, int16_t y0, int16_t diameter, Color color,
-               PaintMode mode)
-      : CircleBase(x0, y0, diameter, color, mode) {}
+  FilledCircle(int16_t x0, int16_t y0, int16_t diameter, Color color)
+      : CircleBase(x0, y0, diameter, color) {}
 
   void drawInteriorTo(const Surface &s) const override;
 };
@@ -223,8 +191,8 @@ class FilledCircle : public CircleBase {
 class TriangleBase : public BasicShape {
  public:
   TriangleBase(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2,
-               int16_t y2, Color color, PaintMode mode = PAINT_MODE_REPLACE)
-      : BasicShape(color, mode),
+               int16_t y2, Color color)
+      : BasicShape(color),
         x0_(x0),
         y0_(y0),
         x1_(x1),
@@ -263,8 +231,8 @@ class TriangleBase : public BasicShape {
 class Triangle : public TriangleBase {
  public:
   Triangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2,
-           int16_t y2, Color color, PaintMode mode = PAINT_MODE_REPLACE)
-      : TriangleBase(x0, y0, x1, y1, x2, y2, color, mode) {}
+           int16_t y2, Color color)
+      : TriangleBase(x0, y0, x1, y1, x2, y2, color) {}
 
  private:
   void drawInteriorTo(const Surface &s) const override;
@@ -273,8 +241,8 @@ class Triangle : public TriangleBase {
 class FilledTriangle : public TriangleBase {
  public:
   FilledTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2,
-                 int16_t y2, Color color, PaintMode mode = PAINT_MODE_REPLACE)
-      : TriangleBase(x0, y0, x1, y1, x2, y2, color, mode) {}
+                 int16_t y2, Color color)
+      : TriangleBase(x0, y0, x1, y1, x2, y2, color) {}
 
  private:
   void drawInteriorTo(const Surface &s) const override;

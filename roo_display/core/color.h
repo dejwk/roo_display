@@ -110,6 +110,21 @@ inline Color alphaBlend(Color bgc, Color fgc) {
   return Color(alpha << 24 | r << 16 | g << 8 | b);
 }
 
+inline Color combineColors(Color bgc, Color fgc, PaintMode paint_mode) {
+  switch (paint_mode) {
+      case PAINT_MODE_DEFAULT:
+      case PAINT_MODE_REPLACE: {
+        return fgc;
+      }
+      case PAINT_MODE_BLEND: {
+        return alphaBlend(bgc, fgc);
+      }
+      default: {
+        return Color(0);
+      }
+  }
+}
+
 enum TransparencyMode {
   TRANSPARENCY_NONE,    // All colors are fully opaque.
   TRANSPARENCY_BINARY,  // Colors are either fully opaque or fully transparent.

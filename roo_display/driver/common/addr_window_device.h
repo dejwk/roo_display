@@ -236,7 +236,6 @@ class AddrWindowDevice : public DisplayDevice {
   Color* processColorSequence(PaintMode mode, Color* src, raw_color_type* dest,
                               uint32_t pixel_count) {
     switch (mode) {
-      case PAINT_MODE_DEFAULT:
       case PAINT_MODE_REPLACE: {
         while (pixel_count-- > 0) {
           *dest++ = to_raw_color(*src++);

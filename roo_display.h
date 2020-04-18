@@ -107,7 +107,7 @@ class DrawingContext {
   DrawingContext(Display *display)
       : display_(display),
         bgcolor_(color::Transparent),
-        paint_mode_(PAINT_MODE_DEFAULT),
+        paint_mode_(PAINT_MODE_BLEND),
         clip_box_(0, 0, display->width() - 1, display->height() - 1),
         clip_mask_(nullptr),
         background_(nullptr),
@@ -154,11 +154,14 @@ class DrawingContext {
 
   const Transform &transform() const { return transform_; }
 
+  inline void drawPixel(int16_t x, int16_t y, Color color) {
+    drawPixel(x, y, color, paint_mode_);
+  }
+
   inline void drawPixel(int16_t x, int16_t y, Color color,
-                        PaintMode paint_mode = PAINT_MODE_DEFAULT) {
+                        PaintMode paint_mode) {
     if (!clip_box_.contains(x, y)) return;
     if (clip_mask_ != nullptr && !clip_mask_->isSet(x, y)) return;
-    if (paint_mode == PAINT_MODE_DEFAULT) paint_mode = paint_mode_;
     output()->fillPixels(paint_mode, color, &x, &y, 1);
   }
 
@@ -239,7 +242,8 @@ class DrawingContext {
 };
 
 // Fill is an 'infinite' single-color surface. When drawn, it will fill the
-// entire clip box with the given color.
+// entire clip box with the given color. Fill ignores the surface's paint
+// mode, and always uses PAINT_MODE_REPLACE.
 class Fill : public Drawable {
  public:
   Fill(Color color) : color_(color) {}
@@ -248,7 +252,8 @@ class Fill : public Drawable {
 
  private:
   void drawTo(const Surface &s) const override {
-    s.out->fillRect(s.clip_box, color_);
+    Color color = alphaBlend(s.bgcolor, color_);
+    s.out->fillRect(PAINT_MODE_REPLACE, s.clip_box, color);
   }
 
   Color color_;

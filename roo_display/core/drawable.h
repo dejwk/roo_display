@@ -14,7 +14,7 @@ class Surface {
  public:
   Surface(DisplayOutput *out, int16_t dx, int16_t dy, Box clip,
           Color bg = color::Transparent,
-          PaintMode paint_mode = PAINT_MODE_DEFAULT)
+          PaintMode paint_mode = PAINT_MODE_BLEND)
       : out(out),
         dx(dx),
         dy(dy),
@@ -23,7 +23,7 @@ class Surface {
         paint_mode(paint_mode) {}
 
   Surface(DisplayOutput *out, Box clip, Color bg = color::Transparent,
-          PaintMode paint_mode = PAINT_MODE_DEFAULT)
+          PaintMode paint_mode = PAINT_MODE_BLEND)
       : out(out),
         dx(0),
         dy(0),

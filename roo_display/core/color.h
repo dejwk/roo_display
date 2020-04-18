@@ -7,14 +7,12 @@ namespace roo_display {
 // When drawing using semi-transparent colors, specified if and how the
 // previous content is combined with the new content.
 enum PaintMode {
-  // Drawable should use a paint mode that is the most suitable for it.
-  PAINT_MODE_DEFAULT,
+  // The new ARGB8888 value is alpha-blended over the old one. This is the
+  // default paint mode.
+  PAINT_MODE_BLEND,
 
   // The new ARGB8888 value completely replaces the old one.
   PAINT_MODE_REPLACE,
-
-  // The new ARGB8888 value is alpha-blended over the old one.
-  PAINT_MODE_BLEND
 };
 
 // Color is represented in ARGB8, and stored as 32-bit unsigned integer. It is a
@@ -112,16 +110,15 @@ inline Color alphaBlend(Color bgc, Color fgc) {
 
 inline Color combineColors(Color bgc, Color fgc, PaintMode paint_mode) {
   switch (paint_mode) {
-      case PAINT_MODE_DEFAULT:
-      case PAINT_MODE_REPLACE: {
-        return fgc;
-      }
-      case PAINT_MODE_BLEND: {
-        return alphaBlend(bgc, fgc);
-      }
-      default: {
-        return Color(0);
-      }
+    case PAINT_MODE_REPLACE: {
+      return fgc;
+    }
+    case PAINT_MODE_BLEND: {
+      return alphaBlend(bgc, fgc);
+    }
+    default: {
+      return Color(0);
+    }
   }
 }
 

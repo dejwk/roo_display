@@ -29,8 +29,7 @@ static const uint8_t kPixelWritingBufferSize = 64;
 
 class BufferedPixelWriter {
  public:
-  BufferedPixelWriter(DisplayOutput* device,
-                      PaintMode mode = PAINT_MODE_REPLACE)
+  BufferedPixelWriter(DisplayOutput* device, PaintMode mode)
       : device_(device), mode_(mode), buffer_size_(0) {}
 
   void writePixel(int16_t x, int16_t y, Color color) {
@@ -63,7 +62,7 @@ class BufferedPixelWriter {
 class ClippingBufferedPixelWriter {
  public:
   ClippingBufferedPixelWriter(DisplayOutput* device, Box clip_box,
-                              PaintMode mode = PAINT_MODE_REPLACE)
+                              PaintMode mode)
       : writer_(device, mode), clip_box_(std::move(clip_box)) {}
 
   void writePixel(int16_t x, int16_t y, Color color) {
@@ -85,8 +84,7 @@ class ClippingBufferedPixelWriter {
 
 class BufferedPixelFiller {
  public:
-  BufferedPixelFiller(DisplayOutput* device, Color color,
-                      PaintMode mode = PAINT_MODE_REPLACE)
+  BufferedPixelFiller(DisplayOutput* device, Color color, PaintMode mode)
       : device_(device), color_(color), mode_(mode), buffer_size_(0) {}
 
   void fillPixel(int16_t x, int16_t y) {
@@ -116,8 +114,7 @@ class BufferedPixelFiller {
 class ClippingBufferedPixelFiller {
  public:
   ClippingBufferedPixelFiller(DisplayOutput* device, Color color,
-                              Box clip_box,
-                              PaintMode mode = PAINT_MODE_REPLACE)
+                              Box clip_box, PaintMode mode)
       : filler_(device, color, mode), clip_box_(std::move(clip_box)) {}
 
   void fillPixel(int16_t x, int16_t y) {
@@ -164,8 +161,7 @@ class BufferedColorWriter {
 
 class BufferedHLineFiller {
  public:
-  BufferedHLineFiller(DisplayOutput* device, Color color,
-                      PaintMode mode = PAINT_MODE_REPLACE)
+  BufferedHLineFiller(DisplayOutput* device, Color color, PaintMode mode)
       : device_(device), mode_(mode), color_(color), buffer_size_(0) {}
 
   void fillHLine(int16_t x0, int16_t y0, int16_t x1) {
@@ -198,8 +194,7 @@ class BufferedHLineFiller {
 class ClippingBufferedHLineFiller {
  public:
   ClippingBufferedHLineFiller(DisplayOutput* device, Color color,
-                              Box clip_box,
-                              PaintMode mode = PAINT_MODE_REPLACE)
+                              Box clip_box, PaintMode mode)
       : filler_(device, color, mode), clip_box_(std::move(clip_box)) {}
 
   void fillHLine(int16_t x0, int16_t y0, int16_t x1) {
@@ -227,7 +222,7 @@ class ClippingBufferedHLineFiller {
 class BufferedVLineFiller {
  public:
   BufferedVLineFiller(DisplayOutput* device, Color color,
-                      PaintMode mode = PAINT_MODE_REPLACE)
+                      PaintMode mode)
       : device_(device), mode_(mode), color_(color), buffer_size_(0) {}
 
   void fillVLine(int16_t x0, int16_t y0, int16_t y1) {
@@ -261,7 +256,7 @@ class ClippingBufferedVLineFiller {
  public:
   ClippingBufferedVLineFiller(DisplayOutput* device, Color color,
                               Box clip_box,
-                              PaintMode mode = PAINT_MODE_REPLACE)
+                              PaintMode mode)
       : filler_(device, color, mode), clip_box_(std::move(clip_box)) {}
 
   void fillVLine(int16_t x0, int16_t y0, int16_t y1) {
@@ -288,7 +283,7 @@ class ClippingBufferedVLineFiller {
 
 class BufferedRectWriter {
  public:
-  BufferedRectWriter(DisplayOutput* device, PaintMode mode = PAINT_MODE_REPLACE)
+  BufferedRectWriter(DisplayOutput* device, PaintMode mode)
       : device_(device), mode_(mode), buffer_size_(0) {}
 
   inline void writePixel(int16_t x, int16_t y, Color color) {
@@ -336,7 +331,7 @@ class BufferedRectWriter {
 class ClippingBufferedRectWriter {
  public:
   ClippingBufferedRectWriter(DisplayOutput* device, Box clip_box,
-                             PaintMode mode = PAINT_MODE_REPLACE)
+                             PaintMode mode)
       : writer_(device, mode), clip_box_(std::move(clip_box)) {}
 
   inline void writePixel(int16_t x, int16_t y, Color color) {
@@ -380,7 +375,7 @@ class ClippingBufferedRectWriter {
 class BufferedRectFiller {
  public:
   BufferedRectFiller(DisplayOutput* device, Color color,
-                     PaintMode mode = PAINT_MODE_REPLACE)
+                     PaintMode mode)
       : device_(device), mode_(mode), color_(color), buffer_size_(0) {}
 
   inline void fillPixel(int16_t x, int16_t y) { fillRect(x, y, x, y); }
@@ -425,7 +420,7 @@ class BufferedRectFiller {
 class ClippingBufferedRectFiller {
  public:
   ClippingBufferedRectFiller(DisplayOutput* device, Color color, Box clip_box,
-                             PaintMode mode = PAINT_MODE_REPLACE)
+                             PaintMode mode)
       : filler_(device, color, mode), clip_box_(std::move(clip_box)) {}
 
   inline void fillPixel(int16_t x, int16_t y) { fillRect(x, y, x, y); }

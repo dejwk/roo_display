@@ -260,20 +260,17 @@ class DrawableStreamable : public Drawable {
     Box bounds =
         Box::intersect(s.clip_box, streamable_.extents().translate(s.dx, s.dy));
     if (bounds.empty()) return;
-    // Streamables default to PAINT_MODE_BLEND.
-    PaintMode paint_mode = s.paint_mode;
-    if (paint_mode == PAINT_MODE_DEFAULT) paint_mode = PAINT_MODE_BLEND;
     if (streamable_.extents().width() == bounds.width() &&
         streamable_.extents().height() == bounds.height()) {
       // Optimized case: rendering full stream.
       auto stream = streamable_.CreateStream();
       internal::FillRectFromStream(s.out, bounds, stream.get(), s.bgcolor,
-                                   paint_mode);
+                                   s.paint_mode);
     } else {
       auto stream =
           CreateClippedStreamFor(streamable_, bounds.translate(-s.dx, -s.dy));
       internal::FillRectFromStream(s.out, bounds, stream.get(), s.bgcolor,
-                                   paint_mode);
+                                   s.paint_mode);
     }
   }
 

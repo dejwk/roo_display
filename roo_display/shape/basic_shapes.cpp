@@ -48,8 +48,7 @@ void drawSteepLine(VLineFiller *drawer, int16_t x0, int16_t y0, int16_t x1,
 }
 
 void drawHLine(DisplayOutput *device, int16_t x0, int16_t y0, int16_t x1,
-               Color color, const Box &clip_box,
-               PaintMode mode = PAINT_MODE_REPLACE) {
+               Color color, const Box &clip_box, PaintMode mode) {
   if (x0 > clip_box.xMax() || x1 < clip_box.xMin() || y0 > clip_box.yMax() ||
       y0 < clip_box.yMin() || x1 < x0) {
     return;
@@ -62,8 +61,7 @@ void drawHLine(DisplayOutput *device, int16_t x0, int16_t y0, int16_t x1,
 }
 
 void drawVLine(DisplayOutput *device, int16_t x0, int16_t y0, int16_t y1,
-               Color color, const Box &clip_box,
-               PaintMode mode = PAINT_MODE_REPLACE) {
+               Color color, const Box &clip_box, PaintMode mode) {
   if (x0 > clip_box.xMax() || x0 < clip_box.xMin() || y0 > clip_box.yMax() ||
       y1 < clip_box.yMin() || y1 < y0) {
     return;
@@ -78,7 +76,7 @@ void drawVLine(DisplayOutput *device, int16_t x0, int16_t y0, int16_t y1,
 void Line::drawTo(const Surface &s) const {
   int16_t x0 = x0_ + s.dx, y0 = y0_ + s.dy;
   int16_t x1 = x1_ + s.dx, y1 = y1_ + s.dy;
-  Color color = combineColors(s.bgcolor, this->color(), s.paint_mode);
+  Color color = alphaBlend(s.bgcolor, this->color());
   if (x0 == x1) {
     drawVLine(s.out, x0, y0, y1, color, s.clip_box, s.paint_mode);
   } else if (y0_ == y1_) {
@@ -113,7 +111,7 @@ void Rect::drawTo(const Surface &s) const {
   int16_t y0 = y0_ + s.dy;
   int16_t x1 = x1_ + s.dx;
   int16_t y1 = y1_ + s.dy;
-  Color color = combineColors(s.bgcolor, this->color(), s.paint_mode);
+  Color color = alphaBlend(s.bgcolor, this->color());
   ClippingBufferedRectFiller filler(s.out, color, s.clip_box, s.paint_mode);
   filler.fillHLine(x0, y0, x1);
   filler.fillHLine(x0, y1, x1);
@@ -130,7 +128,7 @@ void FilledRect::drawTo(const Surface &s) const {
   int16_t y0 = y0_ + s.dy;
   int16_t x1 = x1_ + s.dx;
   int16_t y1 = y1_ + s.dy;
-  Color color = combineColors(s.bgcolor, this->color(), s.paint_mode);
+  Color color = alphaBlend(s.bgcolor, this->color());
   Box box(x0, y0, x1, y1);
   if (box.clip(s.clip_box)) {
     s.out->fillRect(s.paint_mode, box, color);
@@ -248,14 +246,14 @@ void drawRoundRect(DisplayOutput *output, const Box &bbox, int16_t radius,
 void RoundRect::drawInteriorTo(const Surface &s) const {
   Box extents(x0_ + s.dx, y0_ + s.dy, x1_ + s.dx, y1_ + s.dy);
   drawRoundRect(s.out, extents, radius_, s.clip_box,
-                combineColors(s.bgcolor, this->color(), s.paint_mode), s.paint_mode);
+                alphaBlend(s.bgcolor, this->color()), s.paint_mode);
 }
 
 void Circle::drawInteriorTo(const Surface &s) const {
   Box extents(x0_ + s.dx, y0_ + s.dy, x0_ + diameter_ - 1 + s.dx,
               y0_ + diameter_ - 1 + s.dy);
   drawRoundRect(s.out, extents, diameter_ >> 1, s.clip_box,
-                combineColors(s.bgcolor, this->color(), s.paint_mode), s.paint_mode);
+                alphaBlend(s.bgcolor, this->color()), s.paint_mode);
 }
 
 // Also used to draw circles, in a special case when radius is half of the box
@@ -281,14 +279,14 @@ void fillRoundRect(DisplayOutput *output, const Box &bbox, int16_t radius,
 void FilledRoundRect::drawInteriorTo(const Surface &s) const {
   Box extents(x0_ + s.dx, y0_ + s.dy, x1_ + s.dx, y1_ + s.dy);
   fillRoundRect(s.out, extents, radius_, s.clip_box,
-                combineColors(s.bgcolor, this->color(), s.paint_mode), s.paint_mode);
+                alphaBlend(s.bgcolor, this->color()), s.paint_mode);
 }
 
 void FilledCircle::drawInteriorTo(const Surface &s) const {
   Box extents(x0_ + s.dx, y0_ + s.dy, x0_ + diameter_ - 1 + s.dx,
               y0_ + diameter_ - 1 + s.dy);
   fillRoundRect(s.out, extents, diameter_ >> 1, s.clip_box,
-                combineColors(s.bgcolor, this->color(), s.paint_mode), s.paint_mode);
+                alphaBlend(s.bgcolor, this->color()), s.paint_mode);
 }
 
 template <typename PixelFiller>
@@ -402,14 +400,14 @@ void fillTriangle(HLineFiller *drawer, int16_t x0, int16_t y0, int16_t x1,
 }
 
 void Triangle::drawInteriorTo(const Surface &s) const {
-  Color color = combineColors(s.bgcolor, this->color(), s.paint_mode);
+  Color color = alphaBlend(s.bgcolor, this->color());
   s.drawObject(Line(x0_, y0_, x1_, y1_, color));
   s.drawObject(Line(x1_, y1_, x2_, y2_, color));
   s.drawObject(Line(x0_, y0_, x2_, y2_, color));
 }
 
 void FilledTriangle::drawInteriorTo(const Surface &s) const {
-  Color color = combineColors(s.bgcolor, this->color(), s.paint_mode);
+  Color color = alphaBlend(s.bgcolor, this->color());
   int16_t x0 = x0_ + s.dx;
   int16_t y0 = y0_ + s.dy;
   int16_t x1 = x1_ + s.dx;

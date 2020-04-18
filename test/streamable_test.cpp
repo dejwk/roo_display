@@ -10,7 +10,7 @@ namespace roo_display {
 
 template <typename Streamable>
 void Draw(DisplayDevice* output, int16_t x, int16_t y, const Box& clip_box,
-          const Streamable& object, PaintMode paint_mode = PAINT_MODE_DEFAULT) {
+          const Streamable& object, PaintMode paint_mode = PAINT_MODE_BLEND) {
   output->begin();
   DrawableStreamable<Streamable> drawable(object);
   Surface s(output, x, y, clip_box, 0, paint_mode);
@@ -20,7 +20,7 @@ void Draw(DisplayDevice* output, int16_t x, int16_t y, const Box& clip_box,
 
 template <typename Streamable>
 void Draw(DisplayDevice* output, int16_t x, int16_t y, const Streamable& object,
-          PaintMode paint_mode = PAINT_MODE_DEFAULT) {
+          PaintMode paint_mode = PAINT_MODE_BLEND) {
   Box clip_box(0, 0, output->effective_width() - 1,
                output->effective_height() - 1);
   Draw(output, x, y, clip_box, object, paint_mode);

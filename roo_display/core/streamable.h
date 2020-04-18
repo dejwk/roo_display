@@ -72,7 +72,7 @@ template <typename PixelStream>
 struct RectFiller<PixelStream, TRANSPARENCY_NONE> {
   void operator()(DisplayOutput *output, const Box &extents,
                   PixelStream *stream) const {
-    output->setAddress(extents);
+    output->setAddress(extents, PAINT_MODE_REPLACE);
     int count = extents.area();
     BufferedColorWriter writer(output);
     while (count-- > 0) {
@@ -85,7 +85,7 @@ template <typename PixelStream, TransparencyMode mode>
 struct RectFillerWithBgColor {
   void operator()(DisplayOutput *output, const Box &extents, Color bgcolor,
                   PixelStream *stream) const {
-    output->setAddress(extents);
+    output->setAddress(extents, PAINT_MODE_REPLACE);
     int count = extents.area();
     BufferedColorWriter writer(output);
     while (count-- > 0) {

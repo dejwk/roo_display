@@ -14,9 +14,9 @@ class DisplayOutput {
   virtual ~DisplayOutput() {}
 
   // Convenience shortcut.
-  void setAddress(const Box &bounds) {
+  void setAddress(const Box &bounds, PaintMode mode) {
     setAddress(bounds.xMin(), bounds.yMin(), bounds.xMax(), bounds.yMax(),
-               PAINT_MODE_REPLACE);
+               mode);
   }
 
   // Set a rectangular window that will be filled by subsequent calls to

@@ -38,7 +38,10 @@ class Display {
   // that color as the defaul background hint.
   void init(Color bgcolor);
 
+  // Sets the orientation of the display. Setting the orientation resets
+  // the clip box to the maximum display area.
   void setOrientation(Orientation orientation);
+
   Orientation orientation() const { return orientation_; }
 
   DisplayOutput *output() { return display_; }

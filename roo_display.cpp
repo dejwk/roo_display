@@ -69,9 +69,7 @@ void Display::updateBounds() {
     width_ = display_->raw_width();
     height_ = display_->raw_height();
   }
-  clip_box_ =
-      Box::intersect(clip_box_, Box(0, 0, display_->effective_width() - 1,
-                                    display_->effective_height() - 1));
+  clip_box_ = Box(0, 0, width_ - 1, height_ - 1);
 }
 
 void DrawingContext::fill(Color color) { draw(Fill(color)); }

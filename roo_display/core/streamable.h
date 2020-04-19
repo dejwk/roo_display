@@ -36,22 +36,6 @@ using ColorModeOf = decltype(std::declval<Streamable>().color_mode());
 
 namespace internal {
 
-template <typename PixelStream, TransparencyMode mode>
-struct RectFiller;
-
-template <typename PixelStream>
-struct RectFiller<PixelStream, TRANSPARENCY_GRADUAL> {
-  void operator()(DisplayOutput *output, const Box &extents,
-                  PixelStream *stream) const {
-    BufferedPixelWriter writer(output, PAINT_MODE_BLEND);
-    for (int16_t j = extents.yMin(); j <= extents.yMax(); ++j) {
-      for (int16_t i = extents.xMin(); i <= extents.xMax(); ++i) {
-        writer.writePixel(i, j, stream->next());
-      }
-    }
-  }
-};
-
 template <typename PixelStream>
 struct RectFillerVisible {
   void operator()(DisplayOutput *output, const Box &extents,

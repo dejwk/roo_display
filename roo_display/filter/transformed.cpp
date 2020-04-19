@@ -120,6 +120,13 @@ void Transform::transformRect(int16_t &x0, int16_t &y0, int16_t &x1,
   }
 }
 
+int floor_div(int a, int b) {
+    // https://stackoverflow.com/questions/3602827/what-is-the-behavior-of-integer-division
+    int d = a / b;
+    int r = a % b;  /* optimizes into single division. */
+    return r ? (d - ((a < 0) ^ (b < 0))) : d;
+}
+
 Box Transform::smallestEnclosingRect(const Box &rect) const {
   int16_t x0 = rect.xMin() - x_offset_;
   int16_t y0 = rect.yMin() - y_offset_;
@@ -128,13 +135,13 @@ Box Transform::smallestEnclosingRect(const Box &rect) const {
   if (x_scale_ < 0) {
     std::swap(x0, x1);
   }
-  x0 /= x_scale_;
-  x1 /= x_scale_;
+  x0 = floor_div(x0, x_scale_);
+  x1 = floor_div(x1, x_scale_);
   if (y_scale_ < 0) {
     std::swap(y0, y1);
   }
-  y0 /= y_scale_;
-  y1 /= y_scale_;
+  y0 = floor_div(y0, y_scale_);
+  y1 = floor_div(y1, y_scale_);
   if (xy_swap_) {
     std::swap(x0, y0);
     std::swap(x1, y1);

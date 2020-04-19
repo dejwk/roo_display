@@ -34,7 +34,10 @@ static DummyTouch dummy_touch;
 Display::Display(DisplayDevice *display, TouchDevice *touch)
     : display_(display),
       touch_(display, touch == nullptr ? &dummy_touch : touch),
-      orientation_(display->orientation()) {
+      orientation_(display->orientation()),
+      clip_box_(Box::MaximumBox()),
+      bgcolor_(Color(0)),
+      background_(nullptr) {
   updateBounds();
 }
 
@@ -54,6 +57,7 @@ void Display::init(Color bgcolor) {
                          display_->effective_height() - 1),
                      bgcolor);
   unnest();
+  setBackground(bgcolor);
   display_->setBgColorHint(bgcolor);
 }
 
@@ -65,8 +69,12 @@ void Display::updateBounds() {
     width_ = display_->raw_width();
     height_ = display_->raw_height();
   }
+  clip_box_ =
+      Box::intersect(clip_box_, Box(0, 0, display_->effective_width() - 1,
+                                    display_->effective_height() - 1));
 }
 
 void DrawingContext::fill(Color color) { draw(Fill(color)); }
+void DrawingContext::clear() { draw(Clear()); }
 
 }  // namespace roo_display

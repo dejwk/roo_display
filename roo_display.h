@@ -35,7 +35,7 @@ class Display {
   void init() { display_->init(); }
 
   // Initializes the device, fills screen with the specified color, and sets
-  // that color as the defaul bacground hint.
+  // that color as the defaul background hint.
   void init(Color bgcolor);
 
   void setOrientation(Orientation orientation);
@@ -45,6 +45,32 @@ class Display {
   const DisplayOutput &output() const { return *display_; }
 
   bool getTouch(int16_t *x, int16_t *y) { return touch_.getTouch(x, y); }
+
+  // Sets a default clip box, inherited by all derived contexts.
+  void setClipBox(int16_t x0, int16_t y0, int16_t x1, int16_t y1) {
+    setClipBox(Box(x0, y0, x1, y1));
+  }
+
+  // Sets a default clip box, inherited by all derived contexts.
+  void setClipBox(const Box &clip_box) {
+    clip_box_ = Box::intersect(clip_box, extents());
+  }
+
+  // Returns the default clip box.
+  const Box &getClipBox() const { return clip_box_; }
+
+  // Sets a synthetic background to be used by all derived contexts.
+  void setBackground(const Synthetic *bg) {
+    background_ = bg;
+    bgcolor_ = color::Transparent;
+  }
+
+  // Sets a background color to be used by all derived contexts.
+  // Initially set to color::Transparent.
+  void setBackground(Color bgcolor) {
+    background_ = nullptr;
+    bgcolor_ = bgcolor;
+  }
 
  private:
   friend class DrawingContext;
@@ -69,6 +95,10 @@ class Display {
   int16_t width_;
   int16_t height_;
   Orientation orientation_;
+
+  Box clip_box_;
+  Color bgcolor_;
+  const Synthetic *background_;
 };
 
 // Primary top-level interface for drawing to screens, off-screen buffers,
@@ -106,12 +136,12 @@ class DrawingContext {
  public:
   DrawingContext(Display *display)
       : display_(display),
-        bgcolor_(color::Transparent),
         fill_mode_(FILL_MODE_VISIBLE),
         paint_mode_(PAINT_MODE_BLEND),
-        clip_box_(0, 0, display->width() - 1, display->height() - 1),
+        clip_box_(display->clip_box_),
         clip_mask_(nullptr),
-        background_(nullptr),
+        background_(display->background_),
+        bgcolor_(display->bgcolor_),
         transformed_(false),
         transform_() {
     display_->nest();
@@ -138,10 +168,14 @@ class DrawingContext {
   PaintMode paintMode() const { return paint_mode_; }
   void setPaintMode(PaintMode paint_mode) { paint_mode_ = paint_mode; }
 
+  // Clears the display, respecting the clip box, and background settings.
+  void clear();
+
+  // Fills the display with the specified color, respecting the clip box.
   void fill(Color color);
 
   void setClipBox(const Box &clip_box) {
-    clip_box_ = Box::intersect(clip_box, Box(0, 0, width() - 1, height() - 1));
+    clip_box_ = Box::intersect(clip_box, display_->clip_box_);
   }
 
   void setClipBox(int16_t x0, int16_t y0, int16_t x1, int16_t y1) {
@@ -239,7 +273,6 @@ class DrawingContext {
   }
 
   Display *display_;
-  Color bgcolor_;
   FillMode fill_mode_;
   PaintMode paint_mode_;
 
@@ -247,11 +280,12 @@ class DrawingContext {
   Box clip_box_;
   const ClipMask *clip_mask_;
   const Synthetic *background_;
+  Color bgcolor_;
   bool transformed_;
   Transform transform_;
 };
 
-// Fill is an 'infinite' single-color surface. When drawn, it will fill the
+// Fill is an 'infinite' single-color area. When drawn, it will fill the
 // entire clip box with the given color. Fill ignores the surface's paint
 // mode, and always uses PAINT_MODE_REPLACE.
 class Fill : public Drawable {
@@ -267,6 +301,21 @@ class Fill : public Drawable {
   }
 
   Color color_;
+};
+
+// Clear is an 'infinite' transparent area. When drawn, it will fill the
+// entire clip box with the color implied by background settings. Clear
+// ignores the surface's paint mode, and always uses PAINT_MODE_REPLACE.
+class Clear : public Drawable {
+ public:
+  Clear() {}
+
+  Box extents() const override { return Box::MaximumBox(); }
+
+ private:
+  void drawTo(const Surface &s) const override {
+    s.out->fillRect(PAINT_MODE_REPLACE, s.clip_box, Color(0));
+  }
 };
 
 }  // namespace roo_display

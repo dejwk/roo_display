@@ -1,3 +1,5 @@
+#pragma once
+
 #include "font.h"
 
 namespace roo_display {

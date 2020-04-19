@@ -8,28 +8,52 @@ namespace roo_display {
 class DisplayOutput;
 class Drawable;
 
+// FillMode specifies whether the Drawable should fill the entire extents box,
+// including the pixels that are fully transparent.
+enum FillMode {
+  // Specifies that the entire extents box should get filled (possibly with
+  // fully transparent pixels). It is useful e.g. when the image is drawn
+  // over a synthetic background, and we want to have previous content
+  // replaces with the background.
+  FILL_MODE_RECTANGLE = 0,
+
+  // Specifies that the fully-transparent pixels don't need to get filled.
+  FILL_MODE_VISIBLE = 1
+};
+
 // Low-level 'handle' to draw to an underlying device. Passed by the library
 // to Drawable.draw() (see below). Don't create directly.
 class Surface {
  public:
   Surface(DisplayOutput *out, int16_t dx, int16_t dy, Box clip,
-          Color bg = color::Transparent,
+          Color bg = color::Transparent, FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND)
       : out(out),
         dx(dx),
         dy(dy),
         clip_box(std::move(clip)),
         bgcolor(bg),
-        paint_mode(paint_mode) {}
+        fill_mode(fill_mode),
+        paint_mode(paint_mode) {
+    if (bg.a() != 0) {
+      fill_mode = FILL_MODE_RECTANGLE;
+    }
+  }
 
   Surface(DisplayOutput *out, Box clip, Color bg = color::Transparent,
+          FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND)
       : out(out),
         dx(0),
         dy(0),
         clip_box(std::move(clip)),
         bgcolor(bg),
-        paint_mode(paint_mode) {}
+        fill_mode(fill_mode),
+        paint_mode(paint_mode) {
+    if (bg.a() != 0) {
+      fill_mode = FILL_MODE_RECTANGLE;
+    }
+  }
 
   Surface(Surface &&other) = default;
   Surface(const Surface &other) = default;
@@ -48,6 +72,7 @@ class Surface {
   int16_t dy;
   Box clip_box;
   Color bgcolor;
+  FillMode fill_mode;
   PaintMode paint_mode;
 };
 

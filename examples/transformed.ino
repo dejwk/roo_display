@@ -65,9 +65,9 @@ void loop(void) {
     utf8[3] = 0;
   }
   TextLabel label(font_NotoSerif_BoldItalic_27(),
-                  std::string((const char*)utf8), fg);
+                  std::string((const char*)utf8), fg, FILL_MODE_RECTANGLE);
   DrawingContext dc(&display);
-  dc.setBgColor(bg);
+  dc.setBackground(bg);
   dc.setTransform(Transform()
                       .rotateClockwise(rotations)
                       .scale(x_scale, y_scale)

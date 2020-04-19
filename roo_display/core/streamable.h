@@ -69,19 +69,32 @@ struct RectFillerVisible {
 };
 
 template <typename PixelStream>
-struct RectFillerWithBgColor {
+struct RectFillerRectangle {
   void operator()(DisplayOutput *output, const Box &extents, Color bgcolor,
-                  PixelStream *stream, PaintMode mode) const {
-    output->setAddress(extents, mode);
+                  PixelStream *stream, PaintMode paint_mode,
+                  TransparencyMode transparency_mode) const {
+    output->setAddress(extents, paint_mode);
     int count = extents.area();
     BufferedColorWriter writer(output);
-    while (count-- > 0) {
-      Color color = stream->next();
-      uint8_t a = color.a();
-      if (a != 0xFF) {
-        color = (a == 0x00) ? bgcolor : alphaBlendOverOpaque(bgcolor, color);
+    if (bgcolor.a() == 0) {
+      while (count-- > 0) {
+        writer.writeColor(stream->next());
       }
-      writer.writeColor(color);
+    } else if (transparency_mode == TRANSPARENCY_GRADUAL) {
+      if (bgcolor.a() == 0xFF) {
+        while (count-- > 0) {
+          writer.writeColor(alphaBlendOverOpaque(bgcolor, stream->next()));
+        }
+      } else {
+        while (count-- > 0) {
+          writer.writeColor(alphaBlend(bgcolor, stream->next()));
+        }
+      }
+    } else {
+        while (count-- > 0) {
+          Color color = stream->next();
+          writer.writeColor(color.a() == 0 ? bgcolor : color);
+        }
     }
   }
 };
@@ -91,14 +104,16 @@ struct RectFillerWithBgColor {
 template <typename PixelStream>
 void FillRectFromStream(DisplayOutput *output, const Box &extents,
                         PixelStream *stream, Color bgcolor,
+                        FillMode fill_mode,
                         PaintMode paint_mode) {
   if (stream->transparency() == TRANSPARENCY_NONE) {
+    // The stream will overwrite the entire rectangle anyway.
     paint_mode = PAINT_MODE_REPLACE;
     bgcolor = color::Transparent;
   }
-  if (bgcolor.a() != 0) {
-    RectFillerWithBgColor<PixelStream> fill;
-    fill(output, extents, bgcolor, stream, paint_mode);
+  if (fill_mode == FILL_MODE_RECTANGLE) {
+    RectFillerRectangle<PixelStream> fill;
+    fill(output, extents, bgcolor, stream, paint_mode, stream->transparency());
   } else {
     RectFillerVisible<PixelStream> fill;
     fill(output, extents, stream, paint_mode);
@@ -265,12 +280,12 @@ class DrawableStreamable : public Drawable {
       // Optimized case: rendering full stream.
       auto stream = streamable_.CreateStream();
       internal::FillRectFromStream(s.out, bounds, stream.get(), s.bgcolor,
-                                   s.paint_mode);
+                                   s.fill_mode, s.paint_mode);
     } else {
       auto stream =
           CreateClippedStreamFor(streamable_, bounds.translate(-s.dx, -s.dy));
       internal::FillRectFromStream(s.out, bounds, stream.get(), s.bgcolor,
-                                   s.paint_mode);
+                                   s.fill_mode, s.paint_mode);
     }
   }
 

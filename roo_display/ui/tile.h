@@ -42,14 +42,17 @@ class SolidBorder {
 class TileBase : public Drawable {
  public:
   TileBase(const Drawable &interior, Box extents, HAlign halign, VAlign valign,
-           Color bgcolor)
+           Color bgcolor, FillMode fill_mode = FILL_MODE_RECTANGLE)
       : border_(std::move(extents), std::move(interior.extents()), halign,
                 valign),
-        bgcolor_(bgcolor) {}
+        bgcolor_(bgcolor),
+        fill_mode_(fill_mode) {}
 
   Color bgcolor() const { return bgcolor_; }
+  FillMode fillMode() const { return fill_mode_; }
 
   void setBgColor(Color bgcolor) { bgcolor_ = bgcolor; }
+  void setFillMode(FillMode fill_mode) { fill_mode_ = fill_mode; }
 
   // template <typename... Args>
   // TileOf(Args &&... args, Rect extents, int16_t x_offset, int16_t y_offset)
@@ -65,6 +68,7 @@ class TileBase : public Drawable {
  private:
   internal::SolidBorder border_;
   Color bgcolor_;
+  FillMode fill_mode_;
 };
 
 }  // namespace internal
@@ -101,8 +105,8 @@ class Tile : public internal::TileBase {
   // Creates a tile with the specified interior, alignment, and optionally
   // background color.
   Tile(const Drawable *interior, Box extents, HAlign halign, VAlign valign,
-       Color bgcolor = color::Transparent)
-      : internal::TileBase(*interior, extents, halign, valign, bgcolor),
+       Color bgcolor = color::Transparent, FillMode fill_mode = FILL_MODE_RECTANGLE)
+      : internal::TileBase(*interior, extents, halign, valign, bgcolor, fill_mode),
         interior_(interior) {}
 
   void drawTo(const Surface &s) const override {
@@ -123,8 +127,8 @@ class TileOf : public internal::TileBase {
   // Creates a tile with the specified interior, alignment, and optionally
   // background color.
   TileOf(DrawableType interior, Box extents, HAlign halign, VAlign valign,
-         Color bgcolor = color::Transparent)
-      : internal::TileBase(interior, extents, halign, valign, bgcolor),
+         Color bgcolor = color::Transparent, FillMode fill_mode = FILL_MODE_RECTANGLE)
+      : internal::TileBase(interior, extents, halign, valign, bgcolor, fill_mode),
         interior_(std::move(interior)) {}
 
   // template <typename... Args>

@@ -117,7 +117,7 @@ void Rect::drawTo(const Surface &s) const {
   filler.fillHLine(x0, y1, x1);
   filler.fillVLine(x0, y0 + 1, y1 - 1);
   filler.fillVLine(x1, y0 + 1, y1 - 1);
-  if (s.bgcolor.a() != 0 && x1 - x0 >= 2 && y1 - y0 >= 2) {
+  if (s.fill_mode == FILL_MODE_RECTANGLE && x1 - x0 >= 2 && y1 - y0 >= 2) {
     s.out->fillRect(Box(x0 + 1, y0 + 1, x1 - 1, y1 - 1), s.bgcolor);
   }
 }

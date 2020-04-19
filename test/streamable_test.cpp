@@ -10,20 +10,22 @@ namespace roo_display {
 
 template <typename Streamable>
 void Draw(DisplayDevice* output, int16_t x, int16_t y, const Box& clip_box,
-          const Streamable& object, PaintMode paint_mode = PAINT_MODE_BLEND) {
+          const Streamable& object, FillMode fill_mode = FILL_MODE_VISIBLE,
+          PaintMode paint_mode = PAINT_MODE_BLEND) {
   output->begin();
   DrawableStreamable<Streamable> drawable(object);
-  Surface s(output, x, y, clip_box, 0, paint_mode);
+  Surface s(output, x, y, clip_box, 0, fill_mode, paint_mode);
   s.drawObject(drawable);
   output->end();
 }
 
 template <typename Streamable>
 void Draw(DisplayDevice* output, int16_t x, int16_t y, const Streamable& object,
+          FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND) {
   Box clip_box(0, 0, output->effective_width() - 1,
                output->effective_height() - 1);
-  Draw(output, x, y, clip_box, object, paint_mode);
+  Draw(output, x, y, clip_box, object, fill_mode, paint_mode);
 }
 
 TEST(Streamable, FilledRect) {
@@ -159,7 +161,7 @@ TEST(Streamable, AlphaTransparency) {
 TEST(Streamable, AlphaTransparencyOverriddenReplace) {
   auto input = MakeTestStreamable(Argb4444(), 4, 1, "4488 F678 F1A3 73E3");
   FakeOffscreen<Argb4444> test_screen(6, 1, color::Black);
-  Draw(&test_screen, 1, 0, input, PAINT_MODE_REPLACE);
+  Draw(&test_screen, 1, 0, input, FILL_MODE_VISIBLE, PAINT_MODE_REPLACE);
   EXPECT_THAT(test_screen, MatchesContent(Argb4444(), 6, 1,
                                           "F000 4488 F678 F1A3 73E3 F000"));
 }

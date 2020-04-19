@@ -182,7 +182,7 @@ void SmoothFont::drawGlyphNoBackground(DisplayOutput *output, int16_t x,
                                        const Box &clip_box, Color color,
                                        PaintMode paint_mode) const {
   Surface s(output, x + metrics.bearingX(), y - metrics.bearingY(), clip_box,
-            color::Transparent, paint_mode);
+            color::Transparent, FILL_MODE_VISIBLE, paint_mode);
   if (rle()) {
     RleImage4bppxPolarized<Alpha4> glyph(metrics.width(), metrics.height(),
                                          data, color);
@@ -202,7 +202,7 @@ void SmoothFont::drawGlyphWithBackground(DisplayOutput *output, int16_t x,
                                          int16_t offset, const Box &clip_box,
                                          Color color, Color bgColor,
                                          PaintMode paint_mode) const {
-  Surface s(output, x, y, clip_box, color::Transparent, paint_mode);
+  Surface s(output, x, y, clip_box, color::Transparent, FILL_MODE_RECTANGLE, paint_mode);
   StreamableFilledRect bg(bgwidth, metrics().maxHeight(), bgColor);
   if (rle()) {
     RleImage4bppxPolarized<Alpha4> glyph(glyph_metrics.width(),
@@ -229,7 +229,7 @@ void SmoothFont::drawKernedGlyphsWithBackground(
     const uint8_t *PROGMEM right_data, int16_t right_offset,
     const Box &clip_box, Color color, Color bgColor,
     PaintMode paint_mode) const {
-  Surface s(output, x, y, clip_box, color::Transparent, paint_mode);
+  Surface s(output, x, y, clip_box, color::Transparent, FILL_MODE_RECTANGLE, paint_mode);
   StreamableFilledRect bg(bgwidth, metrics().maxHeight(), bgColor);
   if (rle()) {
     RleImage4bppxPolarized<Alpha4> left(
@@ -367,7 +367,7 @@ void SmoothFont::drawHorizontalString(const Surface &s,
     return;
   }
   unicode_t next_code = decoder.next();
-  bool has_background = (s.bgcolor.asArgb() != 0);
+  bool has_background = (s.fill_mode == FILL_MODE_RECTANGLE);
   int16_t x = s.dx;
   int16_t y = s.dy;
   DisplayOutput *output = s.out;

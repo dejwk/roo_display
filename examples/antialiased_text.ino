@@ -42,14 +42,19 @@ void setup() {
 // to draw it.
 class Widget : public Drawable {
  public:
+  Widget(FillMode fill_mode = FILL_MODE_RECTANGLE) : fill_mode_(fill_mode) {}
   Box extents() const override { return Box(0, 0, 39, 39); }
   void drawTo(const Surface& s) const override {
     s.drawObject(FilledRect(0, 0, 19, 39, color::IndianRed));
     s.drawObject(FilledRect(20, 0, 39, 39, color::LightGreen));
     s.drawObject(
         MakeTileOf(TextLabel(font_NotoSerif_Italic_27(), "FJ", color::Black),
-                   Box(5, 2, 34, 37), HAlign::Center(), VAlign::Middle()));
+                   Box(5, 2, 34, 37), HAlign::Center(), VAlign::Middle(),
+                   color::Transparent, fill_mode_));
   }
+
+ private:
+  FillMode fill_mode_;
 };
 
 // This helper method takes our widget, and draws two copies of it: first
@@ -81,14 +86,14 @@ void printTransparentlyUsingDeviceBackground(Color bgcolor) {
   Serial.println("Drawing with device background.");
   DrawingContext dc(&display);
   device.setBgColorHint(bgcolor);
-  printText(dc, Widget());
+  printText(dc, Widget(FILL_MODE_VISIBLE));
 }
 
 // Draws the glyphs using a solid background (overwriting previous background).
 void printUsingSolidBackground(Color bgcolor) {
   Serial.println("Drawing with solid background.");
   DrawingContext dc(&display);
-  dc.setBgColor(bgcolor);
+  dc.setBackground(bgcolor);
   printText(dc, Widget());
 }
 
@@ -119,12 +124,12 @@ void printUsingClipping() {
       "great overall. Might be tad slower than via RAM buffer.");
   DrawingContext dc(&display);
   // Print the left half.
-  dc.setBgColor(color::IndianRed);
+  dc.setBackground(color::IndianRed);
   // Clipped
   Widget widget;
   printText(dc,
             TransformedDrawable(Transform().clip(Box(0, 0, 19, 39)), &widget));
-  dc.setBgColor(color::LightGreen);
+  dc.setBackground(color::LightGreen);
   printText(dc,
             TransformedDrawable(Transform().clip(Box(20, 0, 39, 39)), &widget));
 }

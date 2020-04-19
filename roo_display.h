@@ -107,6 +107,7 @@ class DrawingContext {
   DrawingContext(Display *display)
       : display_(display),
         bgcolor_(color::Transparent),
+        fill_mode_(FILL_MODE_VISIBLE),
         paint_mode_(PAINT_MODE_BLEND),
         clip_box_(0, 0, display->width() - 1, display->height() - 1),
         clip_mask_(nullptr),
@@ -121,8 +122,18 @@ class DrawingContext {
   int16_t width() const { return display_->width(); }
   int16_t height() const { return display_->height(); }
 
-  Color bgColor() const { return bgcolor_; }
-  void setBgColor(Color color) { bgcolor_ = color; }
+  void setBackground(const Synthetic *bg) {
+    background_ = bg;
+    bgcolor_ = color::Transparent;
+  }
+
+  void setBackground(Color bgcolor) {
+    background_ = nullptr;
+    bgcolor_ = bgcolor;
+  }
+
+  FillMode fillMode() const { return fill_mode_; }
+  void setFillMode(FillMode fill_mode) { fill_mode_ = fill_mode; }
 
   PaintMode paintMode() const { return paint_mode_; }
   void setPaintMode(PaintMode paint_mode) { paint_mode_ = paint_mode; }
@@ -140,8 +151,6 @@ class DrawingContext {
   void setClipMask(const ClipMask *clip_mask) { clip_mask_ = clip_mask; }
 
   const Box &getClipBox() const { return clip_box_; }
-
-  void setBackground(const Synthetic *bg) { background_ = bg; }
 
   // void applyTransform(Transform t) {
   //   transform_ = transform_.transform(t);
@@ -216,7 +225,7 @@ class DrawingContext {
 
   void drawInternalTransformed(DisplayOutput *output, const Drawable &object,
                                int16_t dx, int16_t dy, Color bgcolor) {
-    Surface s(output, dx, dy, clip_box_, bgcolor, paint_mode_);
+    Surface s(output, dx, dy, clip_box_, bgcolor, fill_mode_, paint_mode_);
     if (!transformed_) {
       s.drawObject(object);
     } else if (!transform_.is_rescaled() && !transform_.xy_swap()) {
@@ -231,6 +240,7 @@ class DrawingContext {
 
   Display *display_;
   Color bgcolor_;
+  FillMode fill_mode_;
   PaintMode paint_mode_;
 
   // Absolute coordinates of the clip region in the device space. Inclusive.

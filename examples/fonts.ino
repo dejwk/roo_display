@@ -107,7 +107,7 @@
 using namespace roo_display;
 
 // Change these two lines to use a different driver, transport, or pins.
-#include "roo_display/driver/st7789.h" 
+#include "roo_display/driver/st7789.h"
 St7789spi_240x240<13, 2, 4> device;
 
 Display display(&device, nullptr);
@@ -237,7 +237,8 @@ void setup() {
 
 int16_t printLn(DrawingContext& dc, const Font& font, int16_t x, int16_t y,
                 const std::string& text, Color color) {
-  dc.draw(TextLabel(font, text, color), x, y + font.metrics().glyphYMax());
+  dc.draw(TextLabel(font, text, color, FILL_MODE_RECTANGLE), x,
+          y + font.metrics().glyphYMax());
   return font.metrics().linespace() + 1;
 }
 
@@ -247,19 +248,19 @@ void printText(const FontFamily& fonts) {
   int16_t y = 1;
   const char* text = "Zażółć gęślą jaźń 12345.67890 !@#$%^&*()";
   Color color = color::Black;
-  dc.setBgColor(color::BlanchedAlmond);
+  dc.setBackground(color::BlanchedAlmond);
   y += printLn(dc, fonts.f8, 10, y, text, color);
-  dc.setBgColor(color::LemonChiffon);
+  dc.setBackground(color::LemonChiffon);
   y += printLn(dc, fonts.f12, 10, y, text, color);
-  dc.setBgColor(color::Beige);
+  dc.setBackground(color::Beige);
   y += printLn(dc, fonts.f18, 10, y, text, color);
-  dc.setBgColor(color::PapayaWhip);
+  dc.setBackground(color::PapayaWhip);
   y += printLn(dc, fonts.f27, 10, y, text, color);
-  dc.setBgColor(color::PowderBlue);
+  dc.setBackground(color::PowderBlue);
   y += printLn(dc, fonts.f40, 10, y, text, color);
-  dc.setBgColor(color::LightGreen);
+  dc.setBackground(color::LightGreen);
   y += printLn(dc, fonts.f60, 10, y, text, color);
-  dc.setBgColor(color::MistyRose);
+  dc.setBackground(color::MistyRose);
   y += printLn(dc, fonts.f90, 10, y, text, color);
   delay(1000);
 }

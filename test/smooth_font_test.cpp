@@ -92,7 +92,7 @@ TEST(SmoothFontTest, SimpleTextNoBackground) {
 
 TEST(SmoothFontTest, SimpleTextWithBackground) {
   FakeScreen<Argb4444> screen(26, 18, Color(0xFF111111));
-  screen.Draw(Label("Aftp"), 2, 14, color::Black);
+  screen.Draw(Label("Aftp"), 2, 14, color::Black, FILL_MODE_RECTANGLE);
   // We expect that the background will fill the bbox that extends vertically
   // from font.metrics().glyphYMin() to font.metrics().glyphYMax() (in FreeType
   // coordinates). In other words, in screen coordinates, we expect that the top
@@ -122,7 +122,8 @@ TEST(SmoothFontTest, SimpleTextWithBackground) {
 
 TEST(SmoothFontTest, ClippedTextWithBackground) {
   FakeScreen<Argb4444> screen(26, 18, Color(0xFF111111));
-  screen.Draw(Label("Aftp"), 2, 14, Box(6, 3, 17, 20), color::Black);
+  screen.Draw(Label("Aftp"), 2, 14, Box(6, 3, 17, 20), color::Black,
+              FILL_MODE_RECTANGLE);
   // We expect that the background will fill the bbox that extends vertically
   // from font.metrics().glyphYMin() to font.metrics().glyphYMax() (in FreeType
   // coordinates). In other words, in screen coordinates, we expect that the top

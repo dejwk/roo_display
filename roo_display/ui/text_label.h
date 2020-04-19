@@ -29,20 +29,27 @@ namespace roo_display {
 class TextLabel : public Drawable {
  public:
   template <typename String>
-  TextLabel(const Font& font, const String& label, Color color)
-      : TextLabel(font, std::string(std::move(label)), color) {}
+  TextLabel(const Font& font, const String& label, Color color,
+            FillMode fill_mode = FILL_MODE_VISIBLE)
+      : TextLabel(font, std::string(std::move(label)), color, fill_mode) {}
 
-  TextLabel(const Font& font, std::string label, Color color)
+  TextLabel(const Font& font, std::string label, Color color,
+            FillMode fill_mode = FILL_MODE_VISIBLE)
       : font_(&font),
         label_(std::move(label)),
         color_(color),
+        fill_mode_(fill_mode),
         metrics_(font_->getHorizontalStringMetrics(
             (const uint8_t*)label_.c_str(), label_.length())),
         extents_(metrics_.glyphXMin(), -font_->metrics().glyphYMax(),
                  metrics_.glyphXMax(), -font_->metrics().glyphYMin()) {}
 
   void drawTo(const Surface& s) const override {
-    font_->drawHorizontalString(s, (const uint8_t*)label_.c_str(),
+    Surface news(s);
+    if (fill_mode_ == FILL_MODE_RECTANGLE) {
+      news.fill_mode = FILL_MODE_RECTANGLE;
+    }
+    font_->drawHorizontalString(news, (const uint8_t*)label_.c_str(),
                                 label_.length(), color_);
   }
 
@@ -52,12 +59,16 @@ class TextLabel : public Drawable {
   const GlyphMetrics& metrics() const { return metrics_; }
   const std::string& label() const { return label_; }
   const Color color() const { return color_; }
+  const FillMode fill_mode() const { return fill_mode_; }
+
   void setColor(Color color) { color_ = color; }
+  void setFillMode(FillMode fill_mode) { fill_mode_ = fill_mode; }
 
  private:
   const Font* font_;
   std::string label_;
   Color color_;
+  FillMode fill_mode_;
   GlyphMetrics metrics_;
   Box extents_;
 };

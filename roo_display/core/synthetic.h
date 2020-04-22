@@ -32,7 +32,7 @@ class SimpleSynthetic : public Synthetic, public Drawable {
   void drawTo(const Surface& s) const override {
     Box clip_box = Box::intersect(s.clip_box, extents_.translate(s.dx, s.dy));
     Box source_bounds = clip_box.translate(-s.dx, -s.dy);
-    s.out->setAddress(clip_box, PAINT_MODE_REPLACE);
+    s.out->setAddress(clip_box, s.paint_mode);
     BufferedColorWriter writer(s.out);
     for (int16_t y = source_bounds.yMin(); y <= source_bounds.yMax(); ++y) {
       for (int16_t x = source_bounds.xMin(); x <= source_bounds.xMax(); ++x) {

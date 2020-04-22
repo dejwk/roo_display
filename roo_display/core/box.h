@@ -42,7 +42,7 @@ class Box {
   Box& operator=(Box&&) = default;
 
   inline static Box MaximumBox() {
-    return Box(-32768, -32768, 32767, 32767);
+    return Box(-16384, -16384, 16383, 16383);
   }
 
   bool empty() const { return xMax_ < xMin_ || yMax_ < yMin_; }

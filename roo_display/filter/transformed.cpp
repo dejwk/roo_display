@@ -198,17 +198,27 @@ void TransformedDisplayOutput::write(Color *color, uint32_t pixel_count) {
 void TransformedDisplayOutput::writePixels(PaintMode mode, Color *color,
                                            int16_t *x, int16_t *y,
                                            uint16_t pixel_count) {
-  if (!transform_.is_rescaled() && !transform_.is_translated()) {
-    if (transform_.xy_swap()) {
-      delegate_->writePixels(mode, color, y, x, pixel_count);
-    } else {
+  if (transform_.xy_swap()) {
+    std::swap(x, y);
+  }
+  if (!transform_.is_rescaled()) {
+    if (!transform_.is_translated()) {
       delegate_->writePixels(mode, color, x, y, pixel_count);
+    } else {
+      ClippingBufferedPixelWriter writer(delegate_, clip_box_, mode);
+      int16_t dx = transform_.x_offset();
+      int16_t dy = transform_.y_offset();
+      if (transform_.xy_swap()) {
+        std::swap(dx, dy);
+      }
+      while (pixel_count-- > 0) {
+        int16_t ix = *x++ + dx;
+        int16_t iy = *y++ + dy;
+        writer.writePixel(ix, iy, *color++);
+      }
     }
   } else {
     ClippingBufferedRectWriter writer(delegate_, clip_box_, mode);
-    if (transform_.xy_swap()) {
-      std::swap(x, y);
-    }
     while (pixel_count-- > 0) {
       int16_t x0 = *x++;
       int16_t y0 = *y++;
@@ -223,18 +233,22 @@ void TransformedDisplayOutput::writePixels(PaintMode mode, Color *color,
 void TransformedDisplayOutput::fillPixels(PaintMode mode, Color color,
                                           int16_t *x, int16_t *y,
                                           uint16_t pixel_count) {
-  if (!transform_.is_rescaled() && !transform_.is_translated()) {
-    if (transform_.xy_swap()) {
-      delegate_->fillPixels(mode, color, y, x, pixel_count);
-    } else {
+  if (transform_.xy_swap()) {
+    std::swap(x, y);
+  }
+  if (!transform_.is_rescaled()) {
+    if (!transform_.is_translated()) {
       delegate_->fillPixels(mode, color, x, y, pixel_count);
+    } else {
+      ClippingBufferedPixelFiller filler(delegate_, color, clip_box_, mode);
+      while (pixel_count-- > 0) {
+        int16_t ix = *x++ + transform_.x_offset();
+        int16_t iy = *y++ + transform_.y_offset();
+        filler.fillPixel(ix, iy);
+      }
     }
   } else {
     ClippingBufferedRectFiller filler(delegate_, color, clip_box_, mode);
-
-    if (transform_.xy_swap()) {
-      std::swap(x, y);
-    }
     while (pixel_count-- > 0) {
       int16_t x0 = *x++;
       int16_t y0 = *y++;

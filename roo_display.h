@@ -317,7 +317,7 @@ class Clear : public Drawable {
 
  private:
   void drawTo(const Surface &s) const override {
-    s.out->fillRect(PAINT_MODE_REPLACE, s.clip_box, Color(0));
+    s.out->fillRect(PAINT_MODE_REPLACE, s.clip_box, s.bgcolor);
   }
 };
 

@@ -98,7 +98,8 @@ inline Color alphaBlend(Color bgc, Color fgc) {
   }
   // Blends a+b so that, when later applied over c, the result is the same as if
   // they were applied in succession; e.g. c+(a+b) == (c+a)+b.
-  uint16_t alpha = back_alpha + front_alpha - ((back_alpha * front_alpha) >> 8);
+  uint16_t tmp = back_alpha * front_alpha;
+  uint16_t alpha = back_alpha + front_alpha - ((tmp + (tmp >> 8)) >> 8);
   uint16_t front_multi = (front_alpha << 8) / (alpha + 1);
   uint16_t back_multi = 256 - front_multi;
 

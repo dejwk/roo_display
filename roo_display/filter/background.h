@@ -11,18 +11,24 @@ namespace roo_display {
 class BackgroundFilter : public DisplayOutput {
  public:
   BackgroundFilter(DisplayOutput* output, const Synthetic* background)
+      : BackgroundFilter(output, background, 0, 0) {}
+
+  BackgroundFilter(DisplayOutput* output, const Synthetic* background,
+  int16_t dx, int16_t dy)
       : output_(output),
         background_(background),
         address_window_(0, 0, 0, 0),
         cursor_x_(0),
-        cursor_y_(0) {}
+        cursor_y_(0),
+        dx_(dx),
+        dy_(dy) {}
 
   virtual ~BackgroundFilter() {}
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, PaintMode mode) override {
-    address_window_ = Box(x0, y0, x1, y1);
-    cursor_x_ = x0;
-    cursor_y_ = y0;
+    address_window_ = Box(x0 - dx_, y0 - dy_, x1 - dx_, y1 - dy_);
+    cursor_x_ = x0 - dx_;
+    cursor_y_ = y0 - dy_;
     output_->setAddress(x0, y0, x1, y1, mode);
   }
 
@@ -81,7 +87,7 @@ class BackgroundFilter : public DisplayOutput {
   void writePixels(PaintMode mode, Color* color, int16_t* x, int16_t* y,
                    uint16_t pixel_count) override {
     Color newcolor[pixel_count];
-    background_->ReadColors(x, y, pixel_count, newcolor);
+    read(x, y, pixel_count, newcolor);
     for (uint32_t i = 0; i < pixel_count; ++i) {
       newcolor[i] = alphaBlend(newcolor[i], color[i]);
     }
@@ -91,7 +97,7 @@ class BackgroundFilter : public DisplayOutput {
   void fillPixels(PaintMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override {
     Color newcolor[pixel_count];
-    background_->ReadColors(x, y, pixel_count, newcolor);
+    read(x, y, pixel_count, newcolor);
     for (uint32_t i = 0; i < pixel_count; ++i) {
       newcolor[i] = alphaBlend(newcolor[i], color);
     }
@@ -99,6 +105,22 @@ class BackgroundFilter : public DisplayOutput {
   }
 
  private:
+  void read(int16_t* x, int16_t* y, uint16_t pixel_count, Color* result) {
+    if (dx_ == 0 && dy_ == 0) {
+      background_->ReadColors(x, y, pixel_count, result);
+    } else {
+      // NOTE(dawidk): to conserve stack, this could be done in-place and then
+      // undone, although it would take 2x longer.
+      int16_t xp[pixel_count];
+      int16_t yp[pixel_count];
+      for (uint32_t i = 0; i < pixel_count; ++i) {
+        xp[i] = x[i] - dx_;
+        yp[i] = y[i] - dy_;
+      }
+      background_->ReadColors(xp, yp, pixel_count, result);
+    }
+  }
+
   void fillRect(PaintMode mode, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax,
                 Color color) {
     BackgroundFilter::setAddress(xMin, yMin, xMax, yMax, mode);
@@ -139,6 +161,8 @@ class BackgroundFilter : public DisplayOutput {
   Box address_window_;
   int16_t cursor_x_;
   int16_t cursor_y_;
+  int16_t dx_;
+  int16_t dy_;
 };
 
 }  // namespace roo_display

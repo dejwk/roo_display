@@ -1,12 +1,27 @@
 #include "tile.h"
 
 #include "roo_display/core/device.h"
-#include <iostream>
+
+#include "roo_display/filter/background.h"
+#include "roo_display/filter/transformed.h"
+
 namespace roo_display {
 
 namespace internal {
 
 void TileBase::draw(const Surface& s, const Drawable& content) const {
+  if (background_ != nullptr) {
+    Surface news(s);
+    BackgroundFilter filter(s.out, background_, s.dx, s.dy);
+    news.out = &filter;
+    news.bgcolor = color::Transparent;
+    drawInternal(news, content);
+  } else {
+    drawInternal(s, content);
+  }
+}
+
+void TileBase::drawInternal(const Surface& s, const Drawable& content) const {
   FillMode fill_mode = s.fill_mode;
   if (fill_mode_ == FILL_MODE_RECTANGLE) fill_mode = FILL_MODE_RECTANGLE;
   Box extents =

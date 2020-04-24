@@ -3,6 +3,7 @@
 #include "roo_display/core/box.h"
 #include "roo_display/core/color.h"
 #include "roo_display/core/drawable.h"
+#include "roo_display/filter/background.h"
 #include "roo_display/ui/alignment.h"
 
 namespace roo_display {
@@ -46,12 +47,30 @@ class TileBase : public Drawable {
       : border_(std::move(extents), std::move(interior.extents()), halign,
                 valign),
         bgcolor_(bgcolor),
+        background_(nullptr),
         fill_mode_(fill_mode) {}
 
-  Color bgcolor() const { return bgcolor_; }
+  TileBase(const Drawable &interior, Box extents, HAlign halign, VAlign valign,
+           const Synthetic *background,
+           FillMode fill_mode = FILL_MODE_RECTANGLE)
+      : border_(std::move(extents), std::move(interior.extents()), halign,
+                valign),
+        bgcolor_(color::Transparent),
+        background_(background),
+        fill_mode_(fill_mode) {}
+
   FillMode fillMode() const { return fill_mode_; }
 
-  void setBgColor(Color bgcolor) { bgcolor_ = bgcolor; }
+  void setBackground(Color bgcolor) {
+    bgcolor_ = bgcolor;
+    background_ = nullptr;
+  }
+
+  void setBackground(const Synthetic *background) {
+    bgcolor_ = color::Transparent;
+    background_ = background;
+  }
+
   void setFillMode(FillMode fill_mode) { fill_mode_ = fill_mode; }
 
   // template <typename... Args>
@@ -64,10 +83,12 @@ class TileBase : public Drawable {
 
  protected:
   void draw(const Surface &s, const Drawable &interior) const;
+  void drawInternal(const Surface &s, const Drawable &interior) const;
 
  private:
   internal::SolidBorder border_;
   Color bgcolor_;
+  const Synthetic *background_;
   FillMode fill_mode_;
 };
 
@@ -105,8 +126,10 @@ class Tile : public internal::TileBase {
   // Creates a tile with the specified interior, alignment, and optionally
   // background color.
   Tile(const Drawable *interior, Box extents, HAlign halign, VAlign valign,
-       Color bgcolor = color::Transparent, FillMode fill_mode = FILL_MODE_RECTANGLE)
-      : internal::TileBase(*interior, extents, halign, valign, bgcolor, fill_mode),
+       Color bgcolor = color::Transparent,
+       FillMode fill_mode = FILL_MODE_RECTANGLE)
+      : internal::TileBase(*interior, extents, halign, valign, bgcolor,
+                           fill_mode),
         interior_(interior) {}
 
   void drawTo(const Surface &s) const override {
@@ -127,8 +150,16 @@ class TileOf : public internal::TileBase {
   // Creates a tile with the specified interior, alignment, and optionally
   // background color.
   TileOf(DrawableType interior, Box extents, HAlign halign, VAlign valign,
-         Color bgcolor = color::Transparent, FillMode fill_mode = FILL_MODE_RECTANGLE)
-      : internal::TileBase(interior, extents, halign, valign, bgcolor, fill_mode),
+         Color bgcolor = color::Transparent,
+         FillMode fill_mode = FILL_MODE_RECTANGLE)
+      : internal::TileBase(interior, extents, halign, valign, bgcolor,
+                           fill_mode),
+        interior_(std::move(interior)) {}
+
+  TileOf(DrawableType interior, Box extents, HAlign halign, VAlign valign,
+         const Synthetic *background, FillMode fill_mode = FILL_MODE_RECTANGLE)
+      : internal::TileBase(interior, extents, halign, valign, background,
+                           fill_mode),
         interior_(std::move(interior)) {}
 
   // template <typename... Args>

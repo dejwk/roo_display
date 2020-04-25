@@ -195,6 +195,47 @@ void SmoothFont::drawGlyphNoBackground(DisplayOutput *output, int16_t x,
   }
 }
 
+void SmoothFont::drawBordered(DisplayOutput *output, int16_t x, int16_t y,
+                              int16_t bgwidth, const Drawable &glyph,
+                              const Box &clip_box, Color bgColor,
+                              PaintMode paint_mode) const {
+  Box outer(x, y - metrics().glyphYMax(), x + bgwidth - 1,
+            y + metrics().maxHeight() - 1);
+  if (bgColor.a() == 0xFF) paint_mode = PAINT_MODE_REPLACE;
+  if (outer.clip(clip_box) == Box::CLIP_RESULT_EMPTY) return;
+  Box inner = glyph.extents().translate(x, y);
+  if (inner.clip(clip_box) == Box::CLIP_RESULT_EMPTY) {
+    output->fillRect(paint_mode, outer, bgColor);
+    return;
+  }
+  if (outer.yMin() < inner.yMin()) {
+    output->fillRect(
+        paint_mode,
+        Box(outer.xMin(), outer.yMin(), outer.xMax(), inner.yMin() - 1),
+        bgColor);
+  }
+  if (outer.xMin() < inner.xMin()) {
+    output->fillRect(
+        paint_mode,
+        Box(outer.xMin(), inner.yMin(), inner.xMin() - 1, inner.yMax()),
+        bgColor);
+  }
+  Surface s(output, x, y, clip_box, bgColor, FILL_MODE_RECTANGLE, paint_mode);
+  s.drawObject(glyph);
+  if (outer.xMax() > inner.xMax()) {
+    output->fillRect(
+        paint_mode,
+        Box(inner.xMax() + 1, inner.yMin(), outer.xMax(), inner.yMax()),
+        bgColor);
+  }
+  if (outer.yMax() > inner.yMax()) {
+    output->fillRect(
+        paint_mode,
+        Box(outer.xMin(), inner.yMax() + 1, outer.xMax(), outer.yMax()),
+        bgColor);
+  }
+}
+
 void SmoothFont::drawGlyphWithBackground(DisplayOutput *output, int16_t x,
                                          int16_t y, int16_t bgwidth,
                                          const GlyphMetrics &glyph_metrics,
@@ -202,23 +243,16 @@ void SmoothFont::drawGlyphWithBackground(DisplayOutput *output, int16_t x,
                                          int16_t offset, const Box &clip_box,
                                          Color color, Color bgColor,
                                          PaintMode paint_mode) const {
-  Surface s(output, x, y, clip_box, color::Transparent, FILL_MODE_RECTANGLE, paint_mode);
-  StreamableFilledRect bg(bgwidth, metrics().maxHeight(), bgColor);
+  Box box = glyph_metrics.screen_extents().translate(offset, 0);
   if (rle()) {
-    RleImage4bppxPolarized<Alpha4> glyph(glyph_metrics.width(),
-                                         glyph_metrics.height(), data, color);
-    streamToSurface(
-        s,
-        Overlay(std::move(bg), 0, -metrics().glyphYMax(), std::move(glyph),
-                offset + glyph_metrics.bearingX(), -glyph_metrics.bearingY()));
+    auto glyph = MakeDrawableStreamable(
+        RleImage4bppxPolarized<Alpha4>(box, data, color));
+    drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor, paint_mode);
   } else {
-    // Identical as above, but using Raster<> instead of MonoAlpha4RleImage.
-    Raster<const uint8_t PROGMEM *, Alpha4> glyph(
-        glyph_metrics.width(), glyph_metrics.height(), data, color);
-    streamToSurface(
-        s,
-        Overlay(std::move(bg), 0, -metrics().glyphYMax(), std::move(glyph),
-                offset + glyph_metrics.bearingX(), -glyph_metrics.bearingY()));
+    // Identical as above, but using Raster<>
+    auto glyph = MakeDrawableStreamable(
+        Raster<const uint8_t PROGMEM *, Alpha4>(box, data, color));
+    drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor, paint_mode);
   }
 }
 
@@ -229,33 +263,19 @@ void SmoothFont::drawKernedGlyphsWithBackground(
     const uint8_t *PROGMEM right_data, int16_t right_offset,
     const Box &clip_box, Color color, Color bgColor,
     PaintMode paint_mode) const {
-  Surface s(output, x, y, clip_box, color::Transparent, FILL_MODE_RECTANGLE, paint_mode);
-  StreamableFilledRect bg(bgwidth, metrics().maxHeight(), bgColor);
+  Box lb = left_metrics.screen_extents().translate(left_offset, 0);
+  Box rb = right_metrics.screen_extents().translate(right_offset, 0);
   if (rle()) {
-    RleImage4bppxPolarized<Alpha4> left(
-        left_metrics.width(), left_metrics.height(), left_data, color);
-    RleImage4bppxPolarized<Alpha4> right(
-        right_metrics.width(), right_metrics.height(), right_data, color);
-    streamToSurface(
-        s,
-        Overlay(Overlay(std::move(bg), 0, -metrics().glyphYMax(),
-                        std::move(left), left_offset + left_metrics.bearingX(),
-                        -left_metrics.bearingY()),
-                0, 0, std::move(right), right_offset + right_metrics.bearingX(),
-                -right_metrics.bearingY()));
+    auto glyph = MakeDrawableStreamable(
+        Overlay(RleImage4bppxPolarized<Alpha4>(lb, left_data, color), 0, 0,
+                RleImage4bppxPolarized<Alpha4>(rb, right_data, color), 0, 0));
+    drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor, paint_mode);
   } else {
-    // Identical as above, but using Raster<> instead of MonoAlpha4RleImage.
-    Raster<const uint8_t PROGMEM *, Alpha4> left(
-        left_metrics.width(), left_metrics.height(), left_data, color);
-    Raster<const uint8_t PROGMEM *, Alpha4> right(
-        right_metrics.width(), right_metrics.height(), right_data, color);
-    streamToSurface(
-        s,
-        Overlay(Overlay(std::move(bg), 0, -metrics().glyphYMax(),
-                        std::move(left), left_offset + left_metrics.bearingX(),
-                        -left_metrics.bearingY()),
-                0, 0, std::move(right), right_offset + right_metrics.bearingX(),
-                -right_metrics.bearingY()));
+    // Identical as above, but using Raster<>
+    auto glyph = MakeDrawableStreamable(Overlay(
+        Raster<const uint8_t PROGMEM *, Alpha4>(lb, left_data, color), 0, 0,
+        Raster<const uint8_t PROGMEM *, Alpha4>(rb, right_data, color), 0, 0));
+    drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor, paint_mode);
   }
 }
 
@@ -396,7 +416,8 @@ void SmoothFont::drawHorizontalString(const Surface &s,
     if (!has_background) {
       // Transparent background; simply draw and shift.
       drawGlyphNoBackground(output, x - preadvanced, y, glyphs.left_metrics(),
-                            glyphs.left_data(), s.clip_box, color, s.paint_mode);
+                            glyphs.left_data(), s.clip_box, color,
+                            s.paint_mode);
       x += (glyphs.left_metrics().advance() - kern);
     } else {
       // General case. We may have two glyphs to worry about, and we may be

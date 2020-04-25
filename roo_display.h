@@ -73,6 +73,7 @@ class Display {
   void setBackground(Color bgcolor) {
     background_ = nullptr;
     bgcolor_ = bgcolor;
+    display_->setBgColorHint(bgcolor);
   }
 
  private:

@@ -76,6 +76,9 @@ class Display {
     display_->setBgColorHint(bgcolor);
   }
 
+  // Clears the display, respecting the clip box, and background settings.
+  void clear();
+
  private:
   friend class DrawingContext;
 

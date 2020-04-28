@@ -61,6 +61,11 @@ void Display::init(Color bgcolor) {
   display_->setBgColorHint(bgcolor);
 }
 
+void Display::clear() {
+  DrawingContext dc(this);
+  dc.clear();
+}
+
 void Display::updateBounds() {
   if (orientation_.isXYswapped()) {
     width_ = display_->raw_height();

@@ -15,6 +15,11 @@ class Synthetic {
                           Color* result) const = 0;
 };
 
+// Takes a function object, overriding:
+//
+//   Color operator(int16_t x, int16_t y)
+//
+// and turns it into a synthetic that can be used as a background.
 template <typename Getter>
 class SimpleSynthetic : public Synthetic, public Drawable {
  public:

@@ -403,9 +403,8 @@ void scrollingText() {
 
   TextLabel label(font_NotoSans_Italic_40(),
                   "Check out this awesome text banner. Note anti-aliased "
-                  "glyphs, with overlapping bounding boxes; e.g. "
-                  " 'Afy', 'fff', 'AVi'.  ",
-                  color::Black, FILL_MODE_RECTANGLE);
+                  "glyphs, with overlapping bounding boxes: 'Afy', 'fff'.  ",
+                  color::DarkRed, FILL_MODE_RECTANGLE);
 
   for (int i = 0; i < label.extents().width() - 100; i += 8) {
     {

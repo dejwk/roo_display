@@ -2,10 +2,17 @@
 
 #include "Arduino.h"
 #include "roo_display.h"
+#include "roo_display/core/raster.h"
 #include "roo_display/font/font.h"
 #include "roo_display/ui/text_label.h"
 #include "roo_smooth_fonts/NotoSans_Italic/12.h"
+#include "roo_smooth_fonts/NotoSans_Italic/18.h"
+#include "roo_smooth_fonts/NotoSans_Italic/27.h"
+#include "roo_smooth_fonts/NotoSans_Italic/40.h"
 #include "roo_smooth_fonts/NotoSans_Italic/60.h"
+#include "roo_smooth_fonts/NotoSans_Italic/8.h"
+#include "roo_smooth_fonts/NotoSans_Regular/40.h"
+#include "roo_smooth_fonts/NotoSans_Regular/60.h"
 
 using namespace roo_display;
 
@@ -19,6 +26,12 @@ using namespace roo_display;
 // DrawingContext::clear() respects the background. In other words, if the
 // background is set, DrawingContext::clear() fills the clip box with the
 // background.
+//
+// You can add a rectangular background to any drawable, using Tile. It is
+// a good way to draw buttons or labels, over solid backgrounds or gradients.
+//
+// Backgrounds of tiles can be translucent, in which case they get
+// alpha-blended over the underlying surface's background.
 
 // Change these two lines to use a different driver, transport, or pins.
 #include "roo_display/driver/st7789.h" 
@@ -31,36 +44,58 @@ Color hsvGradient[kGradientSize];
 
 void initGradient();
 
-auto slantedGradient =
-    MakeSynthetic(Box::MaximumBox(), [](int16_t x, int16_t y) {
+auto slantedGradient = MakeSynthetic(
+    Box::MaximumBox(),
+    [](int16_t x, int16_t y) {
       return hsvGradient[(kGradientSize + x - y / 4) % kGradientSize];
-    });
+    },
+    TRANSPARENCY_NONE);
+
+Color hashColor1;
+Color hashColor2;
+
+auto hashGrid = MakeSynthetic(
+    Box::MaximumBox(),
+    [](int16_t x, int16_t y) {
+      return (x / 4 + y / 4) % 2 == 0 ? hashColor1 : hashColor2;
+    },
+    TRANSPARENCY_NONE);
 
 void setup() {
   Serial.begin(9600);
   initGradient();
+  hashColor1 = color::LightGray;
+  hashColor2 = color::DarkGray;
   SPI.begin();  // Use default SPI pins, or specify your own here.
   display.init();
-  display.setBackground(&slantedGradient);
-  {
-    DrawingContext dc(&display);
-    dc.clear();  // Fill the entire display with the background gradient.
-  }
+  display.clear();
 }
 
-void loop() {
+void simpleBackground() {
+  // This example shows how anti-aliased text gets rendered over arbitrary
+  // backgrounds (in this case, a slanted gradient).
+  //
+  // The text is shown at 3 different zoom levels, so that it is easier to
+  // see that the colors of translucent (anti-aliased) pixels indeed inherit
+  // from the background; i.e. it is green-ish when the text falls over green,
+  // blue-ish if it falls over blue, etc.
   auto labelOrig = TextLabel(font_NotoSans_Italic_60(), "Afy", color::Black,
                              FILL_MODE_RECTANGLE);
   auto labelScaled = TextLabel(font_NotoSans_Italic_12(), "Afy", color::Black,
                                FILL_MODE_RECTANGLE);
-  int16_t dx = 10;
-  int16_t dy = 10 + font_NotoSans_Italic_60().metrics().glyphYMax();
-  // The 'rescaled' label is slightly larger, so we truncate to avoid artifacts
-  // at the edges. (We could also do the opposite, but we would need to use
-  // Tile).
+  auto labelScaledMore = TextLabel(font_NotoSans_Italic_8(), "Afy",
+                                   color::Black, FILL_MODE_RECTANGLE);
+  int16_t dx = (display.width() - labelOrig.extents().width()) / 2;
+  int16_t dy = (display.width() - labelOrig.extents().height()) / 2 +
+               font_NotoSans_Italic_60().metrics().glyphYMax();
+  // The 2nd 'rescaled' label is slightly larger, so we truncate to avoid
+  // artifacts at the edges. (We could also do the opposite, but we would need
+  // to use Tile).
   auto clip_box = labelOrig.extents().translate(dx, dy);
   {
+    display.setBackground(&slantedGradient);
     DrawingContext dc(&display);
+    dc.clear();
     dc.setClipBox(clip_box);
     dc.draw(labelOrig, dx, dy);
   }
@@ -72,6 +107,359 @@ void loop() {
     dc.draw(labelScaled, dx, dy);
   }
   delay(2000);
+  {
+    DrawingContext dc(&display);
+    dc.setClipBox(clip_box);
+    dc.setTransform(Transform().scale(7, 7));
+    dc.draw(labelScaledMore, dx, dy);
+  }
+  delay(2000);
+}
+
+void tileWithSemiTransparentBackground() {
+  // This example demonstrates the possibility to use semi-transparent
+  // backgrounds for 'icons' (tiles), which can be combined with (i.e.,
+  // alpha-blended over) arbitrary screen background. Note how in this example
+  // we vary the level of transparency of the hashed background, without
+  // causing any visible flicker.
+  //
+  // This feature can be used to create visual effects such as translucent
+  // icons, etc.
+  display.clear();
+  bool sc1 = false;
+  bool sc2 = false;
+  for (int i = 0; i < 1000; i++) {
+    auto label = TextLabel(font_NotoSans_Italic_27(), "Ostendo", color::Black);
+    auto tile = MakeTileOf(label, Box(0, 0, 103, 27), HAlign::Center(),
+                           VAlign::Middle(), &hashGrid);
+    int16_t dx = (display.width() - tile.extents().width()) / 2;
+    int16_t dy = (display.height() - tile.extents().height()) / 2;
+    {
+      DrawingContext dc(&display);
+      dc.draw(tile, dx, dy);
+    }
+    uint8_t a1 = hashColor1.a();
+    if (sc1) {
+      if (a1 == 255) {
+        sc1 = !sc1;
+      } else {
+        hashColor1.set_a(a1 + 1);
+      }
+    } else {
+      if (a1 == 0) {
+        sc1 = !sc1;
+      } else {
+        hashColor1.set_a(a1 - 1);
+      }
+    }
+
+    uint8_t a2 = hashColor2.a();
+    if (sc2) {
+      if (a2 >= 254) {
+        sc2 = !sc2;
+      } else {
+        hashColor2.set_a(a2 + 2);
+      }
+    } else {
+      if (a2 <= 1) {
+        sc2 = !sc2;
+      } else {
+        hashColor2.set_a(a2 - 2);
+      }
+    }
+    delay(5);
+  }
+}
+
+class Timer {
+ public:
+  Timer() : start_(millis()) {}
+  void reset() { start_ = millis(); }
+  unsigned long read() const { return start_ < 0 ? 0 : millis() - start_; }
+
+ private:
+  unsigned long start_;
+};
+
+bool update(char newResult, char* prevResult) {
+  if (newResult == *prevResult) return false;
+  *prevResult = newResult;
+  return true;
+}
+
+int timerToString(unsigned long millis, char* result) {
+  unsigned long t = millis;
+  int first_changed = 6;
+  if (update((t % 10) + '0', result + 5)) first_changed = 5;
+  t /= 10;
+  if (update((t % 10) + '0', result + 4)) first_changed = 4;
+  t /= 10;
+  if (update((t % 10) + '0', result + 3)) first_changed = 3;
+  t /= 10;
+  result[2] = '"';
+  if (update((t % 10) + '0', result + 1)) first_changed = 1;
+  result[1] = (t % 10) + '0';
+  t /= 10;
+  if (update((t % 10) + '0', result + 0)) first_changed = 0;
+  return first_changed;
+}
+
+class StringPrinter : public Print {
+ public:
+  const std::string& get() { return s_; }
+  size_t write(uint8_t c) override {
+    s_.append((const char*)c);
+    return 1;
+  }
+  size_t write(const uint8_t* buffer, size_t size) override {
+    s_.append((const char*)buffer, size);
+    return size;
+  }
+
+ private:
+  std::string s_;
+};
+
+struct TimerBenchmark {
+  bool clip;
+  bool inplace;
+  bool background;
+};
+
+void printCentered(const std::string& text, int16_t y) {
+  ClippedTextLabel label(font_NotoSans_Italic_18(), text, color::Black);
+  DrawingContext dc(&display);
+  dc.draw(label, (display.width() - label.extents().width()) / 2,
+          (display.height() - label.extents().height()) / 2 + y);
+}
+
+GlyphMetrics getAsciiStringMetrics(const Font& font, const std::string& ascii) {
+  return font.getHorizontalStringMetrics((const uint8_t*)ascii.c_str(),
+                                         ascii.size());
+}
+
+void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {
+  if (benchmark->background) {
+    display.setBackground(&slantedGradient);
+  } else {
+    display.setBackground(color::LightGray);
+  }
+  display.clear();
+
+  Timer timer;
+  char time[] = "      ";
+  int frames = 0;
+  double fps;
+  const Font& timerFont = font_NotoSans_Regular_60();
+  const Font& fpsFont = font_NotoSans_Italic_18();
+  // Rendering of digits is a little tricky. On one hand, even proportional
+  // fonts tend to be 'non-proportional' for digits; i.e. each digit glyph has
+  // the same advance. It allows us to easily anticipate advance width of
+  // arbitrary sequence of digits. Careful, though: the glyphs still have
+  // various bearings; e.g., '1' will be narrower than '0'. As a result,
+  // aligning to left or to right will not work as expected. We need to use
+  // 'absolute' alignment, so that the bearings don't get coalesced.
+  GlyphMetrics digitMetrics = getAsciiStringMetrics(timerFont, "0");
+  GlyphMetrics timerMetrics = getAsciiStringMetrics(timerFont, "00\"000");
+  Box timerBox = timerMetrics.screen_extents();
+  Box fpsBox = getAsciiStringMetrics(fpsFont, "100000.0 fps").screen_extents();
+
+  // Draw label of the benchmark.
+  std::string bgStr =
+      benchmark->background ? "gradient background" : "solid background";
+  std::string clipStr = benchmark->clip ? "smart clipping" : "naive clipping";
+  std::string inplaceStr =
+      benchmark->inplace ? "smart overwrite" : "naive overwrite";
+  printCentered(bgStr, 60);
+  printCentered(clipStr, 80);
+  printCentered(inplaceStr, 100);
+
+  unsigned long lastFpsRefresh = 0;
+  unsigned long fpsRefreshFrequency = 500;
+  timer.reset();
+  while (timer.read() < seconds * 1000) {
+    unsigned long t = timer.read();
+    fps = 1000.0 * frames / t;
+    int first_changed = timerToString(t, time);
+    {
+      auto label = ClippedTextLabel(timerFont, time, color::Black);
+      // See the comment above for explanation why we need to use HAlign::None()
+      // here (i.e., absolute alignment, instead of left- or right- alignment).
+      //
+      // In case of the (optimal) inplace drawing, we need to use
+      // FILL_MODE_RECTANGLE (which is actually the default which could
+      // generally be omitted), so that the entire bounding box of the glyph
+      // gets redrawn, erasing any previous content in one pass. In the
+      // (sub-optimal) case of non-inplace drawing, we are going to clear the
+      // background before drawing the glyph, which means that the glyph can
+      // draw only the non-empty pixels, rather than the entire bounding box.
+      // It is achieved by using FILL_MODE_VISIBLE.
+      //
+      // Try experimenting, e.g. unconditionally setting fill mode to
+      // FILL_MODE_VISIBLE, and see how it affects rendering.
+      auto tile = MakeTileOf(
+          label, timerBox, HAlign::None(), VAlign::None(), color::Transparent,
+          (benchmark->inplace ? FILL_MODE_RECTANGLE : FILL_MODE_VISIBLE));
+      auto clear = Clear();
+      DrawingContext dc(&display);
+      // Since everything is oriented about the center, let's move the origin
+      // there to make it easier.
+      dc.setTransform(Transform().translate(dc.width() / 2, dc.height() / 2));
+      int16_t timerDx = -timerBox.width() / 2;
+      if (benchmark->clip) {
+        // We restrict the clip box to only include the digits that have
+        // actually changed since last draw.
+        int16_t clip_offset = (6 - first_changed) * digitMetrics.advance();
+        Box clip_box = Box(timerBox.xMax() + 1 - clip_offset, timerBox.yMin(),
+                           timerBox.xMax(), timerBox.yMax());
+        auto clippedTile =
+            TransformedDrawable(Transform().clip(clip_box), &tile);
+        if (!benchmark->inplace) {
+          // Clear the (clipped) background.
+          dc.draw(TransformedDrawable(Transform().clip(clip_box), &clear),
+                  timerDx, 0);
+        }
+        // Draw the glyphs.
+        dc.draw(clippedTile, timerDx, 0);
+      } else {
+        if (!benchmark->inplace) {
+          // Clear the (unclipped) timer background.
+          dc.draw(TransformedDrawable(Transform().clip(timerBox), &clear),
+                  timerDx, 0);
+        }
+        // Draw the glyphs.
+        dc.draw(tile, timerDx, 0);
+      }
+      if (t - lastFpsRefresh > fpsRefreshFrequency) {
+        lastFpsRefresh = t;
+        StringPrinter p;
+        p.printf("%0.1f fps", fps);
+        auto fpsTile = MakeTileOf(TextLabel(fpsFont, p.get(), color::Black),
+                                  fpsBox, HAlign::Center(), VAlign::None());
+        dc.draw(fpsTile, -fpsBox.width() / 2, -fpsBox.height() / 2 + 30);
+      }
+    }
+    frames++;
+  }
+}
+
+// 20x20 raster, 4-bit grayscale, 200 bytes
+static const uint8_t diamond_plate_data[] PROGMEM = {
+    0xCB, 0x96, 0x67, 0x77, 0x60, 0x00, 0x27, 0x87, 0x77, 0x78, 0xAF, 0xFB,
+    0x76, 0x77, 0x85, 0x35, 0x88, 0x78, 0x77, 0x75, 0x19, 0xAE, 0xD8, 0x67,
+    0x78, 0x88, 0x77, 0x78, 0x77, 0x82, 0x05, 0x78, 0xDD, 0x96, 0x77, 0x77,
+    0x77, 0x78, 0x77, 0x85, 0x10, 0x87, 0x7B, 0xD9, 0x67, 0x77, 0x77, 0x77,
+    0x88, 0x78, 0x70, 0x29, 0x77, 0xAB, 0x86, 0x77, 0x87, 0x77, 0x88, 0x78,
+    0x95, 0x03, 0x97, 0x7A, 0xA7, 0x67, 0x77, 0x77, 0x87, 0x77, 0x79, 0x40,
+    0x39, 0x88, 0x99, 0x77, 0x77, 0x77, 0x77, 0x77, 0x78, 0x94, 0x02, 0x89,
+    0x88, 0x87, 0x77, 0x77, 0x77, 0x77, 0x77, 0x79, 0x50, 0x05, 0x75, 0x77,
+    0x77, 0x77, 0x66, 0x67, 0x77, 0x77, 0x97, 0x20, 0x01, 0x78, 0x78, 0x66,
+    0x9A, 0xC9, 0x77, 0x77, 0x78, 0x86, 0x35, 0x77, 0x77, 0x79, 0xCE, 0xC7,
+    0x87, 0x77, 0x77, 0x78, 0x88, 0x77, 0x78, 0x9B, 0xA9, 0x33, 0x87, 0x77,
+    0x77, 0x77, 0x77, 0x77, 0x8B, 0xA8, 0x76, 0x05, 0x87, 0x78, 0x77, 0x77,
+    0x77, 0x78, 0x89, 0x97, 0x81, 0x28, 0x87, 0x77, 0x77, 0x77, 0x67, 0x88,
+    0x87, 0x79, 0x30, 0x78, 0x78, 0x77, 0x77, 0x77, 0x78, 0x77, 0x87, 0x84,
+    0x05, 0x87, 0x78, 0x87, 0x77, 0x77, 0x88, 0x68, 0x89, 0x30, 0x48, 0x77,
+    0x87, 0x77, 0x77, 0x77, 0x86, 0x79, 0x83, 0x05, 0x97, 0x77, 0x76, 0x67,
+    0x78, 0x78, 0x63, 0x75, 0x00, 0x59, 0x87, 0x77,
+};
+
+// In this example, we use a 4-bit grayscale background image data, but we map
+// it to ARGB in a custom way, only using the upper-half of the range (so that
+// the background remains reasonably 'light'). Such custom mapping can be
+// implemented by supplying a custom color mode class to the Raster constructor.
+class MyGrayscale {
+ public:
+  static const int8_t bits_per_pixel = 4;
+
+  // The input is in the range of [0-15]. We map it to [0x80 - 0xF8] x RGB.
+  inline constexpr Color toArgbColor(uint8_t in) const {
+    return Color(0xFF808080 | in * 0x080808);
+  }
+
+  // OK to left as dummy, as long as we only read pre-defined data, and not
+  // trying to draw (e.g. by specializing an Offscreen) using this color mode.
+  inline constexpr uint8_t fromArgbColor(Color color) const { return 0; }
+
+  // Indicates that all emitted colors are non-transparent. The library uses
+  // this hint to optimize alpha-blending.
+  constexpr TransparencyMode transparency() const { return TRANSPARENCY_NONE; }
+};
+
+const Raster<const uint8_t PROGMEM*, MyGrayscale>& diamond_plate() {
+  static Raster<const uint8_t PROGMEM*, MyGrayscale> value(
+      20, 20, diamond_plate_data, MyGrayscale());
+  return value;
+}
+
+auto tile_pattern = MakeTiledRaster(&diamond_plate());
+
+void scrollingText() {
+  // This example demonstrates how to use arbitrary raster as a background
+  // texture. We can still draw anything on top of it, including anti-aliased
+  // text.
+  display.setBackground(&tile_pattern);
+  display.clear();
+
+  TextLabel label(font_NotoSans_Italic_40(),
+                  "Check out this awesome text banner. Note anti-aliased "
+                  "glyphs, with overlapping bounding boxes; e.g. "
+                  " 'Afy', 'fff', 'AVi'.  ",
+                  color::Black, FILL_MODE_RECTANGLE);
+
+  for (int i = 0; i < label.extents().width() - 100; i += 8) {
+    {
+      DrawingContext dc(&display);
+      dc.draw(label, 128 - i, 100);
+    }
+    delay(40);
+  }
+  delay(2000);
+}
+
+void loop() {
+  simpleBackground();
+  tileWithSemiTransparentBackground();
+  scrollingText();
+
+  TimerBenchmark b;
+
+  // This is the fastest and the most smooth version of text update. We use a
+  // solid background, only redraw characters that have actually changed, and
+  // use in-place over-write (which eliminates any flicker).
+  b.clip = true;
+  b.inplace = true;
+  b.background = false;
+  timerBenchmark(&b, 12);
+
+  // This one demonstrates that flicker-less text update works even for
+  // complex backgrounds. Rendering the background has some performance
+  // impact, but ESP32 still pulls over 200 qps with a fast display.
+  b.background = true;
+  timerBenchmark(&b, 12);
+
+  // The remaining examples are sub-optimal, and shown for the reference.
+
+  // Back to the plain background, but now we clear the entire rectangle
+  // before drawing each digit. This technique causes visible flicker (and tends
+  // to be slower than over-write in place).
+  b.inplace = false;
+  b.background = false;
+  timerBenchmark(&b, 5);
+
+  // Same as before, but on a 'fancy' background. Flicker is even more visible
+  // in this case.
+  b.background = true;
+  timerBenchmark(&b, 5);
+
+  // The following two examples are like previous two, but with naive clipping.
+  // That is, instead of just redrawing the modified digits, we redraw all of
+  // them. It has obvious impact on fps, and further increases flicker.
+  b.clip = false;
+  b.background = false;
+  timerBenchmark(&b, 5);
+  b.background = true;
+  timerBenchmark(&b, 5);
 }
 
 Color hsvToRgb(double h, double s, double v) {
@@ -112,4 +500,3 @@ void initGradient() {
     h += dh;
   }
 }
-

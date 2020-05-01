@@ -89,8 +89,8 @@ void simpleBackground() {
   auto labelScaledMore = TextLabel(font_NotoSans_Italic_8(), "Afy",
                                    color::Black, FILL_MODE_RECTANGLE);
   int16_t dx = (display.width() - labelOrig.extents().width()) / 2;
-  int16_t dy = (display.width() - labelOrig.extents().height()) / 2 +
-               font_NotoSans_Italic_60().metrics().glyphYMax();
+  int16_t dy = labelOrig.metrics().glyphYMax() +
+               (display.height() - labelOrig.metrics().height()) / 2;
   // The 2nd 'rescaled' label is slightly larger, so we truncate to avoid
   // artifacts at the edges. (We could also do the opposite, but we would need
   // to use Tile).
@@ -408,11 +408,11 @@ void scrollingText() {
                   "Check out this awesome text banner. Note anti-aliased "
                   "glyphs, with overlapping bounding boxes: 'Afy', 'fff'.  ",
                   color::DarkRed, FILL_MODE_RECTANGLE);
-
-  for (int i = 0; i < label.extents().width() - 100; i += 8) {
+  int16_t dy = (label.font().metrics().ascent() + display.height()) / 2;
+  for (int i = 0; i < label.extents().width(); i += 8) {
     {
       DrawingContext dc(&display);
-      dc.draw(label, 128 - i, 100);
+      dc.draw(label, display.width() - i, dy);
     }
     delay(40);
   }

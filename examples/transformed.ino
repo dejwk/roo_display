@@ -17,7 +17,7 @@ using namespace roo_display;
 
 // Change these two lines to use a different driver, transport, or pins.
 #include "roo_display/driver/st7789.h" 
-St7789spi_240x240<13, 2, 4> device;
+St7789spi_240x240<5, 2, 4> device;
 
 Display display(&device, nullptr);
 

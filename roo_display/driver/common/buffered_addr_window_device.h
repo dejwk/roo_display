@@ -1,9 +1,9 @@
 #pragma once
 
-#include "roo_display/hal/gpio.h"
-#include "roo_display/hal/transport.h"
 #include "roo_display/core/offscreen.h"
 #include "roo_display/driver/common/compactor.h"
+#include "roo_display/hal/gpio.h"
+#include "roo_display/hal/transport.h"
 
 namespace roo_display {
 
@@ -30,13 +30,15 @@ class BufferedAddrWindowDevice : public DisplayDevice {
     target_.end();
   }
 
-  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) override {
-    buffer_.setAddress(x0, y0, x1, y1);
+  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
+                  PaintMode mode) override {
+    flushRectCache();
+    buffer_.setAddress(x0, y0, x1, y1, mode);
     rect_cache_.setWindow(x0, y0, x1, y1);
   }
 
-  void write(PaintMode mode, Color* color, uint32_t pixel_count) override {
-    buffer_.write(mode, color, pixel_count);
+  void write(Color* color, uint32_t pixel_count) override {
+    buffer_.write(color, pixel_count);
     rect_cache_.pixelsWritten(pixel_count);
   }
 
@@ -67,28 +69,28 @@ class BufferedAddrWindowDevice : public DisplayDevice {
                              int16_t count) {
           switch (direction) {
             case Compactor::RIGHT: {
-              buffer_.setAddress(x, y, x + count - 1, y);
-              buffer_.write(mode, colors + offset, count);
+              buffer_.setAddress(x, y, x + count - 1, y, mode);
+              buffer_.write(colors + offset, count);
               target_.flushRect(&buffer_, x, y, x + count - 1, y);
               break;
             }
             case Compactor::DOWN: {
-              buffer_.setAddress(x, y, x, y + count - 1);
-              buffer_.write(mode, colors + offset, count);
+              buffer_.setAddress(x, y, x, y + count - 1, mode);
+              buffer_.write(colors + offset, count);
               target_.flushRect(&buffer_, x, y, x, y + count - 1);
               break;
             }
             case Compactor::LEFT: {
-              buffer_.setAddress(x - count + 1, y, x, y);
+              buffer_.setAddress(x - count + 1, y, x, y, mode);
               std::reverse(colors + offset, colors + offset + count);
-              buffer_.write(mode, colors + offset, count);
+              buffer_.write(colors + offset, count);
               target_.flushRect(&buffer_, x - count + 1, y, x, y);
               break;
             }
             case Compactor::UP: {
-              buffer_.setAddress(x, y - count + 1, x, y);
+              buffer_.setAddress(x, y - count + 1, x, y, mode);
               std::reverse(colors + offset, colors + offset + count);
-              buffer_.write(mode, colors + offset, count);
+              buffer_.write(colors + offset, count);
               target_.flushRect(&buffer_, x, y - count + 1, x, y);
               break;
             }
@@ -173,6 +175,7 @@ class BufferedAddrWindowDevice : public DisplayDevice {
           window_ = Box(window_.xMin(), window_.yMin() + 1, window_.xMax(),
                         window_.yMax());
           begin_ = 0;
+          end_ -= window_.width();
           return result;
         }
       } else {
@@ -183,6 +186,7 @@ class BufferedAddrWindowDevice : public DisplayDevice {
           // We leave at most one (the last, incomplete) line in the window.
           window_ = Box(window_.xMin(), window_.yMin() + full_lines - 1,
                         window_.xMax(), window_.yMax());
+          end_ -= full_lines * window_.width();
           return result;
         } else {
           // Last, incomplete line. The window must be one-line-tall at this

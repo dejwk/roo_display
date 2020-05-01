@@ -68,6 +68,9 @@ void setup() {
   hashColor2 = color::DarkGray;
   SPI.begin();  // Use default SPI pins, or specify your own here.
   display.init();
+  if (display.height() > display.width()) {
+    display.setOrientation(Orientation().rotateRight());
+  }
   display.clear();
 }
 

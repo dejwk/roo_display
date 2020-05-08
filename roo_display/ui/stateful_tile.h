@@ -49,10 +49,8 @@ class StatefulTile : public roo_display::Drawable {
     }
   }
 
-  void drawTo(roo_display::DisplayOutput* output, int16_t x, int16_t y,
-              const roo_display::Box& clip_box,
-              roo_display::Color bgcolor) const override {
-    drawObject(output, x, y, clip_box, bgcolor, tiles_[state_]);
+  void drawTo(const roo_display::Surface& s) const override {
+    s.drawObject(tiles_[state_]);
   }
 
   std::vector<Tile> tiles_;

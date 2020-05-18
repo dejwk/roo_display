@@ -9,14 +9,14 @@ bool TouchDisplay::getTouch(int16_t *x, int16_t *y) {
     return false;
   }
   Orientation orientation = display_->orientation();
-  if (orientation.isXYswapped()) {
-    std::swap(raw_x, raw_y);
-  }
   if (orientation.isRightToLeft()) {
     raw_x = 4096 - raw_x;
   }
   if (orientation.isBottomToTop()) {
     raw_y = 4096 - raw_y;
+  }
+  if (orientation.isXYswapped()) {
+    std::swap(raw_x, raw_y);
   }
 
   *x = ((int32_t)raw_x * display_->effective_width()) / 4096;

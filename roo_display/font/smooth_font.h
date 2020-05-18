@@ -63,8 +63,8 @@ class SmoothFont : public Font {
   int compression_method_;
   int kerning_pairs_count_;
   int glyph_kerning_size_;
-  int default_space_width_;
   unicode_t default_glyph_;
+  int default_space_width_;
   const uint8_t *glyph_metadata_begin_ PROGMEM;
   const uint8_t *glyph_kerning_begin_ PROGMEM;
   const uint8_t *glyph_data_begin_ PROGMEM;

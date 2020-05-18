@@ -219,9 +219,9 @@ class Raster {
 
  private:
   Box extents_;
-  int16_t width_;
-  ColorMode color_mode_;
   PtrType ptr_;
+  ColorMode color_mode_;
+  int16_t width_;
 };
 
 template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>

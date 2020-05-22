@@ -6,7 +6,9 @@ static const int kSpiTouchFrequency = 2500000;
 
 // If two subsequent reads are further apart than this parameter, in either
 // X or Y direction, their conversion is rejected as UNSETTLED.
-static const int kMaxRawSettlingDistance = 50;
+// This parameter helps to filter out random noise. If the value is too small,
+// though, the panel may have a hard time registering touch.
+static const int kMaxRawSettlingDistance = 200;
 
 // How many conversions we attempt in order to get to kMinSettledConversions.
 // If we reach this limit, we return the result based on however many settled

@@ -254,6 +254,10 @@ class DrawableStreamable : public Drawable {
 
   Box extents() const { return streamable_.extents(); }
 
+  const Streamable& contents() const {
+    return streamable_;
+  }
+
  private:
   void drawTo(const Surface &s) const override {
     Box bounds =
@@ -310,6 +314,7 @@ class SimpleStreamable {
   void setColorMode(const ColorMode &color_mode) { color_mode_ = color_mode; }
 
   const Box &extents() const { return extents_; }
+  const Resource& resource() const { return resource_; }
   const ColorMode &color_mode() const { return color_mode_; }
 
   std::unique_ptr<StreamType> CreateStream() const {

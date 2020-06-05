@@ -39,13 +39,24 @@ namespace internal {
 template <typename PixelStream>
 struct RectFillerVisible {
   void operator()(DisplayOutput *output, const Box &extents,
-                  PixelStream *stream, PaintMode mode) const {
+                  Color bgcolor, PixelStream *stream, PaintMode mode) const {
     BufferedPixelWriter writer(output, mode);
-    for (int16_t j = extents.yMin(); j <= extents.yMax(); ++j) {
-      for (int16_t i = extents.xMin(); i <= extents.xMax(); ++i) {
-        Color color = stream->next();
-        if (color.a() != 0) {
-          writer.writePixel(i, j, color);
+    if (bgcolor.a() == 0) {
+      for (int16_t j = extents.yMin(); j <= extents.yMax(); ++j) {
+        for (int16_t i = extents.xMin(); i <= extents.xMax(); ++i) {
+          Color color = stream->next();
+          if (color.a() != 0) {
+            writer.writePixel(i, j, color);
+          }
+        }
+      }
+    } else {
+      for (int16_t j = extents.yMin(); j <= extents.yMax(); ++j) {
+        for (int16_t i = extents.xMin(); i <= extents.xMax(); ++i) {
+          Color color = stream->next();
+          if (color.a() != 0) {
+            writer.writePixel(i, j, alphaBlend(bgcolor, color));
+          }
         }
       }
     }
@@ -100,7 +111,7 @@ void FillRectFromStream(DisplayOutput *output, const Box &extents,
     fill(output, extents, bgcolor, stream, paint_mode, stream->transparency());
   } else {
     RectFillerVisible<PixelStream> fill;
-    fill(output, extents, stream, paint_mode);
+    fill(output, extents, bgcolor, stream, paint_mode);
   }
 };
 

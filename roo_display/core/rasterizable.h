@@ -116,8 +116,8 @@ class SimpleRasterizable : public Rasterizable {
 
  private:
   Getter getter_;
-  TransparencyMode transparency_;
   Box extents_;
+  TransparencyMode transparency_;
 };
 
 template <typename Getter>
@@ -160,9 +160,9 @@ class SimpleTiledRasterizable : public Rasterizable {
   TransparencyMode transparency() const override { return transparency_; }
 
  private:
+  Box extents_;
   Getter getter_;
   TransparencyMode transparency_;
-  Box extents_;
   const int16_t x_offset_, y_offset_;
 };
 

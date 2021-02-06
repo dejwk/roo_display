@@ -2,6 +2,8 @@
 
 #include <inttypes.h>
 
+#include "roo_display/core/memfill.h"
+
 namespace roo_display {
 
 // When drawing using semi-transparent colors, specified if and how the
@@ -63,12 +65,23 @@ class Color {
   // Makes the color fully opaque by setting its alpha value to 255.
   constexpr Color toOpaque() { return Color(asArgb() | 0xFF000000); }
 
+  // Utility function to quickly fill an array with a single color.
+  static void Fill(Color* buf, uint32_t count, Color color) {
+    pattern_fill<sizeof(Color)>(
+      reinterpret_cast<uint8_t*>(buf), count,
+      reinterpret_cast<uint8_t*>(&color));
+  }
+
  private:
   uint32_t argb_;
 };
 
 inline constexpr bool operator==(const Color &a, const Color &b) {
   return a.asArgb() == b.asArgb();
+}
+
+inline constexpr bool operator!=(const Color &a, const Color &b) {
+  return a.asArgb() != b.asArgb();
 }
 
 // Calculates alpha-blending of the foreground color (fgc) over the background

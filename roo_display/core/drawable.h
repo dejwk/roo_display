@@ -28,13 +28,13 @@ class Surface {
   Surface(DisplayOutput *out, int16_t dx, int16_t dy, Box clip,
           Color bg = color::Transparent, FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND)
-      : out(out),
-        dx(dx),
-        dy(dy),
-        clip_box(std::move(clip)),
-        bgcolor(bg),
-        fill_mode(fill_mode),
-        paint_mode(paint_mode) {
+      : out_(out),
+        dx_(dx),
+        dy_(dy),
+        clip_box_(std::move(clip)),
+        bgcolor_(bg),
+        fill_mode_(fill_mode),
+        paint_mode_(paint_mode) {
     if (bg.a() != 0) {
       fill_mode = FILL_MODE_RECTANGLE;
     }
@@ -43,13 +43,13 @@ class Surface {
   Surface(DisplayOutput *out, Box clip, Color bg = color::Transparent,
           FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND)
-      : out(out),
-        dx(0),
-        dy(0),
-        clip_box(std::move(clip)),
-        bgcolor(bg),
-        fill_mode(fill_mode),
-        paint_mode(paint_mode) {
+      : out_(out),
+        dx_(0),
+        dy_(0),
+        clip_box_(std::move(clip)),
+        bgcolor_(bg),
+        fill_mode_(fill_mode),
+        paint_mode_(paint_mode) {
     if (bg.a() != 0) {
       fill_mode = FILL_MODE_RECTANGLE;
     }
@@ -58,22 +58,34 @@ class Surface {
   Surface(Surface &&other) = default;
   Surface(const Surface &other) = default;
 
+  DisplayOutput* out() const { return out_; }
+  int16_t dx() const { return dx_; }
+  int16_t dy() const { return dy_; }
+  const Box& clip_box() const { return clip_box_; }
+  Color bgcolor() const { return bgcolor_; }
+  FillMode fill_mode() const { return fill_mode_; }
+  PaintMode paint_mode() const { return paint_mode_; }
+
+  void set_dx(int16_t dx) { dx_ = dx; }
+  void set_dy(int16_t dy) { dy_ = dy; }
+
   // Draws the specified drawable object to this surface. Intended for custom
   // implementations of Drawable (below), to draw other objects as part of
   // drawing itself.
   inline void drawObject(const Drawable &object) const;
 
   Box::ClipResult clipToExtents(Box extents) {
-    return clip_box.clip(extents.translate(dx, dy));
+    return clip_box_.clip(extents.translate(dx_, dy_));
   }
 
-  DisplayOutput *out;
-  int16_t dx;
-  int16_t dy;
-  Box clip_box;
-  Color bgcolor;
-  FillMode fill_mode;
-  PaintMode paint_mode;
+ private:
+  DisplayOutput *out_;
+  int16_t dx_;
+  int16_t dy_;
+  Box clip_box_;
+  Color bgcolor_;
+  FillMode fill_mode_;
+  PaintMode paint_mode_;
 };
 
 // Interface implemented by any class that represents things (like images in

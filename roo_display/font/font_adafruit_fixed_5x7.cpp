@@ -130,17 +130,17 @@ FontAdafruitFixed5x7::FontAdafruitFixed5x7() {
 }
 
 void drawGlyph(const Surface& s, unicode_t code, Color color, bool whitespace) {
-  int16_t x = s.dx;
-  int16_t y = s.dy;
-  if (!s.clip_box.intersects(
+  int16_t x = s.dx();
+  int16_t y = s.dy();
+  if (!s.clip_box().intersects(
           Box(x, y - ascent, x + advance - 1, y - descent + linegap))) {
     return;
   }
   y -= ascent;
   if (code < 32 || code > 127) return;
-  if (s.fill_mode == FILL_MODE_VISIBLE) {
-    ClippingBufferedPixelFiller filler(s.out, color, s.clip_box,
-                                       s.paint_mode);
+  if (s.fill_mode() == FILL_MODE_VISIBLE) {
+    ClippingBufferedPixelFiller filler(s.out(), color, s.clip_box(),
+                                       s.paint_mode());
     for (int8_t i = 0; i < 5; i++) {
       uint8_t line = pgm_read_byte(font + code * 5 + i);
       for (int8_t j = 0; j < 8; j++) {
@@ -149,16 +149,16 @@ void drawGlyph(const Surface& s, unicode_t code, Color color, bool whitespace) {
       }
     }
   } else {
-    ClippingBufferedPixelWriter writer(s.out, s.clip_box, s.paint_mode);
+    ClippingBufferedPixelWriter writer(s.out(), s.clip_box(), s.paint_mode());
     for (int8_t i = 0; i < 5; i++) {
       uint8_t line = pgm_read_byte(font + code * 5 + i);
       for (int8_t j = 0; j < 8; j++) {
-        writer.writePixel(x + i, y + j, (line & 0x1) ? color : s.bgcolor);
+        writer.writePixel(x + i, y + j, (line & 0x1) ? color : s.bgcolor());
         line >>= 1;
       }
       if (whitespace) {
         for (int8_t j = 0; j < 8; j++) {
-          writer.writePixel(x + 5, y + j, s.bgcolor);
+          writer.writePixel(x + 5, y + j, s.bgcolor());
         }
       }
     }
@@ -174,7 +174,7 @@ void FontAdafruitFixed5x7::drawHorizontalString(const Surface& s,
   while (decoder.has_next()) {
     uint16_t character = decoder.next();
     drawGlyph(news, character, color, decoder.has_next());
-    news.dx += advance;
+    news.set_dx(news.dx() + advance);
   }
 }
 

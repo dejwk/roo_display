@@ -271,8 +271,8 @@ class DrawingContext {
       s.drawObject(object);
     } else if (!transform_.is_rescaled() && !transform_.xy_swap()) {
       // Translation only.
-      s.dx += transform_.x_offset();
-      s.dy += transform_.y_offset();
+      s.set_dx(s.dx() + transform_.x_offset());
+      s.set_dy(s.dy() + transform_.y_offset());
       s.drawObject(object);
     } else {
       s.drawObject(TransformedDrawable(transform_, &object));
@@ -303,8 +303,8 @@ class Fill : public Drawable {
 
  private:
   void drawTo(const Surface &s) const override {
-    Color color = alphaBlend(s.bgcolor, color_);
-    s.out->fillRect(PAINT_MODE_REPLACE, s.clip_box, color);
+    Color color = alphaBlend(s.bgcolor(), color_);
+    s.out()->fillRect(PAINT_MODE_REPLACE, s.clip_box(), color);
   }
 
   Color color_;
@@ -321,7 +321,7 @@ class Clear : public Drawable {
 
  private:
   void drawTo(const Surface &s) const override {
-    s.out->fillRect(PAINT_MODE_REPLACE, s.clip_box, s.bgcolor);
+    s.out()->fillRect(PAINT_MODE_REPLACE, s.clip_box(), s.bgcolor());
   }
 };
 

@@ -261,19 +261,19 @@ class DrawableStreamable : public Drawable {
  private:
   void drawTo(const Surface &s) const override {
     Box bounds =
-        Box::intersect(s.clip_box, streamable_.extents().translate(s.dx, s.dy));
+        Box::intersect(s.clip_box(), streamable_.extents().translate(s.dx(), s.dy()));
     if (bounds.empty()) return;
     if (streamable_.extents().width() == bounds.width() &&
         streamable_.extents().height() == bounds.height()) {
       // Optimized case: rendering full stream.
       auto stream = streamable_.CreateStream();
-      internal::FillRectFromStream(s.out, bounds, stream.get(), s.bgcolor,
-                                   s.fill_mode, s.paint_mode);
+      internal::FillRectFromStream(s.out(), bounds, stream.get(), s.bgcolor(),
+                                   s.fill_mode(), s.paint_mode());
     } else {
       auto stream =
-          CreateClippedStreamFor(streamable_, bounds.translate(-s.dx, -s.dy));
-      internal::FillRectFromStream(s.out, bounds, stream.get(), s.bgcolor,
-                                   s.fill_mode, s.paint_mode);
+          CreateClippedStreamFor(streamable_, bounds.translate(-s.dx(), -s.dy()));
+      internal::FillRectFromStream(s.out(), bounds, stream.get(), s.bgcolor(),
+                                   s.fill_mode(), s.paint_mode());
     }
   }
 

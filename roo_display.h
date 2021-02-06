@@ -62,8 +62,8 @@ class Display {
   // Returns the default clip box.
   const Box &getClipBox() const { return clip_box_; }
 
-  // Sets a synthetic background to be used by all derived contexts.
-  void setBackground(const Synthetic *bg) {
+  // Sets a rasterizable background to be used by all derived contexts.
+  void setBackground(const Rasterizable *bg) {
     background_ = bg;
     bgcolor_ = color::Transparent;
   }
@@ -105,7 +105,7 @@ class Display {
 
   Box clip_box_;
   Color bgcolor_;
-  const Synthetic *background_;
+  const Rasterizable *background_;
 };
 
 // Primary top-level interface for drawing to screens, off-screen buffers,
@@ -159,7 +159,7 @@ class DrawingContext {
   int16_t width() const { return display_->width(); }
   int16_t height() const { return display_->height(); }
 
-  void setBackground(const Synthetic *bg) {
+  void setBackground(const Rasterizable *bg) {
     background_ = bg;
     bgcolor_ = color::Transparent;
   }
@@ -286,7 +286,7 @@ class DrawingContext {
   // Absolute coordinates of the clip region in the device space. Inclusive.
   Box clip_box_;
   const ClipMask *clip_mask_;
-  const Synthetic *background_;
+  const Rasterizable *background_;
   Color bgcolor_;
   bool transformed_;
   Transform transform_;

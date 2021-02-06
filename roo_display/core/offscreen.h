@@ -123,7 +123,7 @@ template <typename ColorMode,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN,
           int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           typename storage_type = ColorStorageType<ColorMode>>
-class Offscreen : public DisplayDevice, public Drawable, public Synthetic {
+class Offscreen : public DisplayDevice, public Drawable, public Rasterizable {
  public:
   // Creates an offscreen with specified geometry, using the designated buffer.
   // The buffer must have sufficient capacity, determined as
@@ -276,7 +276,7 @@ template <typename ColorMode,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN,
           int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           typename storage_type = ColorStorageType<ColorMode>>
-class OffscreenDisplay : public Display, public Drawable, public Synthetic {
+class OffscreenDisplay : public Display, public Drawable, public Rasterizable {
  public:
   typedef Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
                     storage_type>

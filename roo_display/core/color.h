@@ -109,6 +109,12 @@ inline Color alphaBlend(Color bgc, Color fgc) {
   if (back_alpha == 0xFF) {
     return alphaBlendOverOpaque(bgc, fgc);
   }
+  if (front_alpha == 0) {
+    return bgc;
+  }
+  if (back_alpha == 0) {
+    return fgc;
+  }
   // Blends a+b so that, when later applied over c, the result is the same as if
   // they were applied in succession; e.g. c+(a+b) == (c+a)+b.
   uint16_t tmp = back_alpha * front_alpha;

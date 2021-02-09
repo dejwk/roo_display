@@ -1,6 +1,7 @@
 #pragma once
 
 #include <inttypes.h>
+#include <string>
 
 #include "roo_display/core/drawable.h"
 #include "roo_display/filter/transformed.h"

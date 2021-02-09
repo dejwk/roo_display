@@ -425,11 +425,8 @@ class ReplaceWriter {
     int pixel_index = offset % pixels_per_byte;
     uint8_t *target = p + offset / pixels_per_byte;
     while (count-- > 0) {
-      Color bg = color_mode_.toArgbColor(
-          subpixel.ReadSubPixelColor(*target, pixel_index));
       subpixel.applySubPixelColor(
-          color_mode_.fromArgbColor(alphaBlend(bg, *color_++)), target,
-          pixel_index);
+          color_mode_.fromArgbColor(*color_++), target, pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;
         target++;

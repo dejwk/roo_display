@@ -447,6 +447,8 @@ TEST(ReplaceWriter, Argb8888) { TestWriter<Argb8888>(PAINT_MODE_REPLACE); }
 TEST(ReplaceWriter, Argb6666) { TestWriter<Argb6666>(PAINT_MODE_REPLACE); }
 TEST(ReplaceWriter, Argb4444) { TestWriter<Argb4444>(PAINT_MODE_REPLACE); }
 TEST(ReplaceWriter, Rgb565) { TestWriter<Rgb565>(PAINT_MODE_REPLACE); }
+TEST(ReplaceWriter, Alpha8) { TestWriter<Alpha8>(PAINT_MODE_REPLACE, color::Black); }
+TEST(ReplaceWriter, Alpha4) { TestWriter<Alpha4>(PAINT_MODE_REPLACE, color::Black); }
 
 TEST(ReplaceWriter, Rgb565WithTransparency) {
   TestWriter<Rgb565WithTransparency>(PAINT_MODE_REPLACE,
@@ -459,6 +461,8 @@ TEST(BlendWriter, Argb8888) { TestWriter<Argb8888>(PAINT_MODE_BLEND); }
 TEST(BlendWriter, Argb6666) { TestWriter<Argb6666>(PAINT_MODE_BLEND); }
 TEST(BlendWriter, Argb4444) { TestWriter<Argb4444>(PAINT_MODE_BLEND); }
 TEST(BlendWriter, Rgb565) { TestWriter<Rgb565>(PAINT_MODE_BLEND); }
+TEST(BlendWriter, Alpha8) { TestWriter<Alpha8>(PAINT_MODE_BLEND, color::Black); }
+TEST(BlendWriter, Alpha4) { TestWriter<Alpha4>(PAINT_MODE_BLEND, color::Black); }
 
 TEST(BlendWriter, Rgb565WithTransparency) {
   TestWriter<Rgb565WithTransparency>(PAINT_MODE_BLEND,
@@ -492,6 +496,8 @@ TEST(ReplaceFiller, Argb8888) { TestFiller<Argb8888>(PAINT_MODE_REPLACE); }
 TEST(ReplaceFiller, Argb6666) { TestFiller<Argb6666>(PAINT_MODE_REPLACE); }
 TEST(ReplaceFiller, Argb4444) { TestFiller<Argb4444>(PAINT_MODE_REPLACE); }
 TEST(ReplaceFiller, Rgb565) { TestFiller<Rgb565>(PAINT_MODE_REPLACE); }
+TEST(ReplaceFiller, Alpha8) { TestFiller<Alpha8>(PAINT_MODE_REPLACE, color::Black); }
+TEST(ReplaceFiller, Alpha4) { TestFiller<Alpha4>(PAINT_MODE_REPLACE, color::Black); }
 
 TEST(ReplaceFiller, Rgb565WithTransparency) {
   TestWriter<Rgb565WithTransparency>(PAINT_MODE_REPLACE,
@@ -504,6 +510,8 @@ TEST(BlendFiller, Argb8888) { TestFiller<Argb8888>(PAINT_MODE_BLEND); }
 TEST(BlendFiller, Argb6666) { TestFiller<Argb6666>(PAINT_MODE_BLEND); }
 TEST(BlendFiller, Argb4444) { TestFiller<Argb4444>(PAINT_MODE_BLEND); }
 TEST(BlendFiller, Rgb565) { TestFiller<Rgb565>(PAINT_MODE_BLEND); }
+TEST(BlendFiller, Alpha8) { TestFiller<Alpha8>(PAINT_MODE_BLEND, color::Black); }
+TEST(BlendFiller, Alpha4) { TestFiller<Alpha4>(PAINT_MODE_BLEND, color::Black); }
 
 TEST(BlendFiller, Rgb565WithTransparency) {
   TestWriter<Rgb565WithTransparency>(PAINT_MODE_BLEND,

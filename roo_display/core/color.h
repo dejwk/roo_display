@@ -88,7 +88,7 @@ inline constexpr bool operator!=(const Color &a, const Color &b) {
 // color (bgc), ignoring background color's alpha, as if it is fully opaque.
 inline Color alphaBlendOverOpaque(Color bgc, Color fgc) {
   // https://stackoverflow.com/questions/12011081
-  uint16_t alpha = fgc.a();
+  uint16_t alpha = fgc.a() + 1;
   uint16_t inv_alpha = 256 - alpha;
   uint8_t r = (uint8_t)((alpha * fgc.r() + inv_alpha * bgc.r()) >> 8);
   uint8_t g = (uint8_t)((alpha * fgc.g() + inv_alpha * bgc.g()) >> 8);
@@ -119,7 +119,7 @@ inline Color alphaBlend(Color bgc, Color fgc) {
   // they were applied in succession; e.g. c+(a+b) == (c+a)+b.
   uint16_t tmp = back_alpha * front_alpha;
   uint16_t alpha = back_alpha + front_alpha - ((tmp + (tmp >> 8)) >> 8);
-  uint16_t front_multi = (front_alpha << 8) / (alpha + 1);
+  uint16_t front_multi = ((front_alpha + 1) << 8) / (alpha + 1);
   uint16_t back_multi = 256 - front_multi;
 
   uint8_t r = (uint8_t)((front_multi * fgc.r() + back_multi * bgc.r()) >> 8);

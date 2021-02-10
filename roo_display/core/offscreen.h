@@ -284,7 +284,7 @@ class OffscreenDisplay : public Display, public Drawable, public Rasterizable {
 
   // Look at class Offscreen, above, to see supported parameter options.
   template <typename... Args>
-  OffscreenDisplay(Args &&... args)
+  OffscreenDisplay(Args &&...args)
       : Display(new OffscreenDevice(std::forward<Args>(args)...), nullptr) {}
 
   ~OffscreenDisplay() { delete offscreen(); }
@@ -470,7 +470,7 @@ class ReplaceWriter<ColorMode, pixel_order, byte_order, 1, storage_type> {
 
 // For sub-byte color modes.
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
-          int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
+          uint8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           typename storage_type = ColorStorageType<ColorMode>>
 class BlendWriter {
  public:
@@ -481,11 +481,9 @@ class BlendWriter {
     SubPixelColorHelper<ColorMode, pixel_order> subpixel;
     int pixel_index = offset % pixels_per_byte;
     uint8_t *target = p + offset / pixels_per_byte;
-    Color bg = color_mode_.toArgbColor(
-        subpixel.ReadSubPixelColor(*target, pixel_index));
-    subpixel.applySubPixelColor(
-        color_mode_.fromArgbColor(alphaBlend(bg, *color_++)), target,
-        pixel_index);
+    auto color = color_mode_.rawAlphaBlend(
+        subpixel.ReadSubPixelColor(*target, pixel_index), *color_++);
+    subpixel.applySubPixelColor(color, target, pixel_index);
   }
 
   void operator()(storage_type *p, uint32_t offset, uint32_t count) {
@@ -493,11 +491,9 @@ class BlendWriter {
     int pixel_index = offset % pixels_per_byte;
     uint8_t *target = p + offset / pixels_per_byte;
     while (count-- > 0) {
-      Color bg = color_mode_.toArgbColor(
-          subpixel.ReadSubPixelColor(*target, pixel_index));
-      subpixel.applySubPixelColor(
-          color_mode_.fromArgbColor(alphaBlend(bg, *color_++)), target,
-          pixel_index);
+      auto color = color_mode_.rawAlphaBlend(
+          subpixel.ReadSubPixelColor(*target, pixel_index), *color_++);
+      subpixel.applySubPixelColor(color, target, pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;
         target++;
@@ -520,15 +516,13 @@ class BlendWriter<ColorMode, pixel_order, byte_order, 1, storage_type> {
 
   void operator()(uint8_t *p, uint32_t offset) {
     internal::RawIterator<ColorMode::bits_per_pixel, byte_order> itr(p, offset);
-    itr.write(color_mode_.fromArgbColor(
-        alphaBlend(color_mode_.toArgbColor(itr.read()), *color_++)));
+    itr.write(color_mode_.rawAlphaBlend(itr.read(), *color_++));
   }
 
   void operator()(uint8_t *p, uint32_t offset, uint32_t count) {
     internal::RawIterator<ColorMode::bits_per_pixel, byte_order> itr(p, offset);
     while (count-- > 0) {
-      itr.write(color_mode_.fromArgbColor(
-          alphaBlend(color_mode_.toArgbColor(itr.read()), *color_++)));
+      itr.write(color_mode_.rawAlphaBlend(itr.read(), *color_++));
       ++itr;
     }
   }
@@ -698,10 +692,9 @@ class BlendFiller {
     SubPixelColorHelper<ColorMode, pixel_order> subpixel;
     int pixel_index = offset % pixels_per_byte;
     uint8_t *target = p + offset / pixels_per_byte;
-    Color bg = color_mode_.toArgbColor(
-        subpixel.ReadSubPixelColor(*target, pixel_index));
-    subpixel.applySubPixelColor(
-        color_mode_.fromArgbColor(alphaBlend(bg, color_)), target, pixel_index);
+    auto color = color_mode_.rawAlphaBlend(
+        subpixel.ReadSubPixelColor(*target, pixel_index), color_);
+    subpixel.applySubPixelColor(color, target, pixel_index);
   }
 
   void operator()(uint8_t *p, uint32_t offset, uint32_t count) {
@@ -709,11 +702,9 @@ class BlendFiller {
     int pixel_index = offset % pixels_per_byte;
     uint8_t *target = p + offset / pixels_per_byte;
     while (count-- > 0) {
-      Color bg = color_mode_.toArgbColor(
-          subpixel.ReadSubPixelColor(*target, pixel_index));
-      subpixel.applySubPixelColor(
-          color_mode_.fromArgbColor(alphaBlend(bg, color_)), target,
-          pixel_index);
+      auto color = color_mode_.rawAlphaBlend(
+          subpixel.ReadSubPixelColor(*target, pixel_index), color_);
+      subpixel.applySubPixelColor(color, target, pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;
         target++;
@@ -736,15 +727,13 @@ class BlendFiller<ColorMode, pixel_order, byte_order, 1, storage_type> {
 
   void operator()(uint8_t *p, uint32_t offset) const {
     internal::RawIterator<ColorMode::bits_per_pixel, byte_order> itr(p, offset);
-    itr.write(color_mode_.fromArgbColor(
-        alphaBlend(color_mode_.toArgbColor(itr.read()), color_)));
+    itr.write(color_mode_.rawAlphaBlend(itr.read(), color_));
   }
 
   void operator()(uint8_t *p, uint32_t offset, uint32_t count) const {
     internal::RawIterator<ColorMode::bits_per_pixel, byte_order> itr(p, offset);
     while (count-- > 0) {
-      itr.write(color_mode_.fromArgbColor(
-          alphaBlend(color_mode_.toArgbColor(itr.read()), color_)));
+      itr.write(color_mode_.rawAlphaBlend(itr.read(), color_));
       ++itr;
     }
   }

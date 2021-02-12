@@ -1,9 +1,9 @@
 #pragma once
 
 #include "roo_display/core/color.h"
-#include "roo_display/core/color_subpixel.h"
 #include "roo_display/core/drawable.h"
 #include "roo_display/core/streamable.h"
+#include "roo_display/internal/color_subpixel.h"
 #include "roo_display/io/memory.h"
 
 namespace roo_display {

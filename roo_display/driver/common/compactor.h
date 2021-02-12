@@ -1,7 +1,7 @@
 #pragma once
 
 #include "roo_display/core/device.h"
-#include "roo_display/core/memfill.h"
+#include "roo_display/internal/memfill.h"
 
 namespace roo_display {
 

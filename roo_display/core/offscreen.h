@@ -3,10 +3,10 @@
 // Support for drawing to in-memory buffers, using various color modes.
 
 #include "roo_display.h"
-#include "roo_display/core/byte_order.h"
 #include "roo_display/core/color.h"
-#include "roo_display/core/memfill.h"
 #include "roo_display/core/raster.h"
+#include "roo_display/internal/byte_order.h"
+#include "roo_display/internal/memfill.h"
 
 namespace roo_display {
 

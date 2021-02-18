@@ -161,7 +161,7 @@ class Offscreen : public DisplayDevice, public Drawable, public Rasterizable {
             new uint8_t[(ColorMode::bits_per_pixel * extents.area() + 7) / 8]),
         owns_buffer_(true),
         orienter_(extents.width(), extents.height(), Orientation::Default()),
-        raster_(extents.width(), extents.height(), buffer_, color_mode) {}
+        raster_(extents, buffer_, color_mode) {}
 
   // Creates an offscreen with specified geometry, using an internally allocated
   // buffer. The buffer is pre-filled using the specified  color.

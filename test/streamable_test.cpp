@@ -1,5 +1,5 @@
 
-#include "roo_display/core/streamable.h"
+#include "roo_display/internal/streamable.h"
 
 #include "roo_display/core/color.h"
 #include "testing.h"
@@ -8,20 +8,20 @@ using namespace testing;
 
 namespace roo_display {
 
-template <typename Streamable>
+template <typename RawStreamable>
 void Draw(DisplayDevice* output, int16_t x, int16_t y, const Box& clip_box,
-          const Streamable& object, FillMode fill_mode = FILL_MODE_VISIBLE,
+          const RawStreamable& object, FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND) {
   output->begin();
-  DrawableStreamable<Streamable> drawable(object);
+  DrawableRawStreamable<RawStreamable> drawable(object);
   Surface s(output, x, y, clip_box, 0, fill_mode, paint_mode);
   s.drawObject(drawable);
   output->end();
 }
 
-template <typename Streamable>
-void Draw(DisplayDevice* output, int16_t x, int16_t y, const Streamable& object,
-          FillMode fill_mode = FILL_MODE_VISIBLE,
+template <typename RawStreamable>
+void Draw(DisplayDevice* output, int16_t x, int16_t y,
+          const RawStreamable& object, FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND) {
   Box clip_box(0, 0, output->effective_width() - 1,
                output->effective_height() - 1);
@@ -30,7 +30,7 @@ void Draw(DisplayDevice* output, int16_t x, int16_t y, const Streamable& object,
 
 TEST(Streamable, FilledRect) {
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
-  StreamableFilledRect rect(2, 3, color::White);
+  RawStreamableFilledRect rect(2, 3, color::White);
   Draw(&test_screen, 1, 2, rect);
   EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 5, 6,
                                           "     "
@@ -43,7 +43,7 @@ TEST(Streamable, FilledRect) {
 
 TEST(Streamable, ClippedFilledRect) {
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
-  StreamableFilledRect rect(2, 3, color::White);
+  RawStreamableFilledRect rect(2, 3, color::White);
   Draw(&test_screen, 1, 2, Box(1, 1, 2, 2), rect);
   EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 5, 6,
                                           "     "

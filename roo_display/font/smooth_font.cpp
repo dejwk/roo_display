@@ -4,7 +4,7 @@
 #include <WString.h>  // Pretty much for debug output only.
 
 #include "roo_display/core/raster.h"
-#include "roo_display/core/streamable_overlay.h"
+#include "roo_display/internal/streamable_overlay.h"
 #include "roo_display/image/image.h"
 #include "roo_display/io/memory.h"
 
@@ -245,12 +245,12 @@ void SmoothFont::drawGlyphWithBackground(DisplayOutput *output, int16_t x,
                                          PaintMode paint_mode) const {
   Box box = glyph_metrics.screen_extents().translate(offset, 0);
   if (rle()) {
-    auto glyph = MakeDrawableStreamable(
+    auto glyph = MakeDrawableRawStreamable(
         RleImage4bppxPolarized<Alpha4>(box, data, color));
     drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor, paint_mode);
   } else {
     // Identical as above, but using Raster<>
-    auto glyph = MakeDrawableStreamable(
+    auto glyph = MakeDrawableRawStreamable(
         Raster<const uint8_t PROGMEM *, Alpha4>(box, data, color));
     drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor, paint_mode);
   }
@@ -266,13 +266,13 @@ void SmoothFont::drawKernedGlyphsWithBackground(
   Box lb = left_metrics.screen_extents().translate(left_offset, 0);
   Box rb = right_metrics.screen_extents().translate(right_offset, 0);
   if (rle()) {
-    auto glyph = MakeDrawableStreamable(
+    auto glyph = MakeDrawableRawStreamable(
         Overlay(RleImage4bppxPolarized<Alpha4>(lb, left_data, color), 0, 0,
                 RleImage4bppxPolarized<Alpha4>(rb, right_data, color), 0, 0));
     drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor, paint_mode);
   } else {
     // Identical as above, but using Raster<>
-    auto glyph = MakeDrawableStreamable(Overlay(
+    auto glyph = MakeDrawableRawStreamable(Overlay(
         Raster<const uint8_t PROGMEM *, Alpha4>(lb, left_data, color), 0, 0,
         Raster<const uint8_t PROGMEM *, Alpha4>(rb, right_data, color), 0, 0));
     drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor, paint_mode);

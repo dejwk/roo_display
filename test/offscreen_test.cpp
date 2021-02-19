@@ -101,12 +101,12 @@ class TrivialColorStream {
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order>
 using RawColorRect =
-    SimpleStreamable<const uint8_t*, ColorMode,
-                     RawColorStream<ColorMode, pixel_order, byte_order>>;
+    SimpleRawStreamable<const uint8_t*, ColorMode,
+                        RawColorStream<ColorMode, pixel_order, byte_order>>;
 
 template <typename ColorMode>
 using TrivialColorRect =
-    SimpleStreamable<const Color*, ColorMode, TrivialColorStream>;
+    SimpleRawStreamable<const Color*, ColorMode, TrivialColorStream>;
 
 template <typename ColorMode>
 class TrivialReplaceWriter {

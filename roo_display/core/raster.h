@@ -2,8 +2,8 @@
 
 #include "roo_display/core/color.h"
 #include "roo_display/core/drawable.h"
-#include "roo_display/core/streamable.h"
 #include "roo_display/internal/color_subpixel.h"
+#include "roo_display/internal/streamable.h"
 #include "roo_display/io/memory.h"
 
 namespace roo_display {
@@ -207,7 +207,7 @@ class Raster {
   const Box& extents() const { return extents_; }
   const ColorMode& color_mode() const { return color_mode_; }
 
-  std::unique_ptr<StreamType> CreateStream() const {
+  std::unique_ptr<StreamType> CreateRawStream() const {
     MemoryStream<PtrType> s(ptr_);
     return std::unique_ptr<StreamType>(new StreamType(s, color_mode_));
   }

@@ -37,16 +37,16 @@ namespace roo_display {
 // Run-length-encoded image, for color modes with >= 8 bits_per_pixel.
 template <typename ColorMode, typename Resource = PrgMemResource>
 using RleImage =
-    SimpleStreamable<Resource, ColorMode,
-                     internal::RleStreamUniform<Resource, ColorMode>>;
+    SimpleRawStreamable<Resource, ColorMode,
+                        internal::RleStreamUniform<Resource, ColorMode>>;
 
 // Run-length-encoded 4-bit image, for color modes with 4 bits_per_pixel, with
 // preferrential RLE encoding for extreme values (0x0 and 0xF). Particularly
 // useful with Alpha4, e.g. for font glyphs.
 template <typename ColorMode, typename Resource = PrgMemResource>
 using RleImage4bppxPolarized =
-    SimpleStreamable<Resource, ColorMode,
-                     internal::RleStream4bppxPolarized<Resource, ColorMode>>;
+    SimpleRawStreamable<Resource, ColorMode,
+                        internal::RleStream4bppxPolarized<Resource, ColorMode>>;
 
 // // Run-length-encoded image in RGB565 and an addiional 4-bit alpha channel.
 // template <typename Resource = PrgMemResource>
@@ -59,8 +59,8 @@ template <typename Resource, typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
 using SimpleImage =
-    SimpleStreamable<Resource, ColorMode,
-                     PixelStream<Resource, ColorMode, pixel_order, byte_order>>;
+    SimpleRawStreamable<Resource, ColorMode,
+                        PixelStream<Resource, ColorMode, pixel_order, byte_order>>;
 
 template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
 using SimpleImageArgb8888 =

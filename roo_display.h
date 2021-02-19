@@ -2,8 +2,6 @@
 
 #include "roo_display/core/device.h"
 #include "roo_display/core/drawable.h"
-#include "roo_display/core/streamable.h"
-#include "roo_display/core/streamable_overlay.h"
 #include "roo_display/filter/background.h"
 #include "roo_display/filter/clip_mask.h"
 #include "roo_display/filter/transformed.h"
@@ -219,25 +217,6 @@ class DrawingContext {
 
   void draw(const Drawable &object, int16_t dx, int16_t dy) {
     drawInternal(object, dx, dy, bgcolor_);
-  }
-
-  // T must implement the streamable contract, as defined in "streamable.h"
-  // Note. the 2nd template parameter is used to force SFINAE, that is,
-  // to make sure that the compiler only considers classes that actually
-  // implement 'CreateStream' to be viable for this overload. (If the
-  // method is missing, the template substitution fails, and the class
-  // is not considered viable because SFINAE).
-  template <typename T,
-            typename Stream = decltype(std::declval<T>().CreateStream())>
-  void draw(const T &object, int16_t dx, int16_t dy) {
-    DrawableStreamable<internal::StreamableRef<T>> drawable(Ref(object));
-    drawInternal(drawable, dx, dy, bgcolor_);
-  }
-
-  template <typename T,
-            typename Stream = decltype(std::declval<T>().CreateStream())>
-  void draw(const T &object) {
-    draw<T, Stream>(object, 0, 0);
   }
 
  private:

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "roo_display/core/streamable.h"
+#include "roo_display/internal/streamable.h"
 
 namespace roo_display {
 
@@ -9,12 +9,12 @@ namespace internal {
 // Expands the 'rectangle size' of the specified stream, generating
 // empty (fully transparent) pixels in the extended area surrounding the
 // specified stream.
-template <typename PixelStream>
+template <typename RawPixelStream>
 class SuperRectangleStream {
  public:
   // width: the width of the surrounding rectangle
   // inner: the bounding box of the delegate stream in the surrounding rectangle
-  SuperRectangleStream(std::unique_ptr<PixelStream> delegate, int16_t width,
+  SuperRectangleStream(std::unique_ptr<RawPixelStream> delegate, int16_t width,
                        const Box &inner)
       : delegate_(std::move(delegate)),
         count_(0),
@@ -65,7 +65,7 @@ class SuperRectangleStream {
  private:
   SuperRectangleStream(const SuperRectangleStream &) = delete;
 
-  std::unique_ptr<PixelStream> delegate_;
+  std::unique_ptr<RawPixelStream> delegate_;
   int32_t count_;
   int32_t skip_;
   int16_t remaining_lines_;
@@ -74,12 +74,12 @@ class SuperRectangleStream {
   TransparencyMode transparency_;
 };
 
-template <typename PixelStream>
-std::unique_ptr<SuperRectangleStream<PixelStream>> Realign(
+template <typename RawPixelStream>
+std::unique_ptr<SuperRectangleStream<RawPixelStream>> Realign(
     const Box &outer_extents, const Box &inner_extents,
-    std::unique_ptr<PixelStream> stream) {
-  return std::unique_ptr<SuperRectangleStream<PixelStream>>(
-      new SuperRectangleStream<PixelStream>(
+    std::unique_ptr<RawPixelStream> stream) {
+  return std::unique_ptr<SuperRectangleStream<RawPixelStream>>(
+      new SuperRectangleStream<RawPixelStream>(
           std::move(stream), outer_extents.width(),
           inner_extents.translate(-outer_extents.xMin(), -outer_extents.yMin())));
 }
@@ -148,17 +148,17 @@ class Superposition {
 
   Superposition(Superposition &&) = default;
 
-  auto CreateStream() const -> std::unique_ptr<
-      internal::UnionStream<SuperRectangleStream<StreamTypeOf<Bg>>,
-                            SuperRectangleStream<StreamTypeOf<Fg>>>> {
+  auto CreateRawStream() const -> std::unique_ptr<
+      internal::UnionStream<SuperRectangleStream<RawStreamTypeOf<Bg>>,
+                            SuperRectangleStream<RawStreamTypeOf<Fg>>>> {
     return MakeUnionStream(
-        Realign(extents_, bg_extents(), bg_.CreateStream()),
-        Realign(extents_, fg_extents(), fg_.CreateStream()));
+        Realign(extents_, bg_extents(), bg_.CreateRawStream()),
+        Realign(extents_, fg_extents(), fg_.CreateRawStream()));
   }
 
   auto CreateClippedStream(const Box &clip_box) const -> std::unique_ptr<
-      internal::UnionStream<SuperRectangleStream<ClipperedStreamTypeOf<Bg>>,
-                            SuperRectangleStream<ClipperedStreamTypeOf<Fg>>>> {
+      internal::UnionStream<SuperRectangleStream<ClipperedRawStreamTypeOf<Bg>>,
+                            SuperRectangleStream<ClipperedRawStreamTypeOf<Fg>>>> {
     Box bounds = Box::intersect(extents_, clip_box);
     return MakeUnionStream(
         Realign(bounds, Box::intersect(bounds, bg_extents()),
@@ -188,18 +188,18 @@ class Superposition {
   Box extents_;
 };
 
-template <typename Streamable>
-class StreamableRef {
+template <typename RawStreamable>
+class RawStreamableRef {
  public:
-  StreamableRef(const Streamable &ref) : ref_(ref) {}
+  RawStreamableRef(const RawStreamable &ref) : ref_(ref) {}
   const Box extents() const { return ref_.extents(); }
-  decltype(std::declval<const Streamable &>().CreateStream()) CreateStream()
+  decltype(std::declval<const RawStreamable &>().CreateRawStream()) CreateRawStream()
       const {
-    return ref_.CreateStream();
+    return ref_.CreateRawStream();
   }
 
  private:
-  const Streamable &ref_;
+  const RawStreamable &ref_;
 };
 
 }  // namespace internal
@@ -219,9 +219,9 @@ internal::Superposition<Bg, Fg> Overlay(Bg bg, int16_t bg_x, int16_t bg_y,
 //                  rect.xMin(), rect.yMin(), std::move(content), 0, 0);
 // }
 
-template <typename Streamable>
-internal::StreamableRef<Streamable> Ref(const Streamable &ref) {
-  return internal::StreamableRef<Streamable>(ref);
+template <typename RawStreamable>
+internal::RawStreamableRef<RawStreamable> Ref(const RawStreamable &ref) {
+  return internal::RawStreamableRef<RawStreamable>(ref);
 }
 
 }  // namespace roo_display

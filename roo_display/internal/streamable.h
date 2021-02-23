@@ -3,6 +3,7 @@
 #include "roo_display/core/buffered_drawing.h"
 #include "roo_display/core/device.h"
 #include "roo_display/core/drawable.h"
+#include "roo_display/core/streamable.h"
 
 namespace roo_display {
 
@@ -10,7 +11,7 @@ namespace roo_display {
 // class RawPixelStream {
 //   typedef ptr_type;  // usually const uint8_t *PROGMEM
 //   typedef ColorMode;
-//   TransparencyType transparency() const;
+//   TransparencyMode transparency() const;
 //
 //   RawPixelStream(const ptr_type data, ColorMode mode);
 //   Color next();
@@ -245,19 +246,44 @@ class RawStreamableFilledRect {
 };
 
 template <typename RawStreamable>
-class DrawableRawStreamable : public Drawable {
+class DrawableRawStreamable : public Streamable {
  public:
   DrawableRawStreamable(RawStreamable streamable)
-      : streamable_(std::move(streamable)) {}
+      : Streamable(streamable.extents()), streamable_(std::move(streamable)) {}
 
   DrawableRawStreamable(DrawableRawStreamable &&other)
-      : streamable_(std::move(other.streamable_)) {}
+      : Streamable(other.extents()), streamable_(std::move(other.streamable_)) {}
 
   Box extents() const { return streamable_.extents(); }
 
   const RawStreamable &contents() const { return streamable_; }
 
+  std::unique_ptr<PixelStream> CreateStream() const override {
+    return std::unique_ptr<PixelStream>(
+      new Stream<RawStreamTypeOf<RawStreamable>>(streamable_.CreateRawStream()));
+  }
+
  private:
+  template <typename RawStream>
+  class Stream : public PixelStream {
+   public:
+    Stream(std::unique_ptr<RawStream> raw) : raw_(std::move(raw)) {}
+
+    void Read(Color* buf, uint16_t count, PaintMode mode) override {
+      if (mode == PAINT_MODE_REPLACE) {
+        while (count -- > 0) *buf++ = raw_->next();
+      } else {
+        while (count -- > 0) {
+          *buf = alphaBlend(*buf, raw_->next());
+          ++buf;
+        }
+      }
+    }
+
+   private:
+    std::unique_ptr<RawStream> raw_;
+  };
+
   void drawTo(const Surface &s) const override {
     Box bounds = Box::intersect(
         s.clip_box(), streamable_.extents().translate(s.dx(), s.dy()));

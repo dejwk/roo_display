@@ -1,6 +1,7 @@
 #pragma once
 
 #include "roo_display/image/image_stream.h"
+#include "roo_display/internal/streamable.h"
 
 // Image is a Streamable that renders a rectangular area based on data from some
 // underlying data source. Image classes are templated on Resource, which
@@ -37,30 +38,24 @@ namespace roo_display {
 // Run-length-encoded image, for color modes with >= 8 bits_per_pixel.
 template <typename ColorMode, typename Resource = PrgMemResource>
 using RleImage =
-    SimpleRawStreamable<Resource, ColorMode,
-                        internal::RleStreamUniform<Resource, ColorMode>>;
+    SimpleStreamable<Resource, ColorMode,
+                     internal::RleStreamUniform<Resource, ColorMode>>;
 
 // Run-length-encoded 4-bit image, for color modes with 4 bits_per_pixel, with
 // preferrential RLE encoding for extreme values (0x0 and 0xF). Particularly
 // useful with Alpha4, e.g. for font glyphs.
 template <typename ColorMode, typename Resource = PrgMemResource>
 using RleImage4bppxPolarized =
-    SimpleRawStreamable<Resource, ColorMode,
-                        internal::RleStream4bppxPolarized<Resource, ColorMode>>;
-
-// // Run-length-encoded image in RGB565 and an addiional 4-bit alpha channel.
-// template <typename Resource = PrgMemResource>
-// using Rgb565Alpha4RleImage =
-//     SimpleStreamable<Resource, Argb8888,
-//                      internal::Rgb565Alpha4RleStream<Resource>>;
+    SimpleStreamable<Resource, ColorMode,
+                     internal::RleStream4bppxPolarized<Resource, ColorMode>>;
 
 // Uncompressed image.
 template <typename Resource, typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
-using SimpleImage =
-    SimpleRawStreamable<Resource, ColorMode,
-                        PixelStream<Resource, ColorMode, pixel_order, byte_order>>;
+using SimpleImage = SimpleStreamable<
+    Resource, ColorMode,
+    RasterPixelStream<Resource, ColorMode, pixel_order, byte_order>>;
 
 template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
 using SimpleImageArgb8888 =
@@ -116,7 +111,8 @@ class XBitmap
                       BYTE_ORDER_NATIVE>> {
  public:
   typedef Clipping<SimpleImage<Resource, Monochrome,
-                               COLOR_PIXEL_ORDER_LSB_FIRST, BYTE_ORDER_NATIVE>>
+                               COLOR_PIXEL_ORDER_LSB_FIRST,
+                               BYTE_ORDER_NATIVE>>
       Base;
 
   XBitmap(int16_t width, int16_t height, const Resource& input, Color fg,

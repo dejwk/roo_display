@@ -2,6 +2,7 @@
 
 #include "roo_display/core/device.h"
 #include "roo_display/core/drawable.h"
+#include "roo_display/core/streamable.h"
 #include "roo_display/filter/background.h"
 #include "roo_display/filter/clip_mask.h"
 #include "roo_display/filter/transformed.h"

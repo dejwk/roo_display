@@ -3,8 +3,10 @@
 #include <random>
 
 #include "gtest/gtest-param-test.h"
+
 #include "roo_display/core/color.h"
 #include "roo_display/core/offscreen.h"
+#include "roo_display/core/streamable.h"
 #include "roo_display/internal/color_subpixel.h"
 
 #include "testing_display_device.h"
@@ -46,10 +48,23 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int bytes_per_pixel = ColorTraits<ColorMode>::bytes_per_pixel,
           int pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           bool sub_pixel = (ColorTraits<ColorMode>::pixels_per_byte > 1)>
-class RawColorStream {
+class RawColorStream : public PixelStream {
  public:
   RawColorStream(const uint8_t* ptr, ColorMode color_mode)
       : color_mode_(color_mode), ptr_(ptr) {}
+
+  void Read(Color* buf, uint16_t size, PaintMode mode) override {
+    if (mode == PAINT_MODE_REPLACE) {
+      while (size-- > 0) {
+        *buf++ = next();
+      }
+    } else {
+      while (size-- > 0) {
+        *buf = alphaBlend(*buf, next());
+        ++buf;
+      }
+    }
+  }
 
   Color next() {
     int size = ColorMode::bits_per_pixel / 8;
@@ -66,10 +81,23 @@ class RawColorStream {
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int pixels_per_byte>
 class RawColorStream<ColorMode, pixel_order, byte_order, uint8_t, 1,
-                     pixels_per_byte, true> {
+                     pixels_per_byte, true> : public PixelStream {
  public:
   RawColorStream(const uint8_t* data, ColorMode color_mode, int pixel_index = 0)
       : color_mode_(color_mode), data_(data), pixel_index_(pixel_index) {}
+
+  void Read(Color* buf, uint16_t size, PaintMode mode) override {
+    if (mode == PAINT_MODE_REPLACE) {
+      while (size-- > 0) {
+        *buf++ = next();
+      }
+    } else {
+      while (size-- > 0) {
+        *buf = alphaBlend(*buf, next());
+        ++buf;
+      }
+    }
+  }
 
   Color next() {
     SubPixelColorHelper<ColorMode, pixel_order> helper;
@@ -88,10 +116,23 @@ class RawColorStream<ColorMode, pixel_order, byte_order, uint8_t, 1,
   int pixel_index_;
 };
 
-class TrivialColorStream {
+class TrivialColorStream : public PixelStream {
  public:
   template <typename ColorMode>
   TrivialColorStream(const Color* colors, ColorMode mode) : colors_(colors) {}
+
+  void Read(Color* buf, uint16_t size, PaintMode mode) override {
+    if (mode == PAINT_MODE_REPLACE) {
+      while (size-- > 0) {
+        *buf++ = next();
+      }
+    } else {
+      while (size-- > 0) {
+        *buf = alphaBlend(*buf, next());
+        ++buf;
+      }
+    }
+  }
 
   Color next() { return *colors_++; }
 
@@ -101,12 +142,12 @@ class TrivialColorStream {
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order>
 using RawColorRect =
-    SimpleRawStreamable<const uint8_t*, ColorMode,
-                        RawColorStream<ColorMode, pixel_order, byte_order>>;
+    SimpleStreamable<const uint8_t*, ColorMode,
+                     RawColorStream<ColorMode, pixel_order, byte_order>>;
 
 template <typename ColorMode>
 using TrivialColorRect =
-    SimpleRawStreamable<const Color*, ColorMode, TrivialColorStream>;
+    SimpleStreamable<const Color*, ColorMode, TrivialColorStream>;
 
 template <typename ColorMode>
 class TrivialReplaceWriter {

@@ -2,8 +2,8 @@
 
 #include "roo_display/core/color.h"
 #include "roo_display/core/drawable.h"
+#include "roo_display/core/streamable.h"
 #include "roo_display/internal/color_subpixel.h"
-#include "roo_display/internal/streamable.h"
 #include "roo_display/io/memory.h"
 
 namespace roo_display {
@@ -16,14 +16,27 @@ namespace roo_display {
 template <typename Resource, typename ColorMode, ColorPixelOrder pixel_order,
           ByteOrder byte_order,
           int pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte>
-class PixelStream {
+class RasterPixelStream : public PixelStream {
  public:
-  PixelStream(const Resource& resource, const ColorMode& color_mode)
-      : PixelStream(resource.Open(), color_mode) {}
+  RasterPixelStream(const Resource& resource, const ColorMode& color_mode)
+      : RasterPixelStream(resource.Open(), color_mode) {}
 
-  PixelStream(StreamType<Resource> stream, const ColorMode& color_mode)
+  RasterPixelStream(StreamType<Resource> stream, const ColorMode& color_mode)
       : stream_(std::move(stream)), pixel_index_(0), color_mode_(color_mode) {
     fetch();
+  }
+
+  void Read(Color* buf, uint16_t size, PaintMode mode) override {
+    if (mode == PAINT_MODE_REPLACE) {
+      while (size-- > 0) {
+        *buf++ = next();
+      }
+    } else {
+      while (size-- > 0) {
+        *buf = alphaBlend(*buf, next());
+        ++buf;
+      }
+    }
   }
 
   // Advances the iterator to the next pixel in the buffer.
@@ -106,13 +119,27 @@ struct ColorReader<ByteStream, ColorMode, pixel_order, byte_order, 4> {
 // Specialization for color multibyte-pixel color modes (e.g. RGB565).
 template <typename Resource, typename ColorMode, ColorPixelOrder pixel_order,
           ByteOrder byte_order>
-class PixelStream<Resource, ColorMode, pixel_order, byte_order, 1> {
+class RasterPixelStream<Resource, ColorMode, pixel_order, byte_order, 1>
+    : public PixelStream {
  public:
-  PixelStream(const Resource& resource, const ColorMode& color_mode)
+  RasterPixelStream(const Resource& resource, const ColorMode& color_mode)
       : PixelStream(resource.Open(), color_mode) {}
 
-  PixelStream(StreamType<Resource> stream, const ColorMode& color_mode)
+  RasterPixelStream(StreamType<Resource> stream, const ColorMode& color_mode)
       : stream_(std::move(stream)), color_mode_(color_mode) {}
+
+  void Read(Color* buf, uint16_t size, PaintMode mode) override {
+    if (mode == PAINT_MODE_REPLACE) {
+      while (size-- > 0) {
+        *buf++ = next();
+      }
+    } else {
+      while (size-- > 0) {
+        *buf = alphaBlend(*buf, next());
+        ++buf;
+      }
+    }
+  }
 
   // Advances the iterator to the next pixel in the buffer.
   Color next() {
@@ -188,10 +215,10 @@ struct Reader<ColorMode, pixel_order, byte_order, 1, storage_type> {
 template <typename PtrType, typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
-class Raster {
+class Raster : public Streamable {
  public:
-  typedef PixelStream<MemoryResource<PtrType>, ColorMode, pixel_order,
-                      byte_order>
+  typedef RasterPixelStream<MemoryResource<PtrType>, ColorMode, pixel_order,
+                            byte_order>
       StreamType;
 
   Raster(int16_t width, int16_t height, PtrType ptr,
@@ -199,17 +226,21 @@ class Raster {
       : Raster(Box(0, 0, width - 1, height - 1), ptr, std::move(color_mode)) {}
 
   Raster(Box extents, PtrType ptr, const ColorMode& color_mode = ColorMode())
-      : extents_(std::move(extents)),
+      : Streamable(std::move(extents)),
         ptr_(ptr),
         color_mode_(color_mode),
-        width_(extents_.width()) {}
+        width_(extents.width()) {}
 
-  const Box& extents() const { return extents_; }
   const ColorMode& color_mode() const { return color_mode_; }
 
   std::unique_ptr<StreamType> CreateRawStream() const {
     MemoryStream<PtrType> s(ptr_);
     return std::unique_ptr<StreamType>(new StreamType(s, color_mode_));
+  }
+
+  std::unique_ptr<PixelStream> CreateStream() const override {
+    MemoryStream<PtrType> s(ptr_);
+    return std::unique_ptr<PixelStream>(new StreamType(s, color_mode_));
   }
 
   Color get(int16_t x, int16_t y) const {
@@ -218,7 +249,6 @@ class Raster {
   }
 
  private:
-  Box extents_;
   PtrType ptr_;
   ColorMode color_mode_;
   int16_t width_;

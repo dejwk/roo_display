@@ -3,10 +3,9 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-
 #include "roo_display/core/color.h"
 #include "roo_display/core/device.h"
-#include "roo_display/core/streamable.h"
+#include "roo_display/internal/streamable.h"
 
 using namespace testing;
 using std::string;
@@ -225,7 +224,7 @@ class ParserStreamable {
   Box extents() const { return Box(0, 0, width() - 1, height() - 1); }
   const ColorMode& color_mode() const { return mode_; }
 
-  std::unique_ptr<ParserStream<ColorMode>> CreateStream() const {
+  std::unique_ptr<ParserStream<ColorMode>> CreateRawStream() const {
     return std::unique_ptr<ParserStream<ColorMode>>(
         new ParserStream<ColorMode>(mode_, data_));
   }
@@ -237,20 +236,20 @@ class ParserStreamable {
   string data_;
 };
 
-template <typename Streamable,
+template <typename RawStreamable,
           typename ColorMode = typename std::decay<decltype(
-              std::declval<Streamable>().color_mode())>::type>
+              std::declval<RawStreamable>().color_mode())>::type>
 class StreamablePrinter;
 
-template <typename Streamable>
-class StreamablePrinter<Streamable, Monochrome> {
+template <typename RawStreamable>
+class StreamablePrinter<RawStreamable, Monochrome> {
  public:
   StreamablePrinter(Monochrome color_mode)
       : color_mode_(std::move(color_mode)) {}
 
-  template <typename Stream>
-  void PrintContent(const Streamable& streamable, Stream& os) {
-    auto stream = streamable.CreateStream();
+  template <typename RawStream>
+  void PrintContent(const RawStreamable& streamable, RawStream& os) {
+    auto stream = streamable.CreateRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -279,14 +278,14 @@ void PrintHexByte(int d, IOStream& os) {
   os << hexDigit(d & 0xF);
 }
 
-template <typename Streamable>
-class StreamablePrinter<Streamable, Argb8888> {
+template <typename RawStreamable>
+class StreamablePrinter<RawStreamable, Argb8888> {
  public:
   StreamablePrinter(Argb8888 ignored) {}
 
-  template <typename Stream>
-  void PrintContent(const Streamable& streamable, Stream& os) {
-    auto stream = streamable.CreateStream();
+  template <typename RawStream>
+  void PrintContent(const RawStreamable& streamable, RawStream& os) {
+    auto stream = streamable.CreateRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -302,14 +301,14 @@ class StreamablePrinter<Streamable, Argb8888> {
   }
 };
 
-template <typename Streamable>
-class StreamablePrinter<Streamable, Argb4444> {
+template <typename RawStreamable>
+class StreamablePrinter<RawStreamable, Argb4444> {
  public:
   StreamablePrinter(Argb4444 ignored) {}
 
-  template <typename Stream>
-  void PrintContent(const Streamable& streamable, Stream& os) {
-    auto stream = streamable.CreateStream();
+  template <typename RawStream>
+  void PrintContent(const RawStreamable& streamable, RawStream& os) {
+    auto stream = streamable.CreateRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -325,14 +324,14 @@ class StreamablePrinter<Streamable, Argb4444> {
   }
 };
 
-template <typename Streamable>
-class StreamablePrinter<Streamable, Alpha4> {
+template <typename RawStreamable>
+class StreamablePrinter<RawStreamable, Alpha4> {
  public:
   StreamablePrinter(Alpha4 ignored) {}
 
-  template <typename Stream>
-  void PrintContent(const Streamable& streamable, Stream& os) {
-    auto stream = streamable.CreateStream();
+  template <typename RawStream>
+  void PrintContent(const RawStreamable& streamable, RawStream& os) {
+    auto stream = streamable.CreateRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -349,14 +348,14 @@ char grayscale4Digit(int d) {
 }
 
 // Very similar to Alpha4.
-template <typename Streamable>
-class StreamablePrinter<Streamable, Grayscale4> {
+template <typename RawStreamable>
+class StreamablePrinter<RawStreamable, Grayscale4> {
  public:
   StreamablePrinter(Grayscale4 ignored) {}
 
-  template <typename Stream>
-  void PrintContent(const Streamable& streamable, Stream& os) {
-    auto stream = streamable.CreateStream();
+  template <typename RawStream>
+  void PrintContent(const RawStreamable& streamable, RawStream& os) {
+    auto stream = streamable.CreateRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -373,14 +372,14 @@ class StreamablePrinter<Streamable, Grayscale4> {
   }
 };
 
-template <typename Streamable>
-class StreamablePrinter<Streamable, Alpha8> {
+template <typename RawStreamable>
+class StreamablePrinter<RawStreamable, Alpha8> {
  public:
   StreamablePrinter(Alpha8 ignored) {}
 
-  template <typename Stream>
-  void PrintContent(const Streamable& streamable, Stream& os) {
-    auto stream = streamable.CreateStream();
+  template <typename RawStream>
+  void PrintContent(const RawStreamable& streamable, RawStream& os) {
+    auto stream = streamable.CreateRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -393,14 +392,14 @@ class StreamablePrinter<Streamable, Alpha8> {
   }
 };
 
-template <typename Streamable>
-class StreamablePrinter<Streamable, Grayscale8> {
+template <typename RawStreamable>
+class StreamablePrinter<RawStreamable, Grayscale8> {
  public:
   StreamablePrinter(Grayscale8 ignored) {}
 
-  template <typename Stream>
-  void PrintContent(const Streamable& streamable, Stream& os) {
-    auto stream = streamable.CreateStream();
+  template <typename RawStream>
+  void PrintContent(const RawStreamable& streamable, RawStream& os) {
+    auto stream = streamable.CreateRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -438,14 +437,14 @@ char sixBitDigit(int d) {
 // * for 63
 // 0-9A-Za-z for 1-62
 // In particular, "___" is black, "*__" is red, "***" is white.
-template <typename Streamable>
-class StreamablePrinter<Streamable, Rgb565> {
+template <typename RawStreamable>
+class StreamablePrinter<RawStreamable, Rgb565> {
  public:
   StreamablePrinter(Rgb565 mode) : mode_(mode) {}
 
-  template <typename Stream>
-  void PrintContent(const Streamable& streamable, Stream& os) {
-    auto stream = streamable.CreateStream();
+  template <typename RawStream>
+  void PrintContent(const RawStreamable& streamable, RawStream& os) {
+    auto stream = streamable.CreateRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -470,14 +469,14 @@ class StreamablePrinter<Streamable, Rgb565> {
   Rgb565 mode_;
 };
 
-template <typename Streamable>
-class StreamablePrinter<Streamable, Argb6666> {
+template <typename RawStreamable>
+class StreamablePrinter<RawStreamable, Argb6666> {
  public:
   StreamablePrinter(Argb6666 mode) : mode_(mode) {}
 
-  template <typename Stream>
-  void PrintContent(const Streamable& streamable, Stream& os) {
-    auto stream = streamable.CreateStream();
+  template <typename RawStream>
+  void PrintContent(const RawStreamable& streamable, RawStream& os) {
+    auto stream = streamable.CreateRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -512,14 +511,14 @@ class StreamablePrinter<Streamable, Argb6666> {
 // * for 63
 // 0-9A-Za-z for 1-62
 // In particular, "___" is black, "*__" is red, "***" is white.
-template <typename Streamable>
-class StreamablePrinter<Streamable, Rgb565WithTransparency> {
+template <typename RawStreamable>
+class StreamablePrinter<RawStreamable, Rgb565WithTransparency> {
  public:
   StreamablePrinter(Rgb565WithTransparency mode) : mode_(mode) {}
 
-  template <typename Stream>
-  void PrintContent(const Streamable& streamable, Stream& os) {
-    auto stream = streamable.CreateStream();
+  template <typename RawStream>
+  void PrintContent(const RawStreamable& streamable, RawStream& os) {
+    auto stream = streamable.CreateRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -649,20 +648,21 @@ bool operator==(const Rgb565WithTransparency& a,
 
 // Prints the content of the specified streamable in a human-readable form,
 // using a specified color mode.
-template <typename ostream_type, typename Streamable,
-          typename Stream = StreamTypeOf<Streamable>,
-          typename ColorMode = ColorModeOf<Streamable>>
+template <typename ostream_type, typename RawStreamable,
+          typename RawStream = RawStreamTypeOf<RawStreamable>,
+          typename ColorMode = ColorModeOf<RawStreamable>>
 ostream_type& PrintStreamableContent(ostream_type& os,
-                                     const Streamable& streamable,
+                                     const RawStreamable& streamable,
                                      ColorMode color_mode) {
-  internal::StreamablePrinter<Streamable, ColorMode> printer(color_mode);
+  internal::StreamablePrinter<RawStreamable, ColorMode> printer(color_mode);
   printer.PrintContent(streamable, os);
   return os;
 }
 
-template <typename Streamable, typename Stream = StreamTypeOf<Streamable>,
-          typename ColorMode = ColorModeOf<Streamable>>
-std::ostream& operator<<(std::ostream& os, const Streamable& streamable) {
+template <typename RawStreamable,
+          typename Stream = RawStreamTypeOf<RawStreamable>,
+          typename ColorMode = ColorModeOf<RawStreamable>>
+std::ostream& operator<<(std::ostream& os, const RawStreamable& streamable) {
   Box extents = streamable.extents();
   os << extents.width();
   os << "x";
@@ -708,8 +708,8 @@ class ColorMatcher {
       //   return false;
       // }
       int32_t count = actual.extents().width() * actual.extents().height();
-      auto actual_stream = actual.CreateStream();
-      auto expected_stream = expected_.CreateStream();
+      auto actual_stream = actual.CreateRawStream();
+      auto expected_stream = expected_.CreateRawStream();
       for (int i = 0; i < count; ++i) {
         Color expected_color = expected_stream->next();
         Color actual_color = actual_stream->next();
@@ -754,11 +754,11 @@ MatchesContent(ColorMode mode, int16_t width, int16_t height, string expected) {
                                                 expected)));
 }
 
-template <typename Streamable>
-inline PolymorphicMatcher<ColorMatcher<Streamable>> MatchesContent(
-    Streamable streamable) {
+template <typename RawStreamable>
+inline PolymorphicMatcher<ColorMatcher<RawStreamable>> MatchesContent(
+    RawStreamable streamable) {
   return MakePolymorphicMatcher(
-      ColorMatcher<Streamable>(std::move(streamable)));
+      ColorMatcher<RawStreamable>(std::move(streamable)));
 }
 
 class TestColorStream {
@@ -783,7 +783,7 @@ class TestColorStreamable {
 
   const ColorMode& color_mode() const { return color_mode_; }
 
-  std::unique_ptr<TestColorStream> CreateStream() const {
+  std::unique_ptr<TestColorStream> CreateRawStream() const {
     return std::unique_ptr<TestColorStream>(new TestColorStream(data_));
   }
 
@@ -802,17 +802,17 @@ internal::ParserStreamable<ColorMode> MakeTestStreamable(const ColorMode& mode,
 }
 
 template <typename ColorMode>
-DrawableStreamable<internal::ParserStreamable<ColorMode>> MakeTestDrawable(
+DrawableRawStreamable<internal::ParserStreamable<ColorMode>> MakeTestDrawable(
     const ColorMode& mode, int16_t width, int16_t height, string content) {
-  return MakeDrawableStreamable(
+  return MakeDrawableRawStreamable(
       MakeTestStreamable(mode, width, height, std::move(content)));
 }
 
-DrawableStreamable<StreamableFilledRect> SolidRect(int16_t x0, int16_t y0,
-                                                   int16_t x1, int16_t y1,
-                                                   Color color) {
-  return MakeDrawableStreamable(
-      StreamableFilledRect(Box(x0, y0, x1, y1), color));
+DrawableRawStreamable<RawStreamableFilledRect> SolidRect(int16_t x0, int16_t y0,
+                                                         int16_t x1, int16_t y1,
+                                                         Color color) {
+  return MakeDrawableRawStreamable(
+      RawStreamableFilledRect(Box(x0, y0, x1, y1), color));
 }
 
 template <typename ColorMode>
@@ -838,8 +838,8 @@ class FakeOffscreen : public DisplayDevice {
       : DisplayDevice(extents.width(), extents.height()),
         color_mode_(std::move(color_mode)),
         buffer_(new Color[extents.width() * extents.height()]) {
-    writeRect(PAINT_MODE_REPLACE, 0, 0, extents.width() - 1, extents.height() - 1,
-              background);
+    writeRect(PAINT_MODE_REPLACE, 0, 0, extents.width() - 1,
+              extents.height() - 1, background);
   }
 
   FakeOffscreen(const FakeOffscreen& other)
@@ -861,7 +861,7 @@ class FakeOffscreen : public DisplayDevice {
   const ColorMode& color_mode() const { return color_mode_; }
 
   // Required to implement 'Streamable'.
-  std::unique_ptr<TestColorStream> CreateStream() const {
+  std::unique_ptr<TestColorStream> CreateRawStream() const {
     return std::unique_ptr<TestColorStream>(new TestColorStream(buffer_.get()));
   }
 

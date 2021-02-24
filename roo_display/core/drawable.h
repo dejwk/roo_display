@@ -23,40 +23,103 @@ enum FillMode {
 
 // Low-level 'handle' to draw to an underlying device. Passed by the library
 // to Drawable.draw() (see below). Don't create directly.
+//
+// Note that the device uses an absolute coordinate system starting at (0, 0).
+// In order to translate the object's extents to device coordinates in
+// accordance with the surface's possible translation offset, use the following
+// formula:
+//
+//   extents.translate(s.dx(), s.dy())
+//
+// Additionally, make sure that the above box is constrained to the clip_box;
+// e.g:
+//
+//   Box::intersect(s.clip_box(), extents.translate(s.dx(), s.dy()))
+//
+// It is often useful to quickly reject objects that are entirely outside the
+// clip box:
+//
+//   Box bounds =
+//     Box::intersect(s.clip_box(), extents.translate(s.dx(), s.dy()));
+//   if (bounds.empty()) return;
+//
+// In order to compute the clipped bounding box in the object's coordinates,
+// the transformation can be applied in the other direction:
+//
+//   Box clipped =
+//     Box::intersect(s.clip_box().translace(-s.dx(), -s.dy()), extents);
+//
 class Surface {
  public:
   Surface(DisplayOutput *out, int16_t dx, int16_t dy, Box clip,
           Color bg = color::Transparent, FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND)
-      : out(out),
-        dx(dx),
-        dy(dy),
-        clip_box(std::move(clip)),
-        bgcolor(bg),
-        fill_mode(fill_mode),
-        paint_mode(paint_mode) {
-    if (bg.a() != 0) {
-      fill_mode = FILL_MODE_RECTANGLE;
+      : out_(out),
+        dx_(dx),
+        dy_(dy),
+        clip_box_(std::move(clip)),
+        bgcolor_(bg),
+        fill_mode_(fill_mode),
+        paint_mode_(paint_mode) {
+    if (bg.a() == 0xFF) {
+      paint_mode = PAINT_MODE_REPLACE;
     }
   }
 
   Surface(DisplayOutput *out, Box clip, Color bg = color::Transparent,
           FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND)
-      : out(out),
-        dx(0),
-        dy(0),
-        clip_box(std::move(clip)),
-        bgcolor(bg),
-        fill_mode(fill_mode),
-        paint_mode(paint_mode) {
-    if (bg.a() != 0) {
-      fill_mode = FILL_MODE_RECTANGLE;
+      : out_(out),
+        dx_(0),
+        dy_(0),
+        clip_box_(std::move(clip)),
+        bgcolor_(bg),
+        fill_mode_(fill_mode),
+        paint_mode_(paint_mode) {
+    if (bg.a() == 0xFF) {
+      paint_mode = PAINT_MODE_REPLACE;
     }
   }
 
   Surface(Surface &&other) = default;
   Surface(const Surface &other) = default;
+
+  // Returns the device to which to draw.
+  DisplayOutput *out() const { return out_; }
+
+  // Returns the x offset that should be applied to the drawn object.
+  int16_t dx() const { return dx_; }
+
+  // Returns the y offset that should be applied to the drawn object.
+  int16_t dy() const { return dy_; }
+
+  // Returns the clip box, in the device coordinates (independent of
+  // the x, y offset), that must be respected by the drawn object.
+  const Box &clip_box() const { return clip_box_; }
+
+  // Returns the background color that should be applied in case when the
+  // drawn object has any non-fully-opaque content.
+  Color bgcolor() const { return bgcolor_; }
+
+  // Returns the fill mode that should be observed by the drawn object.
+  // If FILL_MODE_RECTANGLE, the drawn object MUST fill its entire
+  // (clipped) extents, even if some pixels are completely transparent.
+  // If FILL_MODE_VISIBLE, the drawn object may omit completely transparent
+  // pixels. Note that it is OK to omit such pixels even if a background
+  // color is also specified. This fill mode essentially assumes that the
+  // appropriate background has been pre-applied.
+  FillMode fill_mode() const { return fill_mode_; }
+
+  // Returns the paint mode that should generally be passed to the device
+  // when the object is drawn. The object may overwrite the paint mode
+  // (with PAINT_MODE_REPLACE) only if it is certain that all pixels it
+  // writes are completely opaque. Note that in case when the background
+  // is specified and completely non-opaque, the paint mode is automatically
+  // set to PAINT_MODE_REPLACE.
+  PaintMode paint_mode() const { return paint_mode_; }
+
+  void set_dx(int16_t dx) { dx_ = dx; }
+  void set_dy(int16_t dy) { dy_ = dy; }
 
   // Draws the specified drawable object to this surface. Intended for custom
   // implementations of Drawable (below), to draw other objects as part of
@@ -64,16 +127,17 @@ class Surface {
   inline void drawObject(const Drawable &object) const;
 
   Box::ClipResult clipToExtents(Box extents) {
-    return clip_box.clip(extents.translate(dx, dy));
+    return clip_box_.clip(extents.translate(dx_, dy_));
   }
 
-  DisplayOutput *out;
-  int16_t dx;
-  int16_t dy;
-  Box clip_box;
-  Color bgcolor;
-  FillMode fill_mode;
-  PaintMode paint_mode;
+ private:
+  DisplayOutput *out_;
+  int16_t dx_;
+  int16_t dy_;
+  Box clip_box_;
+  Color bgcolor_;
+  FillMode fill_mode_;
+  PaintMode paint_mode_;
 };
 
 // Interface implemented by any class that represents things (like images in

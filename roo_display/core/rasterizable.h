@@ -8,7 +8,7 @@
 
 namespace roo_display {
 
-class Synthetic {
+class Rasterizable {
  public:
   virtual Box extents() const = 0;
   virtual TransparencyMode transparency() const = 0;
@@ -89,11 +89,11 @@ class Synthetic {
 //
 //   Color operator(int16_t x, int16_t y)
 //
-// and turns it into a synthetic that can be used as a background.
+// and turns it into a rasterizable that can be used as a background.
 template <typename Getter>
-class SimpleSynthetic : public Synthetic {
+class SimpleRasterizable : public Rasterizable {
  public:
-  SimpleSynthetic(Box extents, Getter getter, TransparencyMode transparency)
+  SimpleRasterizable(Box extents, Getter getter, TransparencyMode transparency)
       : getter_(getter), extents_(extents), transparency_(transparency) {}
 
   Box extents() const override { return extents_; }
@@ -116,27 +116,28 @@ class SimpleSynthetic : public Synthetic {
 
  private:
   Getter getter_;
-  TransparencyMode transparency_;
   Box extents_;
+  TransparencyMode transparency_;
 };
 
 template <typename Getter>
-SimpleSynthetic<Getter> MakeSynthetic(Box extents, Getter getter,
-                                      TransparencyMode transparency) {
-  return SimpleSynthetic<Getter>(extents, getter, transparency);
+SimpleRasterizable<Getter> MakeRasterizable(Box extents, Getter getter,
+                                            TransparencyMode transparency) {
+  return SimpleRasterizable<Getter>(extents, getter, transparency);
 }
 
-// 'Infinite-size' synthetic background, created by tiling the specified raster.
+// 'Infinite-size' rasterizable background, created by tiling the specified
+// raster.
 template <typename Getter>
-class SimpleTiledSynthetic : public Synthetic {
+class SimpleTiledRasterizable : public Rasterizable {
  public:
-  SimpleTiledSynthetic(const Box& extents, Getter getter,
-                       TransparencyMode transparency)
-      : SimpleTiledSynthetic<Getter>(extents, getter, transparency, 0, 0) {}
+  SimpleTiledRasterizable(const Box& extents, Getter getter,
+                          TransparencyMode transparency)
+      : SimpleTiledRasterizable<Getter>(extents, getter, transparency, 0, 0) {}
 
-  SimpleTiledSynthetic(const Box& extents, Getter getter,
-                       TransparencyMode transparency, int16_t x_offset,
-                       int16_t y_offset)
+  SimpleTiledRasterizable(const Box& extents, Getter getter,
+                          TransparencyMode transparency, int16_t x_offset,
+                          int16_t y_offset)
       : extents_(extents),
         getter_(getter),
         transparency_(transparency),
@@ -159,29 +160,29 @@ class SimpleTiledSynthetic : public Synthetic {
   TransparencyMode transparency() const override { return transparency_; }
 
  private:
+  Box extents_;
   Getter getter_;
   TransparencyMode transparency_;
-  Box extents_;
   const int16_t x_offset_, y_offset_;
 };
 
 template <typename Getter>
-SimpleTiledSynthetic<Getter> MakeTiledSynthetic(Box extents, Getter getter,
-                                                TransparencyMode transparency) {
-  return SimpleTiledSynthetic<Getter>(extents, getter, transparency);
+SimpleTiledRasterizable<Getter> MakeTiledRasterizable(
+    Box extents, Getter getter, TransparencyMode transparency) {
+  return SimpleTiledRasterizable<Getter>(extents, getter, transparency);
 }
 
 template <typename Raster>
-SimpleTiledSynthetic<const Raster&> MakeTiledRaster(const Raster* raster) {
-  return SimpleTiledSynthetic<const Raster&>(
+SimpleTiledRasterizable<const Raster&> MakeTiledRaster(const Raster* raster) {
+  return SimpleTiledRasterizable<const Raster&>(
       raster->extents(), *raster, raster->color_mode().transparency());
 }
 
 template <typename Raster>
-SimpleTiledSynthetic<const Raster&> MakeTiledRaster(const Raster* raster,
-                                                    int16_t x_offset,
-                                                    int16_t y_offset) {
-  return SimpleTiledSynthetic<const Raster&>(
+SimpleTiledRasterizable<const Raster&> MakeTiledRaster(const Raster* raster,
+                                                       int16_t x_offset,
+                                                       int16_t y_offset) {
+  return SimpleTiledRasterizable<const Raster&>(
       raster->extents(), *raster, raster->color_mode().transparency(), x_offset,
       y_offset);
 }

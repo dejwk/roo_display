@@ -9,8 +9,8 @@
 //   massive performance improvements as well.
 //
 // Specific utility classes are provided for combinations of:
-// * various write patterns: writing random pixels, subsequent pixels, horizontal
-//   lines, vertical lines, rectangles;
+// * various write patterns: writing random pixels, subsequent pixels,
+//   horizontal lines, vertical lines, rectangles;
 // * using different colors (*Writer) vs a single color (*Filler);
 // * additionally performing pre-clipping (Clipping* variants) or not.
 //   The non-clipping variants can be used (and will be slightly faster) when
@@ -21,7 +21,7 @@
 
 #include "roo_display/core/device.h"
 #include "roo_display/core/drawable.h"
-#include "roo_display/core/memfill.h"
+#include "roo_display/internal/memfill.h"
 
 namespace roo_display {
 
@@ -113,8 +113,8 @@ class BufferedPixelFiller {
 
 class ClippingBufferedPixelFiller {
  public:
-  ClippingBufferedPixelFiller(DisplayOutput* device, Color color,
-                              Box clip_box, PaintMode mode)
+  ClippingBufferedPixelFiller(DisplayOutput* device, Color color, Box clip_box,
+                              PaintMode mode)
       : filler_(device, color, mode), clip_box_(std::move(clip_box)) {}
 
   void fillPixel(int16_t x, int16_t y) {
@@ -140,9 +140,98 @@ class BufferedColorWriter {
       : device_(device), buffer_size_(0) {}
 
   void writeColor(Color color) {
-    if (buffer_size_ == kPixelWritingBufferSize) flush();
     color_buffer_[buffer_size_] = color;
     ++buffer_size_;
+    if (buffer_size_ == kPixelWritingBufferSize) flush();
+  }
+
+  // Writes a number of pixels with the same color.
+  void writeColorN(Color color, uint16_t count) {
+    uint16_t batch = kPixelWritingBufferSize - buffer_size_;
+    if (count < batch) {
+      Color::Fill(color_buffer_ + buffer_size_, count, color);
+      buffer_size_ += count;
+      return;
+    }
+    Color::Fill(color_buffer_ + buffer_size_, batch, color);
+    device_->write(color_buffer_, kPixelWritingBufferSize);
+    Color::Fill(color_buffer_, buffer_size_, color);
+    count -= batch;
+    while (true) {
+      if (count < kPixelWritingBufferSize) {
+        buffer_size_ = count;
+        return;
+      }
+      device_->write(color_buffer_, kPixelWritingBufferSize);
+      count -= kPixelWritingBufferSize;
+    }
+  }
+
+  // Writes a number of pixels with distinct colors.
+  void writeColors(Color* colors, uint16_t count) {
+    uint16_t batch = kPixelWritingBufferSize - buffer_size_;
+    if (count < batch) {
+      memcpy(color_buffer_ + buffer_size_, colors, count * sizeof(Color));
+      buffer_size_ += count;
+      return;
+    }
+    if (buffer_size_ != 0) {
+      memcpy(color_buffer_ + buffer_size_, colors, batch * sizeof(Color));
+      device_->write(color_buffer_, kPixelWritingBufferSize);
+      count -= batch;
+      colors += batch;
+    }
+    while (true) {
+      if (count < kPixelWritingBufferSize) {
+        memcpy(color_buffer_, colors, count * sizeof(Color));
+        buffer_size_ = count;
+        return;
+      }
+      // For large enough number of pixels, we can skip the buffer entirely.
+      device_->write(colors, kPixelWritingBufferSize);
+      count -= kPixelWritingBufferSize;
+      colors += kPixelWritingBufferSize;
+    }
+  }
+
+  // Returns the number of colors that will stil fit in the buffer
+  // before it needs to be flushed.
+  uint16_t remaining_buffer_space() const {
+    return kPixelWritingBufferSize - buffer_size_;
+  }
+
+  // Gives raw access to the buffer at the current write position.
+  Color* buffer_ptr() { return color_buffer_ + buffer_size_; }
+
+  // Indicates that the subsequent colors have been directly written to the
+  // buffer (via buffer_ptr()), and are considered ready to be written to the
+  // device.
+  void advance_buffer_ptr(uint16_t count) {
+    buffer_size_ += count;
+    if (buffer_size_ >= kPixelWritingBufferSize) {
+      device_->write(color_buffer_, buffer_size_);
+      buffer_size_ = 0;
+    }
+  }
+
+  // Writes no more pixels that can still fit in the memory buffer. If the
+  // buffer gets full, flushes it. Returns the number of colors actually
+  // written.
+  uint16_t writeColorsAligned(Color* colors, uint16_t count) {
+    uint16_t batch = kPixelWritingBufferSize - buffer_size_;
+    if (count < batch) {
+      memcpy(color_buffer_ + buffer_size_, colors, count * sizeof(Color));
+      buffer_size_ += count;
+      return count;
+    }
+    if (buffer_size_ != 0) {
+      memcpy(color_buffer_ + buffer_size_, colors, batch * sizeof(Color));
+      device_->write(color_buffer_, kPixelWritingBufferSize);
+      buffer_size_ = 0;
+      return batch;
+    }
+    device_->write(colors, kPixelWritingBufferSize);
+    return kPixelWritingBufferSize;
   }
 
   ~BufferedColorWriter() { flush(); }
@@ -193,8 +282,8 @@ class BufferedHLineFiller {
 
 class ClippingBufferedHLineFiller {
  public:
-  ClippingBufferedHLineFiller(DisplayOutput* device, Color color,
-                              Box clip_box, PaintMode mode)
+  ClippingBufferedHLineFiller(DisplayOutput* device, Color color, Box clip_box,
+                              PaintMode mode)
       : filler_(device, color, mode), clip_box_(std::move(clip_box)) {}
 
   void fillHLine(int16_t x0, int16_t y0, int16_t x1) {
@@ -221,8 +310,7 @@ class ClippingBufferedHLineFiller {
 
 class BufferedVLineFiller {
  public:
-  BufferedVLineFiller(DisplayOutput* device, Color color,
-                      PaintMode mode)
+  BufferedVLineFiller(DisplayOutput* device, Color color, PaintMode mode)
       : device_(device), mode_(mode), color_(color), buffer_size_(0) {}
 
   void fillVLine(int16_t x0, int16_t y0, int16_t y1) {
@@ -254,8 +342,7 @@ class BufferedVLineFiller {
 
 class ClippingBufferedVLineFiller {
  public:
-  ClippingBufferedVLineFiller(DisplayOutput* device, Color color,
-                              Box clip_box,
+  ClippingBufferedVLineFiller(DisplayOutput* device, Color color, Box clip_box,
                               PaintMode mode)
       : filler_(device, color, mode), clip_box_(std::move(clip_box)) {}
 
@@ -348,8 +435,7 @@ class ClippingBufferedRectWriter {
 
   void writeRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Color color) {
     if (x0 > clip_box_.xMax() || x1 < clip_box_.xMin() ||
-        y0 > clip_box_.yMax() || y1 < clip_box_.yMin() || y1 < y0 ||
-        x1 < x0) {
+        y0 > clip_box_.yMax() || y1 < clip_box_.yMin() || y1 < y0 || x1 < x0) {
       return;
     }
 
@@ -374,8 +460,7 @@ class ClippingBufferedRectWriter {
 
 class BufferedRectFiller {
  public:
-  BufferedRectFiller(DisplayOutput* device, Color color,
-                     PaintMode mode)
+  BufferedRectFiller(DisplayOutput* device, Color color, PaintMode mode)
       : device_(device), mode_(mode), color_(color), buffer_size_(0) {}
 
   inline void fillPixel(int16_t x, int16_t y) { fillRect(x, y, x, y); }
@@ -435,8 +520,7 @@ class ClippingBufferedRectFiller {
 
   void fillRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1) {
     if (x0 > clip_box_.xMax() || x1 < clip_box_.xMin() ||
-        y0 > clip_box_.yMax() || y1 < clip_box_.yMin() || y1 < y0 ||
-        x1 < x0) {
+        y0 > clip_box_.yMax() || y1 < clip_box_.yMin() || y1 < y0 || x1 < x0) {
       return;
     }
 

@@ -2,19 +2,19 @@
 
 #include "roo_display/core/buffered_drawing.h"
 #include "roo_display/core/device.h"
-#include "roo_display/core/synthetic.h"
+#include "roo_display/core/rasterizable.h"
 
 namespace roo_display {
 
 // A 'filtering' device, which delegates the actual drawing to another device,
-// but applies the specified 'synthetic' background.
+// but applies the specified 'rasterizable' background.
 class BackgroundFilter : public DisplayOutput {
  public:
-  BackgroundFilter(DisplayOutput* output, const Synthetic* background)
+  BackgroundFilter(DisplayOutput* output, const Rasterizable* background)
       : BackgroundFilter(output, background, 0, 0) {}
 
-  BackgroundFilter(DisplayOutput* output, const Synthetic* background,
-  int16_t dx, int16_t dy)
+  BackgroundFilter(DisplayOutput* output, const Rasterizable* background,
+                   int16_t dx, int16_t dy)
       : output_(output),
         background_(background),
         address_window_(0, 0, 0, 0),
@@ -25,7 +25,8 @@ class BackgroundFilter : public DisplayOutput {
 
   virtual ~BackgroundFilter() {}
 
-  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, PaintMode mode) override {
+  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
+                  PaintMode mode) override {
     address_window_ = Box(x0 - dx_, y0 - dy_, x1 - dx_, y1 - dy_);
     cursor_x_ = x0 - dx_;
     cursor_y_ = y0 - dy_;
@@ -121,8 +122,8 @@ class BackgroundFilter : public DisplayOutput {
     }
   }
 
-  void fillRect(PaintMode mode, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax,
-                Color color) {
+  void fillRect(PaintMode mode, int16_t xMin, int16_t yMin, int16_t xMax,
+                int16_t yMax, Color color) {
     BackgroundFilter::setAddress(xMin, yMin, xMax, yMax, mode);
     int16_t x[64];
     int16_t y[64];
@@ -157,7 +158,7 @@ class BackgroundFilter : public DisplayOutput {
   }
 
   DisplayOutput* output_;
-  const Synthetic* background_;
+  const Rasterizable* background_;
   Box address_window_;
   int16_t cursor_x_;
   int16_t cursor_y_;

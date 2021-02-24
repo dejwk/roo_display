@@ -3,7 +3,7 @@
 
 #include "gtest/gtest.h"
 
-#include "roo_display/core/memfill.h"
+#include "roo_display/internal/memfill.h"
 
 using namespace testing;
 

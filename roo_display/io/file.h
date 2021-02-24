@@ -27,6 +27,7 @@ class FileStream {
 
    private:
     Rep(const Rep&) = delete;
+    Rep(Rep&&) = delete;
     Rep& operator=(const Rep&) = delete;
 
     File file_;

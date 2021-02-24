@@ -51,7 +51,7 @@ class TileBase : public Drawable {
         fill_mode_(fill_mode) {}
 
   TileBase(const Drawable &interior, Box extents, HAlign halign, VAlign valign,
-           const Synthetic *background,
+           const Rasterizable *background,
            FillMode fill_mode = FILL_MODE_RECTANGLE)
       : border_(std::move(extents), std::move(interior.extents()), halign,
                 valign),
@@ -66,7 +66,7 @@ class TileBase : public Drawable {
     background_ = nullptr;
   }
 
-  void setBackground(const Synthetic *background) {
+  void setBackground(const Rasterizable *background) {
     bgcolor_ = color::Transparent;
     background_ = background;
   }
@@ -88,7 +88,7 @@ class TileBase : public Drawable {
  private:
   internal::SolidBorder border_;
   Color bgcolor_;
-  const Synthetic *background_;
+  const Rasterizable *background_;
   FillMode fill_mode_;
 };
 
@@ -157,7 +157,8 @@ class TileOf : public internal::TileBase {
         interior_(std::move(interior)) {}
 
   TileOf(DrawableType interior, Box extents, HAlign halign, VAlign valign,
-         const Synthetic *background, FillMode fill_mode = FILL_MODE_RECTANGLE)
+         const Rasterizable *background,
+         FillMode fill_mode = FILL_MODE_RECTANGLE)
       : internal::TileBase(interior, extents, halign, valign, background,
                            fill_mode),
         interior_(std::move(interior)) {}
@@ -177,7 +178,7 @@ class TileOf : public internal::TileBase {
 
 // Convenience function that creates a tile with a specified interior.
 template <typename DrawableType, typename... Args>
-TileOf<DrawableType> MakeTileOf(DrawableType interior, Args &&... args) {
+TileOf<DrawableType> MakeTileOf(DrawableType interior, Args &&...args) {
   return TileOf<DrawableType>(std::move(interior), std::forward<Args>(args)...);
 }
 

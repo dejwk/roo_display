@@ -4,7 +4,7 @@
 #include <WString.h>  // Pretty much for debug output only.
 
 #include "roo_display/core/raster.h"
-#include "roo_display/core/streamable_overlay.h"
+#include "roo_display/internal/streamable_overlay.h"
 #include "roo_display/image/image.h"
 #include "roo_display/io/memory.h"
 
@@ -67,10 +67,10 @@ class GlyphMetadataReader {
     const uint8_t *PROGMEM ptr = ptr_ + 5 * font_.font_metric_bytes_;
     return offset_bytes == 2
                ? (pgm_read_byte(ptr) << 8) | pgm_read_byte(ptr + 1)
-               : offset_bytes == 3 ? (pgm_read_byte(ptr) << 16) |
-                                         (pgm_read_byte(ptr + 1) << 8) |
-                                         pgm_read_byte(ptr + 2)
-                                   : pgm_read_byte(ptr);
+           : offset_bytes == 3
+               ? (pgm_read_byte(ptr) << 16) | (pgm_read_byte(ptr + 1) << 8) |
+                     pgm_read_byte(ptr + 2)
+               : pgm_read_byte(ptr);
   }
 
  private:
@@ -245,12 +245,12 @@ void SmoothFont::drawGlyphWithBackground(DisplayOutput *output, int16_t x,
                                          PaintMode paint_mode) const {
   Box box = glyph_metrics.screen_extents().translate(offset, 0);
   if (rle()) {
-    auto glyph = MakeDrawableStreamable(
+    auto glyph = MakeDrawableRawStreamable(
         RleImage4bppxPolarized<Alpha4>(box, data, color));
     drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor, paint_mode);
   } else {
     // Identical as above, but using Raster<>
-    auto glyph = MakeDrawableStreamable(
+    auto glyph = MakeDrawableRawStreamable(
         Raster<const uint8_t PROGMEM *, Alpha4>(box, data, color));
     drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor, paint_mode);
   }
@@ -266,13 +266,13 @@ void SmoothFont::drawKernedGlyphsWithBackground(
   Box lb = left_metrics.screen_extents().translate(left_offset, 0);
   Box rb = right_metrics.screen_extents().translate(right_offset, 0);
   if (rle()) {
-    auto glyph = MakeDrawableStreamable(
+    auto glyph = MakeDrawableRawStreamable(
         Overlay(RleImage4bppxPolarized<Alpha4>(lb, left_data, color), 0, 0,
                 RleImage4bppxPolarized<Alpha4>(rb, right_data, color), 0, 0));
     drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor, paint_mode);
   } else {
     // Identical as above, but using Raster<>
-    auto glyph = MakeDrawableStreamable(Overlay(
+    auto glyph = MakeDrawableRawStreamable(Overlay(
         Raster<const uint8_t PROGMEM *, Alpha4>(lb, left_data, color), 0, 0,
         Raster<const uint8_t PROGMEM *, Alpha4>(rb, right_data, color), 0, 0));
     drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor, paint_mode);
@@ -387,10 +387,10 @@ void SmoothFont::drawHorizontalString(const Surface &s,
     return;
   }
   unicode_t next_code = decoder.next();
-  bool has_background = (s.fill_mode == FILL_MODE_RECTANGLE);
-  int16_t x = s.dx;
-  int16_t y = s.dy;
-  DisplayOutput *output = s.out;
+  bool has_background = (s.fill_mode() == FILL_MODE_RECTANGLE);
+  int16_t x = s.dx();
+  int16_t y = s.dy();
+  DisplayOutput *output = s.out();
 
   GlyphPairIterator glyphs(this);
   glyphs.push(next_code);
@@ -416,8 +416,8 @@ void SmoothFont::drawHorizontalString(const Surface &s,
     if (!has_background) {
       // Transparent background; simply draw and shift.
       drawGlyphNoBackground(output, x - preadvanced, y, glyphs.left_metrics(),
-                            glyphs.left_data(), s.clip_box, color,
-                            s.paint_mode);
+                            glyphs.left_data(), s.clip_box(), color,
+                            s.paint_mode());
       x += (glyphs.left_metrics().advance() - kern);
     } else {
       // General case. We may have two glyphs to worry about, and we may be
@@ -438,10 +438,10 @@ void SmoothFont::drawHorizontalString(const Surface &s,
             output, x, y, total_rect_width, glyphs.left_metrics(),
             glyphs.left_data(), -preadvanced, glyphs.right_metrics(),
             glyphs.right_data(), advance - preadvanced,
-            Box::intersect(s.clip_box, Box(x, y - metrics().glyphYMax(),
-                                           x + total_rect_width - 1,
-                                           y - metrics().glyphYMin())),
-            color, s.bgcolor, s.paint_mode);
+            Box::intersect(s.clip_box(), Box(x, y - metrics().glyphYMax(),
+                                             x + total_rect_width - 1,
+                                             y - metrics().glyphYMin())),
+            color, s.bgcolor(), s.paint_mode());
       } else {
         // Glyphs do not overlap; can draw them one by one.
         if (has_more) {
@@ -456,10 +456,10 @@ void SmoothFont::drawHorizontalString(const Surface &s,
         drawGlyphWithBackground(
             output, x, y, total_rect_width, glyphs.left_metrics(),
             glyphs.left_data(), -preadvanced,
-            Box::intersect(s.clip_box, Box(x, y - metrics().glyphYMax(),
-                                           x + total_rect_width - 1,
-                                           y - metrics().glyphYMin())),
-            color, s.bgcolor, s.paint_mode);
+            Box::intersect(s.clip_box(), Box(x, y - metrics().glyphYMax(),
+                                             x + total_rect_width - 1,
+                                             y - metrics().glyphYMin())),
+            color, s.bgcolor(), s.paint_mode());
       }
       x += total_rect_width;
       preadvanced = total_rect_width - (advance - preadvanced);

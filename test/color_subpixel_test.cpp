@@ -1,5 +1,5 @@
 #include "roo_display/core/color.h"
-#include "roo_display/core/color_subpixel.h"
+#include "roo_display/internal/color_subpixel.h"
 #include "gtest/gtest.h"
 
 namespace roo_display {

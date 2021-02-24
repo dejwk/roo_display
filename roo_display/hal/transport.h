@@ -3,8 +3,8 @@
 #include <Arduino.h>
 #include <SPI.h>
 
-#include "roo_display/core/byte_order.h"
-#include "roo_display/core/memfill.h"
+#include "roo_display/internal/byte_order.h"
+#include "roo_display/internal/memfill.h"
 
 namespace roo_display {
 

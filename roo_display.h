@@ -3,7 +3,6 @@
 #include "roo_display/core/device.h"
 #include "roo_display/core/drawable.h"
 #include "roo_display/core/streamable.h"
-#include "roo_display/core/streamable_overlay.h"
 #include "roo_display/filter/background.h"
 #include "roo_display/filter/clip_mask.h"
 #include "roo_display/filter/transformed.h"
@@ -62,8 +61,8 @@ class Display {
   // Returns the default clip box.
   const Box &getClipBox() const { return clip_box_; }
 
-  // Sets a synthetic background to be used by all derived contexts.
-  void setBackground(const Synthetic *bg) {
+  // Sets a rasterizable background to be used by all derived contexts.
+  void setBackground(const Rasterizable *bg) {
     background_ = bg;
     bgcolor_ = color::Transparent;
   }
@@ -105,7 +104,7 @@ class Display {
 
   Box clip_box_;
   Color bgcolor_;
-  const Synthetic *background_;
+  const Rasterizable *background_;
 };
 
 // Primary top-level interface for drawing to screens, off-screen buffers,
@@ -159,7 +158,7 @@ class DrawingContext {
   int16_t width() const { return display_->width(); }
   int16_t height() const { return display_->height(); }
 
-  void setBackground(const Synthetic *bg) {
+  void setBackground(const Rasterizable *bg) {
     background_ = bg;
     bgcolor_ = color::Transparent;
   }
@@ -221,25 +220,6 @@ class DrawingContext {
     drawInternal(object, dx, dy, bgcolor_);
   }
 
-  // T must implement the streamable contract, as defined in "streamable.h"
-  // Note. the 2nd template parameter is used to force SFINAE, that is,
-  // to make sure that the compiler only considers classes that actually
-  // implement 'CreateStream' to be viable for this overload. (If the
-  // method is missing, the template substitution fails, and the class
-  // is not considered viable because SFINAE).
-  template <typename T,
-            typename Stream = decltype(std::declval<T>().CreateStream())>
-  void draw(const T &object, int16_t dx, int16_t dy) {
-    DrawableStreamable<internal::StreamableRef<T>> drawable(Ref(object));
-    drawInternal(drawable, dx, dy, bgcolor_);
-  }
-
-  template <typename T,
-            typename Stream = decltype(std::declval<T>().CreateStream())>
-  void draw(const T &object) {
-    draw<T, Stream>(object, 0, 0);
-  }
-
  private:
   DisplayOutput *output() { return display_->output(); }
   const DisplayOutput *output() const { return display_->output(); }
@@ -271,8 +251,8 @@ class DrawingContext {
       s.drawObject(object);
     } else if (!transform_.is_rescaled() && !transform_.xy_swap()) {
       // Translation only.
-      s.dx += transform_.x_offset();
-      s.dy += transform_.y_offset();
+      s.set_dx(s.dx() + transform_.x_offset());
+      s.set_dy(s.dy() + transform_.y_offset());
       s.drawObject(object);
     } else {
       s.drawObject(TransformedDrawable(transform_, &object));
@@ -286,7 +266,7 @@ class DrawingContext {
   // Absolute coordinates of the clip region in the device space. Inclusive.
   Box clip_box_;
   const ClipMask *clip_mask_;
-  const Synthetic *background_;
+  const Rasterizable *background_;
   Color bgcolor_;
   bool transformed_;
   Transform transform_;
@@ -303,8 +283,8 @@ class Fill : public Drawable {
 
  private:
   void drawTo(const Surface &s) const override {
-    Color color = alphaBlend(s.bgcolor, color_);
-    s.out->fillRect(PAINT_MODE_REPLACE, s.clip_box, color);
+    Color color = alphaBlend(s.bgcolor(), color_);
+    s.out()->fillRect(PAINT_MODE_REPLACE, s.clip_box(), color);
   }
 
   Color color_;
@@ -321,7 +301,7 @@ class Clear : public Drawable {
 
  private:
   void drawTo(const Surface &s) const override {
-    s.out->fillRect(PAINT_MODE_REPLACE, s.clip_box, s.bgcolor);
+    s.out()->fillRect(PAINT_MODE_REPLACE, s.clip_box(), s.bgcolor());
   }
 };
 

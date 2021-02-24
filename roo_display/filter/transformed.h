@@ -82,7 +82,7 @@ class TransformedDisplayOutput : public DisplayOutput {
   void fillRects(PaintMode mode, Color color, int16_t *x0, int16_t *y0,
                  int16_t *x1, int16_t *y1, uint16_t count) override;
 
-  const Box& clip_box() const { return clip_box_; }
+  const Box &clip_box() const { return clip_box_; }
 
  private:
   DisplayOutput *delegate_;
@@ -110,10 +110,11 @@ class TransformedDrawable : public Drawable {
   }
 
  private:
-  void drawTo(const Surface& s) const override {
-    Transform adjusted = transform_.translate(s.dx, s.dy).clip(s.clip_box);
-    TransformedDisplayOutput new_output(s.out, adjusted);
-    Surface news(&new_output, adjusted.smallestBoundingRect(), s.bgcolor);
+  void drawTo(const Surface &s) const override {
+    Transform adjusted =
+        transform_.translate(s.dx(), s.dy()).clip(s.clip_box());
+    TransformedDisplayOutput new_output(s.out(), adjusted);
+    Surface news(&new_output, adjusted.smallestBoundingRect(), s.bgcolor());
     news.drawObject(*delegate_);
   }
 

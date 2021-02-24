@@ -33,7 +33,7 @@ struct Init {
   void init(Target& t, int16_t xstart, int16_t xend, int16_t ystart,
             int16_t yend, bool inverted = false) const {
     using namespace ::roo_display::st77xx;
-    t.writeCommand(SWRESET, {});
+    t.writeCommand(SWRESET, {}, 120);
     t.writeCommand(SLPOUT, {}, 120);
     t.writeCommand(INVCTR, {0x07});
     t.writeCommand(PWCTR1, {0xA2, 0x02, 0x84});

@@ -116,7 +116,7 @@ TEST(SmoothFontTest, SimpleTextWithBackground) {
                                      "16B    E16A  1CE397CE9  11"
                                      "1        97      C4     11"
                                      "1        D2      E1     11"
-                                     "1      4E8      1D      11"
+                                     "1      4E8      2D      11"
                                      "11111111111111111111111111"));
 }
 
@@ -147,7 +147,7 @@ TEST(SmoothFontTest, ClippedTextWithBackground) {
                                      "111111 E16A  1CE3911111111"
                                      "111111   97      C11111111"
                                      "111111   D2      E11111111"
-                                     "111111 4E8      1D11111111"
+                                     "111111 4E8      2D11111111"
                                      "11111111111111111111111111"));
 }
 

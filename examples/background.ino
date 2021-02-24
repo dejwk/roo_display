@@ -44,7 +44,7 @@ Color hsvGradient[kGradientSize];
 
 void initGradient();
 
-auto slantedGradient = MakeSynthetic(
+auto slantedGradient = MakeRasterizable(
     Box::MaximumBox(),
     [](int16_t x, int16_t y) {
       return hsvGradient[(kGradientSize + x - y / 4) % kGradientSize];
@@ -54,7 +54,7 @@ auto slantedGradient = MakeSynthetic(
 Color hashColor1;
 Color hashColor2;
 
-auto hashGrid = MakeSynthetic(
+auto hashGrid = MakeRasterizable(
     Box::MaximumBox(),
     [](int16_t x, int16_t y) {
       return (x / 4 + y / 4) % 2 == 0 ? hashColor1 : hashColor2;

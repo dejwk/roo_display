@@ -1,6 +1,7 @@
 #pragma once
 
 #include <inttypes.h>
+#include <string>
 
 #include "roo_display/core/drawable.h"
 #include "roo_display/filter/transformed.h"
@@ -45,10 +46,10 @@ class TextLabel : public Drawable {
                  metrics_.glyphXMax(), -font_->metrics().glyphYMin()) {}
 
   void drawTo(const Surface& s) const override {
-    Surface news(s);
-    if (fill_mode_ == FILL_MODE_RECTANGLE) {
-      news.fill_mode = FILL_MODE_RECTANGLE;
-    }
+    Surface news(
+        s.out(), s.dx(), s.dy(), s.clip_box(), s.bgcolor(),
+        fill_mode_ == FILL_MODE_RECTANGLE ? FILL_MODE_RECTANGLE : s.fill_mode(),
+        s.paint_mode());
     font_->drawHorizontalString(news, (const uint8_t*)label_.c_str(),
                                 label_.length(), color_);
   }

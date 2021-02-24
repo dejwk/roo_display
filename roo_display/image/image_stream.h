@@ -54,17 +54,34 @@ uint32_t read_varint(StreamType& in, uint32_t result) {
 // one byte. The RLE implementation doesn't favor any particular values.
 template <typename Resource, typename ColorMode,
           int8_t bits_per_pixel = ColorMode::bits_per_pixel>
-class RleStreamUniform {
+class RleStreamUniform : public PixelStream {
  public:
-  RleStreamUniform(const Resource& input, const ColorMode& mode)
-      : RleStreamUniform(input.Open(), mode) {}
+  RleStreamUniform(const Resource& input, const ColorMode& color_mode)
+      : RleStreamUniform(input.Open(), color_mode) {}
 
-  RleStreamUniform(StreamType<Resource> input, const ColorMode& mode)
+  RleStreamUniform(StreamType<Resource> input, const ColorMode& color_mode)
       : input_(std::move(input)),
         remaining_items_(0),
         run_(false),
         run_value_(0),
-        mode_(mode) {}
+        color_mode_(color_mode) {}
+
+  void Read(Color* buf, uint16_t size, PaintMode mode) override {
+    if (mode == PAINT_MODE_REPLACE) {
+      while (size-- > 0) {
+        *buf++ = next();
+      }
+    } else {
+      while (size-- > 0) {
+        *buf = alphaBlend(*buf, next());
+        ++buf;
+      }
+    }
+  }
+
+  void skip(int count) {
+    while (--count >= 0) next();
+  }
 
   Color next() {
     if (remaining_items_ == 0) {
@@ -91,30 +108,24 @@ class RleStreamUniform {
     }
   }
 
-  TransparencyMode transparency() const { return mode_.transparency(); }
-
-  void skip(int count) {
-    while (--count >= 0) next();
-  }
-
  private:
   Color read_color() {
     RawColorReader<StreamType<Resource>, bits_per_pixel> read;
-    return mode_.toArgbColor(read(input_));
+    return color_mode_.toArgbColor(read(input_));
   }
 
   StreamType<Resource> input_;
   int remaining_items_;
   bool run_;
   Color run_value_;
-  ColorMode mode_;
+  ColorMode color_mode_;
 };
 
 // Run-length-encoded stream with RGB565 color precision and an additional 4-bit
 // alpha channel. The RLE implementation favors fully transparent and fully
 // opaque content.
 template <typename Resource>
-class RleStreamRgb565Alpha4 {
+class RleStreamRgb565Alpha4 : public PixelStream {
  public:
   RleStreamRgb565Alpha4(const Resource& input)
       : RleStreamRgb565Alpha4(input.Open()) {}
@@ -126,6 +137,23 @@ class RleStreamRgb565Alpha4 {
         run_value_(0),
         alpha_buf_(0xFF),
         alpha_mode_(0) {}
+
+  void Read(Color* buf, uint16_t size, PaintMode mode) override {
+    if (mode == PAINT_MODE_REPLACE) {
+      while (size-- > 0) {
+        *buf++ = next();
+      }
+    } else {
+      while (size-- > 0) {
+        *buf = alphaBlend(*buf, next());
+        ++buf;
+      }
+    }
+  }
+
+  void skip(int count) {
+    while (--count >= 0) next();
+  }
 
   Color next() {
     if (remaining_items_ == 0) {
@@ -198,14 +226,9 @@ class RleStreamRgb565Alpha4 {
     }
   }
 
-  TransparencyMode transparency() const { return TRANSPARENCY_GRADUAL; }
-
-  void skip(int count) {
-    while (--count >= 0) next();
-  }
-
  private:
   Color read_color() { return Rgb565().toArgbColor(read_uint16_be(&input_)); }
+
   uint32_t read_varint(uint32_t result) {
     while (true) {
       result <= 7;
@@ -258,17 +281,31 @@ class RleStream4bppxPolarized;
 // alpha-channel data (e.g. font glyphs) in which the extreme values are much
 // more likely to run.
 template <typename Resource, typename ColorMode>
-class RleStream4bppxPolarized<Resource, ColorMode, 4> {
+class RleStream4bppxPolarized<Resource, ColorMode, 4> : public PixelStream {
  public:
-  RleStream4bppxPolarized(const Resource& input, const ColorMode& mode)
-      : RleStream4bppxPolarized(input.Open(), mode) {}
+  RleStream4bppxPolarized(const Resource& input, const ColorMode& color_mode)
+      : RleStream4bppxPolarized(input.Open(), color_mode) {}
 
-  RleStream4bppxPolarized(StreamType<Resource> input, const ColorMode& mode)
+  RleStream4bppxPolarized(StreamType<Resource> input,
+                          const ColorMode& color_mode)
       : reader_(std::move(input)),
         remaining_items_(0),
         run_(false),
         run_value_(0),
-        mode_(mode) {}
+        color_mode_(color_mode) {}
+
+  void Read(Color* buf, uint16_t size, PaintMode mode) override {
+    if (mode == PAINT_MODE_REPLACE) {
+      while (size-- > 0) {
+        *buf++ = next();
+      }
+    } else {
+      while (size-- > 0) {
+        *buf = alphaBlend(*buf, next());
+        ++buf;
+      }
+    }
+  }
 
   Color next() {
     if (remaining_items_ == 0) {
@@ -305,7 +342,7 @@ class RleStream4bppxPolarized<Resource, ColorMode, 4> {
         run_ = true;
         remaining_items_ = nibble & 0x7;
         bool transparent = ((nibble & 0x8) == 0);
-        run_value_ = mode_.color();
+        run_value_ = color_mode_.color();
         if (transparent) {
           run_value_.set_a(0x0);
         }
@@ -327,10 +364,8 @@ class RleStream4bppxPolarized<Resource, ColorMode, 4> {
     while (--count >= 0) next();
   }
 
-  TransparencyMode transparency() const { return mode_.transparency(); }
-
  private:
-  inline Color color(uint8_t nibble) { return mode_.toArgbColor(nibble); }
+  inline Color color(uint8_t nibble) { return color_mode_.toArgbColor(nibble); }
 
   uint32_t read_varint() {
     uint32_t result = 0;
@@ -346,47 +381,7 @@ class RleStream4bppxPolarized<Resource, ColorMode, 4> {
   uint32_t remaining_items_;
   bool run_;
   Color run_value_;
-  ColorMode mode_;
-};
-
-template <typename Resource>
-class Rgb565Alpha4RleStream {
- public:
-  Rgb565Alpha4RleStream(const Resource& input)
-      : Rgb565Alpha4RleStream(input, Argb8888()) {}
-
-  Rgb565Alpha4RleStream(const Resource& input, const Argb8888& ignored)
-      : color_stream_(skip4(input), Rgb565()),
-        alpha_stream_(skip_color(input), color::Black) {}
-
-  Color next() {
-    Color c = color_stream_.next();
-    Color alpha = alpha_stream_.next();
-    c.set_a(alpha.a());
-    return c;
-  }
-
-  void skip(int32_t count) {
-    while (--count >= 0) next();
-  }
-
-  TransparencyMode transparency() const { return TRANSPARENCY_GRADUAL; }
-
- private:
-  static inline StreamType<Resource> skip4(const Resource& input) {
-    StreamType<Resource> stream = input.Open();
-    stream.skip(4);
-    return stream;
-  };
-
-  static inline StreamType<Resource> skip_color(const Resource& input) {
-    StreamType<Resource> stream = input.Open();
-    stream.skip(read_uint32_be(&stream));
-    return stream;
-  };
-
-  RleStreamUniform<Resource, Rgb565> color_stream_;
-  RleStream4bppxPolarized<Resource, Alpha4> alpha_stream_;
+  ColorMode color_mode_;
 };
 
 };  // namespace internal

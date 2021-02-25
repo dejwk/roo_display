@@ -12,7 +12,7 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//testing:arduino",
+        "//roo_testing:arduino",
     ],
 )
 

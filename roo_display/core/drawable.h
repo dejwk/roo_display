@@ -87,6 +87,8 @@ class Surface {
   // Returns the device to which to draw.
   DisplayOutput *out() const { return out_; }
 
+  void set_out(DisplayOutput *out) { out_ = out; }
+
   // Returns the x offset that should be applied to the drawn object.
   int16_t dx() const { return dx_; }
 
@@ -97,9 +99,13 @@ class Surface {
   // the x, y offset), that must be respected by the drawn object.
   const Box &clip_box() const { return clip_box_; }
 
+  void set_clip_box(const Box& clip_box) { clip_box_ = clip_box; }
+
   // Returns the background color that should be applied in case when the
   // drawn object has any non-fully-opaque content.
   Color bgcolor() const { return bgcolor_; }
+
+  void set_bgcolor(Color bgcolor) { bgcolor_ = bgcolor; }
 
   // Returns the fill mode that should be observed by the drawn object.
   // If FILL_MODE_RECTANGLE, the drawn object MUST fill its entire

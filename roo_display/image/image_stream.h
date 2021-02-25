@@ -364,6 +364,10 @@ class RleStream4bppxPolarized<Resource, ColorMode, 4> : public PixelStream {
     while (--count >= 0) next();
   }
 
+  TransparencyMode transparency() const {
+    return color_mode_.transparency();
+  }
+
  private:
   inline Color color(uint8_t nibble) { return color_mode_.toArgbColor(nibble); }
 

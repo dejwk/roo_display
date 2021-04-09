@@ -11,7 +11,9 @@ namespace roo_display {
 class Rasterizable {
  public:
   virtual Box extents() const = 0;
-  virtual TransparencyMode transparency() const = 0;
+
+  virtual TransparencyMode transparency() const { return TRANSPARENCY_GRADUAL; }
+
   virtual void ReadColors(const int16_t* x, const int16_t* y, uint32_t count,
                           Color* result) const = 0;
 };

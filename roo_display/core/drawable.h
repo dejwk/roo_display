@@ -116,6 +116,8 @@ class Surface {
   // appropriate background has been pre-applied.
   FillMode fill_mode() const { return fill_mode_; }
 
+  void set_fill_mode(FillMode fill_mode) { fill_mode_ = fill_mode; }
+
   // Returns the paint mode that should generally be passed to the device
   // when the object is drawn. The object may overwrite the paint mode
   // (with PAINT_MODE_REPLACE) only if it is certain that all pixels it

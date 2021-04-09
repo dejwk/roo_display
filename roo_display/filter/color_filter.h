@@ -79,8 +79,23 @@ class Opaqueness {
   uint8_t opaqueness_;
 };
 
+class Overlay {
+ public:
+  Overlay(Color color) : color_(color) {}
+
+  Color operator()(Color c, Color bg) const {
+    return alphaBlend(alphaBlend(bg, c), color_);
+  }
+
+ private:
+  Color color_;
+};
+
 // A 'filtering' device that adds translucency (specified in the [0-128] range).
 typedef ColorFilter<Opaqueness> TranslucencyFilter;
+
+// A 'filtering' device that super-imposes a (usually semi-transparent) overlay color.
+typedef ColorFilter<Overlay> OverlayFilter;
 
 namespace internal {
 

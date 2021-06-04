@@ -2,6 +2,7 @@
 
 #include <Print.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <string>
 
 namespace roo_display {

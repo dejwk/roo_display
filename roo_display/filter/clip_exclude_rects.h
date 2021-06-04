@@ -7,18 +7,18 @@ namespace roo_display {
 
 class RectUnion {
  public:
-  RectUnion(std::vector<Box> rects)
-      : rects_(std::move(rects)) {}
+  RectUnion(const Box* begin, const Box* end) : begin_(begin), end_(end) {}
 
   inline bool isSet(int16_t x, int16_t y) const {
-    for (const Box& box : rects_) {
-      if (box.contains(x, y)) return false;
+    for (const Box* box  = begin_; box != end_; ++box) {
+      if (box->contains(x, y)) return false;
     }
     return true;
   }
 
  private:
-  std::vector<Box> rects_;
+  const Box* begin_;
+  const Box* end_;
 };
 
 // A 'filtering' device, which delegates the actual drawing to another device,

@@ -128,6 +128,7 @@ class Ili9486Target {
     begin();
     writeCommand(DISPON);
     end();
+    delay(120);
   }
 
   void setOrientation(Orientation orientation) {

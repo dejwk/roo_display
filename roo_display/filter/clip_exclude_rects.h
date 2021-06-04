@@ -9,12 +9,24 @@ class RectUnion {
  public:
   RectUnion(const Box* begin, const Box* end) : begin_(begin), end_(end) {}
 
-  inline bool isSet(int16_t x, int16_t y) const {
-    for (const Box* box  = begin_; box != end_; ++box) {
-      if (box->contains(x, y)) return false;
+  inline bool contains(int16_t x, int16_t y) const {
+    for (const Box* box = begin_; box != end_; ++box) {
+      if (box->contains(x, y)) return true;
     }
-    return true;
+    return false;
   }
+
+  // Returns true if the rectangle union intersects the rect.
+  inline bool intersects(const Box& rect) const {
+    for (const Box* box = begin_; box != end_; ++box) {
+      if (box->intersects(rect)) return true;
+    }
+    return false;
+  }
+
+  size_t size() const { return end_ - begin_; }
+
+  const Box& at(int idx) const { return *(begin_ + idx); }
 
  private:
   const Box* begin_;
@@ -26,9 +38,9 @@ class RectUnion {
 // mask.
 class RectUnionFilter : public DisplayOutput {
  public:
-  RectUnionFilter(DisplayOutput* output, const RectUnion* mask)
+  RectUnionFilter(DisplayOutput* output, const RectUnion* exclusion)
       : output_(output),
-        mask_(mask),
+        exclusion_(exclusion),
         address_window_(0, 0, 0, 0),
         cursor_x_(0),
         cursor_y_(0) {}
@@ -48,7 +60,7 @@ class RectUnionFilter : public DisplayOutput {
     uint32_t i = 0;
     BufferedPixelWriter writer(output_, paint_mode_);
     while (i < pixel_count) {
-      if (mask_->isSet(cursor_x_, cursor_y_)) {
+      if (!exclusion_->contains(cursor_x_, cursor_y_)) {
         writer.writePixel(cursor_x_, cursor_y_, color[i]);
       }
       if (++cursor_x_ > address_window_.xMax()) {
@@ -77,38 +89,17 @@ class RectUnionFilter : public DisplayOutput {
 
   void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
-    BufferedPixelWriter writer(output_, mode);
+    BufferedRectWriter writer(output_, mode);
     while (count-- > 0) {
-      for (int16_t y = *y0; y <= *y1; ++y) {
-        for (int16_t x = *x0; x <= *x1; ++x) {
-          if (mask_->isSet(x, y)) {
-            writer.writePixel(x, y, *color);
-          }
-        }
-      }
-      x0++;
-      y0++;
-      x1++;
-      y1++;
-      color++;
+      writeRect(*color++, *x0++, *y0++, *x1++, *y1++, 0, &writer);
     }
   }
 
   void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
-    BufferedPixelFiller filler(output_, color, mode);
+    BufferedRectFiller filler(output_, color, mode);
     while (count-- > 0) {
-      for (int16_t y = *y0; y <= *y1; ++y) {
-        for (int16_t x = *x0; x <= *x1; ++x) {
-          if (mask_->isSet(x, y)) {
-            filler.fillPixel(x, y);
-          }
-        }
-      }
-      x0++;
-      y0++;
-      x1++;
-      y1++;
+      fillRect(*x0++, *y0++, *x1++, *y1++, 0, &filler);
     }
   }
 
@@ -119,7 +110,7 @@ class RectUnionFilter : public DisplayOutput {
     Color* color_out = color;
     uint16_t new_pixel_count = 0;
     for (uint16_t i = 0; i < pixel_count; ++i) {
-      if (mask_->isSet(x[i], y[i])) {
+      if (!exclusion_->contains(x[i], y[i])) {
         *x_out++ = x[i];
         *y_out++ = y[i];
         *color_out++ = color[i];
@@ -137,7 +128,7 @@ class RectUnionFilter : public DisplayOutput {
     int16_t* y_out = y;
     uint16_t new_pixel_count = 0;
     for (uint16_t i = 0; i < pixel_count; ++i) {
-      if (mask_->isSet(x[i], y[i])) {
+      if (!exclusion_->contains(x[i], y[i])) {
         *x_out++ = x[i];
         *y_out++ = y[i];
         new_pixel_count++;
@@ -149,8 +140,66 @@ class RectUnionFilter : public DisplayOutput {
   }
 
  private:
+  void writeRect(Color color, int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+                 int mask_idx, BufferedRectWriter* writer) {
+    Box rect(x0, y0, x1, y1);
+    while (mask_idx < exclusion_->size() &&
+           !exclusion_->at(mask_idx).intersects(rect)) {
+      ++mask_idx;
+    }
+    if (mask_idx == exclusion_->size()) {
+      writer->writeRect(x0, y0, x1, y1, color);
+      return;
+    }
+    Box intruder = Box::intersect(exclusion_->at(mask_idx), rect);
+    if (intruder.yMin() > y0) {
+      writeRect(color, x0, y0, x1, intruder.yMin() - 1, mask_idx + 1, writer);
+      y0 = intruder.yMin();
+    }
+    if (intruder.xMin() > x0) {
+      writeRect(color, x0, y0, intruder.xMin() - 1, intruder.yMax(),
+                mask_idx + 1, writer);
+    }
+    if (intruder.xMax() < x1) {
+      writeRect(color, intruder.xMax() + 1, y0, x1, intruder.yMax(),
+                mask_idx + 1, writer);
+    }
+    if (intruder.yMax() < y1) {
+      writeRect(color, x0, intruder.yMax() + 1, x1, y1, mask_idx + 1, writer);
+    }
+  }
+
+  void fillRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int mask_idx,
+                BufferedRectFiller* filler) {
+    Box rect(x0, y0, x1, y1);
+    while (mask_idx < exclusion_->size() &&
+           !exclusion_->at(mask_idx).intersects(rect)) {
+      ++mask_idx;
+    }
+    if (mask_idx == exclusion_->size()) {
+      filler->fillRect(x0, y0, x1, y1);
+      return;
+    }
+    Box intruder = Box::intersect(exclusion_->at(mask_idx), rect);
+    if (intruder.yMin() > y0) {
+      fillRect(x0, y0, x1, intruder.yMin() - 1, mask_idx + 1, filler);
+      y0 = intruder.yMin();
+    }
+    if (intruder.xMin() > x0) {
+      fillRect(x0, y0, intruder.xMin() - 1, intruder.yMax(), mask_idx + 1,
+               filler);
+    }
+    if (intruder.xMax() < x1) {
+      fillRect(intruder.xMax() + 1, y0, x1, intruder.yMax(), mask_idx + 1,
+               filler);
+    }
+    if (intruder.yMax() < y1) {
+      fillRect(x0, intruder.yMax() + 1, x1, y1, mask_idx + 1, filler);
+    }
+  }
+
   DisplayOutput* output_;
-  const RectUnion* mask_;
+  const RectUnion* exclusion_;
   Box address_window_;
   PaintMode paint_mode_;
   int16_t cursor_x_;

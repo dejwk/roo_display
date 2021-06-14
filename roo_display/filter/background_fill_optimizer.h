@@ -202,25 +202,12 @@ class BackgroundFillOptimizer : public DisplayOutput {
     // Naive implementation, for now.
     uint32_t i = 0;
     BufferedPixelWriter writer(output_, paint_mode_);
-    while (i < pixel_count) {
-      if (color[i] == bgcolor_) {
-        // Skip writing if the containing bit-mask mapped rectangle
-        // is known to be all-background already.
-        if (background_mask_->get(cursor_x_ / kBgFillOptimizerWindowSize,
-                                  cursor_y_ / kBgFillOptimizerWindowSize))
-          continue;
-      } else {
-        // Mark the corresponding bit-mask mapped rectangle as no longer
-        // all-background.
-        background_mask_->clear(cursor_x_ / kBgFillOptimizerWindowSize,
-                                cursor_y_ / kBgFillOptimizerWindowSize);
-      }
-      writer.writePixel(cursor_x_, cursor_y_, color[i]);
+    while (pixel_count-- > 0) {
+      writePixel(cursor_x_, cursor_y_, *color++, &writer);
       if (++cursor_x_ > address_window_.xMax()) {
         ++cursor_y_;
         cursor_x_ = address_window_.xMin();
       }
-      ++i;
     }
   }
 
@@ -331,6 +318,22 @@ class BackgroundFillOptimizer : public DisplayOutput {
   }
 
  private:
+  void writePixel(int16_t x, int16_t y, Color c, BufferedPixelWriter* writer) {
+    if (c == bgcolor_) {
+      // Skip writing if the containing bit-mask mapped rectangle
+      // is known to be all-background already.
+      if (background_mask_->get(x / kBgFillOptimizerWindowSize,
+                                y / kBgFillOptimizerWindowSize))
+        return;
+    } else {
+      // Mark the corresponding bit-mask mapped rectangle as no longer
+      // all-background.
+      background_mask_->clear(x / kBgFillOptimizerWindowSize,
+                              y / kBgFillOptimizerWindowSize);
+    }
+    writer->writePixel(x, y, c);
+  }
+
   template <typename Filler>
   void fillRectBg(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
                   Filler* filler) {

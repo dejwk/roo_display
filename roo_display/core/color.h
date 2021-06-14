@@ -84,15 +84,31 @@ inline constexpr bool operator!=(const Color &a, const Color &b) {
   return a.asArgb() != b.asArgb();
 }
 
+// In practice, seems to be measurably faster than actually dividing by 255
+// and counting on the compiler to optimize.
+inline constexpr uint8_t __div_255(uint32_t arg) {
+  return ((arg + 1) * 257) >> 16;
+}
+
 // Calculates alpha-blending of the foreground color (fgc) over the background
 // color (bgc), ignoring background color's alpha, as if it is fully opaque.
 inline Color alphaBlendOverOpaque(Color bgc, Color fgc) {
+  uint16_t alpha = fgc.a();
+  uint16_t inv_alpha = ~alpha;
+  uint8_t r = (uint8_t)(__div_255(alpha * fgc.r() + inv_alpha * bgc.r()));
+  uint8_t g = (uint8_t)(__div_255(alpha * fgc.g() + inv_alpha * bgc.g()));
+  uint8_t b = (uint8_t)(__div_255(alpha * fgc.b() + inv_alpha * bgc.b()));
+
   // https://stackoverflow.com/questions/12011081
-  uint16_t alpha = fgc.a() + 1;
-  uint16_t inv_alpha = 256 - alpha;
-  uint8_t r = (uint8_t)((alpha * fgc.r() + inv_alpha * bgc.r()) >> 8);
-  uint8_t g = (uint8_t)((alpha * fgc.g() + inv_alpha * bgc.g()) >> 8);
-  uint8_t b = (uint8_t)((alpha * fgc.b() + inv_alpha * bgc.b()) >> 8);
+  // This implementation is slightly faster (14ms vs 16ms in a microbenchmark)
+  // than the implementation above, but it is one-off for some important
+  // cases, like fg = 0x00000000 (transparency), and bg = 0xFFFFFFFF (white),
+  // which should produce white but produces 0xFFFEFEFE.
+  // uint16_t alpha = fgc.a() + 1;
+  // uint16_t inv_alpha = 256 - alpha;
+  // uint8_t r = (uint8_t)((alpha * fgc.r() + inv_alpha * bgc.r()) >> 8);
+  // uint8_t g = (uint8_t)((alpha * fgc.g() + inv_alpha * bgc.g()) >> 8);
+  // uint8_t b = (uint8_t)((alpha * fgc.b() + inv_alpha * bgc.b()) >> 8);
   return Color(0xFF000000 | r << 16 | g << 8 | b);
 }
 

@@ -94,7 +94,7 @@ inline constexpr uint8_t __div_255(uint32_t arg) {
 // color (bgc), ignoring background color's alpha, as if it is fully opaque.
 inline Color alphaBlendOverOpaque(Color bgc, Color fgc) {
   uint16_t alpha = fgc.a();
-  uint16_t inv_alpha = ~alpha;
+  uint16_t inv_alpha = alpha ^ 0xFF;
   uint8_t r = (uint8_t)(__div_255(alpha * fgc.r() + inv_alpha * bgc.r()));
   uint8_t g = (uint8_t)(__div_255(alpha * fgc.g() + inv_alpha * bgc.g()));
   uint8_t b = (uint8_t)(__div_255(alpha * fgc.b() + inv_alpha * bgc.b()));

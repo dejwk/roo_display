@@ -4,8 +4,8 @@
 #include <WString.h>  // Pretty much for debug output only.
 
 #include "roo_display/core/raster.h"
-#include "roo_display/internal/streamable_overlay.h"
 #include "roo_display/image/image.h"
+#include "roo_display/internal/streamable_overlay.h"
 #include "roo_display/io/memory.h"
 
 namespace roo_display {
@@ -184,8 +184,8 @@ void SmoothFont::drawGlyphNoBackground(DisplayOutput *output, int16_t x,
   Surface s(output, x + metrics.bearingX(), y - metrics.bearingY(), clip_box,
             color::Transparent, FILL_MODE_VISIBLE, paint_mode);
   if (rle()) {
-    RleImage4bppxPolarized<Alpha4> glyph(metrics.width(), metrics.height(),
-                                         data, color);
+    RleImage4bppxBiased<Alpha4> glyph(metrics.width(), metrics.height(), data,
+                                      color);
     streamToSurface(s, std::move(glyph));
   } else {
     // Identical as above, but using Raster<> instead of MonoAlpha4RleImage.
@@ -246,7 +246,7 @@ void SmoothFont::drawGlyphWithBackground(DisplayOutput *output, int16_t x,
   Box box = glyph_metrics.screen_extents().translate(offset, 0);
   if (rle()) {
     auto glyph = MakeDrawableRawStreamable(
-        RleImage4bppxPolarized<Alpha4>(box, data, color));
+        RleImage4bppxBiased<Alpha4>(box, data, color));
     drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor, paint_mode);
   } else {
     // Identical as above, but using Raster<>
@@ -267,8 +267,8 @@ void SmoothFont::drawKernedGlyphsWithBackground(
   Box rb = right_metrics.screen_extents().translate(right_offset, 0);
   if (rle()) {
     auto glyph = MakeDrawableRawStreamable(
-        Overlay(RleImage4bppxPolarized<Alpha4>(lb, left_data, color), 0, 0,
-                RleImage4bppxPolarized<Alpha4>(rb, right_data, color), 0, 0));
+        Overlay(RleImage4bppxBiased<Alpha4>(lb, left_data, color), 0, 0,
+                RleImage4bppxBiased<Alpha4>(rb, right_data, color), 0, 0));
     drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor, paint_mode);
   } else {
     // Identical as above, but using Raster<>

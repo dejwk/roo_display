@@ -273,7 +273,7 @@ class NibbleReader {
 // with bits_per_pixel != 4.
 template <typename Resource, typename ColorMode,
           int8_t bits_per_pixel = ColorMode::bits_per_pixel>
-class RleStream4bppxPolarized;
+class RleStream4bppxBiased;
 
 // Run-length-encoded stream of 4-bit nibbles. This RLE implementation favors
 // the extreme values (0x0 and 0xF), and compresses their runs more efficiently
@@ -281,13 +281,12 @@ class RleStream4bppxPolarized;
 // alpha-channel data (e.g. font glyphs) in which the extreme values are much
 // more likely to run.
 template <typename Resource, typename ColorMode>
-class RleStream4bppxPolarized<Resource, ColorMode, 4> : public PixelStream {
+class RleStream4bppxBiased<Resource, ColorMode, 4> : public PixelStream {
  public:
-  RleStream4bppxPolarized(const Resource& input, const ColorMode& color_mode)
-      : RleStream4bppxPolarized(input.Open(), color_mode) {}
+  RleStream4bppxBiased(const Resource& input, const ColorMode& color_mode)
+      : RleStream4bppxBiased(input.Open(), color_mode) {}
 
-  RleStream4bppxPolarized(StreamType<Resource> input,
-                          const ColorMode& color_mode)
+  RleStream4bppxBiased(StreamType<Resource> input, const ColorMode& color_mode)
       : reader_(std::move(input)),
         remaining_items_(0),
         run_(false),
@@ -364,9 +363,7 @@ class RleStream4bppxPolarized<Resource, ColorMode, 4> : public PixelStream {
     while (--count >= 0) next();
   }
 
-  TransparencyMode transparency() const {
-    return color_mode_.transparency();
-  }
+  TransparencyMode transparency() const { return color_mode_.transparency(); }
 
  private:
   inline Color color(uint8_t nibble) { return color_mode_.toArgbColor(nibble); }

@@ -45,9 +45,15 @@ using RleImage =
 // preferrential RLE encoding for extreme values (0x0 and 0xF). Particularly
 // useful with Alpha4, e.g. for font glyphs.
 template <typename ColorMode, typename Resource = PrgMemResource>
+using RleImage4bppxBiased =
+    SimpleStreamable<Resource, ColorMode,
+                     internal::RleStream4bppxBiased<Resource, ColorMode>>;
+
+// DEPRECATED old type name, for backwrds compatibility.
+template <typename ColorMode, typename Resource = PrgMemResource>
 using RleImage4bppxPolarized =
     SimpleStreamable<Resource, ColorMode,
-                     internal::RleStream4bppxPolarized<Resource, ColorMode>>;
+                     internal::RleStream4bppxBiased<Resource, ColorMode>>;
 
 // Uncompressed image.
 template <typename Resource, typename ColorMode,

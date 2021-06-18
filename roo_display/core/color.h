@@ -416,12 +416,12 @@ class Grayscale4 {
 // Semi-transparent monochrome with 256 transparency levels.
 class Alpha8 {
  public:
-  constexpr Alpha8(Color foreground) : foreground_(foreground) {}
+  constexpr Alpha8(Color color) : color_(color) {}
 
   static const int8_t bits_per_pixel = 8;
 
   inline constexpr Color toArgbColor(uint8_t in) const {
-    return Color((in << 24) | (foreground_.asArgb() & 0x00FFFFFF));
+    return Color((in << 24) | (color_.asArgb() & 0x00FFFFFF));
   }
 
   inline constexpr uint8_t fromArgbColor(Color color) const {
@@ -435,27 +435,27 @@ class Alpha8 {
     return bg + front_alpha - ((tmp + (tmp >> 8)) >> 8);
   }
 
-  constexpr Color color() const { return foreground_; }
+  constexpr Color color() const { return color_; }
 
   constexpr TransparencyMode transparency() const {
     return TRANSPARENCY_GRADUAL;
   }
 
  private:
-  Color foreground_;
+  Color color_;
 };
 
 // Semi-transparent monochrome with 16 transparency levels. Good default
 // for anti-aliased monochrome bitmaps.
 class Alpha4 {
  public:
-  constexpr Alpha4(Color foreground)
-      : foreground_(0xFF000000 | (foreground.asArgb() & 0x00FFFFFF)) {}
+  constexpr Alpha4(Color color)
+      : color_(0xFF000000 | (color.asArgb() & 0x00FFFFFF)) {}
 
   static const int8_t bits_per_pixel = 4;
 
   inline constexpr Color toArgbColor(uint8_t in) const {
-    return Color(((in | in << 4) << 24) | (foreground_.asArgb() & 0x00FFFFFF));
+    return Color(((in | in << 4) << 24) | (color_.asArgb() & 0x00FFFFFF));
   }
 
   inline constexpr uint8_t fromArgbColor(Color color) const {
@@ -471,36 +471,39 @@ class Alpha4 {
     return truncTo4bit(bg + front_alpha - ((tmp + (tmp >> 8)) >> 8));
   }
 
-  constexpr Color color() const { return foreground_; }
+  constexpr Color color() const { return color_; }
+  void setColor(Color color) { color_ = color; }
 
   constexpr TransparencyMode transparency() const {
     return TRANSPARENCY_GRADUAL;
   }
 
  private:
-  Color foreground_;
+  Color color_;
 };
 
 // Binary color, wich specified 'foreground' and 'background' values.
 // Both can be (semi) transparent. Useful for bit masks.
 class Monochrome {
  public:
-  constexpr Monochrome(Color foreground, Color background = Color(0x00000000))
-      : foreground_(foreground), background_(background) {}
+  constexpr Monochrome(Color fg, Color bg = Color(0x00000000))
+      : fg_(fg), bg_(bg) {}
 
   static const int8_t bits_per_pixel = 1;
 
   inline constexpr Color toArgbColor(uint8_t in) const {
-    return in == 0 ? background_ : foreground_;
+    return in == 0 ? bg_ : fg_;
   }
 
   inline constexpr uint8_t fromArgbColor(Color color) const {
-    return (color == foreground_) ? 1 : 0;
+    return (color == fg_) ? 1 : 0;
   }
 
-  constexpr Color fg() const { return foreground_; }
+  constexpr Color fg() const { return fg_; }
+  void setFg(Color fg) { fg_ = fg; }
 
-  constexpr Color bg() const { return background_; }
+  constexpr Color bg() const { return bg_; }
+  void setBg(Color bg) { bg_ = bg; }
 
   inline uint8_t rawAlphaBlend(uint8_t bg, Color fg) const {
     return fg.a() == 0 ? bg : fromArgbColor(fg);
@@ -522,8 +525,8 @@ class Monochrome {
   }
 
  private:
-  Color foreground_;
-  Color background_;
+  Color fg_;
+  Color bg_;
 };
 
 template <typename ColorMode, int8_t bits_per_pixel = ColorMode::bits_per_pixel>

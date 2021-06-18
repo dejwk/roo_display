@@ -48,7 +48,7 @@ inline void fillPaintRectOverOpaqueBg(DisplayOutput *output, const Box &extents,
     uint16_t n = kPixelWritingBufferSize;
     if (n > count) n = count;
     stream->Read(buf, n, PAINT_MODE_REPLACE);
-    for (int i=0; i < n; i++) buf[i] = alphaBlendOverOpaque(bgColor, buf[i]);
+    for (int i = 0; i < n; i++) buf[i] = alphaBlendOverOpaque(bgColor, buf[i]);
     output->write(buf, n);
     count -= n;
   } while (count > 0);
@@ -94,9 +94,9 @@ inline void writeRectVisible(DisplayOutput *output, const Box &extents,
   }
 }
 
-inline void writeRectVisibleOverOpaqueBg(DisplayOutput *output, const Box &extents,
-                                         Color bgcolor, PixelStream *stream,
-                                         PaintMode mode) {
+inline void writeRectVisibleOverOpaqueBg(DisplayOutput *output,
+                                         const Box &extents, Color bgcolor,
+                                         PixelStream *stream, PaintMode mode) {
   // TODO(dawidk): need to optimize this.
   Color buf[kPixelWritingBufferSize];
   BufferedPixelWriter writer(output, mode);
@@ -199,14 +199,14 @@ class BufferingStream {
   //   return;
   // }
 
-  void read(Color* buf, uint16_t count) {
+  void read(Color *buf, uint16_t count) {
     if (idx_ >= kPixelWritingBufferSize) {
       idx_ = 0;
       uint32_t n = kPixelWritingBufferSize;
       if (n > remaining_) n = remaining_;
       stream_->Read(buf_, n, PAINT_MODE_REPLACE);
     }
-    const Color* in = buf_ + idx_;
+    const Color *in = buf_ + idx_;
     uint16_t batch = kPixelWritingBufferSize - idx_;
     while (true) {
       if (count <= batch) {
@@ -226,14 +226,14 @@ class BufferingStream {
     }
   }
 
-  void blend(Color* buf, uint16_t count) {
+  void blend(Color *buf, uint16_t count) {
     if (idx_ >= kPixelWritingBufferSize) {
       idx_ = 0;
       uint32_t n = kPixelWritingBufferSize;
       if (n > remaining_) n = remaining_;
       stream_->Read(buf_, n, PAINT_MODE_REPLACE);
     }
-    const Color* in = buf_ + idx_;
+    const Color *in = buf_ + idx_;
     uint16_t batch = kPixelWritingBufferSize - idx_;
     while (true) {
       if (count <= batch) {
@@ -403,8 +403,8 @@ class SubRectangleStream : public PixelStream {
 inline std::unique_ptr<PixelStream> SubRectangle(
     std::unique_ptr<PixelStream> delegate, uint32_t count, int16_t width,
     int16_t width_skip) {
-  return std::unique_ptr<PixelStream>(new SubRectangleStream(
-      std::move(delegate), count, width, width_skip));
+  return std::unique_ptr<PixelStream>(
+      new SubRectangleStream(std::move(delegate), count, width, width_skip));
 }
 
 }  // namespace internal
@@ -447,9 +447,9 @@ class Streamable : public Drawable {
       std::unique_ptr<PixelStream> stream = CreateStream();
       uint32_t skipped = yoffset * extents_.width() + xoffset;
       stream->Skip(skipped);
-      internal::SubRectangleStream sub(
-          std::move(stream), extents_.area() - skipped, bounds.width(),
-          line_offset);
+      internal::SubRectangleStream sub(std::move(stream),
+                                       extents_.area() - skipped,
+                                       bounds.width(), line_offset);
       internal::FillRectFromStream(s.out(), bounds, &sub, s.bgcolor(),
                                    s.fill_mode(), s.paint_mode(),
                                    GetTransparencyMode());
@@ -525,15 +525,14 @@ class SimpleStreamable : public Streamable {
 
   const Resource &resource() const { return resource_; }
   const ColorMode &color_mode() const { return color_mode_; }
+  ColorMode &color_mode() { return color_mode_; }
 
   std::unique_ptr<PixelStream> CreateStream() const override {
-    return std::unique_ptr<PixelStream>(
-        new StreamType(resource_, color_mode_));
+    return std::unique_ptr<PixelStream>(new StreamType(resource_, color_mode_));
   }
 
   std::unique_ptr<StreamType> CreateRawStream() const {
-    return std::unique_ptr<StreamType>(
-        new StreamType(resource_, color_mode_));
+    return std::unique_ptr<StreamType>(new StreamType(resource_, color_mode_));
   }
 
   TransparencyMode GetTransparencyMode() const override {

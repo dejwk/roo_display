@@ -28,6 +28,15 @@ void TileBase::drawInternal(const Surface& s, const Drawable& content) const {
   Color bgcolor = alphaBlend(s.bgcolor(), bgcolor_);
   Box interior = Box::intersect(s.clip_box(),
                                 border_.interior().translate(s.dx(), s.dy()));
+  if (interior.empty()) {
+    if (fill_mode == FILL_MODE_RECTANGLE) {
+      s.out()->fillRect(s.paint_mode(),
+                        Box(extents.xMin(), extents.yMin(),
+                            extents.xMax(), extents.yMax()),
+                        bgcolor);
+    }
+    return;
+  }
   if (fill_mode == FILL_MODE_RECTANGLE) {
     if (extents.yMin() < interior.yMin()) {
       // Draw the top bg bar.

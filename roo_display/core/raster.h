@@ -18,8 +18,8 @@ template <typename Resource, typename ColorMode, ColorPixelOrder pixel_order,
           int pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte>
 class RasterPixelStream : public PixelStream {
  public:
-  RasterPixelStream(const Resource& resource, const ColorMode& color_mode)
-      : RasterPixelStream(resource.Open(), color_mode) {}
+  // RasterPixelStream(const Resource& resource, const ColorMode& color_mode)
+  //     : RasterPixelStream(resource.Open(), color_mode) {}
 
   RasterPixelStream(StreamType<Resource> stream, const ColorMode& color_mode)
       : stream_(std::move(stream)), pixel_index_(0), color_mode_(color_mode) {
@@ -254,49 +254,49 @@ class Raster : public Streamable {
   int16_t width_;
 };
 
-template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+template <typename PtrType, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
 using RasterArgb8888 =
-    Raster<Resource, Argb8888, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
+    Raster<PtrType, Argb8888, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
 
-template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+template <typename PtrType, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
 using RasterArgb6666 =
-    Raster<Resource, Argb6666, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
+    Raster<PtrType, Argb6666, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
 
-template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+template <typename PtrType, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
 using RasterArgb4444 =
-    Raster<Resource, Argb4444, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
+    Raster<PtrType, Argb4444, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
 
-template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+template <typename PtrType, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
 using RasterRgb565 =
-    Raster<Resource, Rgb565, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
+    Raster<PtrType, Rgb565, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
 
-template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+template <typename PtrType, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
 using RasterRgb565WithTransparency =
-    Raster<Resource, Rgb565WithTransparency, COLOR_PIXEL_ORDER_MSB_FIRST,
+    Raster<PtrType, Rgb565WithTransparency, COLOR_PIXEL_ORDER_MSB_FIRST,
            byte_order>;
 
-template <typename Resource>
+template <typename PtrType>
 using RasterGrayscale8 =
-    Raster<Resource, Grayscale8, COLOR_PIXEL_ORDER_MSB_FIRST,
+    Raster<PtrType, Grayscale8, COLOR_PIXEL_ORDER_MSB_FIRST,
            BYTE_ORDER_BIG_ENDIAN>;
 
-template <typename Resource>
-using RasterAlpha8 = Raster<Resource, Alpha8, COLOR_PIXEL_ORDER_MSB_FIRST,
+template <typename PtrType>
+using RasterAlpha8 = Raster<PtrType, Alpha8, COLOR_PIXEL_ORDER_MSB_FIRST,
                             BYTE_ORDER_BIG_ENDIAN>;
 
-template <typename Resource,
+template <typename PtrType,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>
 using RasterGrayscale4 =
-    Raster<Resource, Grayscale4, pixel_order, BYTE_ORDER_BIG_ENDIAN>;
+    Raster<PtrType, Grayscale4, pixel_order, BYTE_ORDER_BIG_ENDIAN>;
 
-template <typename Resource,
+template <typename PtrType,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>
 using RasterAlpha4 =
-    Raster<Resource, Alpha4, pixel_order, BYTE_ORDER_BIG_ENDIAN>;
+    Raster<PtrType, Alpha4, pixel_order, BYTE_ORDER_BIG_ENDIAN>;
 
-template <typename Resource,
+template <typename PtrType,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>
 using RasterMonochrome =
-    Raster<Resource, Monochrome, pixel_order, BYTE_ORDER_BIG_ENDIAN>;
+    Raster<PtrType, Monochrome, pixel_order, BYTE_ORDER_BIG_ENDIAN>;
 
 }  // namespace roo_display

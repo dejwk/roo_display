@@ -134,6 +134,19 @@ class Surface {
   // drawing itself.
   inline void drawObject(const Drawable &object) const;
 
+  // Draws the specified drawable object to this surface, at the specified
+  // offset. A convenience wrapper around drawObject().
+  inline void drawObject(const Drawable &object, int16_t dx, int16_t dy) const {
+    if (dx == 0 && dy == 0) {
+      drawObject(object);
+      return;
+    }
+    Surface s = *this;
+    s.set_dx(s.dx() + dx);
+    s.set_dy(s.dy() + dy);
+    s.drawObject(object);
+  }
+
   Box::ClipResult clipToExtents(Box extents) {
     return clip_box_.clip(extents.translate(dx_, dy_));
   }

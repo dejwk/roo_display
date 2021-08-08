@@ -126,4 +126,11 @@ class Box {
   int16_t xMin_, yMin_, xMax_, yMax_;
 };
 
+inline bool operator==(const Box& a, const Box& b) {
+  return a.xMin() == b.xMin() && a.yMin() == b.yMin() && a.xMax() == b.xMax() &&
+         a.yMax() == b.yMax();
+}
+
+inline bool operator!=(const Box& a, const Box& b) { return !(a == b); }
+
 }  // namespace roo_display

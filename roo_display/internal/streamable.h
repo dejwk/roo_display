@@ -25,15 +25,15 @@ namespace roo_display {
 
 template <typename RawStreamable>
 using RawStreamTypeOf = typename decltype(
-    std::declval<RawStreamable>().CreateRawStream())::element_type;
+    std::declval<const RawStreamable>().CreateRawStream())::element_type;
 
 template <typename RawStreamable>
 using NativelyClippedRawStreamTypeOf =
-    typename decltype(std::declval<RawStreamable>().CreateClippedRawStream(
+    typename decltype(std::declval<const RawStreamable>().CreateClippedRawStream(
         std::declval<Box>()))::element_type;
 
 template <typename RawStreamable>
-using ColorModeOf = decltype(std::declval<RawStreamable>().color_mode());
+using ColorModeOf = decltype(std::declval<const RawStreamable>().color_mode());
 
 namespace internal {
 
@@ -376,7 +376,7 @@ class Clipping {
 
   const Box &extents() const { return extents_; }
 
-  ColorModeOf<RawStreamable> color_mode() const {
+  const ColorModeOf<RawStreamable>& color_mode() const {
     return streamable_.color_mode();
   }
 

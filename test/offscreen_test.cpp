@@ -1,14 +1,13 @@
 
+#include "roo_display/core/offscreen.h"
+
 #include <memory>
 #include <random>
 
 #include "gtest/gtest-param-test.h"
-
 #include "roo_display/core/color.h"
-#include "roo_display/core/offscreen.h"
 #include "roo_display/core/streamable.h"
 #include "roo_display/internal/color_subpixel.h"
-
 #include "testing_display_device.h"
 
 using namespace testing;
@@ -141,13 +140,58 @@ class TrivialColorStream : public PixelStream {
 };
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order>
-using RawColorRect =
-    SimpleStreamable<const uint8_t*, ColorMode,
-                     RawColorStream<ColorMode, pixel_order, byte_order>>;
+class RawColorRect : public Streamable {
+ public:
+  typedef RawColorStream<ColorMode, pixel_order, byte_order> Stream;
+
+  RawColorRect(int16_t width, int16_t height, const uint8_t* data,
+               const ColorMode& color_mode = ColorMode())
+      : Streamable(Box(0, 0, width - 1, height - 1)),
+        data_(data),
+        color_mode_(color_mode) {}
+
+  std::unique_ptr<PixelStream> CreateStream() const override {
+    return std::unique_ptr<PixelStream>(new Stream(data_, color_mode_));
+  }
+
+  std::unique_ptr<Stream> CreateRawStream() const {
+    return std::unique_ptr<Stream>(new Stream(data_, color_mode_));
+  }
+
+  const ColorMode& color_mode() const { return color_mode_; }
+
+ private:
+  Box extents_;
+  const uint8_t* data_;
+  ColorMode color_mode_;
+};
 
 template <typename ColorMode>
-using TrivialColorRect =
-    SimpleStreamable<const Color*, ColorMode, TrivialColorStream>;
+class TrivialColorRect : public Streamable {
+ public:
+  TrivialColorRect(int16_t width, int16_t height, const Color* colors,
+                   const ColorMode& color_mode = ColorMode())
+      : Streamable(Box(0, 0, width - 1, height - 1)),
+        colors_(colors),
+        color_mode_(color_mode) {}
+
+  std::unique_ptr<PixelStream> CreateStream() const override {
+    return std::unique_ptr<PixelStream>(
+        new TrivialColorStream(colors_, color_mode_));
+  }
+
+  std::unique_ptr<TrivialColorStream> CreateRawStream() const {
+    return std::unique_ptr<TrivialColorStream>(
+        new TrivialColorStream(colors_, color_mode_));
+  }
+
+  const ColorMode& color_mode() const { return color_mode_; }
+
+ private:
+  Box extents_;
+  const Color* colors_;
+  ColorMode color_mode_;
+};
 
 template <typename ColorMode>
 class TrivialReplaceWriter {
@@ -269,7 +313,9 @@ class WriterTester {
         tester_(expected_.get(), offset);
         break;
       }
-      default: { assert(false); }
+      default: {
+        assert(false);
+      }
     }
     CheckEq();
   }
@@ -292,7 +338,9 @@ class WriterTester {
         tester_(expected_.get(), offset, count);
         break;
       }
-      default: { assert(false); }
+      default: {
+        assert(false);
+      }
     }
     CheckEq();
   }
@@ -315,7 +363,9 @@ class WriterTester {
         tester_(expected_.get(), offset);
         break;
       }
-      default: { assert(false); }
+      default: {
+        assert(false);
+      }
     }
     CheckEq();
   }
@@ -338,7 +388,9 @@ class WriterTester {
         tester_(expected_.get(), offset, count);
         break;
       }
-      default: { assert(false); }
+      default: {
+        assert(false);
+      }
     }
     CheckEq();
   }
@@ -489,8 +541,12 @@ TEST(ReplaceWriter, Argb8888) { TestWriter<Argb8888>(PAINT_MODE_REPLACE); }
 TEST(ReplaceWriter, Argb6666) { TestWriter<Argb6666>(PAINT_MODE_REPLACE); }
 TEST(ReplaceWriter, Argb4444) { TestWriter<Argb4444>(PAINT_MODE_REPLACE); }
 TEST(ReplaceWriter, Rgb565) { TestWriter<Rgb565>(PAINT_MODE_REPLACE); }
-TEST(ReplaceWriter, Alpha8) { TestWriter<Alpha8>(PAINT_MODE_REPLACE, color::Black); }
-TEST(ReplaceWriter, Alpha4) { TestWriter<Alpha4>(PAINT_MODE_REPLACE, color::Black); }
+TEST(ReplaceWriter, Alpha8) {
+  TestWriter<Alpha8>(PAINT_MODE_REPLACE, color::Black);
+}
+TEST(ReplaceWriter, Alpha4) {
+  TestWriter<Alpha4>(PAINT_MODE_REPLACE, color::Black);
+}
 
 TEST(ReplaceWriter, Rgb565WithTransparency) {
   TestWriter<Rgb565WithTransparency>(PAINT_MODE_REPLACE,
@@ -503,8 +559,12 @@ TEST(BlendWriter, Argb8888) { TestWriter<Argb8888>(PAINT_MODE_BLEND); }
 TEST(BlendWriter, Argb6666) { TestWriter<Argb6666>(PAINT_MODE_BLEND); }
 TEST(BlendWriter, Argb4444) { TestWriter<Argb4444>(PAINT_MODE_BLEND); }
 TEST(BlendWriter, Rgb565) { TestWriter<Rgb565>(PAINT_MODE_BLEND); }
-TEST(BlendWriter, Alpha8) { TestWriter<Alpha8>(PAINT_MODE_BLEND, color::Black); }
-TEST(BlendWriter, Alpha4) { TestWriter<Alpha4>(PAINT_MODE_BLEND, color::Black); }
+TEST(BlendWriter, Alpha8) {
+  TestWriter<Alpha8>(PAINT_MODE_BLEND, color::Black);
+}
+TEST(BlendWriter, Alpha4) {
+  TestWriter<Alpha4>(PAINT_MODE_BLEND, color::Black);
+}
 
 TEST(BlendWriter, Rgb565WithTransparency) {
   TestWriter<Rgb565WithTransparency>(PAINT_MODE_BLEND,
@@ -538,8 +598,12 @@ TEST(ReplaceFiller, Argb8888) { TestFiller<Argb8888>(PAINT_MODE_REPLACE); }
 TEST(ReplaceFiller, Argb6666) { TestFiller<Argb6666>(PAINT_MODE_REPLACE); }
 TEST(ReplaceFiller, Argb4444) { TestFiller<Argb4444>(PAINT_MODE_REPLACE); }
 TEST(ReplaceFiller, Rgb565) { TestFiller<Rgb565>(PAINT_MODE_REPLACE); }
-TEST(ReplaceFiller, Alpha8) { TestFiller<Alpha8>(PAINT_MODE_REPLACE, color::Black); }
-TEST(ReplaceFiller, Alpha4) { TestFiller<Alpha4>(PAINT_MODE_REPLACE, color::Black); }
+TEST(ReplaceFiller, Alpha8) {
+  TestFiller<Alpha8>(PAINT_MODE_REPLACE, color::Black);
+}
+TEST(ReplaceFiller, Alpha4) {
+  TestFiller<Alpha4>(PAINT_MODE_REPLACE, color::Black);
+}
 
 TEST(ReplaceFiller, Rgb565WithTransparency) {
   TestWriter<Rgb565WithTransparency>(PAINT_MODE_REPLACE,
@@ -552,8 +616,12 @@ TEST(BlendFiller, Argb8888) { TestFiller<Argb8888>(PAINT_MODE_BLEND); }
 TEST(BlendFiller, Argb6666) { TestFiller<Argb6666>(PAINT_MODE_BLEND); }
 TEST(BlendFiller, Argb4444) { TestFiller<Argb4444>(PAINT_MODE_BLEND); }
 TEST(BlendFiller, Rgb565) { TestFiller<Rgb565>(PAINT_MODE_BLEND); }
-TEST(BlendFiller, Alpha8) { TestFiller<Alpha8>(PAINT_MODE_BLEND, color::Black); }
-TEST(BlendFiller, Alpha4) { TestFiller<Alpha4>(PAINT_MODE_BLEND, color::Black); }
+TEST(BlendFiller, Alpha8) {
+  TestFiller<Alpha8>(PAINT_MODE_BLEND, color::Black);
+}
+TEST(BlendFiller, Alpha4) {
+  TestFiller<Alpha4>(PAINT_MODE_BLEND, color::Black);
+}
 
 TEST(BlendFiller, Rgb565WithTransparency) {
   TestWriter<Rgb565WithTransparency>(PAINT_MODE_BLEND,
@@ -643,8 +711,8 @@ TEST_P(OffscreenTest, FillDegeneratePixels) {
 }
 
 TEST_P(OffscreenTest, FillPixels) {
-  TestFillPixels<Offscreen<Argb4444>, Argb4444>(
-      std::get<0>(GetParam()), std::get<1>(GetParam()));
+  TestFillPixels<Offscreen<Argb4444>, Argb4444>(std::get<0>(GetParam()),
+                                                std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteRects) {
@@ -668,18 +736,18 @@ TEST_P(OffscreenTest, WriteDegeneratePixels) {
 }
 
 TEST_P(OffscreenTest, WritePixels) {
-  TestWritePixels<Offscreen<Argb4444>, Argb4444>(
-      std::get<0>(GetParam()), std::get<1>(GetParam()));
+  TestWritePixels<Offscreen<Argb4444>, Argb4444>(std::get<0>(GetParam()),
+                                                 std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WritePixelsStress) {
-  TestWritePixelsStress<Offscreen<Argb4444>, Argb4444>(
-      std::get<0>(GetParam()), std::get<1>(GetParam()));
+  TestWritePixelsStress<Offscreen<Argb4444>, Argb4444>(std::get<0>(GetParam()),
+                                                       std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WritePixelsSnake) {
-  TestWritePixelsSnake<Offscreen<Argb4444>, Argb4444>(
-      std::get<0>(GetParam()), std::get<1>(GetParam()));
+  TestWritePixelsSnake<Offscreen<Argb4444>, Argb4444>(std::get<0>(GetParam()),
+                                                      std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteRectWindowSimple) {

@@ -528,11 +528,11 @@ class SimpleStreamable : public Streamable {
   ColorMode &color_mode() { return color_mode_; }
 
   std::unique_ptr<PixelStream> CreateStream() const override {
-    return std::unique_ptr<PixelStream>(new StreamType(resource_, color_mode_));
+    return std::unique_ptr<PixelStream>(new StreamType(resource_.Open(), color_mode_));
   }
 
   std::unique_ptr<StreamType> CreateRawStream() const {
-    return std::unique_ptr<StreamType>(new StreamType(resource_, color_mode_));
+    return std::unique_ptr<StreamType>(new StreamType(resource_.Open(), color_mode_));
   }
 
   TransparencyMode GetTransparencyMode() const override {

@@ -2,6 +2,7 @@
 
 #include "roo_display/core/color.h"
 #include "roo_display/core/drawable.h"
+#include "roo_display/core/rasterizable.h"
 #include "roo_display/core/streamable.h"
 #include "roo_display/internal/color_subpixel.h"
 #include "roo_display/io/memory.h"
@@ -215,7 +216,7 @@ struct Reader<ColorMode, pixel_order, byte_order, 1, storage_type> {
 template <typename PtrType, typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
-class Raster : public Streamable {
+class Raster : public Rasterizable {
  public:
   typedef RasterPixelStream<MemoryResource<PtrType>, ColorMode, pixel_order,
                             byte_order>
@@ -226,7 +227,7 @@ class Raster : public Streamable {
       : Raster(Box(0, 0, width - 1, height - 1), ptr, std::move(color_mode)) {}
 
   Raster(Box extents, PtrType ptr, const ColorMode& color_mode = ColorMode())
-      : Streamable(std::move(extents)),
+      : Rasterizable(std::move(extents)),
         ptr_(ptr),
         color_mode_(color_mode),
         width_(extents.width()) {}
@@ -241,6 +242,14 @@ class Raster : public Streamable {
   std::unique_ptr<PixelStream> CreateStream() const override {
     MemoryStream<PtrType> s(ptr_);
     return std::unique_ptr<PixelStream>(new StreamType(s, color_mode_));
+  }
+
+  void ReadColors(const int16_t* x, const int16_t* y, uint32_t count,
+                  Color* result) const override {
+    internal::Reader<ColorMode, pixel_order, byte_order> read;
+    while (count-- > 0) {
+      *result++ = color_mode_.toArgbColor(read(ptr_, *x++ + *y++ * width_));
+    }
   }
 
   Color get(int16_t x, int16_t y) const {

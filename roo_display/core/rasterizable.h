@@ -4,13 +4,14 @@
 #include "roo_display/core/buffered_drawing.h"
 #include "roo_display/core/color.h"
 #include "roo_display/core/drawable.h"
+#include "roo_display/core/streamable.h"
 // #include "roo_display/core/streamable.h"
 
 namespace roo_display {
 
-class Rasterizable {
+class Rasterizable : public Streamable {
  public:
-  virtual Box extents() const = 0;
+  Rasterizable(Box extents) : Streamable(std::move(extents)) {}
 
   virtual TransparencyMode transparency() const { return TRANSPARENCY_GRADUAL; }
 

@@ -123,7 +123,7 @@ template <typename ColorMode,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN,
           int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           typename storage_type = ColorStorageType<ColorMode>>
-class Offscreen : public DisplayDevice, public Drawable, public Rasterizable {
+class Offscreen : public DisplayDevice, public Rasterizable {
  public:
   // Creates an offscreen with specified geometry, using the designated buffer.
   // The buffer must have sufficient capacity, determined as
@@ -157,6 +157,7 @@ class Offscreen : public DisplayDevice, public Drawable, public Rasterizable {
   // (as a Drawable).
   Offscreen(Box extents, ColorMode color_mode = ColorMode())
       : DisplayDevice(extents.width(), extents.height()),
+        Rasterizable(extents),
         buffer_(
             new uint8_t[(ColorMode::bits_per_pixel * extents.area() + 7) / 8]),
         owns_buffer_(true),
@@ -227,12 +228,18 @@ class Offscreen : public DisplayDevice, public Drawable, public Rasterizable {
     return raster_;
   }
 
+  std::unique_ptr<PixelStream> CreateStream() const override {
+    return raster().CreateStream();
+  }
+
   TransparencyMode transparency() const override {
     return color_mode().transparency();
   }
 
   virtual void ReadColors(const int16_t *x, const int16_t *y, uint32_t count,
-                          Color *result) const override;
+                          Color *result) const override {
+    raster().ReadColors(x, y, count, result);
+  }
 
   // Allows direct access to the underlying buffer.
   uint8_t *buffer() { return buffer_; }
@@ -276,7 +283,7 @@ template <typename ColorMode,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN,
           int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           typename storage_type = ColorStorageType<ColorMode>>
-class OffscreenDisplay : public Display, public Drawable, public Rasterizable {
+class OffscreenDisplay : public Display, public Rasterizable {
  public:
   typedef Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
                     storage_type>
@@ -904,16 +911,6 @@ void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
     fillVlinesAbsolute(mode, color, x0, y0, y1, count);
   } else {
     fillRectsAbsolute(mode, color, x0, y0, x1, y1, count);
-  }
-}
-
-template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
-          int8_t pixels_per_byte, typename storage_type>
-void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
-               storage_type>::ReadColors(const int16_t *x, const int16_t *y,
-                                         uint32_t count, Color *result) const {
-  while (count-- > 0) {
-    *result++ = raster_.get(*x++, *y++);
   }
 }
 

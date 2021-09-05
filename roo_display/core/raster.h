@@ -227,10 +227,12 @@ class Raster : public Rasterizable {
       : Raster(Box(0, 0, width - 1, height - 1), ptr, std::move(color_mode)) {}
 
   Raster(Box extents, PtrType ptr, const ColorMode& color_mode = ColorMode())
-      : Rasterizable(std::move(extents)),
+      : extents_(std::move(extents)),
         ptr_(ptr),
         color_mode_(color_mode),
         width_(extents.width()) {}
+
+  Box extents() const override { return extents_; }
 
   const ColorMode& color_mode() const { return color_mode_; }
 
@@ -258,6 +260,7 @@ class Raster : public Rasterizable {
   }
 
  private:
+  Box extents_;
   PtrType ptr_;
   ColorMode color_mode_;
   int16_t width_;

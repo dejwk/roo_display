@@ -11,10 +11,6 @@ namespace roo_display {
 
 class Rasterizable : public Streamable {
  public:
-  Rasterizable(Box extents) : Streamable(std::move(extents)) {}
-
-  virtual TransparencyMode transparency() const { return TRANSPARENCY_GRADUAL; }
-
   virtual void ReadColors(const int16_t* x, const int16_t* y, uint32_t count,
                           Color* result) const = 0;
 };

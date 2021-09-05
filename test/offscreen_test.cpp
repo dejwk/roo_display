@@ -146,7 +146,7 @@ class RawColorRect : public Streamable {
 
   RawColorRect(int16_t width, int16_t height, const uint8_t* data,
                const ColorMode& color_mode = ColorMode())
-      : Streamable(Box(0, 0, width - 1, height - 1)),
+      : extents_(Box(0, 0, width - 1, height - 1)),
         data_(data),
         color_mode_(color_mode) {}
 
@@ -157,6 +157,8 @@ class RawColorRect : public Streamable {
   std::unique_ptr<Stream> CreateRawStream() const {
     return std::unique_ptr<Stream>(new Stream(data_, color_mode_));
   }
+
+  Box extents() const override { return extents_; }
 
   const ColorMode& color_mode() const { return color_mode_; }
 
@@ -171,7 +173,7 @@ class TrivialColorRect : public Streamable {
  public:
   TrivialColorRect(int16_t width, int16_t height, const Color* colors,
                    const ColorMode& color_mode = ColorMode())
-      : Streamable(Box(0, 0, width - 1, height - 1)),
+      : extents_(Box(0, 0, width - 1, height - 1)),
         colors_(colors),
         color_mode_(color_mode) {}
 
@@ -184,6 +186,8 @@ class TrivialColorRect : public Streamable {
     return std::unique_ptr<TrivialColorStream>(
         new TrivialColorStream(colors_, color_mode_));
   }
+
+  Box extents() const override { return extents_; }
 
   const ColorMode& color_mode() const { return color_mode_; }
 

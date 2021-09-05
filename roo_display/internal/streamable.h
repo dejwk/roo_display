@@ -249,12 +249,12 @@ template <typename RawStreamable>
 class DrawableRawStreamable : public Streamable {
  public:
   DrawableRawStreamable(RawStreamable streamable)
-      : Streamable(streamable.extents()), streamable_(std::move(streamable)) {}
+      : streamable_(std::move(streamable)) {}
 
   DrawableRawStreamable(DrawableRawStreamable &&other)
-      : Streamable(other.extents()), streamable_(std::move(other.streamable_)) {}
+      : streamable_(std::move(other.streamable_)) {}
 
-  Box extents() const { return streamable_.extents(); }
+  Box extents() const override { return streamable_.extents(); }
 
   const RawStreamable &contents() const { return streamable_; }
 

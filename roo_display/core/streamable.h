@@ -411,8 +411,6 @@ inline std::unique_ptr<PixelStream> SubRectangle(
 
 class Streamable : public Drawable {
  public:
-  Box extents() const override { return extents_; }
-
   // CreateStream creates the stream of pixels that should be drawn to
   // the extents box.
   virtual std::unique_ptr<PixelStream> CreateStream() const = 0;
@@ -428,12 +426,12 @@ class Streamable : public Drawable {
   }
 
   void drawTo(const Surface &s) const override {
-    Box bounds =
-        Box::intersect(s.clip_box(), extents().translate(s.dx(), s.dy()));
+    Box ext = extents();
+    Box bounds = Box::intersect(s.clip_box(), ext.translate(s.dx(), s.dy()));
     if (bounds.empty()) return;
     std::unique_ptr<PixelStream> stream;
-    if (extents().width() == bounds.width() &&
-        extents().height() == bounds.height()) {
+    if (ext.width() == bounds.width() &&
+        ext.height() == bounds.height()) {
       // Optimized case: rendering full stream.
       stream = CreateStream();
       internal::FillRectFromStream(s.out(), bounds, stream.get(), s.bgcolor(),
@@ -441,26 +439,20 @@ class Streamable : public Drawable {
                                    GetTransparencyMode());
     } else {
       // Non-optimized case: rendering sub-rectangle. Need to go line-by-line.
-      int line_offset = extents_.width() - bounds.width();
-      int xoffset = bounds.xMin() - extents_.xMin() - s.dx();
-      int yoffset = bounds.yMin() - extents_.yMin() - s.dy();
+      int line_offset = ext.width() - bounds.width();
+      int xoffset = bounds.xMin() - ext.xMin() - s.dx();
+      int yoffset = bounds.yMin() - ext.yMin() - s.dy();
       std::unique_ptr<PixelStream> stream = CreateStream();
-      uint32_t skipped = yoffset * extents_.width() + xoffset;
+      uint32_t skipped = yoffset * ext.width() + xoffset;
       stream->Skip(skipped);
       internal::SubRectangleStream sub(std::move(stream),
-                                       extents_.area() - skipped,
+                                       ext.area() - skipped,
                                        bounds.width(), line_offset);
       internal::FillRectFromStream(s.out(), bounds, &sub, s.bgcolor(),
                                    s.fill_mode(), s.paint_mode(),
                                    GetTransparencyMode());
     }
   }
-
- protected:
-  Streamable(Box extents) : extents_(std::move(extents)) {}
-
- private:
-  Box extents_;
 };
 
 // Color-filled rectangle, useful as a background for super-imposed images.
@@ -488,10 +480,12 @@ class StreamableFilledRect : public Streamable {
   };
 
   StreamableFilledRect(Box extents, Color color)
-      : Streamable(std::move(extents)), color_(color) {}
+      : extents_(std::move(extents)), color_(color) {}
 
   StreamableFilledRect(uint16_t width, uint16_t height, Color color)
-      : Streamable(Box(0, 0, width - 1, height - 1)), color_(color) {}
+      : extents_(Box(0, 0, width - 1, height - 1)), color_(color) {}
+
+  Box extents() const override { return extents_; }
 
   std::unique_ptr<PixelStream> CreateStream() const {
     return std::unique_ptr<PixelStream>(new Stream(color_));
@@ -502,6 +496,7 @@ class StreamableFilledRect : public Streamable {
   }
 
  private:
+  Box extents_;
   Color color_;
 };
 
@@ -517,11 +512,13 @@ class SimpleStreamable : public Streamable {
 
   SimpleStreamable(Box extents, Resource resource,
                    const ColorMode &color_mode = ColorMode())
-      : Streamable(std::move(extents)),
+      : extents_(std::move(extents)),
         resource_(std::move(resource)),
         color_mode_(color_mode) {}
 
   void setColorMode(const ColorMode &color_mode) { color_mode_ = color_mode; }
+
+  Box extents() const override { return extents_; }
 
   const Resource &resource() const { return resource_; }
   const ColorMode &color_mode() const { return color_mode_; }
@@ -540,6 +537,7 @@ class SimpleStreamable : public Streamable {
   }
 
  private:
+  Box extents_;
   Resource resource_;
   ColorMode color_mode_;
 };

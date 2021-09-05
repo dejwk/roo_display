@@ -157,7 +157,6 @@ class Offscreen : public DisplayDevice, public Rasterizable {
   // (as a Drawable).
   Offscreen(Box extents, ColorMode color_mode = ColorMode())
       : DisplayDevice(extents.width(), extents.height()),
-        Rasterizable(extents),
         buffer_(
             new uint8_t[(ColorMode::bits_per_pixel * extents.area() + 7) / 8]),
         owns_buffer_(true),
@@ -232,7 +231,7 @@ class Offscreen : public DisplayDevice, public Rasterizable {
     return raster().CreateStream();
   }
 
-  TransparencyMode transparency() const override {
+  TransparencyMode GetTransparencyMode() const override {
     return color_mode().transparency();
   }
 

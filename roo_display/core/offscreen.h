@@ -310,8 +310,8 @@ class OffscreenDisplay : public Display, public Rasterizable {
 
   Box extents() const override { return raster().extents(); }
 
-  TransparencyMode transparency() const override {
-    return offscreen().transparency();
+  TransparencyMode GetTransparencyMode() const override {
+    return offscreen().GetTransparencyMode();
   }
 
   void ReadColors(const int16_t *x, const int16_t *y, uint32_t count,

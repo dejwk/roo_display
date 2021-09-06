@@ -131,7 +131,7 @@ class SimpleTiledRasterizable : public Rasterizable {
     }
   }
 
-  TransparencyMode transparency() const override { return transparency_; }
+  TransparencyMode GetTransparencyMode() const override { return transparency_; }
 
  private:
   Box extents_;

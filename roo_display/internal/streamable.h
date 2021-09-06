@@ -269,15 +269,8 @@ class DrawableRawStreamable : public Streamable {
    public:
     Stream(std::unique_ptr<RawStream> raw) : raw_(std::move(raw)) {}
 
-    void Read(Color* buf, uint16_t count, PaintMode mode) override {
-      if (mode == PAINT_MODE_REPLACE) {
-        while (count -- > 0) *buf++ = raw_->next();
-      } else {
-        while (count -- > 0) {
-          *buf = alphaBlend(*buf, raw_->next());
-          ++buf;
-        }
-      }
+    void Read(Color* buf, uint16_t count) override {
+      while (count -- > 0) *buf++ = raw_->next();
     }
 
    private:

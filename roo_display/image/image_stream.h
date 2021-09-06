@@ -66,16 +66,9 @@ class RleStreamUniform : public PixelStream {
         run_value_(0),
         color_mode_(color_mode) {}
 
-  void Read(Color* buf, uint16_t size, PaintMode mode) override {
-    if (mode == PAINT_MODE_REPLACE) {
-      while (size-- > 0) {
-        *buf++ = next();
-      }
-    } else {
-      while (size-- > 0) {
-        *buf = alphaBlend(*buf, next());
-        ++buf;
-      }
+  void Read(Color* buf, uint16_t size) override {
+    while (size-- > 0) {
+      *buf++ = next();
     }
   }
 
@@ -138,20 +131,13 @@ class RleStreamRgb565Alpha4 : public PixelStream {
         alpha_buf_(0xFF),
         alpha_mode_(0) {}
 
-  void Read(Color* buf, uint16_t size, PaintMode mode) override {
-    if (mode == PAINT_MODE_REPLACE) {
-      while (size-- > 0) {
-        *buf++ = next();
-      }
-    } else {
-      while (size-- > 0) {
-        *buf = alphaBlend(*buf, next());
-        ++buf;
-      }
+  void Read(Color* buf, uint16_t size) override {
+    while (size-- > 0) {
+      *buf++ = next();
     }
   }
 
-  void skip(int count) {
+  void Skip(int count) override {
     while (--count >= 0) next();
   }
 
@@ -293,16 +279,9 @@ class RleStream4bppxBiased<Resource, ColorMode, 4> : public PixelStream {
         run_value_(0),
         color_mode_(color_mode) {}
 
-  void Read(Color* buf, uint16_t size, PaintMode mode) override {
-    if (mode == PAINT_MODE_REPLACE) {
-      while (size-- > 0) {
-        *buf++ = next();
-      }
-    } else {
-      while (size-- > 0) {
-        *buf = alphaBlend(*buf, next());
-        ++buf;
-      }
+  void Read(Color* buf, uint16_t size) override {
+    while (size-- > 0) {
+      *buf++ = next();
     }
   }
 

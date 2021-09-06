@@ -52,16 +52,9 @@ class RawColorStream : public PixelStream {
   RawColorStream(const uint8_t* ptr, ColorMode color_mode)
       : color_mode_(color_mode), ptr_(ptr) {}
 
-  void Read(Color* buf, uint16_t size, PaintMode mode) override {
-    if (mode == PAINT_MODE_REPLACE) {
-      while (size-- > 0) {
-        *buf++ = next();
-      }
-    } else {
-      while (size-- > 0) {
-        *buf = alphaBlend(*buf, next());
-        ++buf;
-      }
+  void Read(Color* buf, uint16_t size) override {
+    while (size-- > 0) {
+      *buf++ = next();
     }
   }
 
@@ -85,16 +78,9 @@ class RawColorStream<ColorMode, pixel_order, byte_order, uint8_t, 1,
   RawColorStream(const uint8_t* data, ColorMode color_mode, int pixel_index = 0)
       : color_mode_(color_mode), data_(data), pixel_index_(pixel_index) {}
 
-  void Read(Color* buf, uint16_t size, PaintMode mode) override {
-    if (mode == PAINT_MODE_REPLACE) {
-      while (size-- > 0) {
-        *buf++ = next();
-      }
-    } else {
-      while (size-- > 0) {
-        *buf = alphaBlend(*buf, next());
-        ++buf;
-      }
+  void Read(Color* buf, uint16_t size) override {
+    while (size-- > 0) {
+      *buf++ = next();
     }
   }
 
@@ -120,16 +106,9 @@ class TrivialColorStream : public PixelStream {
   template <typename ColorMode>
   TrivialColorStream(const Color* colors, ColorMode mode) : colors_(colors) {}
 
-  void Read(Color* buf, uint16_t size, PaintMode mode) override {
-    if (mode == PAINT_MODE_REPLACE) {
-      while (size-- > 0) {
-        *buf++ = next();
-      }
-    } else {
-      while (size-- > 0) {
-        *buf = alphaBlend(*buf, next());
-        ++buf;
-      }
+  void Read(Color* buf, uint16_t size) override {
+    while (size-- > 0) {
+      *buf++ = next();
     }
   }
 

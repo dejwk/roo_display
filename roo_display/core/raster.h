@@ -27,16 +27,9 @@ class RasterPixelStream : public PixelStream {
     fetch();
   }
 
-  void Read(Color* buf, uint16_t size, PaintMode mode) override {
-    if (mode == PAINT_MODE_REPLACE) {
-      while (size-- > 0) {
-        *buf++ = next();
-      }
-    } else {
-      while (size-- > 0) {
-        *buf = alphaBlend(*buf, next());
-        ++buf;
-      }
+  void Read(Color* buf, uint16_t size) override {
+    while (size-- > 0) {
+      *buf++ = next();
     }
   }
 
@@ -129,16 +122,9 @@ class RasterPixelStream<Resource, ColorMode, pixel_order, byte_order, 1>
   RasterPixelStream(StreamType<Resource> stream, const ColorMode& color_mode)
       : stream_(std::move(stream)), color_mode_(color_mode) {}
 
-  void Read(Color* buf, uint16_t size, PaintMode mode) override {
-    if (mode == PAINT_MODE_REPLACE) {
-      while (size-- > 0) {
-        *buf++ = next();
-      }
-    } else {
-      while (size-- > 0) {
-        *buf = alphaBlend(*buf, next());
-        ++buf;
-      }
+  void Read(Color* buf, uint16_t size) override {
+    while (size-- > 0) {
+      *buf++ = next();
     }
   }
 

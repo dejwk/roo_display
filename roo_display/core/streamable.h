@@ -8,15 +8,15 @@ namespace roo_display {
 
 class PixelStream {
  public:
-  virtual void Read(Color *buf, uint16_t size, PaintMode mode) = 0;
+  virtual void Read(Color *buf, uint16_t size) = 0;
 
   virtual void Skip(uint32_t count) {
     Color buf[kPixelWritingBufferSize];
     while (count > kPixelWritingBufferSize) {
-      Read(buf, kPixelWritingBufferSize, PAINT_MODE_REPLACE);
+      Read(buf, kPixelWritingBufferSize);
       count -= kPixelWritingBufferSize;
     }
-    Read(buf, count, PAINT_MODE_REPLACE);
+    Read(buf, count);
   }
 
   virtual ~PixelStream() {}
@@ -32,7 +32,7 @@ inline void fillReplaceRect(DisplayOutput *output, const Box &extents,
   while (count > 0) {
     uint32_t n = count;
     if (n > kPixelWritingBufferSize) n = kPixelWritingBufferSize;
-    stream->Read(buf, n, PAINT_MODE_REPLACE);
+    stream->Read(buf, n);
     output->write(buf, n);
     count -= n;
   }
@@ -47,7 +47,7 @@ inline void fillPaintRectOverOpaqueBg(DisplayOutput *output, const Box &extents,
   do {
     uint16_t n = kPixelWritingBufferSize;
     if (n > count) n = count;
-    stream->Read(buf, n, PAINT_MODE_REPLACE);
+    stream->Read(buf, n);
     for (int i = 0; i < n; i++) buf[i] = alphaBlendOverOpaque(bgColor, buf[i]);
     output->write(buf, n);
     count -= n;
@@ -63,8 +63,10 @@ inline void fillPaintRectOverBg(DisplayOutput *output, const Box &extents,
   do {
     uint16_t n = kPixelWritingBufferSize;
     if (n > count) n = count;
-    Color::Fill(buf, n, bgcolor);
-    stream->Read(buf, n, PAINT_MODE_BLEND);
+    stream->Read(buf, n);
+    for (int i = 0; i < n; ++i) {
+      buf[i] = alphaBlend(bgcolor, buf[i]);
+    }
     output->write(buf, n);
     count -= n;
   } while (count > 0);
@@ -84,7 +86,7 @@ inline void writeRectVisible(DisplayOutput *output, const Box &extents,
         idx = 0;
         int n = remaining < kPixelWritingBufferSize ? remaining
                                                     : kPixelWritingBufferSize;
-        stream->Read(buf, n, PAINT_MODE_REPLACE);
+        stream->Read(buf, n);
       }
       Color color = buf[idx++];
       if (color.a() != 0) {
@@ -108,7 +110,7 @@ inline void writeRectVisibleOverOpaqueBg(DisplayOutput *output,
         idx = 0;
         int n = remaining < kPixelWritingBufferSize ? remaining
                                                     : kPixelWritingBufferSize;
-        stream->Read(buf, n, PAINT_MODE_REPLACE);
+        stream->Read(buf, n);
       }
       Color color = buf[idx++];
       if (color.a() != 0) {
@@ -132,7 +134,7 @@ inline void writeRectVisibleOverBg(DisplayOutput *output, const Box &extents,
         idx = 0;
         int n = remaining < kPixelWritingBufferSize ? remaining
                                                     : kPixelWritingBufferSize;
-        stream->Read(buf, n, PAINT_MODE_REPLACE);
+        stream->Read(buf, n);
       }
       Color color = buf[idx++];
       if (color.a() != 0) {
@@ -179,7 +181,7 @@ class BufferingStream {
       idx_ = 0;
       uint32_t n = kPixelWritingBufferSize;
       if (n > remaining_) n = remaining_;
-      stream_->Read(buf_, n, PAINT_MODE_REPLACE);
+      stream_->Read(buf_, n);
     }
     --remaining_;
     return buf_[idx_++];
@@ -204,7 +206,7 @@ class BufferingStream {
       idx_ = 0;
       uint32_t n = kPixelWritingBufferSize;
       if (n > remaining_) n = remaining_;
-      stream_->Read(buf_, n, PAINT_MODE_REPLACE);
+      stream_->Read(buf_, n);
     }
     const Color *in = buf_ + idx_;
     uint16_t batch = kPixelWritingBufferSize - idx_;
@@ -221,7 +223,7 @@ class BufferingStream {
       in = buf_;
       uint32_t n = kPixelWritingBufferSize;
       if (n > remaining_) n = remaining_;
-      stream_->Read(buf_, n, PAINT_MODE_REPLACE);
+      stream_->Read(buf_, n);
       batch = n;
     }
   }
@@ -231,7 +233,7 @@ class BufferingStream {
       idx_ = 0;
       uint32_t n = kPixelWritingBufferSize;
       if (n > remaining_) n = remaining_;
-      stream_->Read(buf_, n, PAINT_MODE_REPLACE);
+      stream_->Read(buf_, n);
     }
     const Color *in = buf_ + idx_;
     uint16_t batch = kPixelWritingBufferSize - idx_;
@@ -255,7 +257,7 @@ class BufferingStream {
       in = buf_;
       uint32_t n = kPixelWritingBufferSize;
       if (n > remaining_) n = remaining_;
-      stream_->Read(buf_, n, PAINT_MODE_REPLACE);
+      stream_->Read(buf_, n);
       batch = n;
     }
   }
@@ -273,7 +275,7 @@ class BufferingStream {
     do {
       uint16_t n = kPixelWritingBufferSize;
       if (n > remaining_) n = remaining_;
-      stream_->Read(buf_, n, PAINT_MODE_REPLACE);
+      stream_->Read(buf_, n);
       if (count < n) {
         idx_ = count;
         remaining_ -= count;
@@ -313,7 +315,7 @@ class SubRectangleStream : public PixelStream {
 
   SubRectangleStream(SubRectangleStream &&) = default;
 
-  void Read(Color *buf, uint16_t count, PaintMode mode) override {
+  void Read(Color *buf, uint16_t count) override {
     do {
       if (x_ >= width_) {
         dskip(width_skip_);
@@ -321,7 +323,7 @@ class SubRectangleStream : public PixelStream {
       }
       uint16_t n = width_ - x_;
       if (n > count) n = count;
-      uint16_t read = dnext(buf, n, mode);
+      uint16_t read = dnext(buf, n);
       buf += read;
       count -= read;
       x_ += read;
@@ -355,7 +357,7 @@ class SubRectangleStream : public PixelStream {
     do {
       uint16_t n = kPixelWritingBufferSize;
       if (n > remaining_) n = remaining_;
-      stream_->Read(buf_, n, PAINT_MODE_REPLACE);
+      stream_->Read(buf_, n);
       remaining_ -= n;
       if (count < n) {
         idx_ = count;
@@ -366,24 +368,18 @@ class SubRectangleStream : public PixelStream {
     } while (count > 0);
   }
 
-  uint16_t dnext(Color *buf, int16_t count, PaintMode mode) {
+  uint16_t dnext(Color *buf, int16_t count) {
     if (idx_ >= kPixelWritingBufferSize) {
       uint16_t n = kPixelWritingBufferSize;
       if (n > remaining_) n = remaining_;
-      stream_->Read(buf_, n, PAINT_MODE_REPLACE);
+      stream_->Read(buf_, n);
       idx_ = 0;
       remaining_ -= n;
     }
     if (count > kPixelWritingBufferSize - idx_) {
       count = kPixelWritingBufferSize - idx_;
     }
-    if (mode == PAINT_MODE_REPLACE) {
-      memcpy(buf, buf_ + idx_, count * sizeof(Color));
-    } else {
-      for (uint16_t i = 0; i < count; ++i) {
-        buf[i] = alphaBlend(buf[i], buf_[idx_ + i]);
-      }
-    }
+    memcpy(buf, buf_ + idx_, count * sizeof(Color));
     idx_ += count;
     return count;
   }

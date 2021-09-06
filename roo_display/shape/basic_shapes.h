@@ -1,12 +1,12 @@
 #pragma once
 
-//#include <algorithm>
 #include "roo_display.h"
+#include "roo_display/core/color.h"
 #include "roo_display/core/drawable.h"
 
 namespace roo_display {
 
-class BasicShape : public Drawable {
+class BasicShape : virtual public Drawable {
  public:
   Color color() const { return color_; }
 
@@ -20,12 +20,7 @@ class BasicShape : public Drawable {
 class Line : public BasicShape {
  public:
   Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Color color)
-      : BasicShape(color),
-        x0_(x0),
-        y0_(y0),
-        x1_(x1),
-        y1_(y1),
-        diag_(TL_BR) {
+      : BasicShape(color), x0_(x0), y0_(y0), x1_(x1), y1_(y1), diag_(TL_BR) {
     if (x1 < x0) {
       std::swap(x0_, x1_);
       diag_ = diag_ == TL_BR ? TR_BL : TL_BR;
@@ -78,10 +73,23 @@ class Rect : public RectBase {
   void drawTo(const Surface &s) const override;
 };
 
-class FilledRect : public RectBase {
+class FilledRect : public RectBase, Rasterizable {
  public:
   FilledRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Color color)
       : RectBase(x0, y0, x1, y1, color) {}
+
+  Box extents() const override { return RectBase::extents(); }
+
+  TransparencyMode GetTransparencyMode() const override {
+    return color().opaque() ? TRANSPARENCY_NONE : TRANSPARENCY_GRADUAL;
+  }
+
+  std::unique_ptr<PixelStream> CreateStream() const override;
+
+  void ReadColors(const int16_t *x, const int16_t *y, uint32_t count,
+                  Color *result) const override {
+    Color::Fill(result, count, color());
+  }
 
  private:
   void drawTo(const Surface &s) const override;
@@ -91,12 +99,7 @@ class RoundRectBase : public BasicShape {
  public:
   RoundRectBase(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t radius,
                 Color color)
-      : BasicShape(color),
-        x0_(x0),
-        y0_(y0),
-        x1_(x1),
-        y1_(y1),
-        radius_(radius) {
+      : BasicShape(color), x0_(x0), y0_(y0), x1_(x1), y1_(y1), radius_(radius) {
     if (x1 < x0) std::swap(x0_, x1_);
     if (y1 < y0) std::swap(y0_, y1_);
     int16_t w = x1 - x0 + 1;
@@ -152,12 +155,14 @@ class CircleBase : public BasicShape {
 
 class Circle : public CircleBase {
  public:
-  static Circle ByRadius(int16_t x_center, int16_t y_center, int16_t radius, Color color) {
+  static Circle ByRadius(int16_t x_center, int16_t y_center, int16_t radius,
+                         Color color) {
     return Circle(x_center - radius, y_center - radius, (radius << 1) + 1,
                   color);
   }
 
-  static Circle ByExtents(int16_t x0, int16_t y0, int16_t diameter, Color color) {
+  static Circle ByExtents(int16_t x0, int16_t y0, int16_t diameter,
+                          Color color) {
     return Circle(x0, y0, diameter, color);
   }
 

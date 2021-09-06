@@ -9,7 +9,7 @@
 
 namespace roo_display {
 
-class Rasterizable : public Streamable {
+class Rasterizable : public virtual Streamable {
  public:
   virtual void ReadColors(const int16_t* x, const int16_t* y, uint32_t count,
                           Color* result) const = 0;

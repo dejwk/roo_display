@@ -136,6 +136,31 @@ void FilledRect::drawTo(const Surface &s) const {
   }
 }
 
+class FilledRectStream : public PixelStream {
+ public:
+  FilledRectStream(Color color) : color_(color) {}
+
+  void Read(Color *buf, uint16_t count, PaintMode mode) override {
+    if (mode == PAINT_MODE_REPLACE || color_.a() == 0xFF) {
+      Color::Fill(buf, count, color_);
+    } else {
+      while (count-- > 0) {
+        *buf = alphaBlend(*buf, color_);
+        ++buf;
+      }
+    }
+  }
+
+  void Skip(uint32_t count) override {}
+
+ private:
+  Color color_;
+};
+
+std::unique_ptr<PixelStream> FilledRect::CreateStream() const {
+  return std::unique_ptr<PixelStream>(new FilledRectStream(color()));
+}
+
 // Also used to draw regular circles.
 template <typename PixelFiller>
 void drawRoundRectCorners(PixelFiller &drawer, int16_t x0, int16_t y0, int x1,

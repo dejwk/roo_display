@@ -409,7 +409,7 @@ inline std::unique_ptr<PixelStream> SubRectangle(
 
 }  // namespace internal
 
-class Streamable : public Drawable {
+class Streamable : public virtual Drawable {
  public:
   // CreateStream creates the stream of pixels that should be drawn to
   // the extents box.
@@ -430,8 +430,7 @@ class Streamable : public Drawable {
     Box bounds = Box::intersect(s.clip_box(), ext.translate(s.dx(), s.dy()));
     if (bounds.empty()) return;
     std::unique_ptr<PixelStream> stream;
-    if (ext.width() == bounds.width() &&
-        ext.height() == bounds.height()) {
+    if (ext.width() == bounds.width() && ext.height() == bounds.height()) {
       // Optimized case: rendering full stream.
       stream = CreateStream();
       internal::FillRectFromStream(s.out(), bounds, stream.get(), s.bgcolor(),
@@ -445,59 +444,13 @@ class Streamable : public Drawable {
       std::unique_ptr<PixelStream> stream = CreateStream();
       uint32_t skipped = yoffset * ext.width() + xoffset;
       stream->Skip(skipped);
-      internal::SubRectangleStream sub(std::move(stream),
-                                       ext.area() - skipped,
+      internal::SubRectangleStream sub(std::move(stream), ext.area() - skipped,
                                        bounds.width(), line_offset);
       internal::FillRectFromStream(s.out(), bounds, &sub, s.bgcolor(),
                                    s.fill_mode(), s.paint_mode(),
                                    GetTransparencyMode());
     }
   }
-};
-
-// Color-filled rectangle, useful as a background for super-imposed images.
-class StreamableFilledRect : public Streamable {
- public:
-  class Stream : public PixelStream {
-   public:
-    Stream(Color color) : color_(color) {}
-
-    void Read(Color *buf, uint16_t count, PaintMode mode) override {
-      if (mode == PAINT_MODE_REPLACE || color_.a() == 0xFF) {
-        Color::Fill(buf, count, color_);
-      } else {
-        while (count-- > 0) {
-          *buf = alphaBlend(*buf, color_);
-          ++buf;
-        }
-      }
-    }
-
-    void skip(uint32_t count) {}
-
-   private:
-    Color color_;
-  };
-
-  StreamableFilledRect(Box extents, Color color)
-      : extents_(std::move(extents)), color_(color) {}
-
-  StreamableFilledRect(uint16_t width, uint16_t height, Color color)
-      : extents_(Box(0, 0, width - 1, height - 1)), color_(color) {}
-
-  Box extents() const override { return extents_; }
-
-  std::unique_ptr<PixelStream> CreateStream() const {
-    return std::unique_ptr<PixelStream>(new Stream(color_));
-  }
-
-  TransparencyMode GetTransparencyMode() const override {
-    return color_.a() == 0xFF ? TRANSPARENCY_NONE : TRANSPARENCY_GRADUAL;
-  }
-
- private:
-  Box extents_;
-  Color color_;
 };
 
 // Convenience wrapper for image classes that are read from a byte stream
@@ -525,11 +478,13 @@ class SimpleStreamable : public Streamable {
   ColorMode &color_mode() { return color_mode_; }
 
   std::unique_ptr<PixelStream> CreateStream() const override {
-    return std::unique_ptr<PixelStream>(new StreamType(resource_.Open(), color_mode_));
+    return std::unique_ptr<PixelStream>(
+        new StreamType(resource_.Open(), color_mode_));
   }
 
   std::unique_ptr<StreamType> CreateRawStream() const {
-    return std::unique_ptr<StreamType>(new StreamType(resource_.Open(), color_mode_));
+    return std::unique_ptr<StreamType>(
+        new StreamType(resource_.Open(), color_mode_));
   }
 
   TransparencyMode GetTransparencyMode() const override {

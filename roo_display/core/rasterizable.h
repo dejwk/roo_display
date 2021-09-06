@@ -5,7 +5,6 @@
 #include "roo_display/core/color.h"
 #include "roo_display/core/drawable.h"
 #include "roo_display/core/streamable.h"
-// #include "roo_display/core/streamable.h"
 
 namespace roo_display {
 
@@ -13,82 +12,63 @@ class Rasterizable : public virtual Streamable {
  public:
   virtual void ReadColors(const int16_t* x, const int16_t* y, uint32_t count,
                           Color* result) const = 0;
+
+  std::unique_ptr<PixelStream> CreateStream() const override;
 };
 
-// namespace internal {
+namespace internal {
 
-// template <typename Getter>
-// class StreamableGetter {
-//  public:
-//   class Stream {
-//    public:
-//     Stream(Box box, Getter getter, TransparencyMode transparency)
-//         : getter_(getter),
-//           transparency_(transparency),
-//           box_(box),
-//           x_(box.xMin()),
-//           y_(box.yMin()) {}
+class Stream : public PixelStream {
+ public:
+  Stream(const Rasterizable* data)
+      : data_(data),
+        extents_(data->extents()),
+        x_(extents_.xMin()),
+        y_(extents_.yMin()) {}
 
-//     Color next() {
-//       Color result = getter_(x_, y_);
-//       if (x_ < box_.xMax()) {
-//         x_++;
-//       } else {
-//         x_ = box_.xMin();
-//         y_++;
-//       }
-//     }
+  void Read(Color* buf, uint16_t size) override {
+    int16_t x[size];
+    int16_t y[size];
+    for (int i = 0; i < size; ++i) {
+      x[i] = x_;
+      y[i] = y_;
+      if (x_ < extents_.xMax()) {
+        ++x_;
+      } else {
+        x_ = extents_.xMin();
+        ++y_;
+      }
+    }
+    data_->ReadColors(x, y, size, buf);
+  }
 
-//     void skip(uint32_t count) {
-//       int16_t width = box_.width();
-//       y_ += count / width;
-//       x_ += count % width;
-//       if (x_ > box_.xMax()) {
-//         x_ = box_.xMin();
-//         y_++;
-//       }
-//     }
+  void Skip(uint32_t count) override {
+    auto w = extents_.width();
+    y_ += count / w;
+    x_ += count % w;
+    if (x_ > extents_.xMax()) {
+      x_ -= w;
+      ++y_;
+    }
+  }
 
-//     TransparencyMode transparency() const { return transparency_; }
+ private:
+  const Rasterizable* data_;
+  Box extents_;
+  int16_t x_, y_;
+};
 
-//    private:
-//     Getter getter_;
-//     TransparencyMode transparency_;
-//     Box box_;
-//     int16_t x_, y_;
-//   };
+}  // namespace internal
 
-//  public:
-//   StreamableGetter(const Box& extents, Getter getter,
-//                    TransparencyMode transparency)
-//       : getter_(getter), transparency_(transparency), extents_(extents) {}
-
-//   const Box& extents() const { return extents_; }
-
-//   std::unique_ptr<Stream> CreateStream() const {
-//     return std::unique_ptr<Stream>(
-//         new Stream(extents_, getter_, transparency_));
-//   }
-
-//   std::unique_ptr<Stream> CreateClippedStream(const Box& clip_box) const {
-//     return std::unique_ptr<Stream>(
-//         new Stream(Box::intersect(extents_, clip_box), getter_,
-//         transparency_));
-//   }
-
-//  private:
-//   Getter getter_;
-//   TransparencyMode transparency_;
-//   Box extents_;
-// };
-
-// }  // namespace internal
+inline std::unique_ptr<PixelStream> Rasterizable::CreateStream() const {
+  return std::unique_ptr<PixelStream>(new internal::Stream(this));
+}
 
 // Takes a function object, overriding:
 //
 //   Color operator(int16_t x, int16_t y)
 //
-// and turns it into a rasterizable that can be used as a background.
+// and turns it into a rasterizable.
 template <typename Getter>
 class SimpleRasterizable : public Rasterizable {
  public:
@@ -104,14 +84,9 @@ class SimpleRasterizable : public Rasterizable {
     }
   }
 
-  // void drawTo(const Surface& s) const override {
-  //   // Delegating to streamable ensures that we properly support backgrounds,
-  //   // transparency, etc., and use optimized FillRectFromStream.
-  //   streamToSurface(s, internal::StreamableGetter<Getter>(extents_, getter_,
-  //                                                         transparency_));
-  // }
-
-  TransparencyMode transparency() const override { return transparency_; }
+  TransparencyMode GetTransparencyMode() const override {
+    return transparency_;
+  }
 
  private:
   Getter getter_;

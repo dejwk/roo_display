@@ -87,6 +87,7 @@ inline void writeRectVisible(DisplayOutput *output, const Box &extents,
         int n = remaining < kPixelWritingBufferSize ? remaining
                                                     : kPixelWritingBufferSize;
         stream->Read(buf, n);
+        remaining -= n;
       }
       Color color = buf[idx++];
       if (color.a() != 0) {

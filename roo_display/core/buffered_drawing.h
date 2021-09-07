@@ -25,7 +25,12 @@
 
 namespace roo_display {
 
+#ifndef ROO_DISPLAY_TEST
 static const uint8_t kPixelWritingBufferSize = 64;
+#else
+// Use a small and 'weird' buffer size to challenge unit tests better.
+static const uint8_t kPixelWritingBufferSize = 5;
+#endif
 
 class BufferedPixelWriter {
  public:

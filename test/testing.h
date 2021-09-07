@@ -192,10 +192,18 @@ Color NextColorFromString<Rgb565WithTransparency>(
 }
 
 template <typename ColorMode>
-class ParserStream {
+class ParserStream : public PixelStream {
  public:
   ParserStream<ColorMode>(ColorMode mode, const string& content)
       : mode_(mode), stream_(content) {}
+
+  void Read(Color *buf, uint16_t size) override {
+    while (size-- > 0) *buf++ = next();
+  }
+
+  void Skip(uint32_t count) override {
+    skip(count);
+  }
 
   TransparencyMode transparency() const { return mode_.transparency(); }
 
@@ -211,7 +219,7 @@ class ParserStream {
 };
 
 template <typename ColorMode>
-class ParserStreamable {
+class ParserStreamable : public Streamable {
  public:
   ParserStreamable(int16_t width, int16_t height, string data)
       : ParserStreamable(ColorMode(), width, height, std::move(data)) {}
@@ -226,6 +234,11 @@ class ParserStreamable {
 
   std::unique_ptr<ParserStream<ColorMode>> CreateRawStream() const {
     return std::unique_ptr<ParserStream<ColorMode>>(
+        new ParserStream<ColorMode>(mode_, data_));
+  }
+
+  std::unique_ptr<PixelStream> CreateStream() const override {
+    return std::unique_ptr<PixelStream>(
         new ParserStream<ColorMode>(mode_, data_));
   }
 

@@ -118,6 +118,19 @@ cc_test(
 )
 
 cc_test(
+    name = "raw_streamable_test",
+    srcs = [
+        "test/raw_streamable_test.cpp",
+        "test/testing.h",
+    ],
+    linkstatic = 1,
+    deps = [
+        "//lib/roo_display",
+        "@gtest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "offscreen_test",
     srcs = [
         "test/offscreen_test.cpp",

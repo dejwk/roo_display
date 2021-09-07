@@ -1,31 +1,60 @@
 
-#include "roo_display/core/streamable.h"
+#include "roo_display/internal/streamable.h"
 
 #include "roo_display/core/color.h"
 #include "testing.h"
 
-// Tests drawing and clipping streamables via their drawTo method, which
-// internally creates a stream and possibly clips it using SubRectangleStream.
+// Tests drawing and clipping raw streamables via the DrawableRawStreamable
+// helper.
 
 using namespace testing;
 
 namespace roo_display {
 
+template <typename RawStreamable>
 void Draw(DisplayDevice* output, int16_t x, int16_t y, const Box& clip_box,
-          const Streamable& object, FillMode fill_mode = FILL_MODE_VISIBLE,
+          const RawStreamable& object, FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND) {
   output->begin();
+  DrawableRawStreamable<RawStreamable> drawable(object);
   Surface s(output, x, y, clip_box, 0, fill_mode, paint_mode);
-  s.drawObject(object);
+  s.drawObject(drawable);
   output->end();
 }
 
+template <typename RawStreamable>
 void Draw(DisplayDevice* output, int16_t x, int16_t y,
-          const Streamable& object, FillMode fill_mode = FILL_MODE_VISIBLE,
+          const RawStreamable& object, FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND) {
   Box clip_box(0, 0, output->effective_width() - 1,
                output->effective_height() - 1);
   Draw(output, x, y, clip_box, object, fill_mode, paint_mode);
+}
+
+TEST(Streamable, FilledRect) {
+  FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
+  RawStreamableFilledRect rect(2, 3, color::White);
+  Draw(&test_screen, 1, 2, rect);
+  EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 5, 6,
+                                          "     "
+                                          "     "
+                                          " **  "
+                                          " **  "
+                                          " **  "
+                                          "     "));
+}
+
+TEST(Streamable, ClippedFilledRect) {
+  FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
+  RawStreamableFilledRect rect(2, 3, color::White);
+  Draw(&test_screen, 1, 2, Box(1, 1, 2, 2), rect);
+  EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 5, 6,
+                                          "     "
+                                          "     "
+                                          " **  "
+                                          "     "
+                                          "     "
+                                          "     "));
 }
 
 TEST(Streamable, DrawingArbitraryStreamable) {
@@ -72,6 +101,38 @@ TEST(Streamable, ClippingFromBottom) {
                                           "___ ___ ___ ___ ___"
                                           "___ 1W3 ___ ___ ___"
                                           "___ LQD ___ ___ ___"
+                                          "___ ___ ___ ___ ___"
+                                          "___ ___ ___ ___ ___"));
+}
+
+TEST(Streamable, NestedClipping) {
+  auto input = Clipped(Box(1, 1, 6, 6), MakeTestStreamable(Rgb565(), 3, 3,
+                                                           "1W3 D1R 2C5"
+                                                           "LQD TOL DN_"
+                                                           "F9F N_N 117"));
+  FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
+  Draw(&test_screen, 1, 2, Box(0, 0, 2, 4), input);
+  EXPECT_THAT(test_screen, MatchesContent(Rgb565(), 5, 6,
+                                          "___ ___ ___ ___ ___"
+                                          "___ ___ ___ ___ ___"
+                                          "___ ___ ___ ___ ___"
+                                          "___ ___ TOL ___ ___"
+                                          "___ ___ N_N ___ ___"
+                                          "___ ___ ___ ___ ___"));
+}
+
+TEST(Streamable, NestedClippingToNil) {
+  auto input = Clipped(Box(1, 4, 6, 6), MakeTestStreamable(Rgb565(), 2, 3,
+                                                           "1W3 D1R"
+                                                           "LQD TOL"
+                                                           "F9F N_N"));
+  FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
+  Draw(&test_screen, 1, 2, Box(0, 0, 1, 3), input);
+  EXPECT_THAT(test_screen, MatchesContent(Rgb565(), 5, 6,
+                                          "___ ___ ___ ___ ___"
+                                          "___ ___ ___ ___ ___"
+                                          "___ ___ ___ ___ ___"
+                                          "___ ___ ___ ___ ___"
                                           "___ ___ ___ ___ ___"
                                           "___ ___ ___ ___ ___"));
 }

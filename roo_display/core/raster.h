@@ -33,6 +33,10 @@ class RasterPixelStream : public PixelStream {
     }
   }
 
+  void Skip(uint32_t count) override {
+    skip(count);
+  }
+
   // Advances the iterator to the next pixel in the buffer.
   Color next() {
     Color color = cache_[pixel_index_];
@@ -126,6 +130,10 @@ class RasterPixelStream<Resource, ColorMode, pixel_order, byte_order, 1>
     while (size-- > 0) {
       *buf++ = next();
     }
+  }
+
+  void Skip(uint32_t count) override {
+    skip(count);
   }
 
   // Advances the iterator to the next pixel in the buffer.
@@ -238,6 +246,10 @@ class Raster : public Rasterizable {
     while (count-- > 0) {
       *result++ = color_mode_.toArgbColor(read(ptr_, *x++ + *y++ * width_));
     }
+  }
+
+  TransparencyMode GetTransparencyMode() const override {
+    return color_mode_.transparency();
   }
 
   Color get(int16_t x, int16_t y) const {

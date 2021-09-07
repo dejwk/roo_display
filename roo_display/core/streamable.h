@@ -353,19 +353,17 @@ class SubRectangleStream : public PixelStream {
       return;
     }
     count -= buffered;
-    idx_ = 0;
-    do {
-      uint16_t n = kPixelWritingBufferSize;
-      if (n > remaining_) n = remaining_;
-      stream_->Read(buf_, n);
-      remaining_ -= n;
-      if (count < n) {
-        idx_ = count;
-        return;
-      }
-      remaining_ -= n;
-      count -= n;
-    } while (count > 0);
+    idx_ = kPixelWritingBufferSize;
+    if (count >= kPixelWritingBufferSize / 2) {
+      stream_->Skip(count);
+      remaining_ -= count;
+      return;
+    }
+    uint16_t n = kPixelWritingBufferSize;
+    if (n > remaining_) n = remaining_;
+    stream_->Read(buf_, n);
+    remaining_ -= n;
+    idx_ = count;
   }
 
   uint16_t dnext(Color *buf, int16_t count) {

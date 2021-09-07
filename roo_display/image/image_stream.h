@@ -72,8 +72,12 @@ class RleStreamUniform : public PixelStream {
     }
   }
 
-  void skip(int count) {
-    while (--count >= 0) next();
+  void Skip(uint32_t n) override {
+    skip(n);
+  }
+
+  void skip(uint32_t n) {
+    while (n-- > 0) next();
   }
 
   Color next() {
@@ -285,6 +289,10 @@ class RleStream4bppxBiased<Resource, ColorMode, 4> : public PixelStream {
     }
   }
 
+  void Skip(uint32_t n) override {
+    skip(n);
+  }
+
   Color next() {
     if (remaining_items_ == 0) {
       // No remaining items; need to decode the next group.
@@ -338,8 +346,8 @@ class RleStream4bppxBiased<Resource, ColorMode, 4> : public PixelStream {
     }
   }
 
-  void skip(int32_t count) {
-    while (--count >= 0) next();
+  void skip(uint32_t n) {
+    while (n-- > 0) next();
   }
 
   TransparencyMode transparency() const { return color_mode_.transparency(); }

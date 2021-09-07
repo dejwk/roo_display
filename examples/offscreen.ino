@@ -129,9 +129,9 @@ void someFunWithAntiAliasedFonts() {
                         Overlay(oqa_s1.raster(), xCenter + p1.x, yCenter + p1.y,
                                 oqa.raster(), xCenter + p2.x, yCenter + p2.y),
                         0, 0);
-    auto result = Overlay(
+    auto result = MakeDrawableRawStreamable(Overlay(
         Clipped(Box::extent(bounds, text.extents()), background.raster()), 0, 0,
-        std::move(text), 0, 0);
+        std::move(text), 0, 0));
     bounds = text.extents();
     {
       DrawingContext dc(&display);
@@ -147,7 +147,8 @@ void someFunWithAntiAliasedFonts() {
                       Overlay(oqa_s1.raster(), xCenter + p1.x, yCenter + p1.y,
                               oqa.raster(), xCenter + p2.x, yCenter + p2.y),
                       0, 0);
-  auto result = Overlay(background.raster(), 0, 0, std::move(text), 0, 0);
+  auto result = MakeDrawableRawStreamable(
+    Overlay(background.raster(), 0, 0, std::move(text), 0, 0));
   for (int i = 5; i < 30; ++i) {
     int scale = (int)pow(1.2, i);
     DrawingContext dc(&display);

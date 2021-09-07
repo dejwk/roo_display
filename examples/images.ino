@@ -18,10 +18,8 @@ St7789spi_240x240<5, 2, 4> device;
 
 Display display(&device, nullptr);
 
-const RleImage<Argb6666, PrgMemResource>& shuttle_streamable();
-const Drawable& shuttle();
-const RleImage<Rgb565, PrgMemResource>& space_streamable();
-const Drawable& space();
+const RleImage<Argb6666, PrgMemResource>& shuttle();
+const RleImage<Rgb565, PrgMemResource>& space();
 
 int16_t xoffset, yoffset;
 
@@ -15114,14 +15112,9 @@ static const uint8_t space_data[] PROGMEM = {
     0xA4,
 };
 
-const RleImage<Rgb565, PrgMemResource>& space_streamable() {
+const RleImage<Rgb565, PrgMemResource>& space() {
   static RleImage<Rgb565, PrgMemResource> value(480, 320, space_data, Rgb565());
   return value;
-}
-
-const Drawable& space() {
-  static auto drawable = MakeDrawableStreamable(space_streamable());
-  return drawable;
 }
 
 // Image file shuttle 100x50, ARGB 6666,  RLE, 4827 bytes 
@@ -15430,13 +15423,8 @@ static const uint8_t shuttle_data[] PROGMEM = {
   0xFF, 0xFF, 0x00, 0x02, 0x68, 0xDF, 0xC4, 0x26, 0x03, 0xFF, 0xFF,
 };
 
-const RleImage<Argb6666, PrgMemResource>& shuttle_streamable() {
+const RleImage<Argb6666, PrgMemResource>& shuttle() {
   static RleImage<Argb6666, PrgMemResource> value(
       100, 50, shuttle_data, Argb6666());
   return value;
-}
-
-const Drawable& shuttle() {
-  static auto drawable = MakeDrawableStreamable(shuttle_streamable());
-  return drawable;
 }

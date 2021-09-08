@@ -232,6 +232,10 @@ class ParserStreamable : public Streamable {
   Box extents() const { return Box(0, 0, width() - 1, height() - 1); }
   const ColorMode& color_mode() const { return mode_; }
 
+  TransparencyMode GetTransparencyMode() const override {
+    return color_mode().transparency();
+  }
+
   std::unique_ptr<ParserStream<ColorMode>> CreateRawStream() const {
     return std::unique_ptr<ParserStream<ColorMode>>(
         new ParserStream<ColorMode>(mode_, data_));

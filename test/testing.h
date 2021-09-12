@@ -1026,4 +1026,25 @@ class ForcedRasterizable : public Rasterizable {
   const Rasterizable* delegate_;
 };
 
+template <typename Obj>
+class ForcedFillRect : public Drawable {
+ public:
+  ForcedFillRect(Obj delegate) : delegate_(std::move(delegate)) {}
+  Box extents() const override { return delegate_.extents(); }
+
+ private:
+  void drawTo(const Surface& s) const override {
+    Surface news = s;
+    news.set_fill_mode(FILL_MODE_RECTANGLE);
+    news.drawObject(delegate_);
+  }
+
+  Obj delegate_;
+};
+
+template <typename Obj>
+ForcedFillRect<Obj> ForceFillRect(Obj obj) {
+  return ForcedFillRect<Obj>(std::move(obj));
+}
+
 }  // namespace roo_display

@@ -11,20 +11,6 @@ using namespace testing;
 
 namespace roo_display {
 
-class ForcedStreamable : public Streamable {
- public:
-  ForcedStreamable(const Streamable* delegate) : delegate_(delegate) {}
-
-  Box extents() const override { return delegate_->extents(); }
-
-  std::unique_ptr<PixelStream> CreateStream() const override {
-    return delegate_->CreateStream();
-  }
-
- private:
-  const Streamable* delegate_;
-};
-
 void Draw(DisplayDevice* output, int16_t x, int16_t y, const Box& clip_box,
           const Drawable& object, FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND,

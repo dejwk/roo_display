@@ -33,9 +33,7 @@ class RasterPixelStream : public PixelStream {
     }
   }
 
-  void Skip(uint32_t count) override {
-    skip(count);
-  }
+  void Skip(uint32_t count) override { skip(count); }
 
   // Advances the iterator to the next pixel in the buffer.
   Color next() {
@@ -58,7 +56,9 @@ class RasterPixelStream : public PixelStream {
     pixel_index_ = new_pixel_index % ColorTraits<ColorMode>::pixels_per_byte;
   }
 
-  TransparencyMode transparency() const { return color_mode_.transparency(); }
+  TransparencyMode transparency() const {
+    return color_mode_.transparency();
+  }
 
   const ColorMode& color_mode() const { return color_mode_; }
 
@@ -120,8 +120,8 @@ template <typename Resource, typename ColorMode, ColorPixelOrder pixel_order,
 class RasterPixelStream<Resource, ColorMode, pixel_order, byte_order, 1>
     : public PixelStream {
  public:
-  RasterPixelStream(const Resource& resource, const ColorMode& color_mode)
-      : PixelStream(resource.Open(), color_mode) {}
+  // RasterPixelStream(const Resource& resource, const ColorMode& color_mode)
+  //     : PixelStream(resource.Open(), color_mode) {}
 
   RasterPixelStream(StreamType<Resource> stream, const ColorMode& color_mode)
       : stream_(std::move(stream)), color_mode_(color_mode) {}
@@ -132,9 +132,7 @@ class RasterPixelStream<Resource, ColorMode, pixel_order, byte_order, 1>
     }
   }
 
-  void Skip(uint32_t count) override {
-    skip(count);
-  }
+  void Skip(uint32_t count) override { skip(count); }
 
   // Advances the iterator to the next pixel in the buffer.
   Color next() {
@@ -146,7 +144,9 @@ class RasterPixelStream<Resource, ColorMode, pixel_order, byte_order, 1>
     stream_.advance(count * ColorMode::bits_per_pixel / 8);
   }
 
-  TransparencyMode transparency() const { return color_mode_.transparency(); }
+  TransparencyMode transparency() const {
+    return color_mode_.transparency();
+  }
 
   const ColorMode& color_mode() const { return color_mode_; }
 
@@ -249,6 +249,10 @@ class Raster : public Rasterizable {
   }
 
   TransparencyMode GetTransparencyMode() const override {
+    return transparency();
+  }
+
+  TransparencyMode transparency() const {
     return color_mode_.transparency();
   }
 
@@ -291,8 +295,8 @@ using RasterGrayscale8 =
            BYTE_ORDER_BIG_ENDIAN>;
 
 template <typename PtrType>
-using RasterAlpha8 = Raster<PtrType, Alpha8, COLOR_PIXEL_ORDER_MSB_FIRST,
-                            BYTE_ORDER_BIG_ENDIAN>;
+using RasterAlpha8 =
+    Raster<PtrType, Alpha8, COLOR_PIXEL_ORDER_MSB_FIRST, BYTE_ORDER_BIG_ENDIAN>;
 
 template <typename PtrType,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>

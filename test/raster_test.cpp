@@ -12,6 +12,25 @@ using namespace testing;
 
 namespace roo_display {
 
+void Draw(DisplayDevice* output, int16_t x, int16_t y, const Box& clip_box,
+          const Drawable& object, FillMode fill_mode = FILL_MODE_VISIBLE,
+          PaintMode paint_mode = PAINT_MODE_BLEND,
+          Color bgcolor = color::Transparent) {
+  output->begin();
+  Surface s(output, x, y, clip_box, bgcolor, fill_mode, paint_mode);
+  s.drawObject(object);
+  output->end();
+}
+
+void Draw(DisplayDevice* output, int16_t x, int16_t y, const Drawable& object,
+          FillMode fill_mode = FILL_MODE_VISIBLE,
+          PaintMode paint_mode = PAINT_MODE_BLEND,
+          Color bgcolor = color::Transparent) {
+  Box clip_box(0, 0, output->effective_width() - 1,
+               output->effective_height() - 1);
+  Draw(output, x, y, clip_box, object, fill_mode, paint_mode, bgcolor);
+}
+
 TEST(Raster, MonochromeMsbFirst) {
   uint8_t data[] = {0xC1, 0x26, 0xE7};
   RasterMonochrome<const uint8_t*> raster(4, 6, data, WhiteOnBlack());
@@ -169,6 +188,103 @@ TEST(Raster, Rgb565WithTransparencyBigEndian) {
   EXPECT_THAT(raster, MatchesContent(Argb8888(), 3, 2,
                                      "FFC62431 FFE7EBA5 FFF76121"
                                      "FFDEA6CE 00000000 FF103CAD"));
+}
+
+TEST(Raster, SubbyteDrawTo) {
+  uint8_t data[] = {0xC1, 0x26, 0xE7};
+  RasterMonochrome<const uint8_t*> raster(4, 6, data, WhiteOnBlack());
+  FakeOffscreen<Rgb565> test_screen(4, 6, color::Black);
+  Draw(&test_screen, 0, 0, raster);
+  EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 4, 6,
+                                          "**  "
+                                          "   *"
+                                          "  * "
+                                          " ** "
+                                          "*** "
+                                          " ***"));
+}
+
+TEST(Raster, SubbyteStreamable) {
+  uint8_t data[] = {0xC1, 0x26, 0xE7};
+  RasterMonochrome<const uint8_t*> raster(4, 6, data, WhiteOnBlack());
+  FakeOffscreen<Rgb565> test_screen(4, 6, color::Black);
+  Draw(&test_screen, 0, 0, ForcedStreamable(&raster));
+  EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 4, 6,
+                                          "**  "
+                                          "   *"
+                                          "  * "
+                                          " ** "
+                                          "*** "
+                                          " ***"));
+}
+
+TEST(Raster, SubbyteStreamableClipped) {
+  uint8_t data[] = {0xC1, 0x26, 0xE7};
+  RasterMonochrome<const uint8_t*> raster(4, 6, data, WhiteOnBlack());
+  FakeOffscreen<Rgb565> test_screen(4, 6, color::Black);
+  Draw(&test_screen, 0, 0, Box(0, 0, 2, 2), ForcedStreamable(&raster));
+  EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 4, 6,
+                                          "**  "
+                                          "    "
+                                          "  * "
+                                          "    "
+                                          "    "
+                                          "    "));
+}
+
+TEST(Raster, MultibyteDrawTo) {
+  uint8_t data[] = {0xC1, 0x26, 0xE7, 0x54, 0xF3, 0x04,
+                    0xDD, 0x39, 0x2E, 0x80, 0x11, 0xF5};
+  RasterRgb565<const uint8_t*> raster(3, 2, data);
+  FakeOffscreen<Rgb565> test_screen(3, 2, color::Black);
+  Draw(&test_screen, 0, 0, raster);
+  EXPECT_THAT(test_screen, MatchesContent(Rgb565(), 3, 2,
+                                          "m8B uve yN7"
+                                          "seo 9p_ 3Eg"));
+}
+
+TEST(Raster, MultibyteStreamable) {
+  uint8_t data[] = {0xC1, 0x26, 0xE7, 0x54, 0xF3, 0x04,
+                    0xDD, 0x39, 0x2E, 0x80, 0x11, 0xF5};
+  RasterRgb565<const uint8_t*> raster(3, 2, data);
+  FakeOffscreen<Rgb565> test_screen(3, 2, color::Black);
+  Draw(&test_screen, 0, 0, ForcedStreamable(&raster));
+  EXPECT_THAT(test_screen, MatchesContent(Rgb565(), 3, 2,
+                                          "m8B uve yN7"
+                                          "seo 9p_ 3Eg"));
+}
+
+TEST(Raster, MultibyteStreamableClipped) {
+  uint8_t data[] = {0xC1, 0x26, 0xE7, 0x54, 0xF3, 0x04,
+                    0xDD, 0x39, 0x2E, 0x80, 0x11, 0xF5};
+  RasterRgb565<const uint8_t*> raster(3, 2, data);
+  FakeOffscreen<Rgb565> test_screen(3, 2, color::Black);
+  Draw(&test_screen, 0, 0, Box(0, 1, 2, 1), ForcedStreamable(&raster));
+  EXPECT_THAT(test_screen, MatchesContent(Rgb565(), 3, 2,
+                                          "___ ___ ___"
+                                          "seo 9p_ 3Eg"));
+}
+
+TEST(Raster, Argb6666BigEndianEndianDrawTo) {
+  uint8_t data[] = {0xFF, 0xF0, 0x00, 0xFC, 0x0F, 0xC0, 0xFC, 0x00, 0x3F,
+                    0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x39, 0x2E, 0x80};
+  RasterArgb6666<const uint8_t*> raster(3, 2, data);
+  FakeOffscreen<Argb8888> test_screen(3, 2, color::Transparent);
+  Draw(&test_screen, 0, 0, raster);
+  EXPECT_THAT(test_screen, MatchesContent(Argb6666(), 3, 2,
+                                          "**__ *_*_ *__*"
+                                          "**** ____ DHv_"));
+}
+
+TEST(Raster, Argb6666LittleEndianEndianDrawTo) {
+  uint8_t data[] = {0x00, 0xF0, 0xFF, 0xC0, 0x0F, 0xFC, 0x3F, 0x00, 0xFC,
+                    0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x80, 0x2E, 0x39};
+  RasterArgb6666<const uint8_t*, BYTE_ORDER_LITTLE_ENDIAN> raster(3, 2, data);
+  FakeOffscreen<Argb8888> test_screen(3, 2, color::Transparent);
+  Draw(&test_screen, 0, 0, raster);
+  EXPECT_THAT(test_screen, MatchesContent(Argb6666(), 3, 2,
+                                          "**__ *_*_ *__*"
+                                          "**** ____ DHv_"));
 }
 
 }  // namespace roo_display

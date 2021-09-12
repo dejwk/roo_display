@@ -6,9 +6,9 @@ namespace {
 
 class Stream : public PixelStream {
  public:
-  Stream(const Rasterizable* data)
+  Stream(const Rasterizable* data, Box extents)
       : data_(data),
-        extents_(data->extents()),
+        extents_(std::move(extents)),
         x_(extents_.xMin()),
         y_(extents_.yMin()) {}
 
@@ -47,7 +47,17 @@ class Stream : public PixelStream {
 }  // namespace
 
 std::unique_ptr<PixelStream> Rasterizable::CreateStream() const {
-  return std::unique_ptr<PixelStream>(new Stream(this));
+  return std::unique_ptr<PixelStream>(new Stream(this, this->extents()));
 }
 
-} // namespace roo_display
+void Rasterizable::drawTo(const Surface& s) const {
+  Box ext = extents();
+  Box bounds = Box::intersect(s.clip_box(), ext.translate(s.dx(), s.dy()));
+  if (bounds.empty()) return;
+  Stream stream(this, bounds.translate(-s.dx(), -s.dy()));
+  internal::FillRectFromStream(s.out(), bounds, &stream, s.bgcolor(),
+                               s.fill_mode(), s.paint_mode(),
+                               GetTransparencyMode());
+}
+
+}  // namespace roo_display

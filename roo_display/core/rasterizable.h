@@ -14,6 +14,9 @@ class Rasterizable : public virtual Streamable {
                           Color* result) const = 0;
 
   std::unique_ptr<PixelStream> CreateStream() const override;
+
+ private:
+  void drawTo(const Surface& s) const override;
 };
 
 // Takes a function object, overriding:

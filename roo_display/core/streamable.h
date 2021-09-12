@@ -420,6 +420,7 @@ class Streamable : public virtual Drawable {
     return TRANSPARENCY_GRADUAL;
   }
 
+ private:
   void drawTo(const Surface &s) const override {
     Box ext = extents();
     Box bounds = Box::intersect(s.clip_box(), ext.translate(s.dx(), s.dy()));

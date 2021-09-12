@@ -196,7 +196,7 @@ class Offscreen : public DisplayDevice, public Rasterizable {
     if (owns_buffer_) delete[] buffer_;
   }
 
-  void drawTo(const Surface &s) const override { raster_.drawTo(s); }
+  void drawTo(const Surface &s) const override { s.drawObject(raster_); }
 
   // This is to implement the Drawable interface.
   Box extents() const override { return raster_.extents(); }

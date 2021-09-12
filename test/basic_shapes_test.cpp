@@ -236,6 +236,20 @@ TEST(BasicShapes, DrawHLine) {
                                           "     "));
 }
 
+TEST(BasicShapes, DrawVLine) {
+  FakeOffscreen<Rgb565> test_screen(5, 4, color::Black);
+  Display display(&test_screen);
+  {
+    DrawingContext dc(&display);
+    dc.draw(Line(2, 1, 2, 3, color::White));
+  }
+  EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 5, 4,
+                                          "     "
+                                          "  *  "
+                                          "  *  "
+                                          "  *  "));
+}
+
 TEST(BasicShapes, DrawLine) {
   FakeOffscreen<Rgb565> test_screen(5, 4, color::Black);
   Display display(&test_screen);
@@ -247,6 +261,20 @@ TEST(BasicShapes, DrawLine) {
                                           "     "
                                           "   * "
                                           " **  "
+                                          "*    "));
+}
+
+TEST(BasicShapes, DrawSteepLine) {
+  FakeOffscreen<Rgb565> test_screen(5, 4, color::Black);
+  Display display(&test_screen);
+  {
+    DrawingContext dc(&display);
+    dc.draw(Line(2, 0, 0, 3, color::White));
+  }
+  EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 5, 4,
+                                          "  *  "
+                                          " *   "
+                                          " *   "
                                           "*    "));
 }
 

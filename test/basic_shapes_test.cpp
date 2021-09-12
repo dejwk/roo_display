@@ -41,6 +41,42 @@ TEST(BasicShapes, FillRectOpaque) {
                                           "     "));
 }
 
+TEST(BasicShapes, FillRectStreamable) {
+  FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
+  Display display(&test_screen);
+  {
+    DrawingContext dc(&display);
+    // Draw the basic shape.
+    auto rect = FilledRect(1, 2, 2, 4, color::White);
+    dc.draw(ForcedStreamable(&rect));
+  }
+  EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 5, 6,
+                                          "     "
+                                          "     "
+                                          " **  "
+                                          " **  "
+                                          " **  "
+                                          "     "));
+}
+
+TEST(BasicShapes, FillRectRasterizable) {
+  FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
+  Display display(&test_screen);
+  {
+    DrawingContext dc(&display);
+    // Draw the basic shape.
+    auto rect = FilledRect(1, 2, 2, 4, color::White);
+    dc.draw(ForcedRasterizable(&rect));
+  }
+  EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 5, 6,
+                                          "     "
+                                          "     "
+                                          " **  "
+                                          " **  "
+                                          " **  "
+                                          "     "));
+}
+
 TEST(BasicShapes, FillRectTransparent) {
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Lime);
   Display display(&test_screen);

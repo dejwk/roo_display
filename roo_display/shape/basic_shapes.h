@@ -73,7 +73,7 @@ class Rect : public RectBase {
   void drawTo(const Surface &s) const override;
 };
 
-class FilledRect : public RectBase, Rasterizable {
+class FilledRect : public RectBase, public Rasterizable {
  public:
   FilledRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Color color)
       : RectBase(x0, y0, x1, y1, color) {}

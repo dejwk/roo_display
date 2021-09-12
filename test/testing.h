@@ -6,6 +6,8 @@
 #include "roo_display/core/color.h"
 #include "roo_display/core/device.h"
 #include "roo_display/internal/streamable.h"
+#include "roo_display/core/streamable.h"
+#include "roo_display/core/rasterizable.h"
 
 using namespace testing;
 using std::string;
@@ -985,6 +987,7 @@ TestColorStreamable<ColorMode> RasterOf(
       offscreen.color_mode_);
 }
 
+// Ensures that drawTo uses CreateStream().
 class ForcedStreamable : public Streamable {
  public:
   ForcedStreamable(const Streamable* delegate) : delegate_(delegate) {}
@@ -995,8 +998,32 @@ class ForcedStreamable : public Streamable {
     return delegate_->CreateStream();
   }
 
+  TransparencyMode GetTransparencyMode() const override {
+    return delegate_->GetTransparencyMode();
+  }
+
  private:
   const Streamable* delegate_;
+};
+
+// Ensures that drawTo and CreateStream() use ReadPixels().
+class ForcedRasterizable : public Rasterizable {
+ public:
+  ForcedRasterizable(const Rasterizable* delegate) : delegate_(delegate) {}
+
+  Box extents() const override { return delegate_->extents(); }
+
+  void ReadColors(const int16_t* x, const int16_t* y, uint32_t count,
+                  Color* result) const override {
+    delegate_->ReadColors(x, y, count, result);
+  }
+
+  TransparencyMode GetTransparencyMode() const override {
+    return delegate_->GetTransparencyMode();
+  }
+
+ private:
+  const Rasterizable* delegate_;
 };
 
 }  // namespace roo_display

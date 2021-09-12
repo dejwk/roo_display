@@ -204,6 +204,26 @@ TEST(BasicShapes, FillSmallCircleBgRectangle) {
                                           "       "));
 }
 
+TEST(BasicShapes, FillSmallRoundRectBgRectangle) {
+  FakeOffscreen<Argb4444> test_screen(7, 9, color::Black);
+  Display display(&test_screen);
+  {
+    DrawingContext dc(&display);
+    dc.setBackground(Color(0xFF707070));
+    dc.draw(ForceFillRect(FilledRoundRect(0, 1, 5, 7, 3, color::White)));
+  }
+  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 7, 9,
+                                          "       "
+                                          "66**66 "
+                                          "6****6 "
+                                          "****** "
+                                          "****** "
+                                          "****** "
+                                          "6****6 "
+                                          "66**66 "
+                                          "       "));
+}
+
 TEST(BasicShapes, FillCircleOutOfBounds) {
   FakeOffscreen<Rgb565> test_screen(7, 9, color::Black);
   Display display(&test_screen);

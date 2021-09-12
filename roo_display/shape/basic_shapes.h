@@ -135,7 +135,7 @@ class FilledRoundRect : public RoundRectBase {
       : RoundRectBase(x0, y0, x1, y1, radius, color) {}
 
  private:
-  void drawInteriorTo(const Surface &s) const override;
+  void drawTo(const Surface &s) const override;
 };
 
 class CircleBase : public BasicShape {
@@ -190,7 +190,7 @@ class FilledCircle : public CircleBase {
   FilledCircle(int16_t x0, int16_t y0, int16_t diameter, Color color)
       : CircleBase(x0, y0, diameter, color) {}
 
-  void drawInteriorTo(const Surface &s) const override;
+  void drawTo(const Surface &s) const override;
 };
 
 class TriangleBase : public BasicShape {

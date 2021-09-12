@@ -222,6 +222,42 @@ void fillRoundRectCorners(HlineFiller *filler, int16_t x0, int16_t y0, int x1,
   }
 }
 
+template <typename HlineFiller>
+void fillRoundRectOutsideCorners(HlineFiller *filler, int16_t x0, int16_t y0,
+                                 int x1, int y1, int16_t r) {
+  // Optimized midpoint circle algorithm.
+  int16_t x = 0;
+  int16_t y = r;
+  int16_t dx = 1;
+  int16_t dy = r + r;
+  int16_t p = -(r >> 1);
+
+  while (x < y) {
+    if (p >= 0) {
+      dy -= 2;
+      p -= dy;
+      y--;
+    }
+
+    dx += 2;
+    p += dx;
+
+    x++;
+    if (y < r) {
+      filler->fillHLine(x0 - r, y1 + x, x0 - y - 1);
+      filler->fillHLine(x1 + y + 1, y1 + x, x1 + r);
+      filler->fillHLine(x0 - r, y0 - x, x0 - y - 1);
+      filler->fillHLine(x1 + y + 1, y0 - x, x1 + r);
+    }
+    if (p >= 0 && x + 1 < y) {
+      filler->fillHLine(x0 - r, y1 + y, x0 - x - 1);
+      filler->fillHLine(x1 + x + 1, y1 + y, x1 + r);
+      filler->fillHLine(x0 - r, y0 - y, x0 - x - 1);
+      filler->fillHLine(x1 + x + 1, y0 - y, x1 + r);
+    }
+  }
+}
+
 // Also used to draw circles, in a special case when radius is half of the box
 // length.
 void drawRoundRect(DisplayOutput *output, const Box &bbox, int16_t radius,
@@ -295,17 +331,41 @@ void fillRoundRect(DisplayOutput *output, const Box &bbox, int16_t radius,
   }
 }
 
-void FilledRoundRect::drawInteriorTo(const Surface &s) const {
+void fillRoundRectBg(DisplayOutput *output, const Box &bbox, int16_t radius,
+                     const Box &clip_box, Color bgcolor, PaintMode mode) {
+  if (Box::intersect(clip_box, bbox).empty()) return;
+  int16_t x0 = bbox.xMin() + radius;
+  int16_t y0 = bbox.yMin() + radius;
+  int16_t x1 = bbox.xMax() - radius;
+  int16_t y1 = bbox.yMax() - radius;
+  if (clip_box.contains(bbox)) {
+    BufferedRectFiller filler(output, bgcolor, mode);
+    fillRoundRectOutsideCorners(&filler, x0, y0, x1, y1, radius);
+  } else {
+    ClippingBufferedRectFiller filler(output, bgcolor, clip_box, mode);
+    fillRoundRectOutsideCorners(&filler, x0, y0, x1, y1, radius);
+  }
+}
+
+void FilledRoundRect::drawTo(const Surface &s) const {
   Box extents(x0_ + s.dx(), y0_ + s.dy(), x1_ + s.dx(), y1_ + s.dy());
   fillRoundRect(s.out(), extents, radius_, s.clip_box(),
                 alphaBlend(s.bgcolor(), this->color()), s.paint_mode());
+  if (s.fill_mode() == FILL_MODE_RECTANGLE) {
+    fillRoundRectBg(s.out(), extents, radius_, s.clip_box(), s.bgcolor(),
+                    s.paint_mode());
+  }
 }
 
-void FilledCircle::drawInteriorTo(const Surface &s) const {
+void FilledCircle::drawTo(const Surface &s) const {
   Box extents(x0_ + s.dx(), y0_ + s.dy(), x0_ + diameter_ - 1 + s.dx(),
               y0_ + diameter_ - 1 + s.dy());
   fillRoundRect(s.out(), extents, diameter_ >> 1, s.clip_box(),
                 alphaBlend(s.bgcolor(), this->color()), s.paint_mode());
+  if (s.fill_mode() == FILL_MODE_RECTANGLE) {
+    fillRoundRectBg(s.out(), extents, diameter_ >> 1, s.clip_box(), s.bgcolor(),
+                    s.paint_mode());
+  }
 }
 
 template <typename PixelFiller>

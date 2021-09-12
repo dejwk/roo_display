@@ -112,6 +112,20 @@ cc_test(
 )
 
 cc_test(
+    name = "rasterizable_test",
+    srcs = [
+        "test/rasterizable_test.cpp",
+        "test/testing.h",
+    ],
+    linkstatic = 1,
+    defines = [ "ROO_DISPLAY_TEST" ],
+    deps = [
+        "//lib/roo_display",
+        "@gtest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "raster_test",
     srcs = [
         "test/raster_test.cpp",

@@ -5,9 +5,9 @@
 #include "gtest/gtest.h"
 #include "roo_display/core/color.h"
 #include "roo_display/core/device.h"
-#include "roo_display/internal/streamable.h"
-#include "roo_display/core/streamable.h"
 #include "roo_display/core/rasterizable.h"
+#include "roo_display/core/streamable.h"
+#include "roo_display/internal/streamable.h"
 
 using namespace testing;
 using std::string;
@@ -220,13 +220,11 @@ class ParserStream : public PixelStream {
   ParserStream<ColorMode>(ColorMode mode, const string& content)
       : mode_(mode), stream_(content) {}
 
-  void Read(Color *buf, uint16_t size) override {
+  void Read(Color* buf, uint16_t size) override {
     while (size-- > 0) *buf++ = next();
   }
 
-  void Skip(uint32_t count) override {
-    skip(count);
-  }
+  void Skip(uint32_t count) override { skip(count); }
 
   TransparencyMode transparency() const { return mode_.transparency(); }
 
@@ -277,8 +275,8 @@ class ParserStreamable : public Streamable {
 };
 
 template <typename RawStreamable,
-          typename ColorMode = typename std::decay<decltype(
-              std::declval<RawStreamable>().color_mode())>::type>
+          typename ColorMode = typename std::decay<
+              decltype(std::declval<RawStreamable>().color_mode())>::type>
 class StreamablePrinter;
 
 template <typename RawStreamable>

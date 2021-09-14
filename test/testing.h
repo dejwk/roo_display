@@ -81,13 +81,34 @@ uint8_t ParseGrayscale4(std::istream& in) {
   }
 }
 
+uint8_t ParseAlpha4(std::istream& in) {
+  char c = NextChar(in);
+  if (c == ' ') {
+    return 0;
+  } else if (c == '*') {
+    return 0xF;
+  }
+  if (c >= '0' && c <= '9') {
+    return c - '0';
+  } else if (c >= 'A' && c <= 'F') {
+    return c - 'A' + 10;
+  } else if (c >= 'a' && c <= 'f') {
+    return c - 'a' + 10;
+  } else {
+    ADD_FAILURE();
+    return 0;
+  }
+}
+
 uint8_t ParseHexByte(std::istream& in) {
   return ParseHexNibble(in) << 4 | ParseHexNibble(in);
 }
 
 template <>
 Color NextColorFromString<Alpha4>(const Alpha4& mode, std::istream& in) {
-  return Color(((uint32_t)ParseHexNibble(in) * 17) << 24);
+  Color c = mode.color();
+  c.set_a(ParseAlpha4(in) * 0x11);
+  return c;
 }
 
 template <>

@@ -149,97 +149,97 @@ class AddrWindowDeviceTest
     : public testing::TestWithParam<std::tuple<PaintMode, Orientation>> {};
 
 TEST_P(AddrWindowDeviceTest, FillRects) {
-  TestFillRects<Rgb565Device, Rgb565>(std::get<0>(GetParam()),
-                                      std::get<1>(GetParam()));
+  TestFillRects<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
+                                                     std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, FillHLines) {
-  TestFillHLines<Rgb565Device, Rgb565>(std::get<0>(GetParam()),
-                                       std::get<1>(GetParam()));
+  TestFillHLines<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
+                                                      std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, FillVLines) {
-  TestFillVLines<Rgb565Device, Rgb565>(std::get<0>(GetParam()),
-                                       std::get<1>(GetParam()));
+  TestFillVLines<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
+                                                      std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, FillDegeneratePixels) {
-  TestFillDegeneratePixels<Rgb565Device, Rgb565>(std::get<0>(GetParam()),
-                                                 std::get<1>(GetParam()));
+  TestFillDegeneratePixels<Rgb565Device, FakeOffscreen<Rgb565>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, FillPixels) {
-  TestFillPixels<Rgb565Device, Rgb565>(std::get<0>(GetParam()),
-                                       std::get<1>(GetParam()));
+  TestFillPixels<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
+                                                      std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteRects) {
-  TestWriteRects<Rgb565Device, Rgb565>(std::get<0>(GetParam()),
-                                       std::get<1>(GetParam()));
+  TestWriteRects<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
+                                                      std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteHLines) {
-  TestWriteHLines<Rgb565Device, Rgb565>(std::get<0>(GetParam()),
-                                        std::get<1>(GetParam()));
+  TestWriteHLines<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
+                                                       std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteVLines) {
-  TestWriteVLines<Rgb565Device, Rgb565>(std::get<0>(GetParam()),
-                                        std::get<1>(GetParam()));
+  TestWriteVLines<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
+                                                       std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteDegeneratePixels) {
-  TestWriteDegeneratePixels<Rgb565Device, Rgb565>(std::get<0>(GetParam()),
-                                                  std::get<1>(GetParam()));
+  TestWriteDegeneratePixels<Rgb565Device, FakeOffscreen<Rgb565>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WritePixels) {
-  TestWritePixels<Rgb565Device, Rgb565>(std::get<0>(GetParam()),
-                                        std::get<1>(GetParam()));
+  TestWritePixels<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
+                                                       std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WritePixelsStress) {
-  TestWritePixelsStress<Rgb565Device, Rgb565>(std::get<0>(GetParam()),
-                                              std::get<1>(GetParam()));
+  TestWritePixelsStress<Rgb565Device, FakeOffscreen<Rgb565>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WritePixelsSnake) {
-  TestWritePixelsSnake<Rgb565Device, Rgb565>(std::get<0>(GetParam()),
-                                             std::get<1>(GetParam()));
+  TestWritePixelsSnake<Rgb565Device, FakeOffscreen<Rgb565>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteRectWindowSimple) {
-  TestWriteRectWindowSimple<Rgb565Device, Rgb565>(std::get<0>(GetParam()),
-                                                  std::get<1>(GetParam()));
+  TestWriteRectWindowSimple<Rgb565Device, FakeOffscreen<Rgb565>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteRectWindowStress) {
-  TestWriteRectWindowStress<Rgb565Device, Rgb565>(std::get<0>(GetParam()),
-                                                  std::get<1>(GetParam()));
+  TestWriteRectWindowStress<Rgb565Device, FakeOffscreen<Rgb565>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteRectWindowGrayscale8) {
   TestWriteRectWindowSimple<TestDevice<Grayscale8, BYTE_ORDER_BIG_ENDIAN>,
-                            Grayscale8>(std::get<0>(GetParam()),
-                                        std::get<1>(GetParam()));
+                            FakeOffscreen<Grayscale8>>(std::get<0>(GetParam()),
+                                                       std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteRectWindowSimpleLE) {
   TestWriteRectWindowSimple<TestDevice<Rgb565, BYTE_ORDER_LITTLE_ENDIAN>,
-                            Rgb565>(std::get<0>(GetParam()),
-                                    std::get<1>(GetParam()));
+                            FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
+                                                   std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteRectWindowSimpleArgb4444LE) {
   TestWriteRectWindowSimple<TestDevice<Argb4444, BYTE_ORDER_LITTLE_ENDIAN>,
-                            Argb4444>(std::get<0>(GetParam()),
-                                      std::get<1>(GetParam()));
+                            FakeOffscreen<Argb4444>>(std::get<0>(GetParam()),
+                                                     std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteRectWindowSimpleArgb8888LE) {
   TestWriteRectWindowSimple<TestDevice<Argb8888, BYTE_ORDER_LITTLE_ENDIAN>,
-                            Argb8888>(std::get<0>(GetParam()),
-                                      std::get<1>(GetParam()));
+                            FakeOffscreen<Argb8888>>(std::get<0>(GetParam()),
+                                                     std::get<1>(GetParam()));
 }
 
 INSTANTIATE_TEST_CASE_P(

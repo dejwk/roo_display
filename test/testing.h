@@ -1006,6 +1006,10 @@ TestColorStreamable<ColorMode> RasterOf(
       offscreen.color_mode_);
 }
 
+template <typename ReferenceDevice>
+using ColorModeOfDevice = typename std::remove_reference<
+    decltype(std::declval<const ReferenceDevice>().color_mode())>::type;
+
 // Ensures that drawTo uses CreateStream().
 class ForcedStreamable : public Streamable {
  public:

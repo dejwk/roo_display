@@ -674,72 +674,72 @@ class OffscreenTest
     : public testing::TestWithParam<std::tuple<PaintMode, Orientation>> {};
 
 TEST_P(OffscreenTest, FillRects) {
-  TestFillRects<Offscreen<Argb4444>, Argb4444>(std::get<0>(GetParam()),
-                                               std::get<1>(GetParam()));
+  TestFillRects<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, FillHLines) {
-  TestFillHLines<Offscreen<Argb4444>, Argb4444>(std::get<0>(GetParam()),
-                                                std::get<1>(GetParam()));
+  TestFillHLines<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, FillVLines) {
-  TestFillVLines<Offscreen<Argb4444>, Argb4444>(std::get<0>(GetParam()),
-                                                std::get<1>(GetParam()));
+  TestFillVLines<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, FillDegeneratePixels) {
-  TestFillDegeneratePixels<Offscreen<Argb4444>, Argb4444>(
+  TestFillDegeneratePixels<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, FillPixels) {
-  TestFillPixels<Offscreen<Argb4444>, Argb4444>(std::get<0>(GetParam()),
-                                                std::get<1>(GetParam()));
+  TestFillPixels<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteRects) {
-  TestWriteRects<Offscreen<Argb4444>, Argb4444>(std::get<0>(GetParam()),
-                                                std::get<1>(GetParam()));
+  TestWriteRects<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteHLines) {
-  TestWriteHLines<Offscreen<Argb4444>, Argb4444>(std::get<0>(GetParam()),
-                                                 std::get<1>(GetParam()));
+  TestWriteHLines<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteVLines) {
-  TestWriteVLines<Offscreen<Argb4444>, Argb4444>(std::get<0>(GetParam()),
-                                                 std::get<1>(GetParam()));
+  TestWriteVLines<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteDegeneratePixels) {
-  TestWriteDegeneratePixels<Offscreen<Argb4444>, Argb4444>(
+  TestWriteDegeneratePixels<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WritePixels) {
-  TestWritePixels<Offscreen<Argb4444>, Argb4444>(std::get<0>(GetParam()),
-                                                 std::get<1>(GetParam()));
+  TestWritePixels<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WritePixelsStress) {
-  TestWritePixelsStress<Offscreen<Argb4444>, Argb4444>(std::get<0>(GetParam()),
-                                                       std::get<1>(GetParam()));
+  TestWritePixelsStress<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WritePixelsSnake) {
-  TestWritePixelsSnake<Offscreen<Argb4444>, Argb4444>(std::get<0>(GetParam()),
-                                                      std::get<1>(GetParam()));
+  TestWritePixelsSnake<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteRectWindowSimple) {
-  TestWriteRectWindowSimple<Offscreen<Argb4444>, Argb4444>(
+  TestWriteRectWindowSimple<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteRectWindowStress) {
-  TestWriteRectWindowStress<Offscreen<Argb4444>, Argb4444>(
+  TestWriteRectWindowStress<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 

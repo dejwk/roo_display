@@ -14,7 +14,13 @@ static std::default_random_engine generator;
 
 namespace roo_display {
 
-template <typename TestedDevice, typename ColorMode>
+// Helper class to test behavior of arbitrary display devices, including
+// offscreen, base classes of real device drivers, and various filtering
+// devices. Instantiates both the device under test, and a 'reference device'
+// which is meant to be a trivially implemented 'reference' implementation, 'too
+// simple to fail'. The test device sends identical commands to both the test
+// and reference devices, and, in the end, compares results for identity.
+template <typename TestedDevice, typename ReferenceDevice>
 class TestDisplayDevice : public DisplayDevice {
  public:
   TestDisplayDevice(int16_t width, int16_t height,
@@ -66,11 +72,11 @@ class TestDisplayDevice : public DisplayDevice {
     test_.fillRects(mode, color, x0, y0, x1, y1, count);
   }
 
-  const FakeOffscreen<ColorMode>& refc() const { return refc_; };
+  const ReferenceDevice& refc() const { return refc_; };
   const TestedDevice& test() const { return test_; }
 
  private:
-  FakeOffscreen<ColorMode> refc_;
+  ReferenceDevice refc_;
   TestedDevice test_;
 };
 
@@ -79,9 +85,10 @@ class TestDisplayDevice : public DisplayDevice {
 
 // 'Fill' tests.
 
-template <typename TestedDevice, typename ColorMode>
+template <typename TestedDevice, typename ReferenceDevice>
 void TestFillRects(PaintMode paint_mode, Orientation orientation) {
-  TestDisplayDevice<TestedDevice, ColorMode> screen(32, 35, Color(0xFF101050));
+  TestDisplayDevice<TestedDevice, ReferenceDevice> screen(32, 35,
+                                                          Color(0xFF101050));
   screen.setOrientation(orientation);
   int16_t x0[] = {4, 14, 7};
   int16_t y0[] = {14, 1, 12};
@@ -91,9 +98,10 @@ void TestFillRects(PaintMode paint_mode, Orientation orientation) {
   EXPECT_CONSISTENT(screen);
 }
 
-template <typename TestedDevice, typename ColorMode>
+template <typename TestedDevice, typename ReferenceDevice>
 void TestFillHLines(PaintMode paint_mode, Orientation orientation) {
-  TestDisplayDevice<TestedDevice, ColorMode> screen(37, 36, Color(0xFF101050));
+  TestDisplayDevice<TestedDevice, ReferenceDevice> screen(37, 36,
+                                                          Color(0xFF101050));
   screen.setOrientation(orientation);
   int16_t x0[] = {4, 14, 7};
   int16_t x1[] = {12, 31, 8};
@@ -102,9 +110,10 @@ void TestFillHLines(PaintMode paint_mode, Orientation orientation) {
   EXPECT_CONSISTENT(screen);
 }
 
-template <typename TestedDevice, typename ColorMode>
+template <typename TestedDevice, typename ReferenceDevice>
 void TestFillVLines(PaintMode paint_mode, Orientation orientation) {
-  TestDisplayDevice<TestedDevice, ColorMode> screen(31, 35, Color(0xFF101050));
+  TestDisplayDevice<TestedDevice, ReferenceDevice> screen(31, 35,
+                                                          Color(0xFF101050));
   screen.setOrientation(orientation);
   int16_t x[] = {4, 14, 7};
   int16_t y0[] = {14, 1, 12};
@@ -113,9 +122,10 @@ void TestFillVLines(PaintMode paint_mode, Orientation orientation) {
   EXPECT_CONSISTENT(screen);
 }
 
-template <typename TestedDevice, typename ColorMode>
+template <typename TestedDevice, typename ReferenceDevice>
 void TestFillDegeneratePixels(PaintMode paint_mode, Orientation orientation) {
-  TestDisplayDevice<TestedDevice, ColorMode> screen(30, 33, Color(0xFF101050));
+  TestDisplayDevice<TestedDevice, ReferenceDevice> screen(30, 33,
+                                                          Color(0xFF101050));
   screen.setOrientation(orientation);
   int16_t x[] = {4, 14, 7};
   int16_t y[] = {14, 1, 12};
@@ -135,9 +145,10 @@ void TestFillPixels(PaintMode paint_mode, Orientation orientation) {
 
 // 'Write' tests.
 
-template <typename TestedDevice, typename ColorMode>
+template <typename TestedDevice, typename ReferenceDevice>
 void TestWriteRects(PaintMode paint_mode, Orientation orientation) {
-  TestDisplayDevice<TestedDevice, ColorMode> screen(35, 32, Color(0xFF101050));
+  TestDisplayDevice<TestedDevice, ReferenceDevice> screen(35, 32,
+                                                          Color(0xFF101050));
   screen.setOrientation(orientation);
   int16_t x0[] = {4, 14, 7};
   int16_t y0[] = {14, 1, 12};
@@ -148,9 +159,10 @@ void TestWriteRects(PaintMode paint_mode, Orientation orientation) {
   EXPECT_CONSISTENT(screen);
 }
 
-template <typename TestedDevice, typename ColorMode>
+template <typename TestedDevice, typename ReferenceDevice>
 void TestWriteHLines(PaintMode paint_mode, Orientation orientation) {
-  TestDisplayDevice<TestedDevice, ColorMode> screen(35, 27, Color(0xFF101050));
+  TestDisplayDevice<TestedDevice, ReferenceDevice> screen(35, 27,
+                                                          Color(0xFF101050));
   screen.setOrientation(orientation);
   int16_t x0[] = {4, 14, 7};
   int16_t x1[] = {12, 21, 8};
@@ -160,9 +172,10 @@ void TestWriteHLines(PaintMode paint_mode, Orientation orientation) {
   EXPECT_CONSISTENT(screen);
 }
 
-template <typename TestedDevice, typename ColorMode>
+template <typename TestedDevice, typename ReferenceDevice>
 void TestWriteVLines(PaintMode paint_mode, Orientation orientation) {
-  TestDisplayDevice<TestedDevice, ColorMode> screen(36, 32, Color(0xFF101050));
+  TestDisplayDevice<TestedDevice, ReferenceDevice> screen(36, 32,
+                                                          Color(0xFF101050));
   screen.setOrientation(orientation);
   int16_t x[] = {4, 14, 7};
   int16_t y0[] = {14, 1, 12};
@@ -172,9 +185,10 @@ void TestWriteVLines(PaintMode paint_mode, Orientation orientation) {
   EXPECT_CONSISTENT(screen);
 }
 
-template <typename TestedDevice, typename ColorMode>
+template <typename TestedDevice, typename ReferenceDevice>
 void TestWriteDegeneratePixels(PaintMode paint_mode, Orientation orientation) {
-  TestDisplayDevice<TestedDevice, ColorMode> screen(32, 36, Color(0xFF101050));
+  TestDisplayDevice<TestedDevice, ReferenceDevice> screen(32, 36,
+                                                          Color(0xFF101050));
   screen.setOrientation(orientation);
   int16_t x[] = {4, 14, 7};
   int16_t y[] = {14, 1, 12};
@@ -183,9 +197,10 @@ void TestWriteDegeneratePixels(PaintMode paint_mode, Orientation orientation) {
   EXPECT_CONSISTENT(screen);
 }
 
-template <typename TestedDevice, typename ColorMode>
+template <typename TestedDevice, typename ReferenceDevice>
 void TestWritePixels(PaintMode paint_mode, Orientation orientation) {
-  TestDisplayDevice<TestedDevice, ColorMode> screen(32, 18, Color(0xFF101050));
+  TestDisplayDevice<TestedDevice, ReferenceDevice> screen(32, 18,
+                                                          Color(0xFF101050));
   screen.setOrientation(orientation);
   int16_t x[] = {4, 14, 7};
   int16_t y[] = {14, 1, 12};
@@ -194,12 +209,15 @@ void TestWritePixels(PaintMode paint_mode, Orientation orientation) {
   EXPECT_CONSISTENT(screen);
 }
 
-template <typename TestedDevice, typename ColorMode>
+template <typename TestedDevice, typename ReferenceDevice>
 void TestWritePixelsStress(PaintMode paint_mode, Orientation orientation) {
-  TestDisplayDevice<TestedDevice, ColorMode> screen(50, 90, Color(0x12345678));
+  TestDisplayDevice<TestedDevice, ReferenceDevice> screen(50, 90,
+                                                          Color(0x12345678));
   screen.setOrientation(orientation);
 
-  std::uniform_int_distribution<ColorStorageType<ColorMode>> color_distribution;
+  std::uniform_int_distribution<
+      ColorStorageType<ColorModeOfDevice<ReferenceDevice>>>
+      color_distribution;
   std::uniform_int_distribution<uint16_t> len_distribution(1, 128);
   std::uniform_int_distribution<uint16_t> x_distribution(
       0, screen.effective_width() - 1);
@@ -209,7 +227,7 @@ void TestWritePixelsStress(PaintMode paint_mode, Orientation orientation) {
   int16_t x[kTestSize];
   int16_t y[kTestSize];
   Color color[kTestSize];
-  ColorMode color_mode;
+  ColorModeOfDevice<ReferenceDevice> color_mode;
   for (size_t i = 0; i < kTestSize; i++) {
     x[i] = x_distribution(generator);
     y[i] = y_distribution(generator);
@@ -227,14 +245,17 @@ void TestWritePixelsStress(PaintMode paint_mode, Orientation orientation) {
   EXPECT_CONSISTENT(screen);
 }
 
-template <typename TestedDevice, typename ColorMode>
+template <typename TestedDevice, typename ReferenceDevice>
 void TestWritePixelsSnake(PaintMode paint_mode, Orientation orientation) {
   enum WriteDirection { RIGHT = 0, DOWN = 1, LEFT = 2, UP = 3 };
 
-  TestDisplayDevice<TestedDevice, ColorMode> screen(50, 90, Color(0x12345678));
+  TestDisplayDevice<TestedDevice, ReferenceDevice> screen(50, 90,
+                                                          Color(0x12345678));
   screen.setOrientation(orientation);
 
-  std::uniform_int_distribution<ColorStorageType<ColorMode>> color_distribution;
+  std::uniform_int_distribution<
+      ColorStorageType<ColorModeOfDevice<ReferenceDevice>>>
+      color_distribution;
   std::uniform_int_distribution<uint16_t> len_distribution(1, 128);
   std::uniform_int_distribution<uint16_t> segment_distribution(1, 128);
   std::uniform_int_distribution<uint16_t> x_distribution(
@@ -249,7 +270,7 @@ void TestWritePixelsSnake(PaintMode paint_mode, Orientation orientation) {
   int16_t xs[kTestSize];
   int16_t ys[kTestSize];
   Color color[kTestSize];
-  ColorMode color_mode;
+  ColorModeOfDevice<ReferenceDevice> color_mode;
   int16_t segment_remaining = 0;
   int direction = 0;
   for (size_t i = 0; i < kTestSize; i++) {
@@ -312,16 +333,18 @@ void TestWritePixelsSnake(PaintMode paint_mode, Orientation orientation) {
   EXPECT_CONSISTENT(screen);
 }
 
-template <typename TestedDevice, typename ColorMode>
-void fillRandom(TestDisplayDevice<TestedDevice, ColorMode>* screen,
+template <typename TestedDevice, typename ReferenceDevice>
+void fillRandom(TestDisplayDevice<TestedDevice, ReferenceDevice>* screen,
                 PaintMode mode, int16_t x0, int16_t y0, int16_t x1,
                 int16_t y1) {
-  std::uniform_int_distribution<ColorStorageType<ColorMode>> color_distribution;
+  std::uniform_int_distribution<
+      ColorStorageType<ColorModeOfDevice<ReferenceDevice>>>
+      color_distribution;
   std::uniform_int_distribution<uint16_t> len_distribution(1, 128);
   screen->setAddress(x0, y0, x1, y1, mode);
   uint32_t remaining = (x1 - x0 + 1) * (y1 - y0 + 1);
   Color colors[128];
-  ColorMode color_mode;
+  ColorModeOfDevice<ReferenceDevice> color_mode;
   for (int i = 0; i < 128; ++i) {
     colors[i] = color_mode.toArgbColor(color_distribution(generator));
   }
@@ -333,17 +356,19 @@ void fillRandom(TestDisplayDevice<TestedDevice, ColorMode>* screen,
   }
 }
 
-template <typename TestedDevice, typename ColorMode>
+template <typename TestedDevice, typename ReferenceDevice>
 void TestWriteRectWindowSimple(PaintMode paint_mode, Orientation orientation) {
-  TestDisplayDevice<TestedDevice, ColorMode> screen(8, 12, Color(0x00000000));
+  TestDisplayDevice<TestedDevice, ReferenceDevice> screen(8, 12,
+                                                          Color(0x00000000));
   screen.setOrientation(orientation);
   fillRandom(&screen, paint_mode, 2, 3, 6, 7);
   EXPECT_CONSISTENT(screen);
 }
 
-template <typename TestedDevice, typename ColorMode>
+template <typename TestedDevice, typename ReferenceDevice>
 void TestWriteRectWindowStress(PaintMode paint_mode, Orientation orientation) {
-  TestDisplayDevice<TestedDevice, ColorMode> screen(50, 90, Color(0x12345678));
+  TestDisplayDevice<TestedDevice, ReferenceDevice> screen(50, 90,
+                                                          Color(0x12345678));
   screen.setOrientation(orientation);
   std::uniform_int_distribution<uint16_t> x_distribution(
       0, screen.effective_width() - 1);

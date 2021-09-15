@@ -64,6 +64,21 @@ class BufferedPixelWriter {
   int16_t buffer_size_;
 };
 
+template <typename PixelWriter>
+class BufferedPixelWriterFillAdapter {
+ public:
+  BufferedPixelWriterFillAdapter(PixelWriter& writer, Color color)
+      : writer_(writer), color_(color) {}
+
+  void fillPixel(int16_t x, int16_t y) {
+    writer_.writePixel(x, y, color_);
+  }
+
+ private:
+  PixelWriter& writer_;
+  Color color_;
+};
+
 class ClippingBufferedPixelWriter {
  public:
   ClippingBufferedPixelWriter(DisplayOutput* device, Box clip_box,
@@ -418,6 +433,33 @@ class BufferedRectWriter {
   int16_t x1_buffer_[kPixelWritingBufferSize];
   int16_t y1_buffer_[kPixelWritingBufferSize];
   int16_t buffer_size_;
+};
+
+template <typename RectWriter>
+class BufferedRectWriterFillAdapter {
+ public:
+  BufferedRectWriterFillAdapter(RectWriter& writer, Color color)
+      : writer_(writer), color_(color) {}
+
+  inline void fillPixel(int16_t x, int16_t y) {
+    writer_.writePixel(x, y, color_);
+  }
+
+  inline void fillHLine(int16_t x0, int16_t y0, int16_t x1) {
+    writer_.fillHLine(x0, y0, x1, color_);
+  }
+
+  inline void fillVLine(int16_t x0, int16_t y0, int16_t y1) {
+    writer_.fillVLine(x0, y0, y1, color_);
+  }
+
+  void fillRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1) {
+    writer_.writeRect(x0, y0, x1, y1, color_);
+  }
+
+ private:
+  RectWriter& writer_;
+  Color color_;
 };
 
 class ClippingBufferedRectWriter {

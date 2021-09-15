@@ -1,4 +1,4 @@
-
+#pragma once
 #include <string>
 
 #include "gmock/gmock.h"
@@ -952,10 +952,6 @@ class FakeOffscreen : public DisplayDevice {
 
   const Color* buffer() { return buffer_.get(); }
 
- private:
-  friend TestColorStreamable<ColorMode> RasterOf<ColorMode>(
-      const FakeOffscreen<ColorMode>&);
-
   void writeRect(PaintMode mode, int16_t x0, int16_t y0, int16_t x1, int16_t y1,
                  Color color) {
     for (int16_t y = y0; y <= y1; ++y) {
@@ -990,6 +986,10 @@ class FakeOffscreen : public DisplayDevice {
     buffer_[y * raw_width() + x] = color;
   }
 
+ private:
+  friend TestColorStreamable<ColorMode> RasterOf<ColorMode>(
+      const FakeOffscreen<ColorMode>&);
+
   ColorMode color_mode_;
   std::unique_ptr<Color[]> buffer_;
   Box window_;
@@ -1008,7 +1008,163 @@ TestColorStreamable<ColorMode> RasterOf(
 
 template <typename ReferenceDevice>
 using ColorModeOfDevice = typename std::remove_reference<
-    decltype(std::declval<const ReferenceDevice>().color_mode())>::type;
+    decltype(RasterOf(std::declval<const ReferenceDevice>())
+                 .color_mode())>::type;
+
+// To be used for the 'reference' devices, using trivial filter
+// implementations.
+template <typename ColorMode, typename Filter>
+class FakeFilteringOffscreen : public DisplayOutput {
+ public:
+  FakeFilteringOffscreen(int16_t width, int16_t height,
+                         Color background = color::Transparent,
+                         ColorMode color_mode = ColorMode())
+      : offscreen_(width, height, background, color_mode) {}
+
+  FakeFilteringOffscreen(Box extents, Color background = color::Transparent,
+                         ColorMode color_mode = ColorMode())
+      : offscreen_(extents, background, color_mode) {}
+
+  void setOrientation(Orientation orientation) {
+    offscreen_.setOrientation(orientation);
+  }
+
+  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
+                  PaintMode mode) override {
+    window_ = Box(x0, y0, x1, y1);
+    paint_mode_ = mode;
+    cursor_x_ = x0;
+    cursor_y_ = y0;
+  }
+
+  void write(Color* color, uint32_t pixel_count) override {
+    while (pixel_count-- > 0) {
+      writePixel(paint_mode_, cursor_x_, cursor_y_, *color++);
+      ++cursor_x_;
+      if (cursor_x_ > window_.xMax()) {
+        cursor_x_ = window_.xMin();
+        ++cursor_y_;
+      }
+    }
+  }
+
+  void writePixels(PaintMode mode, Color* color, int16_t* x, int16_t* y,
+                   uint16_t pixel_count) override {
+    while (pixel_count-- > 0) {
+      writePixel(mode, *x++, *y++, *color++);
+    }
+  }
+
+  void fillPixels(PaintMode mode, Color color, int16_t* x, int16_t* y,
+                  uint16_t pixel_count) override {
+    while (pixel_count-- > 0) {
+      writePixel(mode, *x++, *y++, color);
+    }
+  }
+
+  void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
+                  int16_t* x1, int16_t* y1, uint16_t count) override {
+    while (count-- > 0) {
+      writeRect(mode, *x0++, *y0++, *x1++, *y1++, *color++);
+    }
+  }
+
+  void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
+                 int16_t* x1, int16_t* y1, uint16_t count) override {
+    while (count-- > 0) {
+      writeRect(mode, *x0++, *y0++, *x1++, *y1++, color);
+    }
+  }
+
+  const FakeOffscreen<ColorMode>& offscreen() const { return offscreen_; }
+
+  void writeRect(PaintMode mode, int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+                 Color color) {
+    for (int16_t y = y0; y <= y1; ++y) {
+      for (int16_t x = x0; x <= x1; ++x) {
+        writePixel(mode, x, y, color);
+      }
+    }
+  }
+
+  void writePixel(PaintMode mode, int16_t x, int16_t y, Color color) {
+    Filter filter;
+    filter.writePixel(mode, x, y, color, &offscreen_);
+  }
+
+ private:
+  FakeOffscreen<ColorMode> offscreen_;
+  Box window_;
+  PaintMode paint_mode_;
+  int16_t cursor_x_;
+  int16_t cursor_y_;
+};
+
+template <typename ColorMode, typename Filter>
+TestColorStreamable<ColorMode> RasterOf(
+    const FakeFilteringOffscreen<ColorMode, Filter>& filtering) {
+  return RasterOf(filtering.offscreen());
+}
+
+template <typename ColorMode, typename FilterFactory>
+class FilteredOutput : public DisplayOutput {
+ public:
+  FilteredOutput(int16_t width, int16_t height,
+                 Color background = color::Transparent,
+                 ColorMode color_mode = ColorMode())
+      : offscreen_(width, height, background, color_mode),
+        filter_(FilterFactory::Create(&offscreen_)) {}
+
+  FilteredOutput(Box extents, Color background = color::Transparent,
+                 ColorMode color_mode = ColorMode())
+      : offscreen_(extents, background, color_mode),
+        filter_(FilterFactory::Create(&offscreen_)) {}
+
+  void setOrientation(Orientation orientation) {
+    offscreen_.setOrientation(orientation);
+  }
+
+  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
+                  PaintMode mode) override {
+    filter_->setAddress(x0, y0, x1, y1, mode);
+  }
+
+  void write(Color* color, uint32_t pixel_count) override {
+    filter_->write(color, pixel_count);
+  }
+
+  void writePixels(PaintMode mode, Color* color, int16_t* x, int16_t* y,
+                   uint16_t pixel_count) override {
+    filter_->writePixels(mode, color, x, y, pixel_count);
+  }
+
+  void fillPixels(PaintMode mode, Color color, int16_t* x, int16_t* y,
+                  uint16_t pixel_count) override {
+    filter_->fillPixels(mode, color, x, y, pixel_count);
+  }
+
+  void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
+                  int16_t* x1, int16_t* y1, uint16_t count) override {
+    filter_->writeRects(mode, color, x0, y0, x1, y1, count);
+  }
+
+  void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
+                 int16_t* x1, int16_t* y1, uint16_t count) override {
+    filter_->fillRects(mode, color, x0, y0, x1, y1, count);
+  }
+
+  const FakeOffscreen<ColorMode>& offscreen() const { return offscreen_; }
+
+ private:
+  FakeOffscreen<ColorMode> offscreen_;
+  std::unique_ptr<DisplayOutput> filter_;
+};
+
+template <typename ColorMode, typename FilterFactory>
+TestColorStreamable<ColorMode> RasterOf(
+    const FilteredOutput<ColorMode, FilterFactory>& filtering) {
+  return RasterOf(filtering.offscreen());
+}
 
 // Ensures that drawTo uses CreateStream().
 class ForcedStreamable : public Streamable {

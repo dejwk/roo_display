@@ -45,6 +45,22 @@ cc_test(
 )
 
 cc_test(
+    name = "clip_mask_test",
+    srcs = [
+        "test/clip_mask_test.cpp",
+        "test/testing.h",
+        "test/testing_display_device.h",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    defines = [ "ROO_DISPLAY_TEST" ],
+    deps = [
+        "//lib/roo_display",
+        "@gtest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "color_subpixel_test",
     srcs = [
         "test/color_subpixel_test.cpp",

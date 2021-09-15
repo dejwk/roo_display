@@ -15,7 +15,7 @@ using namespace roo_display;
 // a bit-array, you can actually use Offscreen<Monochrome> to manage it.
 
 // Change these two lines to use a different driver, transport, or pins.
-#include "roo_display/driver/st7789.h" 
+#include "roo_display/driver/st7789.h"
 St7789spi_240x240<5, 2, 4> device;
 
 Display display(&device, nullptr);
@@ -33,7 +33,7 @@ void setup() {
   // We allocate the bit_mask buffer dynamically here, rather than statically,
   // because we want to tie its size to the actual display size. We're using a
   // singleton b/c we don't need to use multiple bitmasks in this demo.
-  clipmask_size = (display.area() + 7) / 8;
+  clipmask_size = ((display.with() + 7) / 8) * display.height();
   clipmask = new uint8_t[clipmask_size];
 }
 
@@ -53,7 +53,8 @@ void basicBitPatterns1() {
   dc.draw(
       FilledCircle::ByRadius(0, 0, display.height() / 2 - 10, color::Yellow),
       display.width() / 2, display.height() / 2 - 5);
-  Serial.printf("Basic bit patterns (slow version): %ld ms\n", millis() - start);
+  Serial.printf("Basic bit patterns (slow version): %ld ms\n",
+                millis() - start);
 }
 
 void basicBitPatterns2() {
@@ -78,7 +79,8 @@ void basicBitPatterns2() {
   dc.draw(
       FilledCircle::ByRadius(0, 0, display.height() / 2 - 10, color::Yellow),
       display.width() / 2, display.height() / 2 - 5);
-  Serial.printf("Basic bit patterns (fast version): %ld ms\n", millis() - start);
+  Serial.printf("Basic bit patterns (fast version): %ld ms\n",
+                millis() - start);
 }
 
 constexpr double pi() { return std::atan(1) * 4; }

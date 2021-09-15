@@ -8,10 +8,13 @@ namespace roo_display {
 // Represents a binary clip mask. Takes a raw data region, where each byte
 // represents a single pixel, and a rectangle that determines the position and
 // size of the mask.
+// The mask is always byte-aligned; i.e., each row always starts on a new byte.
 class ClipMask {
  public:
   ClipMask(const uint8_t* data, Box bounds)
-      : data_(data), bounds_(std::move(bounds)) {}
+      : data_(data),
+        bounds_(std::move(bounds)),
+        line_width_bytes_((bounds.width() + 7) / 8) {}
 
   const uint8_t* data() const { return data_; }
   const Box& bounds() const { return bounds_; }
@@ -20,9 +23,8 @@ class ClipMask {
     if (!bounds_.contains(x, y)) return true;
     x -= bounds_.xMin();
     y -= bounds_.yMin();
-    uint32_t pixel_offset = y * bounds_.width() + x;
-    uint32_t byte_offset = pixel_offset / 8;
-    uint32_t pixel_index = pixel_offset % 8;
+    uint32_t byte_offset = x / 8 + y * line_width_bytes_;
+    uint32_t pixel_index = x % 8;
     uint8_t byte = data_[byte_offset];
     return byte & (0x80 >> pixel_index);
   }
@@ -30,6 +32,7 @@ class ClipMask {
  private:
   const uint8_t* data_;
   Box bounds_;
+  uint32_t line_width_bytes_;
 };
 
 // A 'filtering' device, which delegates the actual drawing to another device,
@@ -70,29 +73,15 @@ class ClipMaskFilter : public DisplayOutput {
     }
   }
 
-  // void fill(PaintMode mode, Color color, uint32_t pixel_count) override {
-  //   // Naive implementation, for now.
-  //   uint32_t i = 0;
-  //   BufferedPixelFiller filler(output_, color, mode);
-  //   while (i < pixel_count) {
-  //     if (clip_mask_->isSet(cursor_x_, cursor_y_)) {
-  //       filler.fillPixel(cursor_x_, cursor_y_);
-  //     }
-  //     if (++cursor_x_ > address_window_.xMax()) {
-  //       ++cursor_y_;
-  //       cursor_x_ = address_window_.xMin();
-  //     }
-  //     ++i;
-  //   }
-  // }
-
   void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     BufferedPixelWriter pwriter(output_, mode);
     BufferedRectWriter rwriter(output_, mode);
     while (count-- > 0) {
-      BufferedPixelWriterFillAdapter<BufferedPixelWriter> pfiller(pwriter, *color);
-      BufferedRectWriterFillAdapter<BufferedRectWriter> rfiller(rwriter, *color);
+      BufferedPixelWriterFillAdapter<BufferedPixelWriter> pfiller(pwriter,
+                                                                  *color);
+      BufferedRectWriterFillAdapter<BufferedRectWriter> rfiller(rwriter,
+                                                                *color);
       fillRect(*x0++, *y0++, *x1++, *y1++, pfiller, rfiller);
       color++;
     }
@@ -147,26 +136,40 @@ class ClipMaskFilter : public DisplayOutput {
   template <typename PixelFiller, typename RectFiller>
   void fillRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
                 PixelFiller& pfiller, RectFiller& rfiller) {
-    Box rect(x0, y0, x1, y1);
     const Box& bounds = clip_mask_->bounds();
-    if (!rect.intersects(bounds)) {
-      rfiller.fillRect(x0, y0, x1, y1);
-      return;
+    if (y0 < bounds.yMin()) {
+      if (y1 < bounds.yMin()) {
+        rfiller.fillRect(x0, y0, x1, y1);
+        return;
+      }
+      rfiller.fillRect(x0, y0, x1, bounds.yMin() - 1);
+      y0 = bounds.yMin();
     }
     if (x0 < bounds.xMin()) {
+      if (x1 < bounds.xMin()) {
+        rfiller.fillRect(x0, y0, x1, y1);
+        return;
+      }
       rfiller.fillRect(x0, y0, bounds.xMin() - 1, y1);
       x0 = bounds.xMin();
-    } else if (x1 > bounds.xMax()) {
+    }
+    if (x1 > bounds.xMax()) {
+      if (x0 > bounds.xMax()) {
+        rfiller.fillRect(x0, y0, x1, y1);
+        return;
+      }
       rfiller.fillRect(bounds.xMax() + 1, y0, x1, y1);
       x1 = bounds.xMax();
     }
-    if (y0 < bounds.yMin()) {
-      rfiller.fillRect(x0, y0, x1, bounds.yMin() - 1);
-      y0 = bounds.yMin();
-    } else if (y1 > bounds.yMax()) {
+    if (y1 > bounds.yMax()) {
+      if (y0 > bounds.yMax()) {
+        rfiller.fillRect(x0, y0, x1, y1);
+        return;
+      }
       rfiller.fillRect(x0, bounds.yMax() + 1, x1, y1);
       y1 = bounds.yMax();
     }
+    // Now, [x0, y0, x1, y1] is entirely within bounds.
     for (int16_t y = y0; y <= y1; ++y) {
       for (int16_t x = x0; x <= x1; ++x) {
         if (clip_mask_->isSet(x, y)) {

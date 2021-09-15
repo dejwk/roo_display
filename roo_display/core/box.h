@@ -41,9 +41,7 @@ class Box {
   Box& operator=(const Box&) = default;
   Box& operator=(Box&&) = default;
 
-  inline static Box MaximumBox() {
-    return Box(-16384, -16384, 16383, 16383);
-  }
+  inline static Box MaximumBox() { return Box(-16384, -16384, 16383, 16383); }
 
   bool empty() const { return xMax_ < xMin_ || yMax_ < yMin_; }
   int16_t xMin() const { return xMin_; }
@@ -64,7 +62,8 @@ class Box {
   }
 
   bool intersects(const Box& other) const {
-    return !intersect(*this, other).empty();
+    return other.xMin() <= xMax_ && other.xMax() >= xMin_ &&
+           other.yMin() <= yMax_ && other.yMax() >= yMin_;
   }
 
   ClipResult clip(const Box& clip_box) {
@@ -98,29 +97,17 @@ class Box {
                yMax_ * y_scale);
   }
 
-  Box swapXY() const {
-    return Box(yMin_, xMin_, yMax_, xMax_);
-  }
+  Box swapXY() const { return Box(yMin_, xMin_, yMax_, xMax_); }
 
-  Box flipX() const {
-    return Box(-xMax_, yMin_, -xMin_, yMax_);
-  }
+  Box flipX() const { return Box(-xMax_, yMin_, -xMin_, yMax_); }
 
-  Box flipY() const {
-    return Box(xMin_, -yMax_, xMax_, -yMin_);
-  }
+  Box flipY() const { return Box(xMin_, -yMax_, xMax_, -yMin_); }
 
-  Box rotateUpsideDown() const {
-    return Box(-xMax_, -yMax_, -xMin_, -yMin_);
-  }
+  Box rotateUpsideDown() const { return Box(-xMax_, -yMax_, -xMin_, -yMin_); }
 
-  Box rotateRight() const {
-    return Box(-yMax_, xMin_, -yMin_, xMax_);
-  }
+  Box rotateRight() const { return Box(-yMax_, xMin_, -yMin_, xMax_); }
 
-  Box rotateLeft() const {
-    return Box(yMin_, -xMax_, yMax_, -xMin_);
-  }
+  Box rotateLeft() const { return Box(yMin_, -xMax_, yMax_, -xMin_); }
 
  private:
   int16_t xMin_, yMin_, xMax_, yMax_;

@@ -34,8 +34,8 @@ class RectUnion {
 };
 
 // A 'filtering' device, which delegates the actual drawing to another device,
-// but only passes through the pixels that are not blocked by a specified clip
-// mask.
+// but only passes through the pixels that are not blocked by the specified clip
+// mask, consisting of a union of rectangles.
 class RectUnionFilter : public DisplayOutput {
  public:
   RectUnionFilter(DisplayOutput* output, const RectUnion* exclusion)

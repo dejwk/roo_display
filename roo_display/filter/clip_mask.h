@@ -196,37 +196,35 @@ class ClipMaskFilter : public DisplayOutput {
     for (int16_t yc0 = y0; yc0 <= y1;) {
       int16_t yc1 = yc0 - yshift + 7;
       if (yc1 > y1) yc1 = y1;
+      uint8_t lines = yc1 - yc0 + 1;
       uint8_t xshift = (x0 - bounds.xMin()) % 8;
       for (int16_t xc0 = x0; xc0 <= x1;) {
         int16_t xc1 = xc0 - xshift + 7;
-        if (xc1 > x1) xc1 = x1;
-        fillConfinedRect(xc0, yc0, xc1, yc1, pfiller, rfiller);
+        uint8_t mask = 0xFF >> xshift;
+        if (xc1 > x1) {
+          mask &= (0xFF << (xc1 - x1));
+          xc1 = x1;
+        }
+        if (!clip_mask_->isAllUnset(xc0, yc0, mask, lines)) {
+          if (clip_mask_->isAllSet(xc0, yc0, mask, lines)) {
+            rfiller.fillRect(xc0, yc0, xc1, yc1);
+          } else {
+            // Degenerate to the slow version.
+            for (int16_t y = yc0; y <= yc1; ++y) {
+              for (int16_t x = xc0; x <= xc1; ++x) {
+                if (clip_mask_->isSet(x, y)) {
+                  pfiller.fillPixel(x, y);
+                }
+              }
+            }
+          }
+        }
+
         xc0 = xc0 - xshift + 8;
         xshift = 0;
       }
       yc0 = yc0 - yshift + 8;
       yshift = 0;
-    }
-  }
-
-  // The rect must be within a single 8x8 cell, aligned with the bitmask.
-  void fillConfinedRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
-                        BufferedPixelFiller& pfiller, BufferedRectFiller& rfiller) {
-    uint8_t mask = (0xFF >> ((x0 - clip_mask_->bounds().xMin()) % 8)) &
-                   (0xFF << (7 - ((x1 - clip_mask_->bounds().xMin()) % 8)));
-    uint8_t lines = y1 - y0 + 1;
-    if (clip_mask_->isAllUnset(x0, y0, mask, lines)) return;
-    if (clip_mask_->isAllSet(x0, y0, mask, lines)) {
-      rfiller.fillRect(x0, y0, x1, y1);
-      return;
-    }
-    // Degenerate to the slow version.
-    for (int16_t y = y0; y <= y1; ++y) {
-      for (int16_t x = x0; x <= x1; ++x) {
-        if (clip_mask_->isSet(x, y)) {
-          pfiller.fillPixel(x, y);
-        }
-      }
     }
   }
 

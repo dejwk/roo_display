@@ -296,6 +296,8 @@ TEST(BitFill, Simple) {
   tester.bitFill(25, 56, true);
   tester.bitFill(10, 40, false);
   tester.bitFill(120, 120, true);
+  tester.bitFill(121, 3, false);
+  tester.bitFill(122, 4, true);
 }
 
 }  // namespace roo_display

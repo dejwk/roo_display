@@ -9,6 +9,9 @@ namespace roo_display {
 // represents a single pixel, and a rectangle that determines the position and
 // size of the mask.
 // The mask is always byte-aligned; i.e., each row always starts on a new byte.
+// It is recommended that the clip mask is aligned within 8-pixels to the
+// underlying device coordinates. It may help avoid needless redraws in case
+// when some low-res framebuf is used under the clip mask.
 class ClipMask {
  public:
   ClipMask(const uint8_t* data, Box bounds)
@@ -27,6 +30,28 @@ class ClipMask {
     uint32_t pixel_index = x % 8;
     uint8_t byte = data_[byte_offset];
     return byte & (0x80 >> pixel_index);
+  }
+
+  inline bool isAllSet(int16_t x, int16_t y, uint8_t mask,
+                       uint8_t lines) const {
+    const uint8_t* ptr = data_ + (x - bounds_.xMin()) / 8 +
+                         (y - bounds_.yMin()) * line_width_bytes_;
+    while (lines-- > 0) {
+      if ((*ptr & mask) != mask) return false;
+      ptr += line_width_bytes_;
+    }
+    return true;
+  }
+
+  inline bool isAllUnset(int16_t x, int16_t y, uint8_t mask,
+                         uint8_t lines) const {
+    const uint8_t* ptr = data_ + (x - bounds_.xMin()) / 8 +
+                         (y - bounds_.yMin()) * line_width_bytes_;
+    while (lines-- > 0) {
+      if ((*ptr & mask) != 0) return false;
+      ptr += line_width_bytes_;
+    }
+    return true;
   }
 
  private:
@@ -75,24 +100,15 @@ class ClipMaskFilter : public DisplayOutput {
 
   void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
-    BufferedPixelWriter pwriter(output_, mode);
-    BufferedRectWriter rwriter(output_, mode);
     while (count-- > 0) {
-      BufferedPixelWriterFillAdapter<BufferedPixelWriter> pfiller(pwriter,
-                                                                  *color);
-      BufferedRectWriterFillAdapter<BufferedRectWriter> rfiller(rwriter,
-                                                                *color);
-      fillRect(*x0++, *y0++, *x1++, *y1++, pfiller, rfiller);
-      color++;
+      fillRect(mode, *color++, *x0++, *y0++, *x1++, *y1++);
     }
   }
 
   void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
-    BufferedPixelFiller pfiller(output_, color, mode);
-    BufferedRectFiller rfiller(output_, color, mode);
     while (count-- > 0) {
-      fillRect(*x0++, *y0++, *x1++, *y1++, pfiller, rfiller);
+      fillRect(mode, color, *x0++, *y0++, *x1++, *y1++);
     }
   }
 
@@ -133,9 +149,13 @@ class ClipMaskFilter : public DisplayOutput {
   }
 
  private:
-  template <typename PixelFiller, typename RectFiller>
-  void fillRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
-                PixelFiller& pfiller, RectFiller& rfiller) {
+  void fillRect(PaintMode mode, Color color, int16_t x0, int16_t y0, int16_t x1,
+                int16_t y1) {
+    // Note: we need to flush these every rect, because the rectangles may
+    // be overlapping. (A possible alternative would be to only use
+    // rectfiller).
+    BufferedPixelFiller pfiller(output_, color, mode);
+    BufferedRectFiller rfiller(output_, color, mode);
     const Box& bounds = clip_mask_->bounds();
     if (y0 < bounds.yMin()) {
       if (y1 < bounds.yMin()) {
@@ -170,6 +190,46 @@ class ClipMaskFilter : public DisplayOutput {
       y1 = bounds.yMax();
     }
     // Now, [x0, y0, x1, y1] is entirely within bounds.
+    // Iterate in 8x8 blocks, filling (or skipping) the entire block when at all
+    // possible.
+    bool yaligned = (y0 - bounds.yMin()) % 8 == 0;
+    for (int16_t yc0 = y0; yc0 <= y1;) {
+      int16_t yc1 = yaligned ? yc0 + 7 : ((yc0 - bounds.yMin()) / 8) * 8 + 7;
+      if (yc1 > y1) yc1 = y1;
+      bool xaligned = (x0 - bounds.xMin()) % 8 == 0;
+      for (int16_t xc0 = x0; xc0 <= x1;) {
+        int16_t xc1 = xaligned ? xc0 + 7 : ((xc0 - bounds.xMin()) / 8) * 8 + 7;
+        if (xc1 > x1) xc1 = x1;
+        fillConfinedRect(xc0, yc0, xc1, yc1, pfiller, rfiller);
+        if (xaligned) {
+          xc0 += 8;
+        } else {
+          xc0 = ((xc0 - bounds.xMin()) / 8 + 1) * 8;
+          xaligned = true;
+        }
+      }
+      if (yaligned) {
+        yc0 += 8;
+      } else {
+        yc0 = ((yc0 - bounds.yMin()) / 8 + 1) * 8;
+        yaligned = true;
+      }
+    }
+  }
+
+  // The rect must be within a single 8x8 cell, aligned with the bitmask.
+  template <typename PixelFiller, typename RectFiller>
+  void fillConfinedRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+                        PixelFiller& pfiller, RectFiller& rfiller) {
+    uint8_t mask = (0xFF >> ((x0 - clip_mask_->bounds().xMin()) % 8)) &
+                   (0xFF << (7 - ((x1 - clip_mask_->bounds().xMin()) % 8)));
+    uint8_t lines = y1 - y0 + 1;
+    if (clip_mask_->isAllUnset(x0, y0, mask, lines)) return;
+    if (clip_mask_->isAllSet(x0, y0, mask, lines)) {
+      rfiller.fillRect(x0, y0, x1, y1);
+      return;
+    }
+    // Degenerate to the slow version.
     for (int16_t y = y0; y <= y1; ++y) {
       for (int16_t x = x0; x <= x1; ++x) {
         if (clip_mask_->isSet(x, y)) {

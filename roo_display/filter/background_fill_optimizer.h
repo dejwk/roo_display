@@ -1,80 +1,11 @@
 #pragma once
 
 #include "roo_display/core/device.h"
+#include "roo_display/internal/memfill.h"
 
 namespace roo_display {
 
 static const int kBgFillOptimizerWindowSize = 4;
-
-// // Sets the nth bit (as specified by offset) in the specified buffer,
-// // to the specified value.
-// inline void fillBit(uint8_t* buf, uint32_t offset, bool value) {
-//   buf += (offset / 8);
-//   offset %= 8;
-//   if (value) {
-//     *buf |= (1 << offset);
-//   } else {
-//     *buf &= ~(1 << offset);
-//   }
-// }
-
-inline void fillBits(uint8_t* buf, uint32_t offset, int16_t count, bool value) {
-  buf += (offset / 8);
-  offset %= 8;
-  // while (count-- > 0) {
-  //   fillBit(buf, offset++, value);
-  // }
-  // return;
-  if (value) {
-    if (offset > 0) {
-      if (offset + count < 8) {
-        *buf |= (((1 << count) - 1) << offset);
-        // while (count-- > 0) {
-        //   fillBit(buf, offset++, value);
-        // }
-        return;
-      }
-      // while (offset < 8) {
-      //   fillBit(buf, offset++, value);
-      //   --count;
-      // }
-      // ++buf;
-      *buf++ |= (0xFF << offset);
-      count -= (8 - offset);
-      offset = 0;
-    }
-    memset(buf, 0xFF, count / 8);
-    buf += (count / 8);
-    count %= 8;
-    if (count == 0) return;
-    *buf |= ((1 << count) - 1);
-    // while (count-- > 0) fillBit(buf, offset++, value);
-  } else {
-    if (offset > 0) {
-      if (offset + count < 8) {
-        // while (count-- > 0) {
-        //   fillBit(buf, offset++, value);
-        // }
-        *buf &= ~(((1 << count) - 1) << offset);
-        return;
-      }
-      // while (offset < 8) {
-      //   fillBit(buf, offset++, value);
-      //   --count;
-      // }
-      // ++buf;
-      *buf++ &= ~(0xFF << offset);
-      count -= (8 - offset);
-      offset = 0;
-    }
-    memset(buf, 0x00, count / 8);
-    buf += (count / 8);
-    count %= 8;
-    if (count == 0) return;
-    *buf &= ~((1 << count) - 1);
-    // while (count-- > 0) fillBit(buf, offset++, value);
-  }
-}
 
 // Rectangular bit mask.
 class BitMask {
@@ -100,12 +31,12 @@ class BitMask {
   void fillRect(const Box& rect, bool value) {
     uint8_t v = value ? 0xFF : 0x00;
     if (rect.xMin() == 0 && rect.xMax() == width() - 1) {
-      fillBits(buffer_, rect.yMin() * width_, rect.height() * width_, value);
+      bit_fill(buffer_, rect.yMin() * width_, rect.height() * width_, value);
     } else {
       uint32_t pixel_idx = rect.xMin() + rect.yMin() * width_;
       int16_t w = rect.width();
       for (int16_t i = rect.height(); i > 0; --i) {
-        fillBits(buffer_, pixel_idx, w, value);
+        bit_fill(buffer_, pixel_idx, w, value);
         pixel_idx += width_;
       }
     }

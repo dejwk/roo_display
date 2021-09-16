@@ -20,6 +20,28 @@ void TrivialPatternFill(uint8_t* buf, const uint8_t* val, int pattern_size,
   }
 }
 
+namespace {
+
+// Sets the nth bit (as specified by offset) in the specified buffer,
+// to the specified value.
+inline void fillBit(uint8_t* buf, uint32_t offset, bool value) {
+  buf += (offset / 8);
+  offset %= 8;
+  if (value) {
+    *buf |= (1 << offset);
+  } else {
+    *buf &= ~(1 << offset);
+  }
+}
+
+}  // namespace
+
+void TrivialBitFill(uint8_t* buf, uint32_t offset, int16_t count, bool value) {
+  while (count-- > 0) {
+    fillBit(buf, offset++, value);
+  }
+}
+
 class ByteBuffer {
  public:
   ByteBuffer(uint32_t size) : size_(size), data_(new uint8_t[size + 1]) {
@@ -73,6 +95,12 @@ class FillerTester {
   void patternFill4(uint32_t pos, uint32_t count, const uint8_t* val) {
     TrivialPatternFill(expected_.data() + pos, val, 4, count);
     pattern_fill<4>(actual_.data() + pos, count, val);
+    EXPECT_EQ(expected_, actual_);
+  }
+
+  void bitFill(uint32_t offset, int16_t count, bool value) {
+    TrivialBitFill(expected_.data(), offset, count, value);
+    bit_fill(actual_.data(), offset, count, value);
     EXPECT_EQ(expected_, actual_);
   }
 
@@ -260,6 +288,14 @@ TEST(PatternFill4, VeryLongMisalignedEq) {
   FillerTester tester(100);
   uint8_t pattern[] = {0x12, 0x12};
   tester.patternFill4(5, 19, pattern);
+}
+
+TEST(BitFill, Simple) {
+  FillerTester tester(100);
+  tester.bitFill(5, 19, true);
+  tester.bitFill(25, 56, true);
+  tester.bitFill(10, 40, false);
+  tester.bitFill(120, 120, true);
 }
 
 }  // namespace roo_display

@@ -6,6 +6,7 @@
 // data blocks when possible.
 
 #include <inttypes.h>
+
 #include <cstring>
 
 namespace roo_display {
@@ -259,6 +260,44 @@ inline void pattern_fill<4>(uint8_t* buf, uint32_t count, const uint8_t* val) {
   } else {
     internal::pattern_fill_32_aligned((uint32_t*)buf, count,
                                       *(const uint32_t*)val);
+  }
+}
+
+// Fills 'count' consecutive bits of memory (in MSB order), starting at the
+// given bit offset of the given buffer.
+inline void bit_fill(uint8_t* buf, uint32_t offset, int16_t count, bool value) {
+  buf += (offset / 8);
+  offset %= 8;
+  if (value) {
+    if (offset > 0) {
+      if (offset + count < 8) {
+        *buf |= (((1 << count) - 1) << offset);
+        return;
+      }
+      *buf++ |= (0xFF << offset);
+      count -= (8 - offset);
+      offset = 0;
+    }
+    memset(buf, 0xFF, count / 8);
+    buf += (count / 8);
+    count %= 8;
+    if (count == 0) return;
+    *buf |= ((1 << count) - 1);
+  } else {
+    if (offset > 0) {
+      if (offset + count < 8) {
+        *buf &= ~(((1 << count) - 1) << offset);
+        return;
+      }
+      *buf++ &= ~(0xFF << offset);
+      count -= (8 - offset);
+      offset = 0;
+    }
+    memset(buf, 0x00, count / 8);
+    buf += (count / 8);
+    count %= 8;
+    if (count == 0) return;
+    *buf &= ~((1 << count) - 1);
   }
 }
 

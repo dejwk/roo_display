@@ -34,6 +34,7 @@ static DummyTouch dummy_touch;
 Display::Display(DisplayDevice *display, TouchDevice *touch)
     : display_(display),
       touch_(display, touch == nullptr ? &dummy_touch : touch),
+      nest_level_(0),
       orientation_(display->orientation()),
       clip_box_(Box::MaximumBox()),
       bgcolor_(Color(0)),

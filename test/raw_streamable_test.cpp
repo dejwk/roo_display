@@ -1,6 +1,6 @@
 
 #include "roo_display/core/color.h"
-#include "roo_display/internal/streamable.h"
+#include "roo_display/internal/raw_streamable.h"
 #include "testing.h"
 
 // Tests drawing and clipping raw streamables via the DrawableRawStreamable

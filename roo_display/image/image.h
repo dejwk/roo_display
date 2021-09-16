@@ -1,7 +1,8 @@
 #pragma once
 
+#include "roo_display/core/streamable.h"
 #include "roo_display/image/image_stream.h"
-#include "roo_display/internal/streamable.h"
+#include "roo_display/internal/raw_streamable.h"
 
 // Image is a Streamable that renders a rectangular area based on data from some
 // underlying data source. Image classes are templated on Resource, which

@@ -5,7 +5,7 @@
 
 #include "roo_display/core/raster.h"
 #include "roo_display/image/image.h"
-#include "roo_display/internal/streamable_overlay.h"
+#include "roo_display/internal/raw_streamable_overlay.h"
 #include "roo_display/io/memory.h"
 
 namespace roo_display {

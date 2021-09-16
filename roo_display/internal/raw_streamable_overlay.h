@@ -1,6 +1,6 @@
 #pragma once
 
-#include "roo_display/internal/streamable.h"
+#include "roo_display/internal/raw_streamable.h"
 
 namespace roo_display {
 

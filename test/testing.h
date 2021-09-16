@@ -7,7 +7,7 @@
 #include "roo_display/core/device.h"
 #include "roo_display/core/rasterizable.h"
 #include "roo_display/core/streamable.h"
-#include "roo_display/internal/streamable.h"
+#include "roo_display/internal/raw_streamable.h"
 
 using namespace testing;
 using std::string;

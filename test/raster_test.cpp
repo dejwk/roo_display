@@ -265,7 +265,7 @@ TEST(Raster, MultibyteStreamableClipped) {
                                           "seo 9p_ 3Eg"));
 }
 
-TEST(Raster, Argb6666BigEndianEndianDrawTo) {
+TEST(Raster, Argb6666BigEndianDrawTo) {
   uint8_t data[] = {0xFF, 0xF0, 0x00, 0xFC, 0x0F, 0xC0, 0xFC, 0x00, 0x3F,
                     0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x39, 0x2E, 0x80};
   RasterArgb6666<const uint8_t*> raster(3, 2, data);
@@ -276,7 +276,7 @@ TEST(Raster, Argb6666BigEndianEndianDrawTo) {
                                           "**** ____ DHv_"));
 }
 
-TEST(Raster, Argb6666LittleEndianEndianDrawTo) {
+TEST(Raster, Argb6666LittleEndianDrawTo) {
   uint8_t data[] = {0x00, 0xF0, 0xFF, 0xC0, 0x0F, 0xFC, 0x3F, 0x00, 0xFC,
                     0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x80, 0x2E, 0x39};
   RasterArgb6666<const uint8_t*, BYTE_ORDER_LITTLE_ENDIAN> raster(3, 2, data);
@@ -285,6 +285,23 @@ TEST(Raster, Argb6666LittleEndianEndianDrawTo) {
   EXPECT_THAT(test_screen, MatchesContent(Argb6666(), 3, 2,
                                           "**__ *_*_ *__*"
                                           "**** ____ DHv_"));
+}
+
+TEST(Raster, OffsetExtents) {
+  uint8_t data[] = {0xC1, 0x26, 0xE7};
+  RasterMonochrome<const uint8_t*> raster(Box(2, 3, 5, 8), data, WhiteOnBlack());
+  FakeOffscreen<Rgb565> test_screen(6, 9, color::Black);
+  Draw(&test_screen, 0, 0, raster);
+  EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 6, 9,
+                                     "      "
+                                     "      "
+                                     "      "
+                                     "  **  "
+                                     "     *"
+                                     "    * "
+                                     "   ** "
+                                     "  *** "
+                                     "   ***"));
 }
 
 }  // namespace roo_display

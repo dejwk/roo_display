@@ -56,9 +56,7 @@ class RasterPixelStream : public PixelStream {
     pixel_index_ = new_pixel_index % ColorTraits<ColorMode>::pixels_per_byte;
   }
 
-  TransparencyMode transparency() const {
-    return color_mode_.transparency();
-  }
+  TransparencyMode transparency() const { return color_mode_.transparency(); }
 
   const ColorMode& color_mode() const { return color_mode_; }
 
@@ -144,9 +142,7 @@ class RasterPixelStream<Resource, ColorMode, pixel_order, byte_order, 1>
     stream_.advance(count * ColorMode::bits_per_pixel / 8);
   }
 
-  TransparencyMode transparency() const {
-    return color_mode_.transparency();
-  }
+  TransparencyMode transparency() const { return color_mode_.transparency(); }
 
   const ColorMode& color_mode() const { return color_mode_; }
 
@@ -244,7 +240,8 @@ class Raster : public Rasterizable {
                   Color* result) const override {
     internal::Reader<ColorMode, pixel_order, byte_order> read;
     while (count-- > 0) {
-      *result++ = color_mode_.toArgbColor(read(ptr_, *x++ + *y++ * width_));
+      *result++ = color_mode_.toArgbColor(read(
+          ptr_, *x++ - extents_.xMin() + (*y++ - extents_.yMin()) * width_));
     }
   }
 
@@ -252,13 +249,12 @@ class Raster : public Rasterizable {
     return transparency();
   }
 
-  TransparencyMode transparency() const {
-    return color_mode_.transparency();
-  }
+  TransparencyMode transparency() const { return color_mode_.transparency(); }
 
   Color get(int16_t x, int16_t y) const {
     internal::Reader<ColorMode, pixel_order, byte_order> read;
-    return color_mode_.toArgbColor(read(ptr_, x + y * width_));
+    return color_mode_.toArgbColor(
+        read(ptr_, x - extents_.xMin() + (y - extents_.yMin()) * width_));
   }
 
  private:

@@ -301,4 +301,25 @@ inline void bit_fill(uint8_t* buf, uint32_t offset, int16_t count, bool value) {
   }
 }
 
+inline void nibble_fill(uint8_t* buf, uint32_t offset, int16_t count, uint8_t value) {
+  if ((offset % 2) == 1) {
+    uint8_t& first = buf[offset / 2];
+    first &= 0xF0;
+    first |= value;
+    offset++;
+    --count;
+    if (count == 0) return;
+  }
+  if (count >= 2) {
+    memset(buf + offset / 2, value | (value << 4), count / 2);
+    offset += count;
+    count %= 2;
+  }
+  if (count > 0) {
+    uint8_t& last = buf[offset / 2];
+    last &= 0x0F;
+    last |= (value << 4);
+  }
+}
+
 }  // namespace roo_display

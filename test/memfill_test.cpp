@@ -34,11 +34,31 @@ inline void fillBit(uint8_t* buf, uint32_t offset, bool value) {
   }
 }
 
+// Sets the nth nibble (as specified by offset) in the specified buffer,
+// to the specified value.
+inline void fillNibble(uint8_t* buf, uint32_t offset, uint8_t value) {
+  buf += (offset / 2);
+  offset %= 2;
+  if (offset == 0) {
+    *buf &= 0x0F;
+    *buf |= (value << 4);
+  } else {
+    *buf &= 0xF0;
+    *buf |= value;
+  }
+}
+
 }  // namespace
 
 void TrivialBitFill(uint8_t* buf, uint32_t offset, int16_t count, bool value) {
   while (count-- > 0) {
     fillBit(buf, offset++, value);
+  }
+}
+
+void TrivialNibbleFill(uint8_t* buf, uint32_t offset, int16_t count, uint8_t value) {
+  while (count-- > 0) {
+    fillNibble(buf, offset++, value);
   }
 }
 
@@ -101,6 +121,13 @@ class FillerTester {
   void bitFill(uint32_t offset, int16_t count, bool value) {
     TrivialBitFill(expected_.data(), offset, count, value);
     bit_fill(actual_.data(), offset, count, value);
+    EXPECT_EQ(expected_, actual_);
+  }
+
+  void nibbleFill(uint32_t offset, int16_t count, uint8_t value) {
+    EXPECT_LT(value, 16);
+    TrivialNibbleFill(expected_.data(), offset, count, value);
+    nibble_fill(actual_.data(), offset, count, value);
     EXPECT_EQ(expected_, actual_);
   }
 
@@ -298,6 +325,17 @@ TEST(BitFill, Simple) {
   tester.bitFill(120, 120, true);
   tester.bitFill(121, 3, false);
   tester.bitFill(122, 4, true);
+}
+
+TEST(NibbleFill, Simple) {
+  FillerTester tester(100);
+  tester.nibbleFill(5, 19, 1);
+  tester.nibbleFill(25, 7, 5);
+  tester.nibbleFill(10, 40, 14);
+  tester.nibbleFill(12, 12, 8);
+  tester.nibbleFill(8, 21, 11);
+  tester.nibbleFill(43, 1, 15);
+  tester.nibbleFill(33, 3, 12);
 }
 
 }  // namespace roo_display

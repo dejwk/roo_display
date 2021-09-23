@@ -306,7 +306,7 @@ class OffscreenDisplay : public Display, public Rasterizable {
     return offscreen().raster();
   }
 
-  void drawTo(const Surface &s) const override { raster().drawTo(s); }
+  void drawTo(const Surface &s) const override { s.drawObject(raster()); }
 
   Box extents() const override { return raster().extents(); }
 

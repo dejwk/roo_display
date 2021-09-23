@@ -19,7 +19,7 @@ namespace roo_display {
 
 // RawPixelStreamable template contract:
 // class RawPixelStreamable {
-//   const Rect& extents() const;
+//   const Box& extents() const;
 //   std::unique_ptr<any> CreateRawStream() const;
 // }
 

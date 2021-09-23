@@ -17,9 +17,9 @@ cc_library(
 )
 
 cc_test(
-    name = "color_test",
+    name = "byte_order_test",
     srcs = [
-        "test/color_test.cpp",
+        "test/byte_order_test.cpp",
     ],
     copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
@@ -31,9 +31,25 @@ cc_test(
 )
 
 cc_test(
-    name = "byte_order_test",
+    name = "background_fill_optimizer_test",
     srcs = [
-        "test/byte_order_test.cpp",
+        "test/background_fill_optimizer_test.cpp",
+        "test/testing.h",
+        "test/testing_display_device.h",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    defines = [ "ROO_DISPLAY_TEST" ],
+    deps = [
+        "//lib/roo_display",
+        "@gtest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "color_test",
+    srcs = [
+        "test/color_test.cpp",
     ],
     copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,

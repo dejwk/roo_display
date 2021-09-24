@@ -4,41 +4,6 @@ namespace roo_display {
 
 namespace {
 
-// Iterates over bits in a specified rectangular sub-window of a nibble rect.
-class NibbleRectWindowIterator {
- public:
-  NibbleRectWindowIterator(const NibbleRect* rect, int16_t x0, int16_t y0,
-                           int16_t x1, int16_t y1)
-      : ptr_(rect->buffer() + (y0 * rect->width_bytes() + x0 / 2)),
-        nibble_idx_(x0 % 2),
-        x_(0),
-        width_(x0 == 0 && x1 == rect->width() - 1
-                   ? rect->width() * rect->height()
-                   : x1 - x0 + 1),
-        width_skip_(rect->width() - (x1 - x0 + 1)) {}
-
-  uint8_t next() {
-    if (x_ >= width_) {
-      ptr_ += (width_skip_ + nibble_idx_) / 2;
-      nibble_idx_ = (width_skip_ + nibble_idx_) % 2;
-      x_ = 0;
-    }
-    uint8_t result = (*ptr_ >> ((1 - nibble_idx_) * 4)) & 0xF;
-    ++x_;
-    ++nibble_idx_;
-    ptr_ += (nibble_idx_ >= 2);
-    nibble_idx_ &= 1;
-    return result;
-  }
-
- private:
-  const uint8_t* ptr_;
-  uint8_t nibble_idx_;
-  int16_t x_;
-  const int16_t width_;
-  const int16_t width_skip_;
-};
-
 // Adapter to use writer as filler, for a single rectangle.
 struct RectFillWriter {
   Color color;
@@ -50,12 +15,61 @@ struct RectFillWriter {
 
 }  // namespace
 
+BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height)
+    : FrameBuffer(width, height,
+                  new uint8_t[FrameBuffer::SizeForDimensions(width, height)],
+                  true) {
+  invalidate();
+}
+
+BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height,
+                                                  uint8_t* buffer)
+    : FrameBuffer(width, height, buffer, false) {}
+
+BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height,
+                                                  uint8_t* buffer,
+                                                  bool owns_buffer)
+    : background_mask_(
+          buffer, ((((width - 1) / kBgFillOptimizerWindowSize + 1) + 1) / 2),
+          ((((height - 1) / kBgFillOptimizerWindowSize + 1) + 1) / 2) * 2),
+      palette_size_(0),
+      owned_buffer_(owns_buffer ? buffer : nullptr) {}
+
+void BackgroundFillOptimizer::FrameBuffer::setPalette(const Color* palette,
+                                                      uint8_t palette_size) {
+  assert(palette_size <= 15);
+  std::copy(palette, palette + palette_size, palette_);
+  palette_size_ = palette_size;
+}
+
+void BackgroundFillOptimizer::FrameBuffer::setPalette(
+    std::initializer_list<Color> palette) {
+  assert(palette.size() <= 15);
+  std::copy(palette.begin(), palette.end(), palette_);
+  palette_size_ = palette.size();
+}
+
+void BackgroundFillOptimizer::FrameBuffer::invalidate() {
+  background_mask_.fillRect(
+      Box(0, 0, background_mask_.width() - 1, background_mask_.height() - 1),
+      0);
+}
+
+void BackgroundFillOptimizer::FrameBuffer::invalidateRect(const Box& rect) {
+  background_mask_.fillRect(
+      Box(rect.xMin() / roo_display::kBgFillOptimizerWindowSize,
+          rect.yMin() / roo_display::kBgFillOptimizerWindowSize,
+          rect.xMax() / roo_display::kBgFillOptimizerWindowSize,
+          rect.yMax() / roo_display::kBgFillOptimizerWindowSize),
+      0);
+}
+
 BackgroundFillOptimizer::BackgroundFillOptimizer(DisplayOutput* output,
-                                                 NibbleRect* background_mask,
-                                                 const Color* bg_palette)
+                                                 FrameBuffer* buffer)
     : output_(output),
-      background_mask_(background_mask),
-      palette_(bg_palette),
+      background_mask_(&buffer->background_mask_),
+      palette_(buffer->palette_),
+      palette_size_(buffer->palette_size_),
       address_window_(0, 0, 0, 0),
       cursor_x_(0),
       cursor_y_(0) {}
@@ -199,7 +213,7 @@ void BackgroundFillOptimizer::fillPixels(PaintMode mode, Color color,
 }
 
 inline uint8_t BackgroundFillOptimizer::getIdxInPalette(Color color) {
-  for (int i = 0; i < 15; ++i) {
+  for (int i = 0; i < palette_size_; ++i) {
     if (color == palette_[i]) return i + 1;
   }
   return 0;
@@ -232,9 +246,9 @@ void BackgroundFillOptimizer::fillRectBg(int16_t x0, int16_t y0, int16_t x1,
   Box filter_box(
       x0 / kBgFillOptimizerWindowSize, y0 / kBgFillOptimizerWindowSize,
       x1 / kBgFillOptimizerWindowSize, y1 / kBgFillOptimizerWindowSize);
-  NibbleRectWindowIterator itr(background_mask_, filter_box.xMin(),
-                               filter_box.yMin(), filter_box.xMax(),
-                               filter_box.yMax());
+  internal::NibbleRectWindowIterator itr(background_mask_, filter_box.xMin(),
+                                         filter_box.yMin(), filter_box.xMax(),
+                                         filter_box.yMax());
   int16_t xendl = filter_box.xMax() + 1;
   for (int16_t y = filter_box.yMin(); y <= filter_box.yMax(); ++y) {
     int16_t xstart = -1;

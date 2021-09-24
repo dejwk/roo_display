@@ -1,5 +1,5 @@
 
-#include "roo_display/filter/background_fill_optimizer.h"
+#include "roo_display/internal/nibble_rect.h"
 
 #include "roo_display.h"
 #include "roo_display/core/color.h"
@@ -10,6 +10,7 @@
 using namespace testing;
 
 namespace roo_display {
+namespace internal {
 
 TEST(NibbleRect, Basics) {
   uint8_t buffer[40];
@@ -203,4 +204,5 @@ TEST(NibbleRect, WindowIteratorSinglePixel) {
               MatchesContent(Grayscale4(), 1, 1, "E"));
 }
 
+}  // namespace internal
 }  // namespace roo_display

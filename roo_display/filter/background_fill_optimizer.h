@@ -3,12 +3,11 @@
 #include "roo_display/core/buffered_drawing.h"
 #include "roo_display/core/device.h"
 #include "roo_display/internal/memfill.h"
+#include "roo_display/internal/nibble_rect.h"
 
 namespace roo_display {
 
 static const int kBgFillOptimizerWindowSize = 4;
-
-class NibbleRect;
 
 // Display device filter which reduces the amount of redundant background
 // re-drawing, for a collection of up to 15 designated background colors.
@@ -50,17 +49,67 @@ class NibbleRect;
 // 1).
 class BackgroundFillOptimizer : public DisplayOutput {
  public:
+  class FrameBuffer {
+   public:
+    // returns the buffer size, in bytes, needed to accommodate the device with
+    // the specified dimensions.
+    static constexpr size_t SizeForDimensions(int16_t w, int16_t h) {
+      return ((((w - 1) / kBgFillOptimizerWindowSize + 1) + 1) / 2) *
+             ((((h - 1) / kBgFillOptimizerWindowSize + 1) + 1) / 2) * 2;
+    }
+
+    // Creates a new frame buffer, for the underlying display output of the
+    // specified dimensions. Frame buffer is allocated dynamically and
+    // preinitialized to zero. Before the framebuffer is used, its palette
+    // should be initialized by calling setPalette().
+    FrameBuffer(int16_t width, int16_t height);
+
+    // Creates a new frame buffer, for the underlying display output of the
+    // specified dimensions, using the specified byte buffer. The byte buffer is
+    // not cleared. The byte buffer is expected to have sufficient size to cover
+    // the entire area of the underlying display output. For example, For a
+    // display output sized 480x320, and assuming the default
+    // kBkFillOptimizerWindowSize == 4, the byte buffer should be 480 / 4 / 2
+    // (nibbles per byte) * 320 / 4 = 60 * 80 = 4800 bytes. (Note: if either
+    // width or height is odd, it must be rounded up to the nearest even number
+    // for the purpose of byte buffer size calculations).
+    // Before the framebuffer is used, its palette should be initialized by
+    // calling setPalette().
+    FrameBuffer(int16_t width, int16_t height, uint8_t* buffer);
+
+    // Makes this framebuffer use the specified palette. The palette size
+    // is expected to be <= 15.
+    // Unless the buffer is already known to be all clear it should be
+    // invalidated after a palette change.
+    void setPalette(const Color* palette, uint8_t palette_size);
+
+    // As above, but using an initializer list.
+    void setPalette(std::initializer_list<Color> palette);
+
+    // Clear the entire background mask to zero.
+    void invalidate();
+
+    // Clears the background mask to zero, for the area that fully covers the
+    // specified target rectangle. Useful e.g. if the display has been drawn to
+    // out-of-bounds, i.e. directly via the device.
+    void invalidateRect(const Box& rect);
+
+   private:
+    friend class BackgroundFillOptimizer;
+
+    FrameBuffer(int16_t width, int16_t height, uint8_t* buffer,
+                bool owns_buffer);
+
+    internal::NibbleRect background_mask_;
+    Color palette_[15];
+    uint8_t palette_size_;
+    std::unique_ptr<uint8_t[]> owned_buffer_;
+  };
+
   // Creates the instance of a background fill optimizer filter, delegating to
   // the specified display output (which usually should be a physical device),
-  // using the specified background mask, and a specified 15-color palette.
-  // The color palette should not be modified after this filter is created.
-  // The background_mask is expected to have sufficient size to cover the entire
-  // area of the underlying display output. For example, For a display output
-  // sized 480x320, and assuming the default kBkFillOptimizerWindowSize == 4,
-  // the background mask should have the buffer of 4800 bytes, with width_bytes
-  // = 480 / 4 / 2 (nibbles per byte) = 60, and height = 320 / 4 = 80.
-  BackgroundFillOptimizer(DisplayOutput* output, NibbleRect* background_mask,
-                          const Color* bg_palette);
+  // using the specified frame buffer.
+  BackgroundFillOptimizer(DisplayOutput* output, FrameBuffer* frame_buffer);
 
   virtual ~BackgroundFillOptimizer() {}
 
@@ -93,61 +142,14 @@ class BackgroundFillOptimizer : public DisplayOutput {
                   Filler* filler, uint8_t palette_idx);
 
   DisplayOutput* output_;
-  NibbleRect* background_mask_;
+  internal::NibbleRect* background_mask_;
   const Color* palette_;
+  const uint8_t palette_size_;
 
   Box address_window_;
   PaintMode paint_mode_;
   int16_t cursor_x_;
   int16_t cursor_y_;
-};
-
-// Rectangular nibble (half-byte) area.
-class NibbleRect {
- public:
-  NibbleRect(uint8_t* buffer, int16_t width_bytes, int16_t height)
-      : buffer_(buffer), width_bytes_(width_bytes), height_(height) {}
-
-  uint8_t* buffer() { return buffer_; }
-  const uint8_t* buffer() const { return buffer_; }
-  int16_t width_bytes() const { return width_bytes_; }
-  int16_t width() const { return width_bytes_ * 2; }
-  int16_t height() const { return height_; }
-
-  uint8_t get(int16_t x, int16_t y) const {
-    return (buffer_[y * width_bytes_ + x / 2] >> ((1 - (x % 2)) * 4)) & 0xF;
-  }
-
-  void set(int16_t x, int16_t y, uint8_t value) {
-    uint8_t& byte = buffer_[x / 2 + y * width_bytes()];
-    if (x % 2 == 0) {
-      byte &= 0x0F;
-      byte |= (value << 4);
-    } else {
-      byte &= 0xF0;
-      byte |= value;
-    }
-  }
-
-  // Fills the specified rectangle of the mask with the specified bit value.
-  void fillRect(const Box& rect, uint8_t value) {
-    if (rect.xMin() == 0 && rect.xMax() == width() - 1) {
-      nibble_fill(buffer_, rect.yMin() * width(), rect.height() * width(),
-                  value);
-    } else {
-      int16_t w = rect.width();
-      uint32_t offset = rect.xMin() + rect.yMin() * width();
-      for (int16_t i = rect.height(); i > 0; --i) {
-        nibble_fill(buffer_, offset, w, value);
-        offset += width();
-      }
-    }
-  }
-
- private:
-  uint8_t* buffer_;
-  int16_t width_bytes_;
-  int16_t height_;
 };
 
 }  // namespace roo_display

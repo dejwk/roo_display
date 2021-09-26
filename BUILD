@@ -317,3 +317,17 @@ cc_test(
         "@gtest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "hashtable_test",
+    srcs = [
+        "test/hashtable_test.cpp",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    defines = [ "ROO_DISPLAY_TEST" ],
+    deps = [
+        "//lib/roo_display",
+        "@gtest//:gtest_main",
+    ],
+)

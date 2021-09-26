@@ -2,6 +2,7 @@
 
 #include <inttypes.h>
 
+#include "roo_display/internal/hashtable.h"
 #include "roo_display/internal/memfill.h"
 
 namespace roo_display {
@@ -164,6 +165,18 @@ enum TransparencyMode {
   TRANSPARENCY_GRADUAL  // Colors may include partial transparency (alpha
                         // channel).
 };
+
+namespace internal {
+
+struct ColorHash {
+  uint32_t operator()(Color color) const {
+    return color.asArgb();
+  }
+};
+
+typedef HashSet<Color, ColorHash> ColorSet;
+
+}  // namespace internal
 
 // ColorMode is the following template contract:
 // class T {

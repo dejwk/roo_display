@@ -123,6 +123,16 @@ class TileBase : public Drawable {
 // e.g. active, inactive, selected, clicked, etc.
 class Tile : public internal::TileBase {
  public:
+  // Utility function to calculate the bounds of the tile's interior, given
+  // its exterior bounds, the original interior bounds, and the alignment
+  // constraints. The function returns the same bounds that the interior will
+  // have when a tile with these pararameters is drawn.
+  static Box InteriorBounds(const Box &exterior, const Box &interior,
+                            HAlign halign, VAlign valign) {
+    return interior.translate(halign.GetOffset(exterior, interior),
+                              valign.GetOffset(exterior, interior));
+  }
+
   // Creates a tile with the specified interior, alignment, and optionally
   // background color.
   Tile(const Drawable *interior, Box extents, HAlign halign, VAlign valign,

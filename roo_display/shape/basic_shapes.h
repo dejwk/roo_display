@@ -75,6 +75,9 @@ class Rect : public RectBase {
 
 class FilledRect : public RectBase, public Rasterizable {
  public:
+  FilledRect(const Box& box, Color color)
+      : RectBase(box.xMin(), box.yMin(), box.xMax(), box.yMax(), color) {}
+
   FilledRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Color color)
       : RectBase(x0, y0, x1, y1, color) {}
 

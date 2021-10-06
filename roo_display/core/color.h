@@ -67,10 +67,9 @@ class Color {
   constexpr Color toOpaque() { return Color(asArgb() | 0xFF000000); }
 
   // Utility function to quickly fill an array with a single color.
-  static void Fill(Color* buf, uint32_t count, Color color) {
-    pattern_fill<sizeof(Color)>(
-      reinterpret_cast<uint8_t*>(buf), count,
-      reinterpret_cast<uint8_t*>(&color));
+  static void Fill(Color *buf, uint32_t count, Color color) {
+    pattern_fill<sizeof(Color)>(reinterpret_cast<uint8_t *>(buf), count,
+                                reinterpret_cast<uint8_t *>(&color));
   }
 
  private:
@@ -159,6 +158,17 @@ inline Color combineColors(Color bgc, Color fgc, PaintMode paint_mode) {
   }
 }
 
+// Ratio is expected in the range of [0, 128], inclusively.
+// The resulting color = c1 * (ratio/128) + c2 * (1 - ratio/128).
+// Use ratio = 64 for the arithmetic average.
+inline constexpr Color averageColors(Color c1, Color c2, uint8_t ratio) {
+  return Color(
+      (((uint8_t)c1.a() * ratio + (uint8_t)c2.a() * (128 - ratio)) >> 7) << 24 |
+      (((uint8_t)c1.r() * ratio + (uint8_t)c2.r() * (128 - ratio)) >> 7) << 16 |
+      (((uint8_t)c1.g() * ratio + (uint8_t)c2.g() * (128 - ratio)) >> 7) << 8 |
+      (((uint8_t)c1.b() * ratio + (uint8_t)c2.b() * (128 - ratio)) >> 7) << 0);
+}
+
 enum TransparencyMode {
   TRANSPARENCY_NONE,    // All colors are fully opaque.
   TRANSPARENCY_BINARY,  // Colors are either fully opaque or fully transparent.
@@ -169,9 +179,7 @@ enum TransparencyMode {
 namespace internal {
 
 struct ColorHash {
-  uint32_t operator()(Color color) const {
-    return color.asArgb();
-  }
+  uint32_t operator()(Color color) const { return color.asArgb(); }
 };
 
 typedef HashSet<Color, ColorHash> ColorSet;
@@ -523,14 +531,13 @@ class Monochrome {
   }
 
   constexpr TransparencyMode transparency() const {
-    return bg().a() == 0xFF
-               ? (fg().a() == 0xFF ? TRANSPARENCY_NONE
-                                   : fg().a() == 0x00 ? TRANSPARENCY_BINARY
-                                                      : TRANSPARENCY_GRADUAL)
-               : bg().a() == 0x00 ? (fg().a() == 0x00 || fg().a() == 0xFF
-                                         ? TRANSPARENCY_BINARY
-                                         : TRANSPARENCY_GRADUAL)
-                                  : TRANSPARENCY_GRADUAL;
+    return bg().a() == 0xFF ? (fg().a() == 0xFF   ? TRANSPARENCY_NONE
+                               : fg().a() == 0x00 ? TRANSPARENCY_BINARY
+                                                  : TRANSPARENCY_GRADUAL)
+           : bg().a() == 0x00
+               ? (fg().a() == 0x00 || fg().a() == 0xFF ? TRANSPARENCY_BINARY
+                                                       : TRANSPARENCY_GRADUAL)
+               : TRANSPARENCY_GRADUAL;
   }
 
   constexpr bool hasTransparency() const {

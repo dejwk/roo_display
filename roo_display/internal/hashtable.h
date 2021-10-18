@@ -39,7 +39,7 @@ inline int initialCapacityIdx(uint16_t size_hint) {
 
 struct DefaultHash {
   template <typename T>
-  operator()(const T& val) const {
+  T operator()(const T& val) const {
     return val;
   }
 };

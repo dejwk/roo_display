@@ -9,6 +9,11 @@ class RectUnion {
  public:
   RectUnion(const Box* begin, const Box* end) : begin_(begin), end_(end) {}
 
+  void reset(const Box* begin, const Box* end) {
+    begin_ = begin;
+    end_ = end;
+  }
+
   inline bool contains(int16_t x, int16_t y) const {
     for (const Box* box = begin_; box != end_; ++box) {
       if (box->contains(x, y)) return true;

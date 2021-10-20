@@ -24,13 +24,14 @@ namespace roo_display {
 // }
 
 template <typename RawStreamable>
-using RawStreamTypeOf = typename decltype(
-    std::declval<const RawStreamable>().CreateRawStream())::element_type;
+using RawStreamTypeOf = typename decltype(std::declval<const RawStreamable>()
+                                              .CreateRawStream())::element_type;
 
 template <typename RawStreamable>
 using NativelyClippedRawStreamTypeOf =
-    typename decltype(std::declval<const RawStreamable>().CreateClippedRawStream(
-        std::declval<Box>()))::element_type;
+    typename decltype(std::declval<const RawStreamable>()
+                          .CreateClippedRawStream(
+                              std::declval<Box>()))::element_type;
 
 template <typename RawStreamable>
 using ColorModeOf = decltype(std::declval<const RawStreamable>().color_mode());
@@ -260,7 +261,13 @@ class DrawableRawStreamable : public Streamable {
 
   std::unique_ptr<PixelStream> CreateStream() const override {
     return std::unique_ptr<PixelStream>(
-      new Stream<RawStreamTypeOf<RawStreamable>>(streamable_.CreateRawStream()));
+        new Stream<RawStreamTypeOf<RawStreamable>>(
+            streamable_.CreateRawStream()));
+  }
+
+  decltype(std::declval<RawStreamable>().CreateRawStream()) CreateRawStream()
+      const {
+    return streamable_.CreateRawStream();
   }
 
  private:
@@ -269,8 +276,8 @@ class DrawableRawStreamable : public Streamable {
    public:
     Stream(std::unique_ptr<RawStream> raw) : raw_(std::move(raw)) {}
 
-    void Read(Color* buf, uint16_t count) override {
-      while (count -- > 0) *buf++ = raw_->next();
+    void Read(Color *buf, uint16_t count) override {
+      while (count-- > 0) *buf++ = raw_->next();
     }
 
    private:
@@ -369,7 +376,7 @@ class Clipping {
 
   const Box &extents() const { return extents_; }
 
-  const ColorModeOf<RawStreamable>& color_mode() const {
+  const ColorModeOf<RawStreamable> &color_mode() const {
     return streamable_.color_mode();
   }
 

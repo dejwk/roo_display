@@ -13,6 +13,13 @@ class Rasterizable : public virtual Streamable {
   virtual void ReadColors(const int16_t* x, const int16_t* y, uint32_t count,
                           Color* result) const = 0;
 
+  // Read colors corresponding to the specified rectangle. Returns true if all
+  // colors are known to be the same. In this case, only the result[0] is
+  // supposed to be read. Otherwise, the result array is filled with colors
+  // corresponding to all the pixels corresponding to the rectangle.
+  virtual bool ReadColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
+                             int16_t yMax, Color* result) const;
+
   std::unique_ptr<PixelStream> CreateStream() const override;
 
  private:
@@ -86,7 +93,9 @@ class SimpleTiledRasterizable : public Rasterizable {
     }
   }
 
-  TransparencyMode GetTransparencyMode() const override { return transparency_; }
+  TransparencyMode GetTransparencyMode() const override {
+    return transparency_;
+  }
 
  private:
   Box extents_;

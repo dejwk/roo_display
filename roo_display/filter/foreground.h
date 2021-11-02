@@ -71,7 +71,6 @@ class ForegroundFilter : public DisplayOutput {
 
   void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
-    BufferedPixelWriter writer(output_, mode);
     while (count-- > 0) {
       fillRect(mode, *x0++, *y0++, *x1++, *y1++, *color++);
     }
@@ -79,7 +78,6 @@ class ForegroundFilter : public DisplayOutput {
 
   void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
-    BufferedPixelFiller filler(output_, color, mode);
     while (count-- > 0) {
       fillRect(mode, *x0++, *y0++, *x1++, *y1++, color);
     }
@@ -124,36 +122,39 @@ class ForegroundFilter : public DisplayOutput {
 
   void fillRect(PaintMode mode, int16_t xMin, int16_t yMin, int16_t xMax,
                 int16_t yMax, Color color) {
-    ForegroundFilter::setAddress(xMin, yMin, xMax, yMax, mode);
-    int16_t x[64];
-    int16_t y[64];
-    Color newcolor[64];
-    int16_t i = 0;
     uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
-    while (pixel_count-- > 0) {
-      x[i] = cursor_x_++;
-      y[i] = cursor_y_;
-      i++;
-      if (i == 64) {
-        foreground_->ReadColors(x, y, 64, newcolor);
-        for (uint16_t i = 0; i < 64; ++i) {
-          newcolor[i] = alphaBlend(color, newcolor[i]);
-        }
-        output_->write(newcolor, 64);
-        i = 0;
-      }
-      if (cursor_x_ > address_window_.xMax()) {
-        cursor_y_++;
-        cursor_x_ = address_window_.xMin();
+    if (pixel_count <= 64) {
+      fillRectInternal(mode, xMin, yMin, xMax, yMax, color);
+      return;
+    }
+    int16_t xMinOuter = (xMin / 8) * 8;
+    int16_t yMinOuter = (yMin / 8) * 8;
+    int16_t xMaxOuter = (xMax / 8) * 8 + 7;
+    int16_t yMaxOuter = (yMax / 8) * 8 + 7;
+    for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
+      for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
+        fillRectInternal(mode, std::max(x, xMin), std::max(y, yMin),
+                         std::min((int16_t)(x + 7), xMax),
+                         std::min((int16_t)(y + 7), yMax), color);
       }
     }
-    int16_t remaining = i;
-    if (remaining > 0) {
-      foreground_->ReadColors(x, y, remaining, newcolor);
-      for (uint16_t i = 0; i < remaining; ++i) {
+  }
+
+  // Called for rectangles with area <= 64 pixels.
+  void fillRectInternal(PaintMode mode, int16_t xMin, int16_t yMin,
+                        int16_t xMax, int16_t yMax, Color color) {
+    uint16_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
+    Color newcolor[pixel_count];
+    bool same = foreground_->ReadColorRect(xMin, yMin, xMax, yMax, newcolor);
+    if (same) {
+      output_->fillRect(mode, Box(xMin, yMin, xMax, yMax),
+                        alphaBlend(color, newcolor[0]));
+    } else {
+      for (uint16_t i = 0; i < pixel_count; ++i) {
         newcolor[i] = alphaBlend(color, newcolor[i]);
       }
-      output_->write(newcolor, remaining);
+      output_->setAddress(Box(xMin, yMin, xMax, yMax), mode);
+      output_->write(newcolor, pixel_count);
     }
   }
 

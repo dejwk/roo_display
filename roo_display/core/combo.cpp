@@ -410,6 +410,10 @@ void writeRect(internal::Engine* engine, const Box& bounds,
         } while (count > 0);
         break;
       }
+      default: {
+        // Unexpected.
+        return;
+      }
     }
   }
 }
@@ -523,6 +527,10 @@ void writeVisible(internal::Engine* engine, const Box& bounds,
           count -= batch;
         } while (count > 0);
         break;
+      }
+      default: {
+        // Unexpected.
+        return;
       }
     }
   }

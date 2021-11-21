@@ -121,3 +121,15 @@ inline bool operator==(const Box& a, const Box& b) {
 inline bool operator!=(const Box& a, const Box& b) { return !(a == b); }
 
 }  // namespace roo_display
+
+#if defined(__linux__) || defined(__linux) || defined(linux)
+#include <ostream>
+
+namespace roo_display {
+inline std::ostream& operator<<(std::ostream& os, const roo_display::Box& box) {
+  os << "[" << box.xMin() << ", " << box.yMin() << ", " << box.xMax() << ", "
+     << box.yMax() << "]";
+  return os;
+}
+}
+#endif  // defined(__linux__)

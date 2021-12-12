@@ -7,6 +7,8 @@ namespace roo_display {
 #if defined(ESP32)
 
 struct Esp32Gpio {
+  static void setOutput(int pin) { pinMode(pin, OUTPUT); }
+
   template <int pin>
   static void setLow() {
     GPIO.out_w1ts = (1 << pin);
@@ -25,6 +27,8 @@ typedef Esp32Gpio DefaultGpio;
 #else
 
 struct ArduinoGpio {
+  static void setOutput(int pin) { pinMode(pin, OUTPUT); }
+
   template <int pin>
   static void setLow() {
     digitalWrite(pin, LOW);
@@ -40,4 +44,4 @@ typedef ArduinoGpio DefaultGpio;
 
 #endif
 
-}  // namespace
+}  // namespace roo_display

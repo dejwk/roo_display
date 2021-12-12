@@ -13,25 +13,35 @@ class GenericSpi {
  public:
   // Creates the SPI transport, with specified transaction settings, using the
   // provided SPI bus.
-  GenericSpi(decltype(SPI)& spi, SPISettings settings)
-      : spi_(spi), settings_(std::move(settings)) {}
+  GenericSpi(decltype(SPI)& spi) : spi_(spi) {}
 
-  // Creates the SPI transport, with specified clock, and using MSBFIRST and
-  // SPI_MODE0, using the provided SPI bus.
-  GenericSpi(decltype(SPI)& spi, uint32_t clock)
-      : spi_(spi), settings_(clock, MSBFIRST, SPI_MODE0) {}
+  // // Creates the SPI transport, with specified clock, and using MSBFIRST and
+  // // SPI_MODE0, using the provided SPI bus.
+  // GenericSpi(decltype(SPI)& spi, uint32_t clock)
+  //     : spi_(spi), settings_(clock, MSBFIRST, SPI_MODE0) {}
 
-  // Creates the SPI transport, with specified transaction settings, using the
-  // default SPI bus.
-  GenericSpi(SPISettings settings)
-      : spi_(SPI), settings_(std::move(settings)) {}
+  // // Creates the SPI transport, with specified transaction settings, using
+  // the
+  // // default SPI bus.
+  // GenericSpi(SPISettings settings)
+  //     : spi_(SPI), settings_(std::move(settings)) {}
 
-  // Creates the SPI transport, with specified clock, and using MSBFIRST and
-  // SPI_MODE0, using the default SPI bus.
-  GenericSpi(uint32_t clock)
-      : spi_(SPI), settings_(clock, MSBFIRST, SPI_MODE0) {}
+  // // Creates the SPI transport, with specified clock, and using MSBFIRST and
+  // // SPI_MODE0, using the default SPI bus.
+  // GenericSpi(uint32_t clock)
+  //     : spi_(SPI), settings_(clock, MSBFIRST, SPI_MODE0) {}
 
-  void beginTransaction() { spi_.beginTransaction(settings_); }
+  // // Creates the SPI transport, with specified transaction settings, using
+  // the
+  // // default SPI bus.
+  // GenericSpi(SPISettings settings)
+  //     : spi_(SPI), settings_(std::move(settings)) {}
+
+  GenericSpi() : GenericSpi(SPI) {}
+
+  void beginTransaction(SPISettings& settings) {
+    spi_.beginTransaction(settings);
+  }
   void endTransaction() { spi_.endTransaction(); }
 
   void writeBytes(uint8_t* data, uint32_t len) { spi_.writeBytes(data, len); }
@@ -71,37 +81,7 @@ class GenericSpi {
 
  private:
   decltype(SPI)& spi_;
-  SPISettings settings_;
-};
-
-class SpiTransactionConfig {
- public:
-  SpiTransactionConfig(GenericSpi spi, int pin_cs)
-      : spi_(spi), pin_cs_(pin_cs) {}
-
-  GenericSpi& spi() { return spi_; }
-  int pin_cs() const { return pin_cs_; }
-
- private:
-  GenericSpi spi_;
-  int pin_cs_;
-};
-
-class SpiTransaction {
- public:
-  SpiTransaction(SpiTransactionConfig& config)
-      : spi_(config.spi()), pin_cs_(config.pin_cs()) {
-    spi_.beginTransaction();
-    digitalWrite(pin_cs_, LOW);
-  }
-  ~SpiTransaction() {
-    digitalWrite(pin_cs_, HIGH);
-    spi_.endTransaction();
-  }
-
- private:
-  GenericSpi& spi_;
-  int pin_cs_;
+  // SPISettings settings_;
 };
 
 template <uint32_t _clock, uint8_t _bit_order, uint8_t _data_mode>
@@ -118,8 +98,29 @@ class BoundSpi : public Spi {
  public:
   template <typename... Args>
   BoundSpi(Args&&... args)
-      : Spi(std::forward<Args>(args)...,
-            SPISettings(clock, bit_order, data_mode)) {}
+      : Spi(std::forward<Args>(args)...),
+        settings_(clock, bit_order, data_mode) {}
+
+  void beginTransaction() { beginTransaction(settings_); }
+
+ private:
+  SPISettings settings_;
+};
+
+template <int pinCS, typename BoundSpiInterface, typename Gpio>
+class BoundSpiTransaction {
+ public:
+  BoundSpiTransaction() : spi_() {
+    spi_.beginTransaction();
+    Gpio::template setLow<pinCS>();
+  }
+  ~BoundSpiTransaction() {
+    Gpio::template setHigh<pinCS>();
+    spi_.endTransaction();
+  }
+
+ private:
+  BoundSpiInterface spi_;
 };
 
 // Partial specialization for GenericSpi.
@@ -128,8 +129,11 @@ using BoundGenericSpi = BoundSpi<GenericSpi, clock, bit_order, data_mode>;
 
 struct GenericSpiInterface {
   template <typename SpiSettings>
-  using Transport = BoundGenericSpi<SpiSettings::clock, SpiSettings::bit_order,
-                                    SpiSettings::data_mode>;
+  using BoundTransport =
+      BoundGenericSpi<SpiSettings::clock, SpiSettings::bit_order,
+                      SpiSettings::data_mode>;
+
+  using Transport = GenericSpi;
 };
 
 #ifdef ESP32

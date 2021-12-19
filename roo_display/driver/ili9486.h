@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <SPI.h>
+
 #include "roo_display/driver/common/addr_window_device.h"
 #include "roo_display/hal/gpio.h"
 #include "roo_display/hal/transport_bus.h"
@@ -167,18 +168,15 @@ class Ili9486Target {
 
 }  // namespace ili9486
 
-template <typename Transport,
-          int pinCS, int pinDC, int pinRST,
+template <typename Transport, int pinCS, int pinDC, int pinRST,
           typename Gpio = DefaultGpio>
 using Ili9486 = AddrWindowDevice<
     ili9486::Ili9486Target<pinCS, pinDC, pinRST, Transport, Gpio>>;
 
-template <int pinCS, int pinDC, int pinRST,
-          typename SpiInterface = DefaultSpiInterface,
+template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
           typename SpiSettings = ili9486::DefaultSpiSettings,
           typename Gpio = DefaultGpio>
-using Ili9486spi = Ili9486<
-    typename SpiInterface::template Transport<SpiSettings>,
-    pinCS, pinDC, pinRST, Gpio>;
+using Ili9486spi =
+    Ili9486<BoundSpi<Spi, SpiSettings>, pinCS, pinDC, pinRST, Gpio>;
 
 }  // namespace roo_display

@@ -13,15 +13,15 @@ static const int kSpiTouchFrequency = 2500000;
 
 typedef SpiSettings<kSpiTouchFrequency, MSBFIRST, SPI_MODE0> TouchXpt2046SpiSettings;
 
-template <int pinCS, typename SpiInterface = DefaultSpiInterface, typename Gpio = DefaultGpio>
+template <int pinCS, typename Spi = DefaultSpi, typename Gpio = DefaultGpio>
 class TouchXpt2046Uncalibrated : public TouchDevice {
  public:
-  TouchXpt2046Uncalibrated();
+  explicit TouchXpt2046Uncalibrated(Spi spi = Spi());
 
   bool getTouch(int16_t *x, int16_t *y, int16_t *z) override;
 
  private:
-  typename SpiInterface::template BoundTransport<TouchXpt2046SpiSettings> spi_transport_;
+  BoundSpi<Spi, TouchXpt2046SpiSettings> spi_transport_;
 
   bool pressed_;
   unsigned long latest_confirmed_pressed_timestamp_;
@@ -30,13 +30,12 @@ class TouchXpt2046Uncalibrated : public TouchDevice {
   uint16_t press_z_;
 };
 
-template <int pinCS, typename SpiInterface = DefaultSpiInterface, typename Gpio = DefaultGpio>
+template <int pinCS, typename Spi = DefaultSpi, typename Gpio = DefaultGpio>
 class TouchXpt2046 : public TouchDevice {
  public:
-  TouchXpt2046(SpiInterface spi = SpiInterface());
+  TouchXpt2046(Spi spi = Spi());
 
-  TouchXpt2046(TouchCalibration calibration,
-               SpiInterface spi = SpiInterface());
+  TouchXpt2046(TouchCalibration calibration, Spi spi = Spi());
 
   void setCalibration(TouchCalibration calibration) {
     calibration_ = std::move(calibration);
@@ -46,7 +45,7 @@ class TouchXpt2046 : public TouchDevice {
 
  private:
   TouchCalibration calibration_;
-  TouchXpt2046Uncalibrated<pinCS, SpiInterface, Gpio> uncalibrated_;
+  TouchXpt2046Uncalibrated<pinCS, Spi, Gpio> uncalibrated_;
 };
 
 // If two subsequent reads are further apart than this parameter, in either
@@ -87,9 +86,9 @@ static const int kExponentialSmoothingFactor = 224;
 
 // Implementation follows.
 
-template <int pinCS, typename SpiInterface, typename Gpio>
-TouchXpt2046Uncalibrated<pinCS, SpiInterface, Gpio>::TouchXpt2046Uncalibrated()
-    : spi_transport_(),
+template <int pinCS, typename Spi, typename Gpio>
+TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::TouchXpt2046Uncalibrated(Spi spi)
+    : spi_transport_(std::move(spi)),
       pressed_(false),
       latest_confirmed_pressed_timestamp_(0),
       press_x_(0),
@@ -99,8 +98,8 @@ TouchXpt2046Uncalibrated<pinCS, SpiInterface, Gpio>::TouchXpt2046Uncalibrated()
   Gpio::template setHigh<pinCS>();
 }
 
-template <typename SpiTransport>
-void get_raw_touch_xy(SpiTransport& spi, uint16_t* x, uint16_t* y) {
+template <typename Spi>
+void get_raw_touch_xy(Spi& spi, uint16_t* x, uint16_t* y) {
   spi.transfer(0xd0);
   *x = spi.transfer16(0) >> 3;
 
@@ -109,8 +108,8 @@ void get_raw_touch_xy(SpiTransport& spi, uint16_t* x, uint16_t* y) {
   *y = spi.transfer16(0) >> 3;
 }
 
-template <typename SpiTransport>
-uint16_t get_raw_touch_z(SpiTransport& spi) {
+template <typename Spi>
+uint16_t get_raw_touch_z(Spi& spi) {
   int16_t tz = 0xFFF;
   spi.transfer(0xb1);
   tz += spi.transfer16(0xc1) >> 3;
@@ -120,8 +119,8 @@ uint16_t get_raw_touch_z(SpiTransport& spi) {
 
 enum ConversionResult { UNTOUCHED = 0, TOUCHED = 1, UNSETTLED = 2 };
 
-template <typename SpiTransport>
-ConversionResult single_conversion(SpiTransport& spi, uint16_t z_threshold,
+template <typename Spi>
+ConversionResult single_conversion(Spi& spi, uint16_t z_threshold,
                                    uint16_t* x, uint16_t* y, uint16_t* z) {
   // Wait until pressure stops increasing
   uint16_t z1 = 1;
@@ -170,8 +169,8 @@ class Smoother {
   bool initialized_;
 };
 
-template <int pinCS, typename SpiInterface, typename Gpio>
-bool TouchXpt2046Uncalibrated<pinCS, SpiInterface, Gpio>::getTouch(int16_t* x, int16_t* y, int16_t* z) {
+template <int pinCS, typename Spi, typename Gpio>
+bool TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::getTouch(int16_t* x, int16_t* y, int16_t* z) {
   unsigned long now = millis();
   int z_threshold = kInitialTouchZThreshold;
   if (pressed_ &&
@@ -179,7 +178,7 @@ bool TouchXpt2046Uncalibrated<pinCS, SpiInterface, Gpio>::getTouch(int16_t* x, i
       z_threshold > kSustainedTouchZThreshold) {
     z_threshold = kSustainedTouchZThreshold;
   }
-  BoundSpiTransaction<pinCS, SpiInterface, Gpio> transaction;
+  BoundSpiTransaction<pinCS, decltype(spi_transport_), Gpio> transaction(spi_transport_);
 
   int settled_conversions = 0;
   uint16_t x_tmp, y_tmp, z_tmp;
@@ -189,7 +188,7 @@ bool TouchXpt2046Uncalibrated<pinCS, SpiInterface, Gpio>::getTouch(int16_t* x, i
 
   bool touched = false;
   for (int i = 0; i < kMaxConversionAttempts; ++i) {
-    ConversionResult result = single_conversion<SpiInterface>(z_threshold,
+    ConversionResult result = single_conversion(spi_transport_, z_threshold,
                                                 &x_tmp, &y_tmp, &z_tmp);
     if (result == UNSETTLED) continue;
     settled_conversions++;
@@ -227,17 +226,17 @@ bool TouchXpt2046Uncalibrated<pinCS, SpiInterface, Gpio>::getTouch(int16_t* x, i
   return false;
 }
 
-template <int pinCS, typename SpiInterface, typename Gpio>
-TouchXpt2046<pinCS, SpiInterface, Gpio>::TouchXpt2046(SpiInterface spi)
+template <int pinCS, typename Spi, typename Gpio>
+TouchXpt2046<pinCS, Spi, Gpio>::TouchXpt2046(Spi spi)
     : calibration_(), uncalibrated_(std::move(spi)) {}
 
-template <int pinCS, typename SpiInterface, typename Gpio>
-TouchXpt2046<pinCS, SpiInterface, Gpio>::TouchXpt2046(TouchCalibration calibration,
-                           SpiInterface spi)
+template <int pinCS, typename Spi, typename Gpio>
+TouchXpt2046<pinCS, Spi, Gpio>::TouchXpt2046(TouchCalibration calibration,
+                           Spi spi)
     : calibration_(std::move(calibration)), uncalibrated_(std::move(spi)) {}
 
-template <int pinCS, typename SpiInterface, typename Gpio>
-bool TouchXpt2046<pinCS, SpiInterface, Gpio>::getTouch(int16_t* x, int16_t* y, int16_t* z) {
+template <int pinCS, typename Spi, typename Gpio>
+bool TouchXpt2046<pinCS, Spi, Gpio>::getTouch(int16_t* x, int16_t* y, int16_t* z) {
   bool touched = uncalibrated_.getTouch(x, y, z);
   return touched ? calibration_.Calibrate(x, y, z) : false;
 }

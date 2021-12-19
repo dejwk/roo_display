@@ -199,12 +199,10 @@ template <typename Transport, int pinCS, int pinDC, int pinRST,
 using Ili9341 = AddrWindowDevice<
     ili9341::Ili9341Target<pinCS, pinDC, pinRST, Transport, Gpio>>;
 
-template <int pinCS, int pinDC, int pinRST,
-          typename SpiInterface = DefaultSpiInterface,
+template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
           typename SpiSettings = ili9341::DefaultSpiSettings,
           typename Gpio = DefaultGpio>
 using Ili9341spi =
-    Ili9341<typename SpiInterface::template Transport<SpiSettings>, pinCS,
-            pinDC, pinRST, Gpio>;
+    Ili9341<BoundSpi<Spi, SpiSettings>, pinCS, pinDC, pinRST, Gpio>;
 
 }  // namespace roo_display

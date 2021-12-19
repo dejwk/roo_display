@@ -11,7 +11,7 @@ namespace roo_display {
 
 namespace st7735 {
 
-typedef BoundGenericSpi<20000000, MSBFIRST, SPI_MODE0> SpiTransport;
+typedef BoundSpi<DefaultSpi, SpiSettings<20000000, MSBFIRST, SPI_MODE0>> SpiTransport;
 
 enum Command {
   INVCTR = 0xB4,

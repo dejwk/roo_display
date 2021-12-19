@@ -81,7 +81,6 @@ class GenericSpi {
 
  private:
   decltype(SPI)& spi_;
-  // SPISettings settings_;
 };
 
 template <uint32_t _clock, uint8_t _bit_order, uint8_t _data_mode>
@@ -93,24 +92,23 @@ struct SpiSettings {
 
 // Convenience template wrapper that allows to capture all SPI configuration
 // settings at compile time, inside a class specialization.
-template <typename Spi, uint32_t clock, uint8_t bit_order, uint8_t data_mode>
+template <typename Spi, typename SpiSettings>
 class BoundSpi : public Spi {
  public:
   template <typename... Args>
-  BoundSpi(Args&&... args)
-      : Spi(std::forward<Args>(args)...),
-        settings_(clock, bit_order, data_mode) {}
+  BoundSpi(Args&&... args) : Spi(std::forward<Args>(args)...) {}
 
-  void beginTransaction() { beginTransaction(settings_); }
-
- private:
-  SPISettings settings_;
+  void beginTransaction() {
+    SPISettings settings(SpiSettings::clock, SpiSettings::bit_order,
+                         SpiSettings::data_mode);
+    Spi::beginTransaction(settings);
+  }
 };
 
-template <int pinCS, typename BoundSpiInterface, typename Gpio>
+template <int pinCS, typename BoundSpi, typename Gpio>
 class BoundSpiTransaction {
  public:
-  BoundSpiTransaction() : spi_() {
+  BoundSpiTransaction(BoundSpi& spi) : spi_(spi) {
     spi_.beginTransaction();
     Gpio::template setLow<pinCS>();
   }
@@ -120,20 +118,7 @@ class BoundSpiTransaction {
   }
 
  private:
-  BoundSpiInterface spi_;
-};
-
-// Partial specialization for GenericSpi.
-template <uint32_t clock, uint8_t bit_order, uint8_t data_mode>
-using BoundGenericSpi = BoundSpi<GenericSpi, clock, bit_order, data_mode>;
-
-struct GenericSpiInterface {
-  template <typename SpiSettings>
-  using BoundTransport =
-      BoundGenericSpi<SpiSettings::clock, SpiSettings::bit_order,
-                      SpiSettings::data_mode>;
-
-  using Transport = GenericSpi;
+  BoundSpi& spi_;
 };
 
 #ifdef ESP32
@@ -144,11 +129,11 @@ struct GenericSpiInterface {
 
 namespace roo_display {
 
-typedef ::roo_display::esp32::Vspi DefaultSpiInterface;
+typedef ::roo_display::esp32::Vspi DefaultSpi;
 
 #else
 
-typedef GenericSpiInterface DefaultSpiInterface;
+typedef GenericSpi DefaultSpi;
 
 #endif
 

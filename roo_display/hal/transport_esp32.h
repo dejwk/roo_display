@@ -9,7 +9,7 @@
 namespace roo_display {
 namespace esp32 {
 
-template <uint8_t spi_port, typename SpiSettings>
+template <uint8_t spi_port>
 class SpiTransport {
  public:
   SpiTransport() : spi_(SPI) {
@@ -20,9 +20,8 @@ class SpiTransport {
 
   SpiTransport(decltype(SPI)& spi) : spi_(spi) {}
 
-  void beginTransaction() {
-    spi_.beginTransaction(SPISettings(
-        SpiSettings::clock, SpiSettings::bit_order, SpiSettings::data_mode));
+  void beginTransaction(const SPISettings& settings) {
+    spi_.beginTransaction(settings);
   }
   void endTransaction() { spi_.endTransaction(); }
 
@@ -208,24 +207,17 @@ class SpiTransport {
       ;
   }
 
+  uint8_t transfer(uint8_t data) { return spi_.transfer(data); }
+  uint16_t transfer16(uint16_t data) { return spi_.transfer16(data); }
+  uint32_t transfer32(uint32_t data) { return spi_.transfer32(data); }
+
  private:
   decltype(SPI)& spi_;
 };
 
-struct Vspi {
-  template <typename SpiSettings>
-  using Transport = SpiTransport<VSPI, SpiSettings>;
-};
-
-struct Hspi {
-  template <typename SpiSettings>
-  using Transport = SpiTransport<HSPI, SpiSettings>;
-};
-
-struct Fspi {
-  template <typename SpiSettings>
-  using Transport = SpiTransport<FSPI, SpiSettings>;
-};
+using Vspi = SpiTransport<VSPI>;
+using Hspi = SpiTransport<HSPI>;
+using Fspi = SpiTransport<FSPI>;
 
 }  // namespace esp32
 }  // namespace roo_display

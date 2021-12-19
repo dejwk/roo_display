@@ -150,12 +150,10 @@ template <typename Transport, int pinCS, int pinDC, int pinRST,
 using Ssd1327 = BufferedAddrWindowDevice<
     ssd1327::Ssd1327Target<Transport, pinCS, pinDC, pinRST, Gpio>>;
 
-template <int pinCS, int pinDC, int pinRST,
-          typename SpiInterface = DefaultSpiInterface,
+template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
           typename SpiSettings = ssd1327::DefaultSpiSettings,
           typename Gpio = DefaultGpio>
 using Ssd1327spi =
-    Ssd1327<typename SpiInterface::template Transport<SpiSettings>, pinCS,
-            pinDC, pinRST, Gpio>;
+    Ssd1327<BoundSpi<Spi, SpiSettings>, pinCS, pinDC, pinRST, Gpio>;
 
 }  // namespace roo_display

@@ -15,10 +15,10 @@ bool TouchCalibration::Calibrate(int16_t* x, int16_t* y, int16_t* z) {
   *x = (int32_t)4096 * (*x - bounds_.xMin()) / bounds_.width();
   *y = (int32_t)4096 * (*y - bounds_.yMin()) / bounds_.height();
   if (orientation_.isRightToLeft()) {
-    *x = 4096 - *x;
+    *x = 4095 - *x;
   }
   if (orientation_.isBottomToTop()) {
-    *y = 4096 - *y;
+    *y = 4095 - *y;
   }
   return true;
 }

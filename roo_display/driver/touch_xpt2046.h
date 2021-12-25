@@ -201,8 +201,8 @@ bool TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::getTouch(int16_t* x, int16_t* y
     if (settled_conversions >= kMinSettledConversions) {
       // We got enough settled conversions to return a result.
       if (touched) {
-        *x = press_x_ = 4096 - x_result.value();
-        *y = press_y_ = 4096 - y_result.value();
+        *x = press_x_ = 4095 - x_result.value();
+        *y = press_y_ = 4095 - y_result.value();
         *z = press_z_ = z_result.value();
         if (z_result.value() >= kInitialTouchZThreshold) {
           // We got a definite press.

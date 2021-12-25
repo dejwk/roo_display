@@ -1,5 +1,28 @@
-#include "SPI.h"
 
+
+#ifdef ESP_DISPLAY_EMULATOR
+
+#include "roo_testing/buses/gpio/fake_gpio.h"
+#include "roo_testing/buses/spi/fake_spi.h"
+#include "roo_testing/devices/display_ili9486/ili9486spi.h"
+#include "roo_testing/devices/touch_xpt2046/touch_xpt2046spi.h"
+#include "roo_testing/transducers/ui/flex_viewport.h"
+#include "roo_testing/transducers/ui/fltk_viewport.h"
+
+struct Init {
+  Init() {
+    static FltkViewport viewport;
+    static FlexViewport flexViewport(viewport, 1);
+    attachSpiInterface(3, new FakeSpiInterface({
+                              new FakeIli9486Spi(5, 2, 4, flexViewport),
+                              new FakeXpt2046Spi(15, flexViewport),
+                          }));
+  }
+} init;
+
+#endif
+
+#include "SPI.h"
 #include "roo_display.h"
 #include "roo_display/driver/ili9486.h"
 #include "roo_display/driver/touch_xpt2046.h"
@@ -7,21 +30,11 @@
 
 using namespace roo_display;
 
-#ifndef ESP_DISPLAY_EMULATOR
-
 Ili9486spi<5, 2, 4> device;
-TouchXpt2046 touch_raw(TouchCalibration(322, 196, 3899, 3691), 15);
+TouchXpt2046Uncalibrated<15> touch_raw;
+TouchXpt2046<15> touch(TouchCalibration(322, 196, 3899, 3691));
 
-#else
-
-#include "testing/devices/roo_display/fltk_device.h"
-
-EmulatorDevice device(128, 160, 1);
-EmulatorDevice& touch_raw = real_device;
-
-#endif
-
-Display display(&device, &touch_raw);
+Display display(&device, &touch);
 
 void calibrate(Display& display);
 
@@ -40,12 +53,12 @@ void setup() {
   SPI.begin();
   Serial.begin(9600);
   digitalWrite(12, HIGH);
-  display.init();
+  display.init(color::DarkGray);
   x = -1;
   y = -1;
   was_touched = false;
+
   calibrate(display);
-//  repetitive_clock.start();
 }
 
 struct CalibrationInput {
@@ -105,9 +118,9 @@ void calibrate(Display& display) {
   CalibrationInput input;
   // Generally, the resolutions will almost certainly be divisible by 8, so
   // it is a good default choice for margins.
-  Box calib_rect(width / 8, height / 8, width * 7 / 8 - 1, height * 7 / 8 - 1); 
-  Orientation orientation; 
-  bool swap_xy = false; 
+  Box calib_rect(width / 8, height / 8, width * 7 / 8 - 1, height * 7 / 8 - 1);
+  Orientation orientation;
+  bool swap_xy = false;
   do {
     readCalibrationData(display, calib_rect.xMin(), calib_rect.yMin(),
                         input.tl);
@@ -117,12 +130,12 @@ void calibrate(Display& display) {
                         input.br);
     readCalibrationData(display, calib_rect.xMin(), calib_rect.yMax(),
                         input.bl);
-    if (abs(input.tr.x - input.tl.x) > abs(input.tr.y - input.tr.y) &&
+    if (abs(input.tr.x - input.tl.x) > abs(input.tr.y - input.tl.y) &&
         abs(input.br.x - input.bl.x) > abs(input.br.y - input.bl.y) &&
         abs(input.bl.x - input.tl.x) < abs(input.bl.y - input.tl.y) &&
         abs(input.br.x - input.tr.x) < abs(input.br.y - input.tr.y)) {
       // Non-swapped orientation.
-    } else if (abs(input.tr.x - input.tl.x) < abs(input.tr.y - input.tr.y) &&
+    } else if (abs(input.tr.x - input.tl.x) < abs(input.tr.y - input.tl.y) &&
                abs(input.br.x - input.bl.x) < abs(input.br.y - input.bl.y) &&
                abs(input.bl.x - input.tl.x) > abs(input.bl.y - input.tl.y) &&
                abs(input.br.x - input.tr.x) > abs(input.br.y - input.tr.y)) {
@@ -152,7 +165,6 @@ void calibrate(Display& display) {
       Serial.println("Vertical direction is inconclusive.");
       continue;
     }
-
   } while (false);
 
   int16_t xMin = (input.tl.x + input.bl.x) / 2;
@@ -165,11 +177,11 @@ void calibrate(Display& display) {
   int16_t xborder = (xMax - xMin) / 6;
   int16_t yborder = (yMax - yMin) / 6;
   Serial.printf("Calibrated successfully: %d %d %d %d; direction: %s\n",
-                xMin - xborder, yMin - yborder, xMax + xborder, yMax +
-                yborder, orientation.asString());
-  touch_raw.setCalibration(TouchCalibration(xMin - xborder, yMin - yborder,
-                                            xMax + xborder, yMax + yborder,
-                                            orientation));
+                xMin - xborder, yMin - yborder, xMax + xborder, yMax + yborder,
+                orientation.asString());
+  touch.setCalibration(TouchCalibration(xMin - xborder, yMin - yborder,
+                                        xMax + xborder, yMax + yborder,
+                                        orientation));
 
   // int16_t x_span =
   //     (abs(input.tr.x - input.tl.x) + abs(input.br.x - input.bl.x)) / 2;
@@ -217,5 +229,3 @@ void loop(void) {
     // color &= ~0x8410;
   }
 }
-
-

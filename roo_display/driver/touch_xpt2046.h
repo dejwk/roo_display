@@ -7,18 +7,17 @@
 
 namespace roo_display {
 
-static const uint32_t TouchXpt2046SpiFrequency = 20 * 1000 * 1000;
-
 static const int kSpiTouchFrequency = 2500000;
 
-typedef SpiSettings<kSpiTouchFrequency, MSBFIRST, SPI_MODE0> TouchXpt2046SpiSettings;
+typedef SpiSettings<kSpiTouchFrequency, MSBFIRST, SPI_MODE0>
+    TouchXpt2046SpiSettings;
 
 template <int pinCS, typename Spi = DefaultSpi, typename Gpio = DefaultGpio>
 class TouchXpt2046Uncalibrated : public TouchDevice {
  public:
   explicit TouchXpt2046Uncalibrated(Spi spi = Spi());
 
-  bool getTouch(int16_t *x, int16_t *y, int16_t *z) override;
+  bool getTouch(int16_t* x, int16_t* y, int16_t* z) override;
 
  private:
   BoundSpi<Spi, TouchXpt2046SpiSettings> spi_transport_;
@@ -41,7 +40,7 @@ class TouchXpt2046 : public TouchDevice {
     calibration_ = std::move(calibration);
   }
 
-  bool getTouch(int16_t *x, int16_t *y, int16_t *z) override;
+  bool getTouch(int16_t* x, int16_t* y, int16_t* z) override;
 
  private:
   TouchCalibration calibration_;
@@ -63,7 +62,7 @@ static const int kMaxConversionAttempts = 100;
 static const int kMinSettledConversions = 8;
 
 // How hard the press needs to be to count as touch.
-static const int kInitialTouchZThreshold = 100;
+static const int kInitialTouchZThreshold = 200;
 
 // How hard the press needs to be to count as continued touch (i.e., once
 // the display has been touched). See kTouchSensitivityLagMs.
@@ -100,12 +99,24 @@ TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::TouchXpt2046Uncalibrated(Spi spi)
 
 template <typename Spi>
 void get_raw_touch_xy(Spi& spi, uint16_t* x, uint16_t* y) {
-  spi.transfer(0xd0);
-  *x = spi.transfer16(0) >> 3;
+  uint16_t last_x = -1;
+  uint16_t last_y = -1;
+  spi.transfer(0xd3);
+  *x = spi.transfer16(0xd3) >> 3;
+  *x = spi.transfer16(0xd3) >> 3;
+  while (last_x != *x) {
+    last_x = *x;
+    *x = spi.transfer16(0xd3) >> 3;
+  }
 
   // Start bit + XP sample request for y position
-  spi.transfer(0x90);
-  *y = spi.transfer16(0) >> 3;
+  spi.transfer(0x93);
+  *y = spi.transfer16(0x93) >> 3;
+  *y = spi.transfer16(0x93) >> 3;
+  while (last_y != *y) {
+    last_y = *y;
+    *y = spi.transfer16(0x93) >> 3;
+  }
 }
 
 template <typename Spi>
@@ -113,15 +124,15 @@ uint16_t get_raw_touch_z(Spi& spi) {
   int16_t tz = 0xFFF;
   spi.transfer(0xb1);
   tz += spi.transfer16(0xc1) >> 3;
-  tz -= spi.transfer16(0x91) >> 3;
+  tz -= spi.transfer16(0) >> 3;
   return (uint16_t)tz;
 }
 
 enum ConversionResult { UNTOUCHED = 0, TOUCHED = 1, UNSETTLED = 2 };
 
 template <typename Spi>
-ConversionResult single_conversion(Spi& spi, uint16_t z_threshold,
-                                   uint16_t* x, uint16_t* y, uint16_t* z) {
+ConversionResult single_conversion(Spi& spi, uint16_t z_threshold, uint16_t* x,
+                                   uint16_t* y, uint16_t* z) {
   // Wait until pressure stops increasing
   uint16_t z1 = 1;
   uint16_t z2 = 0;
@@ -170,7 +181,9 @@ class Smoother {
 };
 
 template <int pinCS, typename Spi, typename Gpio>
-bool TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::getTouch(int16_t* x, int16_t* y, int16_t* z) {
+bool TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::getTouch(int16_t* x,
+                                                          int16_t* y,
+                                                          int16_t* z) {
   unsigned long now = millis();
   int z_threshold = kInitialTouchZThreshold;
   if (pressed_ &&
@@ -178,7 +191,8 @@ bool TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::getTouch(int16_t* x, int16_t* y
       z_threshold > kSustainedTouchZThreshold) {
     z_threshold = kSustainedTouchZThreshold;
   }
-  BoundSpiTransaction<pinCS, decltype(spi_transport_), Gpio> transaction(spi_transport_);
+  BoundSpiTransaction<pinCS, decltype(spi_transport_), Gpio> transaction(
+      spi_transport_);
 
   int settled_conversions = 0;
   uint16_t x_tmp, y_tmp, z_tmp;
@@ -188,8 +202,8 @@ bool TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::getTouch(int16_t* x, int16_t* y
 
   bool touched = false;
   for (int i = 0; i < kMaxConversionAttempts; ++i) {
-    ConversionResult result = single_conversion(spi_transport_, z_threshold,
-                                                &x_tmp, &y_tmp, &z_tmp);
+    ConversionResult result =
+        single_conversion(spi_transport_, z_threshold, &x_tmp, &y_tmp, &z_tmp);
     if (result == UNSETTLED) continue;
     settled_conversions++;
     if (result == TOUCHED) {
@@ -232,11 +246,12 @@ TouchXpt2046<pinCS, Spi, Gpio>::TouchXpt2046(Spi spi)
 
 template <int pinCS, typename Spi, typename Gpio>
 TouchXpt2046<pinCS, Spi, Gpio>::TouchXpt2046(TouchCalibration calibration,
-                           Spi spi)
+                                             Spi spi)
     : calibration_(std::move(calibration)), uncalibrated_(std::move(spi)) {}
 
 template <int pinCS, typename Spi, typename Gpio>
-bool TouchXpt2046<pinCS, Spi, Gpio>::getTouch(int16_t* x, int16_t* y, int16_t* z) {
+bool TouchXpt2046<pinCS, Spi, Gpio>::getTouch(int16_t* x, int16_t* y,
+                                              int16_t* z) {
   bool touched = uncalibrated_.getTouch(x, y, z);
   return touched ? calibration_.Calibrate(x, y, z) : false;
 }

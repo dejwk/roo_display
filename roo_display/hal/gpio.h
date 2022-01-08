@@ -2,6 +2,10 @@
 
 #include <Arduino.h>
 
+#if defined(ESP32)
+#include "soc/gpio_struct.h"
+#endif
+
 namespace roo_display {
 
 #if defined(ESP32)

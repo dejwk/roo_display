@@ -17,7 +17,7 @@ class TouchXpt2046Uncalibrated : public TouchDevice {
  public:
   explicit TouchXpt2046Uncalibrated(Spi spi = Spi());
 
-  bool getTouch(int16_t* x, int16_t* y, int16_t* z) override;
+  bool getTouch(int16_t& x, int16_t& y, int16_t& z) override;
 
  private:
   BoundSpi<Spi, TouchXpt2046SpiSettings> spi_transport_;
@@ -40,7 +40,7 @@ class TouchXpt2046 : public TouchDevice {
     calibration_ = std::move(calibration);
   }
 
-  bool getTouch(int16_t* x, int16_t* y, int16_t* z) override;
+  bool getTouch(int16_t& x, int16_t& y, int16_t& z) override;
 
  private:
   TouchCalibration calibration_;
@@ -181,9 +181,9 @@ class Smoother {
 };
 
 template <int pinCS, typename Spi, typename Gpio>
-bool TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::getTouch(int16_t* x,
-                                                          int16_t* y,
-                                                          int16_t* z) {
+bool TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::getTouch(int16_t& x,
+                                                          int16_t& y,
+                                                          int16_t& z) {
   unsigned long now = millis();
   int z_threshold = kInitialTouchZThreshold;
   if (pressed_ &&
@@ -215,9 +215,9 @@ bool TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::getTouch(int16_t* x,
     if (settled_conversions >= kMinSettledConversions) {
       // We got enough settled conversions to return a result.
       if (touched) {
-        *x = press_x_ = 4095 - x_result.value();
-        *y = press_y_ = 4095 - y_result.value();
-        *z = press_z_ = z_result.value();
+        x = press_x_ = 4095 - x_result.value();
+        y = press_y_ = 4095 - y_result.value();
+        z = press_z_ = z_result.value();
         if (z_result.value() >= kInitialTouchZThreshold) {
           // We got a definite press.
           latest_confirmed_pressed_timestamp_ = now;
@@ -227,9 +227,9 @@ bool TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::getTouch(int16_t* x,
         // We did not detect touch, but the latest confirmed touch was not long
         // ago so we report as touched anyway.
         touched = true;
-        *x = press_x_;
-        *y = press_y_;
-        *z = press_z_;
+        x = press_x_;
+        y = press_y_;
+        z = press_z_;
       }
       pressed_ = touched;
       return touched;
@@ -250,8 +250,8 @@ TouchXpt2046<pinCS, Spi, Gpio>::TouchXpt2046(TouchCalibration calibration,
     : calibration_(std::move(calibration)), uncalibrated_(std::move(spi)) {}
 
 template <int pinCS, typename Spi, typename Gpio>
-bool TouchXpt2046<pinCS, Spi, Gpio>::getTouch(int16_t* x, int16_t* y,
-                                              int16_t* z) {
+bool TouchXpt2046<pinCS, Spi, Gpio>::getTouch(int16_t& x, int16_t& y,
+                                              int16_t& z) {
   bool touched = uncalibrated_.getTouch(x, y, z);
   return touched ? calibration_.Calibrate(x, y, z) : false;
 }

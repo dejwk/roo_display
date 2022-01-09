@@ -10,10 +10,10 @@ namespace roo_display {
 // but applies the specified 'rasterizable' foreground.
 class ForegroundFilter : public DisplayOutput {
  public:
-  ForegroundFilter(DisplayOutput* output, const Rasterizable* foreground)
+  ForegroundFilter(DisplayOutput& output, const Rasterizable* foreground)
       : ForegroundFilter(output, foreground, 0, 0) {}
 
-  ForegroundFilter(DisplayOutput* output, const Rasterizable* foreground,
+  ForegroundFilter(DisplayOutput& output, const Rasterizable* foreground,
                    int16_t dx, int16_t dy)
       : output_(output),
         foreground_(foreground),
@@ -30,7 +30,7 @@ class ForegroundFilter : public DisplayOutput {
     address_window_ = Box(x0 - dx_, y0 - dy_, x1 - dx_, y1 - dy_);
     cursor_x_ = x0 - dx_;
     cursor_y_ = y0 - dy_;
-    output_->setAddress(x0, y0, x1, y1, mode);
+    output_.setAddress(x0, y0, x1, y1, mode);
   }
 
   void write(Color* color, uint32_t pixel_count) override {
@@ -50,7 +50,7 @@ class ForegroundFilter : public DisplayOutput {
     for (uint32_t i = 0; i < pixel_count; ++i) {
       newcolor[i] = alphaBlend(color[i], newcolor[i]);
     }
-    output_->write(newcolor, pixel_count);
+    output_.write(newcolor, pixel_count);
   }
 
   // void fill(PaintMode mode, Color color, uint32_t pixel_count) override {
@@ -90,7 +90,7 @@ class ForegroundFilter : public DisplayOutput {
     for (uint32_t i = 0; i < pixel_count; ++i) {
       newcolor[i] = alphaBlend(color[i], newcolor[i]);
     }
-    output_->writePixels(mode, newcolor, x, y, pixel_count);
+    output_.writePixels(mode, newcolor, x, y, pixel_count);
   }
 
   void fillPixels(PaintMode mode, Color color, int16_t* x, int16_t* y,
@@ -100,7 +100,7 @@ class ForegroundFilter : public DisplayOutput {
     for (uint32_t i = 0; i < pixel_count; ++i) {
       newcolor[i] = alphaBlend(color, newcolor[i]);
     }
-    output_->writePixels(mode, newcolor, x, y, pixel_count);
+    output_.writePixels(mode, newcolor, x, y, pixel_count);
   }
 
  private:
@@ -147,18 +147,18 @@ class ForegroundFilter : public DisplayOutput {
     Color newcolor[pixel_count];
     bool same = foreground_->ReadColorRect(xMin, yMin, xMax, yMax, newcolor);
     if (same) {
-      output_->fillRect(mode, Box(xMin, yMin, xMax, yMax),
-                        alphaBlend(color, newcolor[0]));
+      output_.fillRect(mode, Box(xMin, yMin, xMax, yMax),
+                       alphaBlend(color, newcolor[0]));
     } else {
       for (uint16_t i = 0; i < pixel_count; ++i) {
         newcolor[i] = alphaBlend(color, newcolor[i]);
       }
-      output_->setAddress(Box(xMin, yMin, xMax, yMax), mode);
-      output_->write(newcolor, pixel_count);
+      output_.setAddress(Box(xMin, yMin, xMax, yMax), mode);
+      output_.write(newcolor, pixel_count);
     }
   }
 
-  DisplayOutput* output_;
+  DisplayOutput& output_;
   const Rasterizable* foreground_;
   Box address_window_;
   int16_t cursor_x_;

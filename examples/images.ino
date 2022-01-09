@@ -4,7 +4,7 @@
 #include "roo_display.h"
 #include "roo_display/font/font.h"
 #include "roo_display/image/image.h"
-#include "roo_display/core/streamable_overlay.h"
+#include "roo_display/internal/raw_streamable_overlay.h"
 #include "roo_display/core/offscreen.h"
 #include "roo_smooth_fonts/NotoSerif_BoldItalic/27.h"
 
@@ -16,7 +16,7 @@ using namespace roo_display;
 #include "roo_display/driver/st7789.h" 
 St7789spi_240x240<5, 2, 4> device;
 
-Display display(&device, nullptr);
+Display display(device);
 
 const RleImage<Argb6666, PrgMemResource>& shuttle();
 const RleImage<Rgb565, PrgMemResource>& space();
@@ -33,7 +33,7 @@ void setup() {
   }
   xoffset = (display.width() - space().extents().width()) / 2;
   yoffset = (display.height() - space().extents().height()) / 2;
-  DrawingContext dc(&display);
+  DrawingContext dc(display);
   dc.draw(space(), xoffset, yoffset);
 }
 
@@ -45,12 +45,12 @@ void loop(void) {
   for (int16_t x = -120; x < display.width() + 120; x += 3) {
     if (x % 5 == 0) y--;
     {
-      DrawingContext dc(&buffer);
+      DrawingContext dc(buffer);
       dc.draw(space(), xoffset - (x - 5), yoffset - (y - 5));
       dc.draw(shuttle(), 5, 5);
     }
     {
-      DrawingContext dc(&display);
+      DrawingContext dc(display);
       dc.draw(buffer, x - 5, y - 5);
     }
     delay(10);
@@ -61,7 +61,7 @@ void loop(void) {
   // y = y0;
   // for (int16_t x = -120; x < display.width() + 120; x += 3) {
   //   if (x % 5 == 0) y--;
-  //   DrawingContext dc(&display);
+  //   DrawingContext dc(display);
   //   auto result = Overlay(space_streamable(), 0, 0, shuttle_streamable(), x, y);
   //   dc.setClipBox(x - 5, y - 5, x + 105, y + 55);
   //   dc.draw(result);
@@ -73,7 +73,7 @@ void loop(void) {
   // y = y0;
   // for (int16_t x = -120; x < display.width() + 120; x += 3) {
   //   if (x % 5 == 0) y--;
-  //   DrawingContext dc(&display);
+  //   DrawingContext dc(display);
   //   dc.setClipBox(x - 5, y - 5, x + 105, y + 55);
   //   dc.draw(space());
   //   dc.draw(shuttle(), x, y);

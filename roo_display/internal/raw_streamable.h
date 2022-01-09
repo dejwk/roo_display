@@ -40,7 +40,7 @@ namespace internal {
 
 template <typename RawPixelStream>
 struct RectFillerVisible {
-  void operator()(DisplayOutput *output, const Box &extents,
+  void operator()(DisplayOutput& output, const Box &extents,
                   RawPixelStream *stream, PaintMode mode) const {
     BufferedPixelWriter writer(output, mode);
     for (int16_t j = extents.yMin(); j <= extents.yMax(); ++j) {
@@ -56,10 +56,10 @@ struct RectFillerVisible {
 
 template <typename RawPixelStream>
 struct RectFillerRectangle {
-  void operator()(DisplayOutput *output, const Box &extents, Color bgcolor,
+  void operator()(DisplayOutput& output, const Box &extents, Color bgcolor,
                   RawPixelStream *stream, PaintMode paint_mode,
                   TransparencyMode transparency_mode) const {
-    output->setAddress(extents, paint_mode);
+    output.setAddress(extents, paint_mode);
     int count = extents.area();
     BufferedColorWriter writer(output);
     if (bgcolor.a() == 0) {
@@ -88,7 +88,7 @@ struct RectFillerRectangle {
 // This function will fill in the specified rectangle using the most appropriate
 // method given the stream's transparency mode.
 template <typename RawPixelStream>
-void FillRectFromRawStream(DisplayOutput *output, const Box &extents,
+void FillRectFromRawStream(DisplayOutput &output, const Box &extents,
                            RawPixelStream *stream, Color bgcolor,
                            FillMode fill_mode, PaintMode paint_mode) {
   if (stream->transparency() == TRANSPARENCY_NONE) {

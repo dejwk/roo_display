@@ -17,7 +17,7 @@ using namespace roo_display;
 #include "roo_display/driver/st7789.h" 
 St7789spi_240x240<5, 2, 4> device;
 
-Display display(&device, nullptr);
+Display display(device);
 
 // Offscreen implements the device interface. You can draw to it exactly how
 // you would draw to a real physical device.
@@ -60,8 +60,8 @@ void setup() {
 
 void fillBackground() {
   // Draw something interesting to the background buffer.
-  Display bgDisplay(&background);
-  DrawingContext dc(&bgDisplay);
+  Display bgDisplay(background);
+  DrawingContext dc(bgDisplay);
   dc.fill(color::Bisque);
 
   for (int i = 0; i < 500; i++) {
@@ -78,7 +78,7 @@ void fillBackground() {
 }
 
 void drawImageCentered() {
-  DrawingContext dc(&display);
+  DrawingContext dc(display);
   dc.fill(color::Gray);
   dc.draw(background, (display.width() - kBgWidth) / 2,
           (display.height() - kBgHeight) / 2);
@@ -134,7 +134,7 @@ void someFunWithAntiAliasedFonts() {
         std::move(text), 0, 0));
     bounds = text.extents();
     {
-      DrawingContext dc(&display);
+      DrawingContext dc(display);
       dc.setClipBox(xMin, yMin, xMin + kBgWidth - 1, yMin + kBgHeight - 1);
       dc.draw(result, xMin, yMin);
     }
@@ -151,7 +151,7 @@ void someFunWithAntiAliasedFonts() {
     Overlay(background.raster(), 0, 0, std::move(text), 0, 0));
   for (int i = 5; i < 30; ++i) {
     int scale = (int)pow(1.2, i);
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.setTransform(
         // Rescale the content rectangle by its center, and then move it
         // to the center of the screen.

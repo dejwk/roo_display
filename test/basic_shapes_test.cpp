@@ -11,9 +11,9 @@ namespace roo_display {
 
 TEST(BasicShapes, FillRectOutOfBounds) {
   FakeOffscreen<Rgb565> test_screen(2, 3);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     // Intentionally write out-of-bounds to test that it is caught by
     // the shape.
     dc.draw(FilledRect(-5, -2, 8, 7, color::Black));
@@ -26,9 +26,9 @@ TEST(BasicShapes, FillRectOutOfBounds) {
 
 TEST(BasicShapes, FillRectOpaque) {
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     // Draw the basic shape.
     dc.draw(FilledRect(1, 2, 2, 4, color::White));
   }
@@ -43,9 +43,9 @@ TEST(BasicShapes, FillRectOpaque) {
 
 TEST(BasicShapes, FillRectStreamable) {
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     // Draw the basic shape.
     auto rect = FilledRect(1, 2, 2, 4, color::White);
     dc.draw(ForcedStreamable(&rect));
@@ -61,9 +61,9 @@ TEST(BasicShapes, FillRectStreamable) {
 
 TEST(BasicShapes, FillRectRasterizable) {
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     // Draw the basic shape.
     auto rect = FilledRect(1, 2, 2, 4, color::White);
     dc.draw(ForcedRasterizable(&rect));
@@ -79,9 +79,9 @@ TEST(BasicShapes, FillRectRasterizable) {
 
 TEST(BasicShapes, FillRectTransparent) {
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Lime);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     // Draw the basic shape #1
     dc.draw(FilledRect(1, 2, 2, 3, color::Blue));
     // And overlay a semi-transparent shape #2
@@ -101,9 +101,9 @@ TEST(BasicShapes, FillRectTransparent) {
 
 TEST(BasicShapes, FillZeroRadiusCircle) {
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     // Draw the basic shape.
     dc.draw(FilledCircle::ByRadius(2, 3, 0, color::White));
   }
@@ -118,9 +118,9 @@ TEST(BasicShapes, FillZeroRadiusCircle) {
 
 TEST(BasicShapes, DrawZeroRadiusCircle) {
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     // Draw the basic shape.
     dc.draw(Circle::ByRadius(2, 3, 0, color::White));
   }
@@ -135,9 +135,9 @@ TEST(BasicShapes, DrawZeroRadiusCircle) {
 
 TEST(BasicShapes, FillTinyCircle) {
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.draw(FilledCircle::ByRadius(2, 3, 1, color::White));
   }
   EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 5, 6,
@@ -151,9 +151,9 @@ TEST(BasicShapes, FillTinyCircle) {
 
 TEST(BasicShapes, DrawTinyCircle) {
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.draw(Circle::ByRadius(2, 3, 1, color::White));
   }
   EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 5, 6,
@@ -167,9 +167,9 @@ TEST(BasicShapes, DrawTinyCircle) {
 
 TEST(BasicShapes, FillSmallCircle) {
   FakeOffscreen<Rgb565> test_screen(7, 9, color::Black);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.draw(FilledCircle::ByRadius(3, 4, 3, color::White));
   }
   EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 7, 9,
@@ -186,9 +186,9 @@ TEST(BasicShapes, FillSmallCircle) {
 
 TEST(BasicShapes, FillSmallCircleBgRectangle) {
   FakeOffscreen<Argb4444> test_screen(7, 9, color::Black);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.setBackground(Color(0xFF707070));
     dc.draw(ForceFillRect(FilledCircle::ByRadius(3, 4, 3, color::White)));
   }
@@ -206,9 +206,9 @@ TEST(BasicShapes, FillSmallCircleBgRectangle) {
 
 TEST(BasicShapes, FillSmallRoundRectBgRectangle) {
   FakeOffscreen<Argb4444> test_screen(7, 9, color::Black);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.setBackground(Color(0xFF707070));
     dc.draw(ForceFillRect(FilledRoundRect(0, 1, 5, 7, 3, color::White)));
   }
@@ -226,9 +226,9 @@ TEST(BasicShapes, FillSmallRoundRectBgRectangle) {
 
 TEST(BasicShapes, FillCircleOutOfBounds) {
   FakeOffscreen<Rgb565> test_screen(7, 9, color::Black);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.draw(FilledCircle::ByRadius(1, 2, 5, color::White));
   }
   EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 7, 9,
@@ -245,9 +245,9 @@ TEST(BasicShapes, FillCircleOutOfBounds) {
 
 TEST(BasicShapes, DrawCircleOutOfBounds) {
   FakeOffscreen<Rgb565> test_screen(7, 9, color::Black);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.draw(Circle::ByRadius(1, 2, 5, color::White));
   }
   EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 7, 9,
@@ -264,9 +264,9 @@ TEST(BasicShapes, DrawCircleOutOfBounds) {
 
 TEST(BasicShapes, DrawHLine) {
   FakeOffscreen<Rgb565> test_screen(5, 4, color::Black);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.draw(Line(1, 2, 3, 2, color::White));
   }
   EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 5, 4,
@@ -278,9 +278,9 @@ TEST(BasicShapes, DrawHLine) {
 
 TEST(BasicShapes, DrawVLine) {
   FakeOffscreen<Rgb565> test_screen(5, 4, color::Black);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.draw(Line(2, 1, 2, 3, color::White));
   }
   EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 5, 4,
@@ -292,9 +292,9 @@ TEST(BasicShapes, DrawVLine) {
 
 TEST(BasicShapes, DrawLine) {
   FakeOffscreen<Rgb565> test_screen(5, 4, color::Black);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.draw(Line(0, 3, 3, 1, color::White));
   }
   EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 5, 4,
@@ -306,9 +306,9 @@ TEST(BasicShapes, DrawLine) {
 
 TEST(BasicShapes, DrawSteepLine) {
   FakeOffscreen<Rgb565> test_screen(5, 4, color::Black);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.draw(Line(2, 0, 0, 3, color::White));
   }
   EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 5, 4,

@@ -110,7 +110,7 @@ using namespace roo_display;
 #include "roo_display/driver/st7789.h"
 St7789spi_240x240<5, 2, 4> device;
 
-Display display(&device, nullptr);
+Display display(device);
 
 struct FontFamily {
   FontFamily(const Font& f8, const Font& f12, const Font& f18, const Font& f27,
@@ -243,7 +243,7 @@ int16_t printLn(DrawingContext& dc, const Font& font, int16_t x, int16_t y,
 }
 
 void printText(const FontFamily& fonts) {
-  DrawingContext dc(&display);
+  DrawingContext dc(display);
   dc.fill(color::Gainsboro);
   int16_t y = 1;
   const char* text = "Zażółć gęślą jaźń 12345.67890 !@#$%^&*()";

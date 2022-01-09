@@ -24,41 +24,41 @@ class PixelStream {
 
 namespace internal {
 
-inline void fillReplaceRect(DisplayOutput *output, const Box &extents,
+inline void fillReplaceRect(DisplayOutput &output, const Box &extents,
                             PixelStream *stream, PaintMode mode) {
   Color buf[kPixelWritingBufferSize];
-  output->setAddress(extents, mode);
+  output.setAddress(extents, mode);
   uint32_t count = extents.area();
   while (count > 0) {
     uint32_t n = count;
     if (n > kPixelWritingBufferSize) n = kPixelWritingBufferSize;
     stream->Read(buf, n);
-    output->write(buf, n);
+    output.write(buf, n);
     count -= n;
   }
 }
 
-inline void fillPaintRectOverOpaqueBg(DisplayOutput *output, const Box &extents,
+inline void fillPaintRectOverOpaqueBg(DisplayOutput &output, const Box &extents,
                                       Color bgColor, PixelStream *stream,
                                       PaintMode mode) {
   Color buf[kPixelWritingBufferSize];
-  output->setAddress(extents, mode);
+  output.setAddress(extents, mode);
   uint32_t count = extents.area();
   do {
     uint16_t n = kPixelWritingBufferSize;
     if (n > count) n = count;
     stream->Read(buf, n);
     for (int i = 0; i < n; i++) buf[i] = alphaBlendOverOpaque(bgColor, buf[i]);
-    output->write(buf, n);
+    output.write(buf, n);
     count -= n;
   } while (count > 0);
 }
 
-inline void fillPaintRectOverBg(DisplayOutput *output, const Box &extents,
+inline void fillPaintRectOverBg(DisplayOutput &output, const Box &extents,
                                 Color bgcolor, PixelStream *stream,
                                 PaintMode mode) {
   Color buf[kPixelWritingBufferSize];
-  output->setAddress(extents, mode);
+  output.setAddress(extents, mode);
   uint32_t count = extents.area();
   do {
     uint16_t n = kPixelWritingBufferSize;
@@ -67,13 +67,13 @@ inline void fillPaintRectOverBg(DisplayOutput *output, const Box &extents,
     for (int i = 0; i < n; ++i) {
       buf[i] = alphaBlend(bgcolor, buf[i]);
     }
-    output->write(buf, n);
+    output.write(buf, n);
     count -= n;
   } while (count > 0);
 }
 
 // Assumes no bgcolor.
-inline void writeRectVisible(DisplayOutput *output, const Box &extents,
+inline void writeRectVisible(DisplayOutput &output, const Box &extents,
                              PixelStream *stream, PaintMode mode) {
   // TODO(dawidk): need to optimize this.
   Color buf[kPixelWritingBufferSize];
@@ -97,7 +97,7 @@ inline void writeRectVisible(DisplayOutput *output, const Box &extents,
   }
 }
 
-inline void writeRectVisibleOverOpaqueBg(DisplayOutput *output,
+inline void writeRectVisibleOverOpaqueBg(DisplayOutput &output,
                                          const Box &extents, Color bgcolor,
                                          PixelStream *stream, PaintMode mode) {
   // TODO(dawidk): need to optimize this.
@@ -121,7 +121,7 @@ inline void writeRectVisibleOverOpaqueBg(DisplayOutput *output,
   }
 }
 
-inline void writeRectVisibleOverBg(DisplayOutput *output, const Box &extents,
+inline void writeRectVisibleOverBg(DisplayOutput &output, const Box &extents,
                                    Color bgcolor, PixelStream *stream,
                                    PaintMode mode) {
   // TODO(dawidk): need to optimize this.
@@ -147,7 +147,7 @@ inline void writeRectVisibleOverBg(DisplayOutput *output, const Box &extents,
 
 // This function will fill in the specified rectangle using the most appropriate
 // method given the stream's transparency mode.
-inline void FillRectFromStream(DisplayOutput *output, const Box &extents,
+inline void FillRectFromStream(DisplayOutput &output, const Box &extents,
                                PixelStream *stream, Color bgcolor,
                                FillMode fill_mode, PaintMode mode,
                                TransparencyMode transparency) {

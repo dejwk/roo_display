@@ -11,22 +11,22 @@ using namespace testing;
 
 namespace roo_display {
 
-void Draw(DisplayDevice* output, int16_t x, int16_t y, const Box& clip_box,
+void Draw(DisplayDevice& output, int16_t x, int16_t y, const Box& clip_box,
           const Streamable& object, FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND,
           Color bgcolor = color::Transparent) {
-  output->begin();
+  output.begin();
   Surface s(output, x, y, clip_box, bgcolor, fill_mode, paint_mode);
   s.drawObject(object);
-  output->end();
+  output.end();
 }
 
-void Draw(DisplayDevice* output, int16_t x, int16_t y, const Streamable& object,
+void Draw(DisplayDevice& output, int16_t x, int16_t y, const Streamable& object,
           FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND,
           Color bgcolor = color::Transparent) {
-  Box clip_box(0, 0, output->effective_width() - 1,
-               output->effective_height() - 1);
+  Box clip_box(0, 0, output.effective_width() - 1,
+               output.effective_height() - 1);
   Draw(output, x, y, clip_box, object, fill_mode, paint_mode, bgcolor);
 }
 
@@ -36,7 +36,7 @@ TEST(Streamable, DrawingArbitraryStreamable) {
                                   "LQD TOL"
                                   "F9F N_N");
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
-  Draw(&test_screen, 1, 2, input);
+  Draw(test_screen, 1, 2, input);
   EXPECT_THAT(test_screen, MatchesContent(Rgb565(), 5, 6,
                                           "___ ___ ___ ___ ___"
                                           "___ ___ ___ ___ ___"
@@ -52,7 +52,7 @@ TEST(Streamable, ClippingFromTop) {
                                   "LQD TOL"
                                   "F9F N_N");
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
-  Draw(&test_screen, 1, 2, Box(2, 3, 4, 5), input);
+  Draw(test_screen, 1, 2, Box(2, 3, 4, 5), input);
   EXPECT_THAT(test_screen, MatchesContent(Rgb565(), 5, 6,
                                           "___ ___ ___ ___ ___"
                                           "___ ___ ___ ___ ___"
@@ -68,7 +68,7 @@ TEST(Streamable, ClippingFromBottom) {
                                   "LQD TOL"
                                   "F9F N_N");
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
-  Draw(&test_screen, 1, 2, Box(0, 0, 1, 3), input);
+  Draw(test_screen, 1, 2, Box(0, 0, 1, 3), input);
   EXPECT_THAT(test_screen, MatchesContent(Rgb565(), 5, 6,
                                           "___ ___ ___ ___ ___"
                                           "___ ___ ___ ___ ___"
@@ -84,7 +84,7 @@ TEST(Streamable, ClippingFromSeveralSides) {
                                   "LQD TOL 114 5AF"
                                   "F9F N_N F45 567");
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
-  Draw(&test_screen, 1, 2, Box(2, 3, 3, 5), input);
+  Draw(test_screen, 1, 2, Box(2, 3, 3, 5), input);
   EXPECT_THAT(test_screen, MatchesContent(Rgb565(), 5, 6,
                                           "___ ___ ___ ___ ___"
                                           "___ ___ ___ ___ ___"
@@ -100,7 +100,7 @@ TEST(Streamable, ClippingFromLeft) {
                                   "LQD TOL 114 5AF"
                                   "F9F N_N F45 567");
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
-  Draw(&test_screen, -2, 2, Box(1, 0, 1, 5), input);
+  Draw(test_screen, -2, 2, Box(1, 0, 1, 5), input);
   EXPECT_THAT(test_screen, MatchesContent(Rgb565(), 5, 6,
                                           "___ ___ ___ ___ ___"
                                           "___ ___ ___ ___ ___"
@@ -116,7 +116,7 @@ TEST(Streamable, ClippingFromRight) {
                                   "LOD TOL 114"
                                   "F9F N_N F45");
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
-  Draw(&test_screen, 1, 2, Box(1, 0, 1, 5), input);
+  Draw(test_screen, 1, 2, Box(1, 0, 1, 5), input);
   EXPECT_THAT(test_screen, MatchesContent(Rgb565(), 5, 6,
                                           "___ ___ ___ ___ ___"
                                           "___ ___ ___ ___ ___"
@@ -132,7 +132,7 @@ TEST(Streamable, Transparency) {
                                   "LQD TOL"
                                   "F9F ...");
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
-  Draw(&test_screen, 1, 2, input);
+  Draw(test_screen, 1, 2, input);
   EXPECT_THAT(test_screen, MatchesContent(Rgb565(), 5, 6,
                                           "___ ___ ___ ___ ___"
                                           "___ ___ ___ ___ ___"
@@ -145,7 +145,7 @@ TEST(Streamable, Transparency) {
 TEST(Streamable, AlphaTransparency) {
   auto input = MakeTestStreamable(Argb4444(), 4, 1, "4488 F678 F1A3 73E3");
   FakeOffscreen<Argb4444> test_screen(6, 1, color::Black);
-  Draw(&test_screen, 1, 0, input);
+  Draw(test_screen, 1, 0, input);
   EXPECT_THAT(test_screen, MatchesContent(Argb4444(), 6, 1,
                                           "F000 F122 F678 F1A3 F161 F000"));
 }
@@ -153,7 +153,7 @@ TEST(Streamable, AlphaTransparency) {
 TEST(Streamable, AlphaTransparencyOverriddenReplace) {
   auto input = MakeTestStreamable(Argb4444(), 4, 1, "4488 F678 F1A3 73E3");
   FakeOffscreen<Argb4444> test_screen(6, 1, color::Black);
-  Draw(&test_screen, 1, 0, input, FILL_MODE_VISIBLE, PAINT_MODE_REPLACE);
+  Draw(test_screen, 1, 0, input, FILL_MODE_VISIBLE, PAINT_MODE_REPLACE);
   EXPECT_THAT(test_screen, MatchesContent(Argb4444(), 6, 1,
                                           "F000 4488 F678 F1A3 73E3 F000"));
 }
@@ -161,7 +161,7 @@ TEST(Streamable, AlphaTransparencyOverriddenReplace) {
 TEST(Streamable, AlphaTransparencyFillWithOpaqueBackground) {
   auto input = MakeTestStreamable(Argb4444(), 2, 2, "4488 F678 73E3 0000");
   FakeOffscreen<Argb4444> test_screen(3, 2, color::Black);
-  Draw(&test_screen, 1, 0, input, FILL_MODE_RECTANGLE, PAINT_MODE_BLEND,
+  Draw(test_screen, 1, 0, input, FILL_MODE_RECTANGLE, PAINT_MODE_BLEND,
        color::White);
   EXPECT_THAT(test_screen, MatchesContent(Argb4444(), 3, 2,
                                           "F000 FCDD F678"
@@ -171,7 +171,7 @@ TEST(Streamable, AlphaTransparencyFillWithOpaqueBackground) {
 TEST(Streamable, AlphaTransparencyFillWithTranslucentBackground) {
   auto input = MakeTestStreamable(Argb4444(), 2, 2, "4488 F678 73E3 0000");
   FakeOffscreen<Argb4444> test_screen(3, 2, color::Black);
-  Draw(&test_screen, 1, 0, input, FILL_MODE_RECTANGLE, PAINT_MODE_BLEND,
+  Draw(test_screen, 1, 0, input, FILL_MODE_RECTANGLE, PAINT_MODE_BLEND,
        Color(0x7FFFFFFF));
   EXPECT_THAT(test_screen, MatchesContent(Argb4444(), 3, 2,
                                           "F000 F677 F678"
@@ -181,7 +181,7 @@ TEST(Streamable, AlphaTransparencyFillWithTranslucentBackground) {
 TEST(Streamable, AlphaTransparencyWriteWithOpaqueBackground) {
   auto input = MakeTestStreamable(Argb4444(), 2, 2, "4488 F678 73E3 0000");
   FakeOffscreen<Argb4444> test_screen(3, 2, color::Black);
-  Draw(&test_screen, 1, 0, input, FILL_MODE_VISIBLE, PAINT_MODE_BLEND,
+  Draw(test_screen, 1, 0, input, FILL_MODE_VISIBLE, PAINT_MODE_BLEND,
        color::White);
   EXPECT_THAT(test_screen, MatchesContent(Argb4444(), 3, 2,
                                           "F000 FCDD F678"
@@ -191,7 +191,7 @@ TEST(Streamable, AlphaTransparencyWriteWithOpaqueBackground) {
 TEST(Streamable, AlphaTransparencyWriteWithTranslucentBackground) {
   auto input = MakeTestStreamable(Argb4444(), 2, 2, "4488 F678 73E3 0000");
   FakeOffscreen<Argb4444> test_screen(3, 2, color::Black);
-  Draw(&test_screen, 1, 0, input, FILL_MODE_VISIBLE, PAINT_MODE_BLEND,
+  Draw(test_screen, 1, 0, input, FILL_MODE_VISIBLE, PAINT_MODE_BLEND,
        Color(0x7FFFFFFF));
   EXPECT_THAT(test_screen, MatchesContent(Argb4444(), 3, 2,
                                           "F000 F677 F678"

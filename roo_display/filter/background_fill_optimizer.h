@@ -109,7 +109,7 @@ class BackgroundFillOptimizer : public DisplayOutput {
   // Creates the instance of a background fill optimizer filter, delegating to
   // the specified display output (which usually should be a physical device),
   // using the specified frame buffer.
-  BackgroundFillOptimizer(DisplayOutput* output, FrameBuffer* frame_buffer);
+  BackgroundFillOptimizer(DisplayOutput& output, FrameBuffer& frame_buffer);
 
   virtual ~BackgroundFillOptimizer() {}
 
@@ -141,7 +141,7 @@ class BackgroundFillOptimizer : public DisplayOutput {
   void fillRectBg(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
                   Filler* filler, uint8_t palette_idx);
 
-  DisplayOutput* output_;
+  DisplayOutput& output_;
   internal::NibbleRect* background_mask_;
   const Color* palette_;
   const uint8_t palette_size_;

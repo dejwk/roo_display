@@ -19,7 +19,7 @@ using namespace roo_display;
 #include "roo_display/driver/st7789.h" 
 St7789spi_240x240<5, 2, 4> device;
 
-Display display(&device, nullptr);
+Display display(device);
 
 void setup() {
   srand(time(nullptr));
@@ -66,7 +66,7 @@ void loop(void) {
   }
   TextLabel label(font_NotoSerif_BoldItalic_27(),
                   std::string((const char*)utf8), fg, FILL_MODE_RECTANGLE);
-  DrawingContext dc(&display);
+  DrawingContext dc(display);
   dc.setBackground(bg);
   dc.setTransform(Transform()
                       .rotateClockwise(rotations)

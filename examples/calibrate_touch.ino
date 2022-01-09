@@ -1,24 +1,37 @@
+#include "Arduino.h"
 
+#ifdef ROO_TESTING
 
-#ifdef ESP_DISPLAY_EMULATOR
+#include "roo_testing/devices/display/ili9486/ili9486spi.h"
+#include "roo_testing/devices/touch/xpt2046/xpt2046spi.h"
+#include "roo_testing/transducers/ui/viewport/flex_viewport.h"
+#include "roo_testing/transducers/ui/viewport/fltk/fltk_viewport.h"
 
-#include "roo_testing/buses/gpio/fake_gpio.h"
-#include "roo_testing/buses/spi/fake_spi.h"
-#include "roo_testing/devices/display_ili9486/ili9486spi.h"
-#include "roo_testing/devices/touch_xpt2046/touch_xpt2046spi.h"
-#include "roo_testing/transducers/ui/flex_viewport.h"
-#include "roo_testing/transducers/ui/fltk_viewport.h"
+using roo_testing_transducers::FlexViewport;
+using roo_testing_transducers::FltkViewport;
 
-struct Init {
-  Init() {
-    static FltkViewport viewport;
-    static FlexViewport flexViewport(viewport, 1);
-    attachSpiInterface(3, new FakeSpiInterface({
-                              new FakeIli9486Spi(5, 2, 4, flexViewport),
-                              new FakeXpt2046Spi(15, flexViewport),
-                          }));
+struct Emulator {
+  FltkViewport viewport;
+  FlexViewport flexViewport;
+
+  FakeIli9486Spi display;
+  FakeXpt2046Spi touch;
+
+  Emulator()
+      : viewport(),
+        flexViewport(viewport, 1),
+        display(flexViewport),
+        touch(flexViewport, FakeXpt2046Spi::Calibration(300, 100, 3100, 2900,
+                                                        false, true, false)) {
+    FakeEsp32().attachSpiDevice(display, 18, 19, 23);
+    FakeEsp32().gpio.attachOutput(5, display.cs());
+    FakeEsp32().gpio.attachOutput(2, display.dc());
+    FakeEsp32().gpio.attachOutput(4, display.rst());
+
+    FakeEsp32().attachSpiDevice(touch, 18, 19, 23);
+    FakeEsp32().gpio.attachOutput(15, touch.cs());
   }
-} init;
+} emulator;
 
 #endif
 
@@ -32,9 +45,9 @@ using namespace roo_display;
 
 Ili9486spi<5, 2, 4> device;
 TouchXpt2046Uncalibrated<15> touch_raw;
-TouchXpt2046<15> touch(TouchCalibration(322, 196, 3899, 3691));
+TouchXpt2046<15> touch;
 
-Display display(&device, &touch);
+Display display(device, touch);
 
 void calibrate(Display& display);
 
@@ -87,13 +100,13 @@ struct CalibrationInput {
 
 void readCalibrationData(Display& display, int16_t x, int16_t y, Point& point) {
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.draw(FilledCircle::ByRadius(x, y, 2, color::Blue));
   }
   int16_t read_x = 0, read_y = 0, read_z = 0;
   int32_t sum_x = 0, sum_y = 0;
   for (int i = 0; i < 128; ++i) {
-    while (!touch_raw.getTouch(&read_x, &read_y, &read_z)) {
+    while (!touch_raw.getTouch(read_x, read_y, read_z)) {
     }
     Serial.println("Registered!");
     sum_x += read_x;
@@ -102,11 +115,11 @@ void readCalibrationData(Display& display, int16_t x, int16_t y, Point& point) {
   point.x = sum_x / 128;
   point.y = sum_y / 128;
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.fill(color::Green);
     dc.fill(color::DarkGray);
   }
-  while (touch_raw.getTouch(&read_x, &read_y, &read_z)) {
+  while (touch_raw.getTouch(read_x, read_y, read_z)) {
   }
   delay(200);
 }
@@ -195,10 +208,10 @@ void loop(void) {
   int16_t old_x = x;
   int16_t old_y = y;
   unsigned long start = millis();
-  bool touched = display.getTouch(&x, &y);
+  bool touched = display.getTouch(x, y);
   if (touched) {
     was_touched = true;
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.draw(Line(0, y, display.width() - 1, y, color::Red));
     dc.draw(Line(x, 0, x, display.height() - 1, color::Red));
     if (x != old_x) {
@@ -221,7 +234,7 @@ void loop(void) {
     if (was_touched) {
       Serial.println("Released!");
       was_touched = false;
-      DrawingContext dc(&display);
+      DrawingContext dc(display);
       dc.draw(Line(0, old_y, display.width() - 1, old_y, color::DarkGray));
       dc.draw(Line(old_x, 0, old_x, display.height() - 1, color::DarkGray));
     }

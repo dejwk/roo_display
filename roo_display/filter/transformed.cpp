@@ -1,4 +1,5 @@
 #include "transformed.h"
+
 #include "roo_display/core/buffered_drawing.h"
 
 namespace roo_display {
@@ -121,10 +122,10 @@ void Transform::transformRect(int16_t &x0, int16_t &y0, int16_t &x1,
 }
 
 int floor_div(int a, int b) {
-    // https://stackoverflow.com/questions/3602827/what-is-the-behavior-of-integer-division
-    int d = a / b;
-    int r = a % b;  /* optimizes into single division. */
-    return r ? (d - ((a < 0) ^ (b < 0))) : d;
+  // https://stackoverflow.com/questions/3602827/what-is-the-behavior-of-integer-division
+  int d = a / b;
+  int r = a % b; /* optimizes into single division. */
+  return r ? (d - ((a < 0) ^ (b < 0))) : d;
 }
 
 Box Transform::smallestEnclosingRect(const Box &rect) const {
@@ -156,10 +157,9 @@ Box Transform::smallestBoundingRect() const {
 void TransformedDisplayOutput::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
                                           uint16_t y1, PaintMode mode) {
   if (!transform_.is_rescaled() && !transform_.xy_swap()) {
-    delegate_->setAddress(
-        x0 + transform_.x_offset(), y0 + transform_.y_offset(),
-        x1 + transform_.x_offset(), y1 + transform_.y_offset(),
-        mode);
+    delegate_.setAddress(x0 + transform_.x_offset(), y0 + transform_.y_offset(),
+                         x1 + transform_.x_offset(), y1 + transform_.y_offset(),
+                         mode);
   } else {
     addr_window_ = Box(x0, y0, x1, y1);
     paint_mode_ = mode;
@@ -170,7 +170,7 @@ void TransformedDisplayOutput::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
 
 void TransformedDisplayOutput::write(Color *color, uint32_t pixel_count) {
   if (!transform_.is_rescaled() && !transform_.xy_swap()) {
-    delegate_->write(color, pixel_count);
+    delegate_.write(color, pixel_count);
   } else {
     ClippingBufferedRectWriter writer(delegate_, clip_box_, paint_mode_);
     while (pixel_count-- > 0) {
@@ -203,7 +203,7 @@ void TransformedDisplayOutput::writePixels(PaintMode mode, Color *color,
   }
   if (!transform_.is_rescaled()) {
     if (!transform_.is_translated()) {
-      delegate_->writePixels(mode, color, x, y, pixel_count);
+      delegate_.writePixels(mode, color, x, y, pixel_count);
     } else {
       ClippingBufferedPixelWriter writer(delegate_, clip_box_, mode);
       int16_t dx = transform_.x_offset();
@@ -238,7 +238,7 @@ void TransformedDisplayOutput::fillPixels(PaintMode mode, Color color,
   }
   if (!transform_.is_rescaled()) {
     if (!transform_.is_translated()) {
-      delegate_->fillPixels(mode, color, x, y, pixel_count);
+      delegate_.fillPixels(mode, color, x, y, pixel_count);
     } else {
       ClippingBufferedPixelFiller filler(delegate_, color, clip_box_, mode);
       while (pixel_count-- > 0) {

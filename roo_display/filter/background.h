@@ -10,10 +10,10 @@ namespace roo_display {
 // but applies the specified 'rasterizable' background.
 class BackgroundFilter : public DisplayOutput {
  public:
-  BackgroundFilter(DisplayOutput* output, const Rasterizable* background)
+  BackgroundFilter(DisplayOutput& output, const Rasterizable* background)
       : BackgroundFilter(output, background, 0, 0) {}
 
-  BackgroundFilter(DisplayOutput* output, const Rasterizable* background,
+  BackgroundFilter(DisplayOutput& output, const Rasterizable* background,
                    int16_t dx, int16_t dy)
       : output_(output),
         background_(background),
@@ -30,7 +30,7 @@ class BackgroundFilter : public DisplayOutput {
     address_window_ = Box(x0 - dx_, y0 - dy_, x1 - dx_, y1 - dy_);
     cursor_x_ = x0 - dx_;
     cursor_y_ = y0 - dy_;
-    output_->setAddress(x0, y0, x1, y1, mode);
+    output_.setAddress(x0, y0, x1, y1, mode);
   }
 
   void write(Color* color, uint32_t pixel_count) override {
@@ -50,7 +50,7 @@ class BackgroundFilter : public DisplayOutput {
     for (uint32_t i = 0; i < pixel_count; ++i) {
       newcolor[i] = alphaBlend(newcolor[i], color[i]);
     }
-    output_->write(newcolor, pixel_count);
+    output_.write(newcolor, pixel_count);
   }
 
   // void fill(PaintMode mode, Color color, uint32_t pixel_count) override {
@@ -92,7 +92,7 @@ class BackgroundFilter : public DisplayOutput {
     for (uint32_t i = 0; i < pixel_count; ++i) {
       newcolor[i] = alphaBlend(newcolor[i], color[i]);
     }
-    output_->writePixels(mode, newcolor, x, y, pixel_count);
+    output_.writePixels(mode, newcolor, x, y, pixel_count);
   }
 
   void fillPixels(PaintMode mode, Color color, int16_t* x, int16_t* y,
@@ -102,7 +102,7 @@ class BackgroundFilter : public DisplayOutput {
     for (uint32_t i = 0; i < pixel_count; ++i) {
       newcolor[i] = alphaBlend(newcolor[i], color);
     }
-    output_->writePixels(mode, newcolor, x, y, pixel_count);
+    output_.writePixels(mode, newcolor, x, y, pixel_count);
   }
 
  private:
@@ -139,7 +139,7 @@ class BackgroundFilter : public DisplayOutput {
         for (uint16_t i = 0; i < 64; ++i) {
           newcolor[i] = alphaBlend(newcolor[i], color);
         }
-        output_->write(newcolor, 64);
+        output_.write(newcolor, 64);
         i = 0;
       }
       if (cursor_x_ > address_window_.xMax()) {
@@ -153,11 +153,11 @@ class BackgroundFilter : public DisplayOutput {
       for (uint16_t i = 0; i < remaining; ++i) {
         newcolor[i] = alphaBlend(newcolor[i], color);
       }
-      output_->write(newcolor, remaining);
+      output_.write(newcolor, remaining);
     }
   }
 
-  DisplayOutput* output_;
+  DisplayOutput& output_;
   const Rasterizable* background_;
   Box address_window_;
   int16_t cursor_x_;

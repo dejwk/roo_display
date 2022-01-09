@@ -80,7 +80,7 @@ void initNibbleRect(NibbleRect* rect, const char* input) {
   OffscreenDisplay<Grayscale4> offscreen(rect->width(), rect->height(),
                                          rect->buffer());
   {
-    DrawingContext dc(&offscreen);
+    DrawingContext dc(offscreen);
     dc.draw(
         MakeTestStreamable(Grayscale4(), rect->width(), rect->height(), input));
   }

@@ -336,7 +336,7 @@ inline bool Composition::Add(const Box& full_extents) {
 
 void writeRect(internal::Engine* engine, const Box& bounds,
                internal::BufferingStream* streams, const Surface& s) {
-  s.out()->setAddress(bounds, s.paint_mode());
+  s.out().setAddress(bounds, s.paint_mode());
   BufferedColorWriter writer(s.out());
   while (true) {
     switch (engine->fetch()) {

@@ -28,7 +28,7 @@ class SimpleRoundMask {
     offscreen->writePixel(mode, x, y, color);
   }
 
-  static ClipMaskFilter* Create(DisplayOutput* output) {
+  static ClipMaskFilter* Create(DisplayOutput& output) {
     static const uint8_t clip_mask_data[] = {
         0x00, 0x00, 0x1F, 0xC0, 0x3F, 0xE0, 0x7F,
         0xF0, 0x3F, 0xE0, 0x1F, 0xC0, 0x00, 0x00,
@@ -70,7 +70,7 @@ class LargeMask {
     offscreen->writePixel(mode, x, y, color);
   }
 
-  static ClipMaskFilter* Create(DisplayOutput* output) {
+  static ClipMaskFilter* Create(DisplayOutput& output) {
     static const uint8_t clip_mask_data[] = {
         0b00000000, 0b00000000, 0b00000000, 0b00000000,  // NOFORMAT
         0b00011111, 0b11111111, 0b11111111, 0b11000000,  // NOFORMAT
@@ -170,14 +170,14 @@ TEST(ClipMask, SimpleLargeTests) {
 
 TEST(ClipMask, ClipMaskWrite) {
   FakeOffscreen<Rgb565> test_screen(16, 7);
-  Display display(&test_screen);
+  Display display(test_screen);
   const uint8_t clip_mask_data[] = {
       0x00, 0x00, 0x1F, 0xC0, 0x3F, 0xE0, 0x7F,
       0xF0, 0x3F, 0xE0, 0x1F, 0xC0, 0x00, 0x00,
   };
   ClipMask mask(clip_mask_data, Box(0, 0, 15, 6));
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.setClipMask(&mask);
     dc.draw(MakeTestStreamable(WhiteOnBlack(), 14, 6,
                                "**************"
@@ -201,14 +201,14 @@ TEST(ClipMask, ClipMaskWrite) {
 
 TEST(ClipMask, ClipMaskStreamableSemiTransparent) {
   FakeOffscreen<Rgb565> test_screen(16, 7);
-  Display display(&test_screen);
+  Display display(test_screen);
   const uint8_t clip_mask_data[] = {
       0x00, 0x00, 0x1F, 0xC0, 0x3F, 0xE0, 0x7F,
       0xF0, 0x3F, 0xE0, 0x1F, 0xC0, 0x00, 0x00,
   };
   ClipMask mask(clip_mask_data, Box(0, 0, 15, 6));
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.setClipMask(&mask);
     dc.draw(MakeTestStreamable(Alpha4(color::White), 14, 6,
                                "**************"

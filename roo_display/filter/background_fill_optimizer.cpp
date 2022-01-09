@@ -64,12 +64,12 @@ void BackgroundFillOptimizer::FrameBuffer::invalidateRect(const Box& rect) {
       0);
 }
 
-BackgroundFillOptimizer::BackgroundFillOptimizer(DisplayOutput* output,
-                                                 FrameBuffer* buffer)
+BackgroundFillOptimizer::BackgroundFillOptimizer(DisplayOutput& output,
+                                                 FrameBuffer& buffer)
     : output_(output),
-      background_mask_(&buffer->background_mask_),
-      palette_(buffer->palette_),
-      palette_size_(buffer->palette_size_),
+      background_mask_(&buffer.background_mask_),
+      palette_(buffer.palette_),
+      palette_size_(buffer.palette_size_),
       address_window_(0, 0, 0, 0),
       cursor_x_(0),
       cursor_y_(0) {}
@@ -141,7 +141,7 @@ void BackgroundFillOptimizer::fillRects(PaintMode mode, Color color,
                                      y1[i] / kBgFillOptimizerWindowSize),
                                  0);
     }
-    output_->fillRects(mode, color, x0, y0, x1, y1, count);
+    output_.fillRects(mode, color, x0, y0, x1, y1, count);
   }
 }
 
@@ -172,7 +172,7 @@ void BackgroundFillOptimizer::writePixels(PaintMode mode, Color* color,
     new_pixel_count++;
   }
   if (new_pixel_count > 0) {
-    output_->writePixels(mode, color, x, y, new_pixel_count);
+    output_.writePixels(mode, color, x, y, new_pixel_count);
   }
 }
 
@@ -199,7 +199,7 @@ void BackgroundFillOptimizer::fillPixels(PaintMode mode, Color color,
       new_pixel_count++;
     }
     if (new_pixel_count > 0) {
-      output_->fillPixels(mode, color, x, y, new_pixel_count);
+      output_.fillPixels(mode, color, x, y, new_pixel_count);
     }
   } else {
     // We need to draw all the pixels, but also mark the corresponding
@@ -208,7 +208,7 @@ void BackgroundFillOptimizer::fillPixels(PaintMode mode, Color color,
       background_mask_->set(x[i] / kBgFillOptimizerWindowSize,
                             y[i] / kBgFillOptimizerWindowSize, 0);
     }
-    output_->fillPixels(mode, color, x, y, pixel_count);
+    output_.fillPixels(mode, color, x, y, pixel_count);
   }
 }
 

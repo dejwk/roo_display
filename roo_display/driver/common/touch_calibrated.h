@@ -22,7 +22,7 @@ class TouchCalibration {
 
   // Augments x and y so that they are within range [0, 4095], and
   // correspond to the logical {x, y} direction of the calibrated device.
-  bool Calibrate(int16_t *x, int16_t *y, int16_t *z);
+  bool Calibrate(int16_t& x, int16_t& y, int16_t& z);
 
  private:
   Box bounds_;
@@ -31,7 +31,7 @@ class TouchCalibration {
 
 class TouchCalibrated : public TouchDevice {
  public:
-  TouchCalibrated(TouchDevice *touch,
+  TouchCalibrated(TouchDevice* touch,
                   TouchCalibration calibration = TouchCalibration())
       : touch_(touch), calibration_(std::move(calibration)) {}
 
@@ -39,10 +39,10 @@ class TouchCalibrated : public TouchDevice {
     calibration_ = calibration;
   }
 
-  bool getTouch(int16_t *x, int16_t *y, int16_t *z) override;
+  bool getTouch(int16_t& x, int16_t& y, int16_t& z) override;
 
  private:
-  TouchDevice *touch_;
+  TouchDevice* touch_;
   TouchCalibration calibration_;
 };
 

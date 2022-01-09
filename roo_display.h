@@ -11,19 +11,22 @@ namespace roo_display {
 
 class TouchDisplay {
  public:
-  TouchDisplay(DisplayDevice *display, TouchDevice *touch)
+  TouchDisplay(DisplayDevice &display, TouchDevice &touch)
       : display_(display), touch_(touch) {}
 
-  bool getTouch(int16_t *x, int16_t *y);
+  bool getTouch(int16_t &x, int16_t &y);
 
  private:
-  DisplayDevice *display_;
-  TouchDevice *touch_;
+  DisplayDevice &display_;
+  TouchDevice &touch_;
 };
 
 class Display {
  public:
-  Display(DisplayDevice *display, TouchDevice *touch = nullptr);
+  Display(DisplayDevice &display) : Display(display, nullptr) {}
+
+  Display(DisplayDevice &display, TouchDevice &touch)
+      : Display(display, &touch) {}
 
   int16_t width() const { return width_; }
   int16_t height() const { return height_; }
@@ -31,7 +34,7 @@ class Display {
   Box extents() const { return Box(0, 0, width() - 1, height() - 1); }
 
   // Initializes the device.
-  void init() { display_->init(); }
+  void init() { display_.init(); }
 
   // Initializes the device, fills screen with the specified color, and sets
   // that color as the defaul background hint.
@@ -43,10 +46,10 @@ class Display {
 
   Orientation orientation() const { return orientation_; }
 
-  DisplayOutput *output() { return display_; }
-  const DisplayOutput &output() const { return *display_; }
+  DisplayOutput &output() { return display_; }
+  const DisplayOutput &output() const { return display_; }
 
-  bool getTouch(int16_t *x, int16_t *y) { return touch_.getTouch(x, y); }
+  bool getTouch(int16_t &x, int16_t &y) { return touch_.getTouch(x, y); }
 
   // Sets a default clip box, inherited by all derived contexts.
   void setClipBox(int16_t x0, int16_t y0, int16_t x1, int16_t y1) {
@@ -72,30 +75,32 @@ class Display {
   void setBackground(Color bgcolor) {
     background_ = nullptr;
     bgcolor_ = bgcolor;
-    display_->setBgColorHint(bgcolor);
+    display_.setBgColorHint(bgcolor);
   }
 
   // Clears the display, respecting the clip box, and background settings.
   void clear();
 
  private:
+  Display(DisplayDevice &display, TouchDevice *touch);
+
   friend class DrawingContext;
 
   void nest() {
     if (nest_level_++ == 0) {
-      display_->begin();
+      display_.begin();
     }
   }
 
   void unnest() {
     if (--nest_level_ == 0) {
-      display_->end();
+      display_.end();
     }
   }
 
   void updateBounds();
 
-  DisplayDevice *display_;
+  DisplayDevice &display_;
   TouchDisplay touch_;
   int16_t nest_level_;
   int16_t width_;
@@ -140,23 +145,23 @@ class Display {
 // balance between performance and program size.
 class DrawingContext {
  public:
-  DrawingContext(Display *display)
+  DrawingContext(Display display)
       : display_(display),
         fill_mode_(FILL_MODE_VISIBLE),
         paint_mode_(PAINT_MODE_BLEND),
-        clip_box_(display->clip_box_),
+        clip_box_(display.clip_box_),
         clip_mask_(nullptr),
-        background_(display->background_),
-        bgcolor_(display->bgcolor_),
+        background_(display.background_),
+        bgcolor_(display.bgcolor_),
         transformed_(false),
         transform_() {
-    display_->nest();
+    display_.nest();
   }
 
-  ~DrawingContext() { display_->unnest(); }
+  ~DrawingContext() { display_.unnest(); }
 
-  int16_t width() const { return display_->width(); }
-  int16_t height() const { return display_->height(); }
+  int16_t width() const { return display_.width(); }
+  int16_t height() const { return display_.height(); }
 
   void setBackground(const Rasterizable *bg) {
     background_ = bg;
@@ -181,7 +186,7 @@ class DrawingContext {
   void fill(Color color);
 
   void setClipBox(const Box &clip_box) {
-    clip_box_ = Box::intersect(clip_box, display_->clip_box_);
+    clip_box_ = Box::intersect(clip_box, display_.clip_box_);
   }
 
   void setClipBox(int16_t x0, int16_t y0, int16_t x1, int16_t y1) {
@@ -211,7 +216,7 @@ class DrawingContext {
                         PaintMode paint_mode) {
     if (!clip_box_.contains(x, y)) return;
     if (clip_mask_ != nullptr && !clip_mask_->isSet(x, y)) return;
-    output()->fillPixels(paint_mode, color, &x, &y, 1);
+    output().fillPixels(paint_mode, color, &x, &y, 1);
   }
 
   void draw(const Drawable &object) { drawInternal(object, 0, 0, bgcolor_); }
@@ -221,8 +226,8 @@ class DrawingContext {
   }
 
  private:
-  DisplayOutput *output() { return display_->output(); }
-  const DisplayOutput *output() const { return display_->output(); }
+  DisplayOutput &output() { return display_.output(); }
+  const DisplayOutput &output() const { return display_.output(); }
 
   void drawInternal(const Drawable &object, int16_t dx, int16_t dy,
                     Color bgcolor) {
@@ -230,21 +235,21 @@ class DrawingContext {
       drawInternalWithBackground(output(), object, dx, dy, bgcolor);
     } else {
       ClipMaskFilter filter(output(), clip_mask_);
-      drawInternalWithBackground(&filter, object, dx, dy, bgcolor);
+      drawInternalWithBackground(filter, object, dx, dy, bgcolor);
     }
   }
 
-  void drawInternalWithBackground(DisplayOutput *output, const Drawable &object,
+  void drawInternalWithBackground(DisplayOutput &output, const Drawable &object,
                                   int16_t dx, int16_t dy, Color bgcolor) {
     if (background_ == nullptr) {
       drawInternalTransformed(output, object, dx, dy, bgcolor);
     } else {
       BackgroundFilter filter(output, background_);
-      drawInternalTransformed(&filter, object, dx, dy, bgcolor);
+      drawInternalTransformed(filter, object, dx, dy, bgcolor);
     }
   }
 
-  void drawInternalTransformed(DisplayOutput *output, const Drawable &object,
+  void drawInternalTransformed(DisplayOutput &output, const Drawable &object,
                                int16_t dx, int16_t dy, Color bgcolor) {
     Surface s(output, dx, dy, clip_box_, bgcolor, fill_mode_, paint_mode_);
     if (!transformed_) {
@@ -259,7 +264,7 @@ class DrawingContext {
     }
   }
 
-  Display *display_;
+  Display display_;
   FillMode fill_mode_;
   PaintMode paint_mode_;
 
@@ -284,7 +289,7 @@ class Fill : public Drawable {
  private:
   void drawTo(const Surface &s) const override {
     Color color = alphaBlend(s.bgcolor(), color_);
-    s.out()->fillRect(PAINT_MODE_REPLACE, s.clip_box(), color);
+    s.out().fillRect(PAINT_MODE_REPLACE, s.clip_box(), color);
   }
 
   Color color_;
@@ -301,7 +306,7 @@ class Clear : public Drawable {
 
  private:
   void drawTo(const Surface &s) const override {
-    s.out()->fillRect(PAINT_MODE_REPLACE, s.clip_box(), s.bgcolor());
+    s.out().fillRect(PAINT_MODE_REPLACE, s.clip_box(), s.bgcolor());
   }
 };
 

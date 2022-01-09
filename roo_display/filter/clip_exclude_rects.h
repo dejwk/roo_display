@@ -43,7 +43,7 @@ class RectUnion {
 // mask, consisting of a union of rectangles.
 class RectUnionFilter : public DisplayOutput {
  public:
-  RectUnionFilter(DisplayOutput* output, const RectUnion* exclusion)
+  RectUnionFilter(DisplayOutput& output, const RectUnion* exclusion)
       : output_(output),
         exclusion_(exclusion),
         address_window_(0, 0, 0, 0),
@@ -123,7 +123,7 @@ class RectUnionFilter : public DisplayOutput {
       }
     }
     if (new_pixel_count > 0) {
-      output_->writePixels(mode, color, x, y, new_pixel_count);
+      output_.writePixels(mode, color, x, y, new_pixel_count);
     }
   }
 
@@ -140,7 +140,7 @@ class RectUnionFilter : public DisplayOutput {
       }
     }
     if (new_pixel_count > 0) {
-      output_->fillPixels(mode, color, x, y, new_pixel_count);
+      output_.fillPixels(mode, color, x, y, new_pixel_count);
     }
   }
 
@@ -203,7 +203,7 @@ class RectUnionFilter : public DisplayOutput {
     }
   }
 
-  DisplayOutput* output_;
+  DisplayOutput& output_;
   const RectUnion* exclusion_;
   Box address_window_;
   PaintMode paint_mode_;

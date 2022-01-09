@@ -185,7 +185,7 @@ class Offscreen : public DisplayDevice, public Rasterizable {
       fillRect(0, 0, raw_width() - 1, raw_height() - 1, color::Transparent);
     }
     Box extents = d.extents();
-    Surface s(this, -extents.xMin(), -extents.yMin(),
+    Surface s(*this, -extents.xMin(), -extents.yMin(),
               Box(0, 0, raw_width(), raw_height()));
     s.drawObject(d);
   }
@@ -291,15 +291,15 @@ class OffscreenDisplay : public Display, public Rasterizable {
   // Look at class Offscreen, above, to see supported parameter options.
   template <typename... Args>
   OffscreenDisplay(Args &&...args)
-      : Display(new OffscreenDevice(std::forward<Args>(args)...), nullptr) {}
+      : Display(*(new OffscreenDevice(std::forward<Args>(args)...))) {}
 
-  ~OffscreenDisplay() { delete offscreen(); }
+  ~OffscreenDisplay() { delete &offscreen(); }
 
   const OffscreenDevice &offscreen() const {
     return (const OffscreenDevice &)output();
   }
 
-  OffscreenDevice *offscreen() { return (OffscreenDevice *)output(); }
+  OffscreenDevice &offscreen() { return (OffscreenDevice &)output(); }
 
   const Raster<const uint8_t *, ColorMode, pixel_order, byte_order> &raster()
       const {
@@ -431,8 +431,8 @@ class ReplaceWriter {
     int pixel_index = offset % pixels_per_byte;
     uint8_t *target = p + offset / pixels_per_byte;
     while (count-- > 0) {
-      subpixel.applySubPixelColor(
-          color_mode_.fromArgbColor(*color_++), target, pixel_index);
+      subpixel.applySubPixelColor(color_mode_.fromArgbColor(*color_++), target,
+                                  pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;
         target++;

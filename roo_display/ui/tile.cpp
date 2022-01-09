@@ -11,7 +11,7 @@ namespace internal {
 void TileBase::draw(const Surface& s, const Drawable& content) const {
   if (background_ != nullptr) {
     BackgroundFilter filter(s.out(), background_, s.dx(), s.dy());
-    Surface news(&filter, s.dx(), s.dy(), s.clip_box(), color::Transparent,
+    Surface news(filter, s.dx(), s.dy(), s.clip_box(), color::Transparent,
                  s.fill_mode(), s.paint_mode());
     drawInternal(news, content);
   } else {
@@ -30,27 +30,27 @@ void TileBase::drawInternal(const Surface& s, const Drawable& content) const {
                                 border_.interior().translate(s.dx(), s.dy()));
   if (interior.empty()) {
     if (fill_mode == FILL_MODE_RECTANGLE) {
-      s.out()->fillRect(s.paint_mode(),
-                        Box(extents.xMin(), extents.yMin(),
-                            extents.xMax(), extents.yMax()),
-                        bgcolor);
+      s.out().fillRect(
+          s.paint_mode(),
+          Box(extents.xMin(), extents.yMin(), extents.xMax(), extents.yMax()),
+          bgcolor);
     }
     return;
   }
   if (fill_mode == FILL_MODE_RECTANGLE) {
     if (extents.yMin() < interior.yMin()) {
       // Draw the top bg bar.
-      s.out()->fillRect(s.paint_mode(),
-                        Box(extents.xMin(), extents.yMin(), extents.xMax(),
-                            interior.yMin() - 1),
-                        bgcolor);
+      s.out().fillRect(s.paint_mode(),
+                       Box(extents.xMin(), extents.yMin(), extents.xMax(),
+                           interior.yMin() - 1),
+                       bgcolor);
     }
     if (extents.xMin() < interior.xMin()) {
       // Draw the left bg bar.
-      s.out()->fillRect(s.paint_mode(),
-                        Box(extents.xMin(), interior.yMin(),
-                            interior.xMin() - 1, interior.yMax()),
-                        bgcolor);
+      s.out().fillRect(s.paint_mode(),
+                       Box(extents.xMin(), interior.yMin(), interior.xMin() - 1,
+                           interior.yMax()),
+                       bgcolor);
     }
   }
   Surface inner(s.out(), s.dx() + border_.x_offset(),
@@ -60,17 +60,17 @@ void TileBase::drawInternal(const Surface& s, const Drawable& content) const {
   if (fill_mode == FILL_MODE_RECTANGLE) {
     if (extents.xMax() > interior.xMax()) {
       // Draw the right bg bar.
-      s.out()->fillRect(s.paint_mode(),
-                        Box(interior.xMax() + 1, interior.yMin(),
-                            extents.xMax(), interior.yMax()),
-                        bgcolor);
+      s.out().fillRect(s.paint_mode(),
+                       Box(interior.xMax() + 1, interior.yMin(), extents.xMax(),
+                           interior.yMax()),
+                       bgcolor);
     }
     if (extents.yMax() > interior.yMax()) {
       // Draw the bottom bg bar.
-      s.out()->fillRect(s.paint_mode(),
-                        Box(extents.xMin(), interior.yMax() + 1, extents.xMax(),
-                            extents.yMax()),
-                        bgcolor);
+      s.out().fillRect(s.paint_mode(),
+                       Box(extents.xMin(), interior.yMax() + 1, extents.xMax(),
+                           extents.yMax()),
+                       bgcolor);
     }
   }
 }

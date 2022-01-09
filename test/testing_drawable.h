@@ -11,16 +11,16 @@ template <typename ColorMode>
 class FakeScreen {
  public:
   FakeScreen(int16_t width, int16_t height, Color color = color::Transparent)
-      : device_(width, height, color), display_(&device_, nullptr) {}
+      : device_(width, height, color), display_(device_) {}
 
   FakeScreen(Box extents, Color color = color::Transparent)
-      : device_(std::move(extents), color), display_(&device_, nullptr) {}
+      : device_(std::move(extents), color), display_(device_) {}
 
   void Draw(const Drawable& drawable, int16_t dx, int16_t dy,
             Color bgcolor = color::Transparent,
             FillMode fill_mode = FILL_MODE_VISIBLE,
             PaintMode paint_mode = PAINT_MODE_BLEND) {
-    DrawingContext dc(&display_);
+    DrawingContext dc(display_);
     dc.setBackground(bgcolor);
     dc.setFillMode(fill_mode);
     dc.setPaintMode(paint_mode);
@@ -31,7 +31,7 @@ class FakeScreen {
             Color bgcolor = color::Transparent,
             FillMode fill_mode = FILL_MODE_VISIBLE,
             PaintMode paint_mode = PAINT_MODE_BLEND) {
-    DrawingContext dc(&display_);
+    DrawingContext dc(display_);
     dc.setClipBox(clip_box);
     dc.setBackground(bgcolor);
     dc.setFillMode(fill_mode);

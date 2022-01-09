@@ -171,7 +171,7 @@ class TouchDevice {
   // coordinates, where (x, y) are in the range of 0 to 4095, and z is 'press
   // intensity' in the range of 0-255. If the touch has not been registered,
   // returns false without modifying x, y, or z.
-  virtual bool getTouch(int16_t *x, int16_t *y, int16_t *z) = 0;
+  virtual bool getTouch(int16_t &x, int16_t &y, int16_t &z) = 0;
 };
 
 }  // namespace roo_display

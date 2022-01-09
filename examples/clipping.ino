@@ -18,7 +18,7 @@ using namespace roo_display;
 #include "roo_display/driver/st7789.h"
 St7789spi_240x240<5, 2, 4> device;
 
-Display display(&device, nullptr);
+Display display(device);
 
 size_t clipmask_size;
 uint8_t* clipmask;
@@ -33,13 +33,13 @@ void setup() {
   // We allocate the bit_mask buffer dynamically here, rather than statically,
   // because we want to tie its size to the actual display size. We're using a
   // singleton b/c we don't need to use multiple bitmasks in this demo.
-  clipmask_size = ((display.with() + 7) / 8) * display.height();
+  clipmask_size = ((display.width() + 7) / 8) * display.height();
   clipmask = new uint8_t[clipmask_size];
 }
 
 void basicBitPatterns1() {
   long start = millis();
-  DrawingContext dc(&display);
+  DrawingContext dc(display);
   dc.fill(color::LightGray);
   // ClipMask can be narrowed by a box rectangle. Here, we're just using full
   // screen.
@@ -65,7 +65,7 @@ void basicBitPatterns2() {
   // vertical stripes, this trick allows the underlying driver to draw the
   // picture much faster, since it does not need to send as many window change
   // commands.
-  DrawingContext dc(&display);
+  DrawingContext dc(display);
   dc.fill(color::LightGray);
   ClipMask mask(clipmask, display.extents());
   dc.setClipMask(&mask);
@@ -97,7 +97,7 @@ void fillMask(float angleStart, float angleEnd, int16_t radius) {
       Monochrome(color::Black, color::White));
   int16_t quadrantStart = (int16_t)(angleStart / 90);
   int16_t quadrantEnd = (int16_t)(angleEnd / 90);
-  DrawingContext odc(&offscreen);
+  DrawingContext odc(offscreen);
   odc.fill(color::White);
   int16_t x1, y1, x2, y2;
   polarToCartesian(angleStart, 2 * radius, &x1, &y1);
@@ -118,7 +118,7 @@ void fillMask(float angleStart, float angleEnd, int16_t radius) {
 
 void pieChart() {
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.fill(color::LightGray);
   }
   // We can draw graphic primitives to the clip mask, using Offscreen. Let's
@@ -134,7 +134,7 @@ void pieChart() {
   while (true) {
     angle2 = *nextAngle;
     fillMask(angle1, angle2, radius);
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     ClipMask mask(clipmask, display.extents());
     dc.setClipMask(&mask);
     dc.draw(FilledCircle::ByRadius(display.width() / 2, display.height() / 2,
@@ -158,12 +158,12 @@ void clippedFont1() {
   OffscreenDisplay<Monochrome> offscreen(
       display.width(), display.height(), clipmask,
       Monochrome(color::Black, color::White));
-  DrawingContext odc(&offscreen);
+  DrawingContext odc(offscreen);
   odc.fill(color::White);
   odc.draw(FilledCircle::ByRadius(display.width() / 2, display.height() / 2, 50,
                                   color::Black));
 
-  DrawingContext dc(&display);
+  DrawingContext dc(display);
   dc.fill(color::LightGray);
   ClipMask mask(clipmask, display.extents());
   dc.setClipMask(&mask);
@@ -175,12 +175,12 @@ void clippedFont2() {
       display.width(), display.height(), clipmask,
       Monochrome(color::Black, color::White));
 
-  DrawingContext dc(&display);
+  DrawingContext dc(display);
   dc.fill(color::LightGray);
   ClipMask mask(clipmask, display.extents());
   dc.setClipMask(&mask);
   {
-    DrawingContext odc(&offscreen);
+    DrawingContext odc(offscreen);
     odc.fill(color::White);
     for (int i = 0; i < display.height(); i += 4) {
       odc.draw(FilledRect(0, i, display.width() - 1, i + 1, color::Black));
@@ -188,7 +188,7 @@ void clippedFont2() {
   }
   dc.draw(centeredLabel("Ostendo", color::Black));
   {
-    DrawingContext odc(&offscreen);
+    DrawingContext odc(offscreen);
     odc.fill(color::White);
     for (int i = 2; i < display.height(); i += 4) {
       odc.draw(FilledRect(0, i, display.width() - 1, i + 1, color::Black));

@@ -47,7 +47,7 @@ void drawSteepLine(VLineFiller *drawer, int16_t x0, int16_t y0, int16_t x1,
   if (dlen > 0) drawer->fillVLine(x, ys, y1);
 }
 
-void drawHLine(DisplayOutput *device, int16_t x0, int16_t y0, int16_t x1,
+void drawHLine(DisplayOutput &device, int16_t x0, int16_t y0, int16_t x1,
                Color color, const Box &clip_box, PaintMode mode) {
   if (x0 > clip_box.xMax() || x1 < clip_box.xMin() || y0 > clip_box.yMax() ||
       y0 < clip_box.yMin() || x1 < x0) {
@@ -57,10 +57,10 @@ void drawHLine(DisplayOutput *device, int16_t x0, int16_t y0, int16_t x1,
   if (x0 < clip_box.xMin()) x0 = clip_box.xMin();
   if (x1 > clip_box.xMax()) x1 = clip_box.xMax();
 
-  device->fillRects(mode, color, &x0, &y0, &x1, &y0, 1);
+  device.fillRects(mode, color, &x0, &y0, &x1, &y0, 1);
 }
 
-void drawVLine(DisplayOutput *device, int16_t x0, int16_t y0, int16_t y1,
+void drawVLine(DisplayOutput &device, int16_t x0, int16_t y0, int16_t y1,
                Color color, const Box &clip_box, PaintMode mode) {
   if (x0 > clip_box.xMax() || x0 < clip_box.xMin() || y0 > clip_box.yMax() ||
       y1 < clip_box.yMin() || y1 < y0) {
@@ -70,7 +70,7 @@ void drawVLine(DisplayOutput *device, int16_t x0, int16_t y0, int16_t y1,
   if (y0 < clip_box.yMin()) y0 = clip_box.yMin();
   if (y1 > clip_box.yMax()) y1 = clip_box.yMax();
 
-  device->fillRects(mode, color, &x0, &y0, &x0, &y1, 1);
+  device.fillRects(mode, color, &x0, &y0, &x0, &y1, 1);
 }
 
 void Line::drawTo(const Surface &s) const {
@@ -119,7 +119,7 @@ void Rect::drawTo(const Surface &s) const {
   filler.fillVLine(x0, y0 + 1, y1 - 1);
   filler.fillVLine(x1, y0 + 1, y1 - 1);
   if (s.fill_mode() == FILL_MODE_RECTANGLE && x1 - x0 >= 2 && y1 - y0 >= 2) {
-    s.out()->fillRect(Box(x0 + 1, y0 + 1, x1 - 1, y1 - 1), s.bgcolor());
+    s.out().fillRect(Box(x0 + 1, y0 + 1, x1 - 1, y1 - 1), s.bgcolor());
   }
 }
 
@@ -132,7 +132,7 @@ void FilledRect::drawTo(const Surface &s) const {
   Color color = alphaBlend(s.bgcolor(), this->color());
   Box box(x0, y0, x1, y1);
   if (box.clip(s.clip_box())) {
-    s.out()->fillRect(s.paint_mode(), box, color);
+    s.out().fillRect(s.paint_mode(), box, color);
   }
 }
 
@@ -260,7 +260,7 @@ void fillRoundRectOutsideCorners(HlineFiller *filler, int16_t x0, int16_t y0,
 
 // Also used to draw circles, in a special case when radius is half of the box
 // length.
-void drawRoundRect(DisplayOutput *output, const Box &bbox, int16_t radius,
+void drawRoundRect(DisplayOutput &output, const Box &bbox, int16_t radius,
                    const Box &clip_box, Color color, PaintMode mode) {
   if (Box::intersect(clip_box, bbox).empty()) return;
   int16_t x0 = bbox.xMin() + radius;
@@ -313,7 +313,7 @@ void Circle::drawInteriorTo(const Surface &s) const {
 
 // Also used to draw circles, in a special case when radius is half of the box
 // length.
-void fillRoundRect(DisplayOutput *output, const Box &bbox, int16_t radius,
+void fillRoundRect(DisplayOutput &output, const Box &bbox, int16_t radius,
                    const Box &clip_box, Color color, PaintMode mode) {
   if (Box::intersect(clip_box, bbox).empty()) return;
   int16_t x0 = bbox.xMin() + radius;
@@ -331,7 +331,7 @@ void fillRoundRect(DisplayOutput *output, const Box &bbox, int16_t radius,
   }
 }
 
-void fillRoundRectBg(DisplayOutput *output, const Box &bbox, int16_t radius,
+void fillRoundRectBg(DisplayOutput &output, const Box &bbox, int16_t radius,
                      const Box &clip_box, Color bgcolor, PaintMode mode) {
   if (Box::intersect(clip_box, bbox).empty()) return;
   int16_t x0 = bbox.xMin() + radius;

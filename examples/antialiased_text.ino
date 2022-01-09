@@ -29,7 +29,7 @@ using namespace roo_display;
 #include "roo_display/driver/st7789.h" 
 St7789spi_240x240<5, 2, 4> device;
 
-Display display(&device, nullptr);
+Display display(device);
 
 void setup() {
   Serial.begin(9600);
@@ -84,7 +84,7 @@ void printText(DrawingContext& dc, const Drawable& widget) {
 // transparent.
 void printTransparentlyUsingDeviceBackground(Color bgcolor) {
   Serial.println("Drawing with device background.");
-  DrawingContext dc(&display);
+  DrawingContext dc(display);
   device.setBgColorHint(bgcolor);
   printText(dc, Widget(FILL_MODE_VISIBLE));
 }
@@ -92,7 +92,7 @@ void printTransparentlyUsingDeviceBackground(Color bgcolor) {
 // Draws the glyphs using a solid background (overwriting previous background).
 void printUsingSolidBackground(Color bgcolor) {
   Serial.println("Drawing with solid background.");
-  DrawingContext dc(&display);
+  DrawingContext dc(display);
   dc.setBackground(bgcolor);
   printText(dc, Widget());
 }
@@ -110,11 +110,11 @@ void printUsingRamBuffer() {
     // the content. (It is achieved here by enclosing it in a nested bock).
     // Otherwise, in some circumstances you can see 'unfinished' results, since
     // the underlying implementation has liberty to use buffered writes.
-    DrawingContext dc(&offscreen);
+    DrawingContext dc(offscreen);
     dc.draw(Widget());
   }
   // Now, we can use the offscreen as a regular drawable.
-  DrawingContext dc(&display);
+  DrawingContext dc(display);
   printText(dc, offscreen);
 }
 
@@ -122,7 +122,7 @@ void printUsingClipping() {
   Serial.println(
       "Drawing two halves separately, and clipping. This should look "
       "great overall. Might be tad slower than via RAM buffer.");
-  DrawingContext dc(&display);
+  DrawingContext dc(display);
   // Print the left half.
   dc.setBackground(color::IndianRed);
   // Clipped

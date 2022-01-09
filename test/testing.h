@@ -1113,12 +1113,12 @@ class FilteredOutput : public DisplayOutput {
                  Color background = color::Transparent,
                  ColorMode color_mode = ColorMode())
       : offscreen_(width, height, background, color_mode),
-        filter_(FilterFactory::Create(&offscreen_)) {}
+        filter_(FilterFactory::Create(offscreen_)) {}
 
   FilteredOutput(Box extents, Color background = color::Transparent,
                  ColorMode color_mode = ColorMode())
       : offscreen_(extents, background, color_mode),
-        filter_(FilterFactory::Create(&offscreen_)) {}
+        filter_(FilterFactory::Create(offscreen_)) {}
 
   void setOrientation(Orientation orientation) {
     offscreen_.setOrientation(orientation);

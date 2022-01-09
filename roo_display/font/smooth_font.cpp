@@ -176,7 +176,7 @@ bool is_space(unicode_t code) {
          code == 0xFEFF;
 }
 
-void SmoothFont::drawGlyphNoBackground(DisplayOutput *output, int16_t x,
+void SmoothFont::drawGlyphNoBackground(DisplayOutput &output, int16_t x,
                                        int16_t y, const GlyphMetrics &metrics,
                                        const uint8_t *PROGMEM data,
                                        const Box &clip_box, Color color,
@@ -195,7 +195,7 @@ void SmoothFont::drawGlyphNoBackground(DisplayOutput *output, int16_t x,
   }
 }
 
-void SmoothFont::drawBordered(DisplayOutput *output, int16_t x, int16_t y,
+void SmoothFont::drawBordered(DisplayOutput &output, int16_t x, int16_t y,
                               int16_t bgwidth, const Drawable &glyph,
                               const Box &clip_box, Color bgColor,
                               PaintMode paint_mode) const {
@@ -205,17 +205,17 @@ void SmoothFont::drawBordered(DisplayOutput *output, int16_t x, int16_t y,
   if (outer.clip(clip_box) == Box::CLIP_RESULT_EMPTY) return;
   Box inner = glyph.extents().translate(x, y);
   if (inner.clip(clip_box) == Box::CLIP_RESULT_EMPTY) {
-    output->fillRect(paint_mode, outer, bgColor);
+    output.fillRect(paint_mode, outer, bgColor);
     return;
   }
   if (outer.yMin() < inner.yMin()) {
-    output->fillRect(
+    output.fillRect(
         paint_mode,
         Box(outer.xMin(), outer.yMin(), outer.xMax(), inner.yMin() - 1),
         bgColor);
   }
   if (outer.xMin() < inner.xMin()) {
-    output->fillRect(
+    output.fillRect(
         paint_mode,
         Box(outer.xMin(), inner.yMin(), inner.xMin() - 1, inner.yMax()),
         bgColor);
@@ -223,20 +223,20 @@ void SmoothFont::drawBordered(DisplayOutput *output, int16_t x, int16_t y,
   Surface s(output, x, y, clip_box, bgColor, FILL_MODE_RECTANGLE, paint_mode);
   s.drawObject(glyph);
   if (outer.xMax() > inner.xMax()) {
-    output->fillRect(
+    output.fillRect(
         paint_mode,
         Box(inner.xMax() + 1, inner.yMin(), outer.xMax(), inner.yMax()),
         bgColor);
   }
   if (outer.yMax() > inner.yMax()) {
-    output->fillRect(
+    output.fillRect(
         paint_mode,
         Box(outer.xMin(), inner.yMax() + 1, outer.xMax(), outer.yMax()),
         bgColor);
   }
 }
 
-void SmoothFont::drawGlyphWithBackground(DisplayOutput *output, int16_t x,
+void SmoothFont::drawGlyphWithBackground(DisplayOutput &output, int16_t x,
                                          int16_t y, int16_t bgwidth,
                                          const GlyphMetrics &glyph_metrics,
                                          const uint8_t *PROGMEM data,
@@ -257,7 +257,7 @@ void SmoothFont::drawGlyphWithBackground(DisplayOutput *output, int16_t x,
 }
 
 void SmoothFont::drawKernedGlyphsWithBackground(
-    DisplayOutput *output, int16_t x, int16_t y, int16_t bgwidth,
+    DisplayOutput &output, int16_t x, int16_t y, int16_t bgwidth,
     const GlyphMetrics &left_metrics, const uint8_t *PROGMEM left_data,
     int16_t left_offset, const GlyphMetrics &right_metrics,
     const uint8_t *PROGMEM right_data, int16_t right_offset,
@@ -390,7 +390,7 @@ void SmoothFont::drawHorizontalString(const Surface &s,
   bool has_background = (s.fill_mode() == FILL_MODE_RECTANGLE);
   int16_t x = s.dx();
   int16_t y = s.dy();
-  DisplayOutput *output = s.out();
+  DisplayOutput& output = s.out();
 
   GlyphPairIterator glyphs(this);
   glyphs.push(next_code);

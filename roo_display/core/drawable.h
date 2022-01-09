@@ -51,10 +51,10 @@ enum FillMode {
 //
 class Surface {
  public:
-  Surface(DisplayOutput *out, int16_t dx, int16_t dy, Box clip,
+  Surface(DisplayOutput &out, int16_t dx, int16_t dy, Box clip,
           Color bg = color::Transparent, FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND)
-      : out_(out),
+      : out_(&out),
         dx_(dx),
         dy_(dy),
         clip_box_(std::move(clip)),
@@ -85,7 +85,7 @@ class Surface {
   Surface(const Surface &other) = default;
 
   // Returns the device to which to draw.
-  DisplayOutput *out() const { return out_; }
+  DisplayOutput& out() const { return *out_; }
 
   void set_out(DisplayOutput *out) { out_ = out; }
 

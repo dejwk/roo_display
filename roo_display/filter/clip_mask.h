@@ -65,7 +65,7 @@ class ClipMask {
 // mask.
 class ClipMaskFilter : public DisplayOutput {
  public:
-  ClipMaskFilter(DisplayOutput* output, const ClipMask* clip_mask)
+  ClipMaskFilter(DisplayOutput& output, const ClipMask* clip_mask)
       : output_(output),
         clip_mask_(clip_mask),
         address_window_(0, 0, 0, 0),
@@ -127,7 +127,7 @@ class ClipMaskFilter : public DisplayOutput {
       }
     }
     if (new_pixel_count > 0) {
-      output_->writePixels(mode, color, x, y, new_pixel_count);
+      output_.writePixels(mode, color, x, y, new_pixel_count);
     }
   }
 
@@ -144,7 +144,7 @@ class ClipMaskFilter : public DisplayOutput {
       }
     }
     if (new_pixel_count > 0) {
-      output_->fillPixels(mode, color, x, y, new_pixel_count);
+      output_.fillPixels(mode, color, x, y, new_pixel_count);
     }
   }
 
@@ -230,7 +230,7 @@ class ClipMaskFilter : public DisplayOutput {
 
   const Box& bounds() const { return clip_mask_->bounds(); }
 
-  DisplayOutput* output_;
+  DisplayOutput& output_;
   const ClipMask* clip_mask_;
   Box address_window_;
   PaintMode paint_mode_;

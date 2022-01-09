@@ -4,6 +4,7 @@
 #include "roo_display.h"
 #include "roo_display/core/raster.h"
 #include "roo_display/font/font.h"
+#include "roo_display/ui/string_printer.h"
 #include "roo_display/ui/text_label.h"
 #include "roo_smooth_fonts/NotoSans_Italic/12.h"
 #include "roo_smooth_fonts/NotoSans_Italic/18.h"
@@ -37,7 +38,7 @@ using namespace roo_display;
 #include "roo_display/driver/st7789.h" 
 St7789spi_240x240<5, 2, 4> device;
 
-Display display(&device, nullptr);
+Display display(device);
 
 static const int kGradientSize = 200;
 Color hsvGradient[kGradientSize];
@@ -97,21 +98,21 @@ void simpleBackground() {
   auto clip_box = labelOrig.extents().translate(dx, dy);
   {
     display.setBackground(&slantedGradient);
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.clear();
     dc.setClipBox(clip_box);
     dc.draw(labelOrig, dx, dy);
   }
   delay(2000);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.setClipBox(clip_box);
     dc.setTransform(Transform().scale(5, 5));
     dc.draw(labelScaled, dx, dy);
   }
   delay(2000);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.setClipBox(clip_box);
     dc.setTransform(Transform().scale(7, 7));
     dc.draw(labelScaledMore, dx, dy);
@@ -138,7 +139,7 @@ void tileWithSemiTransparentBackground() {
     int16_t dx = (display.width() - tile.extents().width()) / 2;
     int16_t dy = (display.height() - tile.extents().height()) / 2;
     {
-      DrawingContext dc(&display);
+      DrawingContext dc(display);
       dc.draw(tile, dx, dy);
     }
     uint8_t a1 = hashColor1.a();
@@ -207,22 +208,6 @@ int timerToString(unsigned long millis, char* result) {
   return first_changed;
 }
 
-class StringPrinter : public Print {
- public:
-  const std::string& get() { return s_; }
-  size_t write(uint8_t c) override {
-    s_.append((const char*)c);
-    return 1;
-  }
-  size_t write(const uint8_t* buffer, size_t size) override {
-    s_.append((const char*)buffer, size);
-    return size;
-  }
-
- private:
-  std::string s_;
-};
-
 struct TimerBenchmark {
   bool clip;
   bool inplace;
@@ -231,7 +216,7 @@ struct TimerBenchmark {
 
 void printCentered(const std::string& text, int16_t y) {
   ClippedTextLabel label(font_NotoSans_Italic_18(), text, color::Black);
-  DrawingContext dc(&display);
+  DrawingContext dc(display);
   dc.draw(label, (display.width() - label.extents().width()) / 2,
           (display.height() - label.extents().height()) / 2 + y);
 }
@@ -304,7 +289,7 @@ void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {
           label, timerBox, HAlign::None(), VAlign::None(), color::Transparent,
           (benchmark->inplace ? FILL_MODE_RECTANGLE : FILL_MODE_VISIBLE));
       auto clear = Clear();
-      DrawingContext dc(&display);
+      DrawingContext dc(display);
       // Since everything is oriented about the center, let's move the origin
       // there to make it easier.
       dc.setTransform(Transform().translate(dc.width() / 2, dc.height() / 2));
@@ -411,7 +396,7 @@ void scrollingText() {
   int16_t dy = (label.font().metrics().ascent() + display.height()) / 2;
   for (int i = 0; i < label.extents().width(); i += 8) {
     {
-      DrawingContext dc(&display);
+      DrawingContext dc(display);
       dc.draw(label, display.width() - i, dy);
     }
     delay(40);
@@ -469,7 +454,7 @@ Color hsvToRgb(double h, double s, double v) {
   double c = v * s;
   double hp = h / 60.0;
   int ihp = (int)hp;
-  double x = c * (1 - std::abs((hp - 2 * (ihp / 2)) - 1));
+  double x = c * (1 - abs((hp - 2 * (ihp / 2)) - 1));
   double m = v - c;
   int ix = (int)(255 * x);
   int ic = (int)(255 * c);

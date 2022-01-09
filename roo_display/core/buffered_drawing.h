@@ -34,7 +34,7 @@ static const uint8_t kPixelWritingBufferSize = 5;
 
 class BufferedPixelWriter {
  public:
-  BufferedPixelWriter(DisplayOutput* device, PaintMode mode)
+  BufferedPixelWriter(DisplayOutput& device, PaintMode mode)
       : device_(device), mode_(mode), buffer_size_(0) {}
 
   void writePixel(int16_t x, int16_t y, Color color) {
@@ -50,13 +50,13 @@ class BufferedPixelWriter {
 
   void flush() {
     if (buffer_size_ == 0) return;
-    device_->writePixels(mode_, color_buffer_, x_buffer_, y_buffer_,
-                         buffer_size_);
+    device_.writePixels(mode_, color_buffer_, x_buffer_, y_buffer_,
+                        buffer_size_);
     buffer_size_ = 0;
   }
 
  private:
-  DisplayOutput* device_;
+  DisplayOutput& device_;
   PaintMode mode_;
   Color color_buffer_[kPixelWritingBufferSize];
   int16_t x_buffer_[kPixelWritingBufferSize];
@@ -70,9 +70,7 @@ class BufferedPixelWriterFillAdapter {
   BufferedPixelWriterFillAdapter(PixelWriter& writer, Color color)
       : writer_(writer), color_(color) {}
 
-  void fillPixel(int16_t x, int16_t y) {
-    writer_.writePixel(x, y, color_);
-  }
+  void fillPixel(int16_t x, int16_t y) { writer_.writePixel(x, y, color_); }
 
  private:
   PixelWriter& writer_;
@@ -81,7 +79,7 @@ class BufferedPixelWriterFillAdapter {
 
 class ClippingBufferedPixelWriter {
  public:
-  ClippingBufferedPixelWriter(DisplayOutput* device, Box clip_box,
+  ClippingBufferedPixelWriter(DisplayOutput& device, Box clip_box,
                               PaintMode mode)
       : writer_(device, mode), clip_box_(std::move(clip_box)) {}
 
@@ -104,7 +102,7 @@ class ClippingBufferedPixelWriter {
 
 class BufferedPixelFiller {
  public:
-  BufferedPixelFiller(DisplayOutput* device, Color color, PaintMode mode)
+  BufferedPixelFiller(DisplayOutput& device, Color color, PaintMode mode)
       : device_(device), color_(color), mode_(mode), buffer_size_(0) {}
 
   void fillPixel(int16_t x, int16_t y) {
@@ -118,12 +116,12 @@ class BufferedPixelFiller {
 
   void flush() {
     if (buffer_size_ == 0) return;
-    device_->fillPixels(mode_, color_, x_buffer_, y_buffer_, buffer_size_);
+    device_.fillPixels(mode_, color_, x_buffer_, y_buffer_, buffer_size_);
     buffer_size_ = 0;
   }
 
  private:
-  DisplayOutput* device_;
+  DisplayOutput& device_;
   Color color_;
   PaintMode mode_;
   int16_t x_buffer_[kPixelWritingBufferSize];
@@ -133,7 +131,7 @@ class BufferedPixelFiller {
 
 class ClippingBufferedPixelFiller {
  public:
-  ClippingBufferedPixelFiller(DisplayOutput* device, Color color, Box clip_box,
+  ClippingBufferedPixelFiller(DisplayOutput& device, Color color, Box clip_box,
                               PaintMode mode)
       : filler_(device, color, mode), clip_box_(std::move(clip_box)) {}
 
@@ -156,7 +154,7 @@ class ClippingBufferedPixelFiller {
 
 class BufferedColorWriter {
  public:
-  BufferedColorWriter(DisplayOutput* device)
+  BufferedColorWriter(DisplayOutput& device)
       : device_(device), buffer_size_(0) {}
 
   void writeColor(Color color) {
@@ -174,7 +172,7 @@ class BufferedColorWriter {
       return;
     }
     Color::Fill(color_buffer_ + buffer_size_, batch, color);
-    device_->write(color_buffer_, kPixelWritingBufferSize);
+    device_.write(color_buffer_, kPixelWritingBufferSize);
     Color::Fill(color_buffer_, buffer_size_, color);
     count -= batch;
     while (true) {
@@ -182,7 +180,7 @@ class BufferedColorWriter {
         buffer_size_ = count;
         return;
       }
-      device_->write(color_buffer_, kPixelWritingBufferSize);
+      device_.write(color_buffer_, kPixelWritingBufferSize);
       count -= kPixelWritingBufferSize;
     }
   }
@@ -197,7 +195,7 @@ class BufferedColorWriter {
     }
     if (buffer_size_ != 0) {
       memcpy(color_buffer_ + buffer_size_, colors, batch * sizeof(Color));
-      device_->write(color_buffer_, kPixelWritingBufferSize);
+      device_.write(color_buffer_, kPixelWritingBufferSize);
       count -= batch;
       colors += batch;
     }
@@ -208,7 +206,7 @@ class BufferedColorWriter {
         return;
       }
       // For large enough number of pixels, we can skip the buffer entirely.
-      device_->write(colors, kPixelWritingBufferSize);
+      device_.write(colors, kPixelWritingBufferSize);
       count -= kPixelWritingBufferSize;
       colors += kPixelWritingBufferSize;
     }
@@ -229,7 +227,7 @@ class BufferedColorWriter {
   void advance_buffer_ptr(uint16_t count) {
     buffer_size_ += count;
     if (buffer_size_ >= kPixelWritingBufferSize) {
-      device_->write(color_buffer_, buffer_size_);
+      device_.write(color_buffer_, buffer_size_);
       buffer_size_ = 0;
     }
   }
@@ -246,11 +244,11 @@ class BufferedColorWriter {
     }
     if (buffer_size_ != 0) {
       memcpy(color_buffer_ + buffer_size_, colors, batch * sizeof(Color));
-      device_->write(color_buffer_, kPixelWritingBufferSize);
+      device_.write(color_buffer_, kPixelWritingBufferSize);
       buffer_size_ = 0;
       return batch;
     }
-    device_->write(colors, kPixelWritingBufferSize);
+    device_.write(colors, kPixelWritingBufferSize);
     return kPixelWritingBufferSize;
   }
 
@@ -259,18 +257,18 @@ class BufferedColorWriter {
  private:
   void flush() {
     if (buffer_size_ == 0) return;
-    device_->write(color_buffer_, buffer_size_);
+    device_.write(color_buffer_, buffer_size_);
     buffer_size_ = 0;
   }
 
-  DisplayOutput* device_;
+  DisplayOutput& device_;
   Color color_buffer_[kPixelWritingBufferSize];
   int16_t buffer_size_;
 };
 
 class BufferedHLineFiller {
  public:
-  BufferedHLineFiller(DisplayOutput* device, Color color, PaintMode mode)
+  BufferedHLineFiller(DisplayOutput& device, Color color, PaintMode mode)
       : device_(device), mode_(mode), color_(color), buffer_size_(0) {}
 
   void fillHLine(int16_t x0, int16_t y0, int16_t x1) {
@@ -285,13 +283,13 @@ class BufferedHLineFiller {
 
   void flush() {
     if (buffer_size_ == 0) return;
-    device_->fillRects(mode_, color_, x0_buffer_, y0_buffer_, x1_buffer_,
-                       y0_buffer_, buffer_size_);
+    device_.fillRects(mode_, color_, x0_buffer_, y0_buffer_, x1_buffer_,
+                      y0_buffer_, buffer_size_);
     buffer_size_ = 0;
   }
 
  private:
-  DisplayOutput* device_;
+  DisplayOutput& device_;
   PaintMode mode_;
   Color color_;
   int16_t x0_buffer_[kPixelWritingBufferSize];
@@ -302,7 +300,7 @@ class BufferedHLineFiller {
 
 class ClippingBufferedHLineFiller {
  public:
-  ClippingBufferedHLineFiller(DisplayOutput* device, Color color, Box clip_box,
+  ClippingBufferedHLineFiller(DisplayOutput& device, Color color, Box clip_box,
                               PaintMode mode)
       : filler_(device, color, mode), clip_box_(std::move(clip_box)) {}
 
@@ -330,7 +328,7 @@ class ClippingBufferedHLineFiller {
 
 class BufferedVLineFiller {
  public:
-  BufferedVLineFiller(DisplayOutput* device, Color color, PaintMode mode)
+  BufferedVLineFiller(DisplayOutput& device, Color color, PaintMode mode)
       : device_(device), mode_(mode), color_(color), buffer_size_(0) {}
 
   void fillVLine(int16_t x0, int16_t y0, int16_t y1) {
@@ -345,13 +343,13 @@ class BufferedVLineFiller {
 
   void flush() {
     if (buffer_size_ == 0) return;
-    device_->fillRects(mode_, color_, x0_buffer_, y0_buffer_, x0_buffer_,
-                       y1_buffer_, buffer_size_);
+    device_.fillRects(mode_, color_, x0_buffer_, y0_buffer_, x0_buffer_,
+                      y1_buffer_, buffer_size_);
     buffer_size_ = 0;
   }
 
  private:
-  DisplayOutput* device_;
+  DisplayOutput& device_;
   PaintMode mode_;
   Color color_;
   int16_t x0_buffer_[kPixelWritingBufferSize];
@@ -362,7 +360,7 @@ class BufferedVLineFiller {
 
 class ClippingBufferedVLineFiller {
  public:
-  ClippingBufferedVLineFiller(DisplayOutput* device, Color color, Box clip_box,
+  ClippingBufferedVLineFiller(DisplayOutput& device, Color color, Box clip_box,
                               PaintMode mode)
       : filler_(device, color, mode), clip_box_(std::move(clip_box)) {}
 
@@ -390,7 +388,7 @@ class ClippingBufferedVLineFiller {
 
 class BufferedRectWriter {
  public:
-  BufferedRectWriter(DisplayOutput* device, PaintMode mode)
+  BufferedRectWriter(DisplayOutput& device, PaintMode mode)
       : device_(device), mode_(mode), buffer_size_(0) {}
 
   inline void writePixel(int16_t x, int16_t y, Color color) {
@@ -419,13 +417,13 @@ class BufferedRectWriter {
 
   void flush() {
     if (buffer_size_ == 0) return;
-    device_->writeRects(mode_, color_, x0_buffer_, y0_buffer_, x1_buffer_,
-                        y1_buffer_, buffer_size_);
+    device_.writeRects(mode_, color_, x0_buffer_, y0_buffer_, x1_buffer_,
+                       y1_buffer_, buffer_size_);
     buffer_size_ = 0;
   }
 
  private:
-  DisplayOutput* device_;
+  DisplayOutput& device_;
   PaintMode mode_;
   Color color_[kPixelWritingBufferSize];
   int16_t x0_buffer_[kPixelWritingBufferSize];
@@ -464,7 +462,7 @@ class BufferedRectWriterFillAdapter {
 
 class ClippingBufferedRectWriter {
  public:
-  ClippingBufferedRectWriter(DisplayOutput* device, Box clip_box,
+  ClippingBufferedRectWriter(DisplayOutput& device, Box clip_box,
                              PaintMode mode)
       : writer_(device, mode), clip_box_(std::move(clip_box)) {}
 
@@ -507,7 +505,7 @@ class ClippingBufferedRectWriter {
 
 class BufferedRectFiller {
  public:
-  BufferedRectFiller(DisplayOutput* device, Color color, PaintMode mode)
+  BufferedRectFiller(DisplayOutput& device, Color color, PaintMode mode)
       : device_(device), mode_(mode), color_(color), buffer_size_(0) {}
 
   inline void fillPixel(int16_t x, int16_t y) { fillRect(x, y, x, y); }
@@ -533,13 +531,13 @@ class BufferedRectFiller {
 
   void flush() {
     if (buffer_size_ == 0) return;
-    device_->fillRects(mode_, color_, x0_buffer_, y0_buffer_, x1_buffer_,
-                       y1_buffer_, buffer_size_);
+    device_.fillRects(mode_, color_, x0_buffer_, y0_buffer_, x1_buffer_,
+                      y1_buffer_, buffer_size_);
     buffer_size_ = 0;
   }
 
  private:
-  DisplayOutput* device_;
+  DisplayOutput& device_;
   PaintMode mode_;
   Color color_;
   int16_t x0_buffer_[kPixelWritingBufferSize];
@@ -551,7 +549,7 @@ class BufferedRectFiller {
 
 class ClippingBufferedRectFiller {
  public:
-  ClippingBufferedRectFiller(DisplayOutput* device, Color color, Box clip_box,
+  ClippingBufferedRectFiller(DisplayOutput& device, Color color, Box clip_box,
                              PaintMode mode)
       : filler_(device, color, mode), clip_box_(std::move(clip_box)) {}
 

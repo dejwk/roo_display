@@ -55,7 +55,7 @@ class Transform {
 
 class TransformedDisplayOutput : public DisplayOutput {
  public:
-  TransformedDisplayOutput(DisplayOutput *delegate, Transform transform)
+  TransformedDisplayOutput(DisplayOutput &delegate, Transform transform)
       : delegate_(delegate),
         transform_(std::move(transform)),
         clip_box_(transform_.clip_box()),
@@ -85,7 +85,7 @@ class TransformedDisplayOutput : public DisplayOutput {
   const Box &clip_box() const { return clip_box_; }
 
  private:
-  DisplayOutput *delegate_;
+  DisplayOutput &delegate_;
   Transform transform_;
   Box clip_box_;
   Box addr_window_;

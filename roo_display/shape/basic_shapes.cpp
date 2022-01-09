@@ -22,7 +22,7 @@ void drawNonSteepLine(HLineFiller *drawer, int16_t x0, int16_t y0, int16_t x1,
       xs = x0 + 1;
     }
   }
-  if (dlen > 0) drawer->fillHLine(xs, y, x1 - 1);
+  if (dlen > 0) drawer->fillHLine(xs, y, x1);
 }
 
 template <typename VLineFiller>
@@ -44,7 +44,7 @@ void drawSteepLine(VLineFiller *drawer, int16_t x0, int16_t y0, int16_t x1,
       ys = y0 + 1;
     }
   }
-  if (dlen > 0) drawer->fillVLine(x, ys, y1 - 1);
+  if (dlen > 0) drawer->fillVLine(x, ys, y1);
 }
 
 void drawHLine(DisplayOutput *device, int16_t x0, int16_t y0, int16_t x1,

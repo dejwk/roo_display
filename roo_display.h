@@ -216,7 +216,7 @@ class DrawingContext {
   inline void drawPixel(int16_t x, int16_t y, Color color,
                         PaintMode paint_mode) {
     if (!clip_box_.contains(x, y)) return;
-    if (clip_mask_ != nullptr && !clip_mask_->isSet(x, y)) return;
+    if (clip_mask_ != nullptr && clip_mask_->isMasked(x, y)) return;
     output().fillPixels(paint_mode, color, &x, &y, 1);
   }
 
@@ -250,6 +250,19 @@ class DrawingContext {
                  dy - valign.GetOffset(extents.yMin(), extents.yMax()),
                  bgcolor_);
   }
+
+  // Analogous to draw(object), but instead of drawing, replaces all the output
+  // pixels with the background color.
+  void erase(const Drawable &object);
+
+  // Analogous to draw(object, dx, dy), but instead of drawing, replaces all the
+  // output pixels with the background color.
+  void erase(const Drawable &object, int16_t dx, int16_t dy);
+
+  // Analogous to draw(object, dx, dy, halign, valign), but instead of drawing,
+  // replaces all the output pixels with the background color.
+  void erase(const Drawable &object, int16_t dx, int16_t dy, HAlign halign,
+             VAlign valign);
 
  private:
   DisplayOutput &output() { return display_.output(); }
@@ -290,7 +303,7 @@ class DrawingContext {
     }
   }
 
-  Display display_;
+  Display& display_;
   FillMode fill_mode_;
   PaintMode paint_mode_;
 

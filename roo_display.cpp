@@ -1,5 +1,7 @@
 #include "roo_display.h"
 
+#include "roo_display/filter/color_filter.h"
+
 namespace roo_display {
 
 bool TouchDisplay::getTouch(int16_t& x, int16_t& y) {
@@ -80,5 +82,40 @@ void Display::updateBounds() {
 
 void DrawingContext::fill(Color color) { draw(Fill(color)); }
 void DrawingContext::clear() { draw(Clear()); }
+
+namespace {
+
+class ErasedDrawable : public Drawable {
+ public:
+  ErasedDrawable(const Drawable *delegate) : delegate_(delegate) {}
+
+  Box extents() const override { return delegate_->extents(); }
+
+ private:
+  void drawTo(const Surface &s) const override {
+    Surface news = s;
+    ColorFilter<Erasure> filter(s.out());
+    news.set_out(&filter);
+    news.set_paint_mode(PAINT_MODE_REPLACE);
+    news.drawObject(*delegate_);
+  }
+
+  const Drawable *delegate_;
+};
+
+}  // namespace
+
+void DrawingContext::erase(const Drawable &object) {
+  draw(ErasedDrawable(&object));
+}
+
+void DrawingContext::erase(const Drawable &object, int16_t dx, int16_t dy) {
+  draw(ErasedDrawable(&object), dx, dy);
+}
+
+void DrawingContext::erase(const Drawable &object, int16_t dx, int16_t dy,
+                           HAlign halign, VAlign valign) {
+  draw(ErasedDrawable(&object), dx, dy, halign, valign);
+}
 
 }  // namespace roo_display

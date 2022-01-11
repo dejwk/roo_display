@@ -1,3 +1,30 @@
+#include "Arduino.h"
+
+#ifdef ROO_TESTING
+
+#include "roo_testing/devices/display/st77xx/st77xx.h"
+#include "roo_testing/transducers/ui/viewport/flex_viewport.h"
+#include "roo_testing/transducers/ui/viewport/fltk/fltk_viewport.h"
+
+using roo_testing_transducers::FlexViewport;
+using roo_testing_transducers::FltkViewport;
+
+struct Emulator {
+  FltkViewport viewport;
+  FlexViewport flexViewport;
+
+  FakeSt77xxSpi display;
+
+  Emulator() : viewport(), flexViewport(viewport, 2), display(flexViewport, 240, 240) {
+    FakeEsp32().attachSpiDevice(display, 18, 19, 23);
+    FakeEsp32().gpio.attachOutput(5, display.cs());
+    FakeEsp32().gpio.attachOutput(2, display.dc());
+    FakeEsp32().gpio.attachOutput(4, display.rst());
+  }
+} emulator;
+
+#endif
+
 #include <string>
 
 #include "Arduino.h"
@@ -94,16 +121,16 @@ void polarToCartesian(float angle, int16_t radius, int16_t* x, int16_t* y) {
 void fillMask(float angleStart, float angleEnd, int16_t radius) {
   OffscreenDisplay<Monochrome> offscreen(
       display.width(), display.height(), clipmask,
-      Monochrome(color::Black, color::White));
+      Monochrome(color::White, color::Transparent));
   int16_t quadrantStart = (int16_t)(angleStart / 90);
   int16_t quadrantEnd = (int16_t)(angleEnd / 90);
-  DrawingContext odc(offscreen);
+  DrawingContext odc(&offscreen);
   odc.fill(color::White);
   int16_t x1, y1, x2, y2;
   polarToCartesian(angleStart, 2 * radius, &x1, &y1);
   while (quadrantStart < quadrantEnd) {
     polarToCartesian((quadrantStart + 1) * 90, 2 * radius, &x2, &y2);
-    odc.draw(FilledTriangle(0, 0, x1, y1, x2, y2, color::Black),
+    odc.erase(FilledTriangle(0, 0, x1, y1, x2, y2, color::Black),
              display.width() / 2, display.height() / 2);
     quadrantStart++;
     x1 = x2;
@@ -111,7 +138,7 @@ void fillMask(float angleStart, float angleEnd, int16_t radius) {
   }
   // Simple case; just draw the triangle and be done with it.
   polarToCartesian(angleEnd, 2 * radius, &x2, &y2);
-  odc.draw(FilledTriangle(0, 0, x1, y1, x2, y2, color::Black),
+  odc.erase(FilledTriangle(0, 0, x1, y1, x2, y2, color::Black),
            display.width() / 2, display.height() / 2);
   return;
 }
@@ -157,11 +184,11 @@ TileOf<TextLabel> centeredLabel(const std::string& content, Color color,
 void clippedFont1() {
   OffscreenDisplay<Monochrome> offscreen(
       display.width(), display.height(), clipmask,
-      Monochrome(color::Black, color::White));
+      Monochrome(color::White, color::Transparent));
   DrawingContext odc(offscreen);
   odc.fill(color::White);
-  odc.draw(FilledCircle::ByRadius(display.width() / 2, display.height() / 2, 50,
-                                  color::Black));
+  odc.erase(FilledCircle::ByRadius(display.width() / 2, display.height() / 2, 50,
+                                   color::Black));
 
   DrawingContext dc(display);
   dc.fill(color::LightGray);

@@ -12,22 +12,22 @@ namespace roo_display {
 
 class TouchDisplay {
  public:
-  TouchDisplay(DisplayDevice &display, TouchDevice &touch)
-      : display_(display), touch_(touch) {}
+  TouchDisplay(DisplayDevice &display_device, TouchDevice &touch_device)
+      : display_device_(display_device), touch_device_(touch_device) {}
 
   bool getTouch(int16_t &x, int16_t &y);
 
  private:
-  DisplayDevice &display_;
-  TouchDevice &touch_;
+  DisplayDevice &display_device_;
+  TouchDevice &touch_device_;
 };
 
 class Display {
  public:
-  Display(DisplayDevice &display) : Display(display, nullptr) {}
+  Display(DisplayDevice &display_device) : Display(display_device, nullptr) {}
 
-  Display(DisplayDevice &display, TouchDevice &touch)
-      : Display(display, &touch) {}
+  Display(DisplayDevice &display_device, TouchDevice &touch_device)
+      : Display(display_device, &touch_device) {}
 
   int16_t width() const { return width_; }
   int16_t height() const { return height_; }
@@ -35,7 +35,7 @@ class Display {
   Box extents() const { return Box(0, 0, width() - 1, height() - 1); }
 
   // Initializes the device.
-  void init() { display_.init(); }
+  void init() { display_device_.init(); }
 
   // Initializes the device, fills screen with the specified color, and sets
   // that color as the defaul background hint.
@@ -47,8 +47,8 @@ class Display {
 
   Orientation orientation() const { return orientation_; }
 
-  DisplayOutput &output() { return display_; }
-  const DisplayOutput &output() const { return display_; }
+  DisplayOutput &output() { return display_device_; }
+  const DisplayOutput &output() const { return display_device_; }
 
   bool getTouch(int16_t &x, int16_t &y) { return touch_.getTouch(x, y); }
 
@@ -76,32 +76,32 @@ class Display {
   void setBackground(Color bgcolor) {
     background_ = nullptr;
     bgcolor_ = bgcolor;
-    display_.setBgColorHint(bgcolor);
+    display_device_.setBgColorHint(bgcolor);
   }
 
   // Clears the display, respecting the clip box, and background settings.
   void clear();
 
  private:
-  Display(DisplayDevice &display, TouchDevice *touch);
+  Display(DisplayDevice &display_device, TouchDevice *touch_device);
 
   friend class DrawingContext;
 
   void nest() {
     if (nest_level_++ == 0) {
-      display_.begin();
+      display_device_.begin();
     }
   }
 
   void unnest() {
     if (--nest_level_ == 0) {
-      display_.end();
+      display_device_.end();
     }
   }
 
   void updateBounds();
 
-  DisplayDevice &display_;
+  DisplayDevice &display_device_;
   TouchDisplay touch_;
   int16_t nest_level_;
   int16_t width_;
@@ -146,7 +146,7 @@ class Display {
 // balance between performance and program size.
 class DrawingContext {
  public:
-  DrawingContext(Display& display)
+  DrawingContext(Display &display)
       : display_(display),
         fill_mode_(FILL_MODE_VISIBLE),
         paint_mode_(PAINT_MODE_BLEND),
@@ -303,7 +303,7 @@ class DrawingContext {
     }
   }
 
-  Display& display_;
+  Display &display_;
   FillMode fill_mode_;
   PaintMode paint_mode_;
 

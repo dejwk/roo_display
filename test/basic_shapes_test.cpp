@@ -320,9 +320,9 @@ TEST(BasicShapes, DrawSteepLine) {
 
 TEST(BasicShapes, DrawAnotherSteepLine) {
   FakeOffscreen<Rgb565> test_screen(8, 9, color::Black);
-  Display display(&test_screen);
+  Display display(test_screen);
   {
-    DrawingContext dc(&display);
+    DrawingContext dc(display);
     dc.draw(Line(3, 7, 6, 1, color::White));
   }
   EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 8, 9,

@@ -29,9 +29,14 @@ class Display {
   Display(DisplayDevice &display_device, TouchDevice &touch_device)
       : Display(display_device, &touch_device) {}
 
-  int16_t width() const { return width_; }
-  int16_t height() const { return height_; }
-  int32_t area() const { return width_ * height_; }
+  int16_t width() const { return display_device_.effective_width(); }
+
+  int16_t height() const { return display_device_.effective_height(); }
+
+  int32_t area() const {
+    return display_device_.raw_width() * display_device_.raw_height();
+  }
+
   Box extents() const { return Box(0, 0, width() - 1, height() - 1); }
 
   // Initializes the device.
@@ -104,8 +109,6 @@ class Display {
   DisplayDevice &display_device_;
   TouchDisplay touch_;
   int16_t nest_level_;
-  int16_t width_;
-  int16_t height_;
   Orientation orientation_;
 
   Box clip_box_;

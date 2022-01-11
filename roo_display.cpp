@@ -71,14 +71,8 @@ void Display::clear() {
 }
 
 void Display::updateBounds() {
-  if (orientation_.isXYswapped()) {
-    width_ = display_device_.raw_height();
-    height_ = display_device_.raw_width();
-  } else {
-    width_ = display_device_.raw_width();
-    height_ = display_device_.raw_height();
-  }
-  clip_box_ = Box(0, 0, width_ - 1, height_ - 1);
+  // Width and height might have gotten swapped.
+  clip_box_ = Box(0, 0, width() - 1, height() - 1);
 }
 
 void DrawingContext::fill(Color color) { draw(Fill(color)); }

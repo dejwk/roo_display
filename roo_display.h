@@ -6,6 +6,7 @@
 #include "roo_display/filter/background.h"
 #include "roo_display/filter/clip_mask.h"
 #include "roo_display/filter/transformed.h"
+#include "roo_display/ui/alignment.h"
 
 namespace roo_display {
 
@@ -219,10 +220,35 @@ class DrawingContext {
     output().fillPixels(paint_mode, color, &x, &y, 1);
   }
 
+  // Draws the object using its inherent coordinates. The point (0, 0) in the
+  // object's coordinates maps to (0, 0) in the context's coordinates.
   void draw(const Drawable &object) { drawInternal(object, 0, 0, bgcolor_); }
 
+  // Draws the object using the specified offset. The point (0, 0) in the
+  // object's coordinates maps to (dx, dy) in the context's coordinates.
   void draw(const Drawable &object, int16_t dx, int16_t dy) {
     drawInternal(object, dx, dy, bgcolor_);
+  }
+
+  // Draws the object applying the specified offset, and the specified
+  // alignment. The point indicated by the alignment, in the object's
+  // coordinates, maps to (dx, dy) in the contex't coordinates. For example, for
+  // halign = Left(), the object's xMin will be drawn at dx; for valign =
+  // Bottom(), the object's yMax will be drawn at dy - 1, and so one.
+  //
+  // CAUtION: don't use this to right-align numeric values. The digit '1' has
+  // the nasty property of being narrower than others, so aligning numbers this
+  // way will cause some jitter when the last digit changes to and from '1'.
+  // Instead, explicitly shift dx by the text's advance, e.g.:
+  //
+  // TextLabel label(...);
+  // dc.draw(label, dx - label.metrics().advance(), dy);
+  void draw(const Drawable &object, int16_t dx, int16_t dy, HAlign halign,
+            VAlign valign) {
+    const Box &extents = object.extents();
+    drawInternal(object, dx - halign.GetOffset(extents.xMin(), extents.xMax()),
+                 dy - valign.GetOffset(extents.yMin(), extents.yMax()),
+                 bgcolor_);
   }
 
  private:

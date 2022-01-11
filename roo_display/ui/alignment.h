@@ -68,6 +68,12 @@ class HAlign : public internal::Align {
                                       interior.xMin(), interior.xMax());
   }
 
+  // Returns an absolute horizontal pixel offset implied by this alignment
+  // object, for the specified xMin and xMax.
+  int16_t GetOffset(int16_t xMin, int16_t xMax) const {
+    return internal::Align::GetOffset(xMin, xMax, 0, -1);
+  }
+
  private:
   HAlign(Align::Anchor anchor, int16_t offset) : Align(anchor, offset) {}
 };
@@ -105,6 +111,12 @@ class VAlign : public internal::Align {
   int16_t GetOffset(const Box &outer, const Box &inner) const {
     return internal::Align::GetOffset(outer.yMin(), outer.yMax(), inner.yMin(),
                                       inner.yMax());
+  }
+
+  // Returns an absolute vertical pixel offset implied by this alignment
+  // object, for the specified bounding rectangle and the interior rectangle.
+  int16_t GetOffset(int16_t yMin, int16_t yMax) const {
+    return internal::Align::GetOffset(yMin, yMax, 0, -1);
   }
 
  private:

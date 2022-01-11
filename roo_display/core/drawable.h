@@ -126,6 +126,8 @@ class Surface {
   // set to PAINT_MODE_REPLACE.
   PaintMode paint_mode() const { return paint_mode_; }
 
+  void set_paint_mode(PaintMode paint_mode) { paint_mode_ = paint_mode; }
+
   void set_dx(int16_t dx) { dx_ = dx; }
   void set_dy(int16_t dy) { dy_ = dy; }
 

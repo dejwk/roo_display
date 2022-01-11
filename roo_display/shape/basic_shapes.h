@@ -73,9 +73,44 @@ class Rect : public RectBase {
   void drawTo(const Surface &s) const override;
 };
 
+class Border : public RectBase {
+ public:
+  Border(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t border,
+         Color color)
+      : Border(x0, y0, x1, y1, border, border, border, border, color) {}
+
+  Border(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t hborder,
+         int16_t vborder, Color color)
+      : Border(x0, y0, x1, y1, hborder, vborder, hborder, vborder, color) {}
+
+  Border(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t left,
+         int16_t top, int16_t right, int16_t bottom, Color color)
+      : RectBase(x0, y0, x1, y1, color),
+        left_(left < 0 ? 0 : left),
+        top_(top < 0 ? 0 : top),
+        right_(right < 0 ? 0 : right),
+        bottom_(bottom < 0 ? 0 : bottom) {
+    if ((x0_ + left_ + 1 >= x1_ - right_) ||
+        (y0_ + top_ + 1 >= y1_ - bottom_)) {
+      // Full filled rect.
+      left_ = x1_ - x0_ + 1;
+      right_ = 0;
+      top_ = 0;
+      bottom_ = 0;
+    }
+  }
+
+ private:
+  int16_t left_;
+  int16_t top_;
+  int16_t right_;
+  int16_t bottom_;
+  void drawTo(const Surface &s) const override;
+};
+
 class FilledRect : public RectBase, public Rasterizable {
  public:
-  FilledRect(const Box& box, Color color)
+  FilledRect(const Box &box, Color color)
       : RectBase(box.xMin(), box.yMin(), box.xMax(), box.yMax(), color) {}
 
   FilledRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Color color)

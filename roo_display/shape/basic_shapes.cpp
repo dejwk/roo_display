@@ -123,6 +123,32 @@ void Rect::drawTo(const Surface &s) const {
   }
 }
 
+void Border::drawTo(const Surface &s) const {
+  if (x1_ < x0_ || y1_ < y0_) return;
+  int16_t x0 = x0_ + s.dx();
+  int16_t y0 = y0_ + s.dy();
+  int16_t x1 = x1_ + s.dx();
+  int16_t y1 = y1_ + s.dy();
+  Color color = alphaBlend(s.bgcolor(), this->color());
+  ClippingBufferedRectFiller filler(s.out(), color, s.clip_box(),
+                                    s.paint_mode());
+  if (left_ > 0) {
+    filler.fillRect(x0, y0, x0 + left_ - 1, y1);
+    x0 += left_;
+  }
+  if (top_ > 0) {
+    filler.fillRect(x0, y0, x1, y0 + top_ - 1);
+    y0 += top_;
+  }
+  if (right_ > 0) {
+    filler.fillRect(x1 - right_ + 1, y0, x1, y1);
+    x1 -= right_;
+  }
+  if (bottom_ > 0) {
+    filler.fillRect(x0, y1 - bottom_ + 1, x1, y1);
+  }
+}
+
 void FilledRect::drawTo(const Surface &s) const {
   if (x1_ < x0_ || y1_ < y0_) return;
   int16_t x0 = x0_ + s.dx();

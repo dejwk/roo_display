@@ -23,7 +23,7 @@ class SimpleRoundMask {
         "  *********     "
         "   *******      "
         "                ";
-    if (Box(1, 2, 16, 8).contains(x, y) && mask[x - 1 + (y - 2) * 16] != '*')
+    if (Box(1, 2, 16, 8).contains(x, y) && mask[x - 1 + (y - 2) * 16] == '*')
       return;
     offscreen->writePixel(mode, x, y, color);
   }
@@ -65,7 +65,7 @@ class LargeMask {
         "  *************************     "
         "   ***********************      "
         "                                ";
-    if (Box(1, 2, 32, 22).contains(x, y) && mask[x - 1 + (y - 2) * 32] != '*')
+    if (Box(1, 2, 32, 22).contains(x, y) && mask[x - 1 + (y - 2) * 32] == '*')
       return;
     offscreen->writePixel(mode, x, y, color);
   }
@@ -172,8 +172,8 @@ TEST(ClipMask, ClipMaskWrite) {
   FakeOffscreen<Rgb565> test_screen(16, 7);
   Display display(test_screen);
   const uint8_t clip_mask_data[] = {
-      0x00, 0x00, 0x1F, 0xC0, 0x3F, 0xE0, 0x7F,
-      0xF0, 0x3F, 0xE0, 0x1F, 0xC0, 0x00, 0x00,
+      0xFF, 0xFF, 0xE0, 0x3F, 0xC0, 0x1F, 0x80,
+      0x0F, 0xC0, 0x1F, 0xE0, 0x3F, 0xFF, 0xFF,
   };
   ClipMask mask(clip_mask_data, Box(0, 0, 15, 6));
   {
@@ -203,8 +203,8 @@ TEST(ClipMask, ClipMaskStreamableSemiTransparent) {
   FakeOffscreen<Rgb565> test_screen(16, 7);
   Display display(test_screen);
   const uint8_t clip_mask_data[] = {
-      0x00, 0x00, 0x1F, 0xC0, 0x3F, 0xE0, 0x7F,
-      0xF0, 0x3F, 0xE0, 0x1F, 0xC0, 0x00, 0x00,
+      0xFF, 0xFF, 0xE0, 0x3F, 0xC0, 0x1F, 0x80,
+      0x0F, 0xC0, 0x1F, 0xE0, 0x3F, 0xFF, 0xFF,
   };
   ClipMask mask(clip_mask_data, Box(0, 0, 15, 6));
   {

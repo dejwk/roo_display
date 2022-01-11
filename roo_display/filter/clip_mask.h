@@ -22,8 +22,8 @@ class ClipMask {
   const uint8_t* data() const { return data_; }
   const Box& bounds() const { return bounds_; }
 
-  inline bool isSet(int16_t x, int16_t y) const {
-    if (!bounds_.contains(x, y)) return true;
+  inline bool isMasked(int16_t x, int16_t y) const {
+    if (!bounds_.contains(x, y)) return false;
     x -= bounds_.xMin();
     y -= bounds_.yMin();
     uint32_t byte_offset = x / 8 + y * line_width_bytes_;
@@ -32,8 +32,8 @@ class ClipMask {
     return byte & (0x80 >> pixel_index);
   }
 
-  inline bool isAllSet(int16_t x, int16_t y, uint8_t mask,
-                       uint8_t lines) const {
+  inline bool isAllMasked(int16_t x, int16_t y, uint8_t mask,
+                          uint8_t lines) const {
     const uint8_t* ptr = data_ + (x - bounds_.xMin()) / 8 +
                          (y - bounds_.yMin()) * line_width_bytes_;
     while (lines-- > 0) {
@@ -43,8 +43,8 @@ class ClipMask {
     return true;
   }
 
-  inline bool isAllUnset(int16_t x, int16_t y, uint8_t mask,
-                         uint8_t lines) const {
+  inline bool isAllUnmasked(int16_t x, int16_t y, uint8_t mask,
+                            uint8_t lines) const {
     const uint8_t* ptr = data_ + (x - bounds_.xMin()) / 8 +
                          (y - bounds_.yMin()) * line_width_bytes_;
     while (lines-- > 0) {
@@ -87,7 +87,7 @@ class ClipMaskFilter : public DisplayOutput {
     uint32_t i = 0;
     BufferedPixelWriter writer(output_, paint_mode_);
     while (i < pixel_count) {
-      if (clip_mask_->isSet(cursor_x_, cursor_y_)) {
+      if (!clip_mask_->isMasked(cursor_x_, cursor_y_)) {
         writer.writePixel(cursor_x_, cursor_y_, color[i]);
       }
       if (++cursor_x_ > address_window_.xMax()) {
@@ -119,7 +119,7 @@ class ClipMaskFilter : public DisplayOutput {
     Color* color_out = color;
     uint16_t new_pixel_count = 0;
     for (uint16_t i = 0; i < pixel_count; ++i) {
-      if (clip_mask_->isSet(x[i], y[i])) {
+      if (!clip_mask_->isMasked(x[i], y[i])) {
         *x_out++ = x[i];
         *y_out++ = y[i];
         *color_out++ = color[i];
@@ -137,7 +137,7 @@ class ClipMaskFilter : public DisplayOutput {
     int16_t* y_out = y;
     uint16_t new_pixel_count = 0;
     for (uint16_t i = 0; i < pixel_count; ++i) {
-      if (clip_mask_->isSet(x[i], y[i])) {
+      if (!clip_mask_->isMasked(x[i], y[i])) {
         *x_out++ = x[i];
         *y_out++ = y[i];
         new_pixel_count++;
@@ -205,14 +205,14 @@ class ClipMaskFilter : public DisplayOutput {
           mask &= (0xFF << (xc1 - x1));
           xc1 = x1;
         }
-        if (!clip_mask_->isAllUnset(xc0, yc0, mask, lines)) {
-          if (clip_mask_->isAllSet(xc0, yc0, mask, lines)) {
+        if (!clip_mask_->isAllMasked(xc0, yc0, mask, lines)) {
+          if (clip_mask_->isAllUnmasked(xc0, yc0, mask, lines)) {
             rfiller.fillRect(xc0, yc0, xc1, yc1);
           } else {
             // Degenerate to the slow version.
             for (int16_t y = yc0; y <= yc1; ++y) {
               for (int16_t x = xc0; x <= xc1; ++x) {
-                if (clip_mask_->isSet(x, y)) {
+                if (!clip_mask_->isMasked(x, y)) {
                   pfiller.fillPixel(x, y);
                 }
               }

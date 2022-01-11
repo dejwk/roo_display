@@ -124,7 +124,7 @@ TEST(Color, MonochromeFromArgbColor) {
   Monochrome mode(fg, bg);
   EXPECT_EQ(1, mode.fromArgbColor(fg));
   EXPECT_EQ(0, mode.fromArgbColor(bg));
-  EXPECT_EQ(0, mode.fromArgbColor(other));
+  EXPECT_EQ(1, mode.fromArgbColor(other));
 }
 
 }  // namespace roo_display

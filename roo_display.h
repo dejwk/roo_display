@@ -146,7 +146,7 @@ class Display {
 // balance between performance and program size.
 class DrawingContext {
  public:
-  DrawingContext(Display display)
+  DrawingContext(Display& display)
       : display_(display),
         fill_mode_(FILL_MODE_VISIBLE),
         paint_mode_(PAINT_MODE_BLEND),

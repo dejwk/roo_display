@@ -1,9 +1,36 @@
+#include "Arduino.h"
+
+#ifdef ROO_TESTING
+
+#include "roo_testing/devices/display/st77xx/st77xx.h"
+#include "roo_testing/transducers/ui/viewport/flex_viewport.h"
+#include "roo_testing/transducers/ui/viewport/fltk/fltk_viewport.h"
+
+using roo_testing_transducers::FlexViewport;
+using roo_testing_transducers::FltkViewport;
+
+struct Emulator {
+  FltkViewport viewport;
+  FlexViewport flexViewport;
+
+  FakeSt77xxSpi display;
+
+  Emulator()
+      : viewport(), flexViewport(viewport, 2), display(flexViewport, 240, 240) {
+    FakeEsp32().attachSpiDevice(display, 18, 19, 23);
+    FakeEsp32().gpio.attachOutput(5, display.cs());
+    FakeEsp32().gpio.attachOutput(2, display.dc());
+    FakeEsp32().gpio.attachOutput(4, display.rst());
+  }
+} emulator;
+
+#endif
+
 #include <string>
 
-#include "Arduino.h"
 #include "roo_display.h"
 #include "roo_display/core/offscreen.h"
-#include "roo_display/core/streamable_overlay.h"
+#include "roo_display/internal/raw_streamable_overlay.h"
 #include "roo_display/font/font.h"
 #include "roo_display/shape/basic_shapes.h"
 #include "roo_display/ui/text_label.h"
@@ -14,7 +41,7 @@ using namespace roo_display;
 // This example showcases offscreen drawing capabilities.
 
 // Change these two lines to use a different driver, transport, or pins.
-#include "roo_display/driver/st7789.h" 
+#include "roo_display/driver/st7789.h"
 St7789spi_240x240<5, 2, 4> device;
 
 Display display(device);
@@ -60,8 +87,7 @@ void setup() {
 
 void fillBackground() {
   // Draw something interesting to the background buffer.
-  Display bgDisplay(background);
-  DrawingContext dc(bgDisplay);
+  DrawingContext dc(background);
   dc.fill(color::Bisque);
 
   for (int i = 0; i < 500; i++) {
@@ -148,7 +174,7 @@ void someFunWithAntiAliasedFonts() {
                               oqa.raster(), xCenter + p2.x, yCenter + p2.y),
                       0, 0);
   auto result = MakeDrawableRawStreamable(
-    Overlay(background.raster(), 0, 0, std::move(text), 0, 0));
+      Overlay(background.raster(), 0, 0, std::move(text), 0, 0));
   for (int i = 5; i < 30; ++i) {
     int scale = (int)pow(1.2, i);
     DrawingContext dc(display);

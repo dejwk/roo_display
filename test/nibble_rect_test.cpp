@@ -77,8 +77,8 @@ TEST(NibbleRect, FillRect) {
 }
 
 void initNibbleRect(NibbleRect* rect, const char* input) {
-  OffscreenDisplay<Grayscale4> offscreen(rect->width(), rect->height(),
-                                         rect->buffer());
+  Offscreen<Grayscale4> offscreen(rect->width(), rect->height(),
+                                  rect->buffer());
   {
     DrawingContext dc(offscreen);
     dc.draw(

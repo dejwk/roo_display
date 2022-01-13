@@ -83,123 +83,73 @@ class AddressWindow {
 
 }  // namespace internal
 
-// The Offscreen class is an in-memory implementation of DisplayDevice. It can
-// be used just like a regular display device, to buffer arbitrary images and
-// display operations. It implements both Drawable and Streamable contracts,
+// It implements both Drawable and Streamable contracts,
 // which allows to be easily drawn to other display devices.
 // For example, to draw a sub-rectangle of the Offscreen, simply use
 // CreateClippedStream(offscreen, rect).
-//
-// Offscreen supports arbitrary color modes, byte orders, and pixel orders,
-// which can be specified as template parameters:
-// * pixel_order applies to sub-byte color modes, and specifies if, within
-//   a single byte, the left-most pixel is mapped to the most or the least
-//   significant bit(s).
-// * byte_order applies to multi-byte color modes, and specifies if the bytes
-//   representing a single pixel are stored in big or little endian.
-//
+
 // If you draw to/from the offscreen using its public methods only, the choice
 // of these two parameters does not really matter; use defaults. But, if you're
 // importing or exporting raw data from/to some existing format or device, you
 // may need to set these parameters to match that format. For example, XBitmap
 // uses LSB_FIRST.
 //
+
 // Bounding rectangle, specified during construction, determines how the
 // Offscreen behaves when it is drawn to another display device. As any other
 // Drawable, Offscreen can have a bounding rectangle that does not start at
-// (0,0). The canvas for writing *to* the offscreen as a display device, on
-// the other hand, always starts at (0,0), and it is sensitive to the 'device
-// orientation' of the Offscreen. When created, the Offscreen has the default
-// orientation (Right-Down). You can modify the orientation at any time, using
-// setOrientation(). New orientation will not affect existing content, but it
-// will affect all future write operations. For example, setting the orientation
-// to 'Orientation::Default().rotateLeft()' allows to render content rotated
-// counter-clockwise by 90 degrees.
+// (0,0).
+
 //
 // Note: to use the content of the offscreen as Stremable, e.g. to super-impose
 // the content over / under another streamable, use raster().
+
+// The OffscreenDevice class is an in-memory implementation of DisplayDevice. It
+// can be used just like a regular display device, to buffer arbitrary images
+// and display operations.
+//
+// OffscreenDevice supports arbitrary color modes, byte orders, and pixel
+// orders, which can be specified as template parameters:
+// * pixel_order applies to sub-byte color modes, and specifies if, within
+//   a single byte, the left-most pixel is mapped to the most or the least
+//   significant bit(s).
+// * byte_order applies to multi-byte color modes, and specifies if the bytes
+//   representing a single pixel are stored in big or little endian.
+//
+// Offscreen supports device orientation. When created, the Offscreen has the
+// default orientation (Right-Down). You can modify the orientation at any time,
+// using setOrientation(). New orientation will not affect existing content, but
+// it will affect all future write operations. For example, setting the
+// orientation to 'Orientation::Default().rotateLeft()' allows to render content
+// rotated counter-clockwise by 90 degrees.
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN,
           int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           typename storage_type = ColorStorageType<ColorMode>>
-class Offscreen : public DisplayDevice, public Rasterizable {
+class OffscreenDevice : public DisplayDevice {
  public:
-  // Creates an offscreen with specified geometry, using the designated buffer.
-  // The buffer must have sufficient capacity, determined as
-  // (width * height * ColorMode::bits_per_pixel + 7) / 8. The buffer is not
-  // modified; it can contain pre-existing content.
-  Offscreen(int16_t width, int16_t height, uint8_t *buffer,
-            ColorMode color_mode = ColorMode())
-      : Offscreen(Box(0, 0, width - 1, height - 1), buffer, color_mode) {}
-
-  // Creates an offscreen with specified geometry, using the designated buffer.
-  // The buffer must have sufficient capacity, determined as
-  // (width * height * ColorMode::bits_per_pixel + 7) / 8. The buffer is not
-  // modified; it can contain pre-existing content.
-  // The specified extents dictate how the Offscreen will behave when drawn
-  // (as a Drawable).
-  Offscreen(Box extents, uint8_t *buffer, ColorMode color_mode = ColorMode())
-      : DisplayDevice(extents.width(), extents.height()),
+  // Creates an offscreen device with specified geometry, using the designated
+  // buffer. The buffer must have sufficient capacity, determined as (width *
+  // height * ColorMode::bits_per_pixel + 7) / 8. The buffer is not modified; it
+  // can contain pre-existing content.
+  OffscreenDevice(int16_t width, int16_t height, uint8_t *buffer,
+                  ColorMode color_mode)
+      : DisplayDevice(width, height),
+        color_mode_(color_mode),
         buffer_(buffer),
-        owns_buffer_(false),
-        orienter_(extents.width(), extents.height(), Orientation::Default()),
-        raster_(extents, buffer, color_mode) {}
+        orienter_(width, height, Orientation::Default()) {}
 
-  // Creates an offscreen with specified geometry, using an internally allocated
-  // buffer. The buffer is not pre-initialized; it contains random bytes.
-  Offscreen(int16_t width, int16_t height, ColorMode color_mode = ColorMode())
-      : Offscreen(Box(0, 0, width - 1, height - 1), color_mode) {}
+  OffscreenDevice(OffscreenDevice &&other) = delete;
 
-  // Creates an offscreen with specified geometry, using an internally allocated
-  // buffer. The buffer is not pre-initialized; it contains random bytes.
-  // The specified extents dictate how the Offscreen will behave when drawn
-  // (as a Drawable).
-  Offscreen(Box extents, ColorMode color_mode = ColorMode())
-      : DisplayDevice(extents.width(), extents.height()),
-        buffer_(
-            new uint8_t[(ColorMode::bits_per_pixel * extents.area() + 7) / 8]),
-        owns_buffer_(true),
-        orienter_(extents.width(), extents.height(), Orientation::Default()),
-        raster_(extents, buffer_, color_mode) {}
+  // ~Offscreen() override {
+  //   if (owns_buffer_) delete[] buffer_;
+  // }
 
-  // Creates an offscreen with specified geometry, using an internally allocated
-  // buffer. The buffer is pre-filled using the specified  color.
-  Offscreen(int16_t width, int16_t height, Color fillColor,
-            ColorMode color_mode = ColorMode())
-      : Offscreen(Box(0, 0, width - 1, height - 1), fillColor, color_mode) {}
+  // void drawTo(const Surface &s) const override { s.drawObject(raster_); }
 
-  // Creates an offscreen with specified geometry, using an internally allocated
-  // buffer. The buffer is pre-filled using the specified  color.
-  // The specified extents dictate how the Offscreen will behave when drawn
-  // (as a Drawable).
-  Offscreen(Box extents, Color fillColor, ColorMode color_mode = ColorMode())
-      : Offscreen(extents, color_mode) {
-    fillRect(0, 0, extents.width() - 1, extents.height() - 1, fillColor);
-  }
-
-  // Convenience constructor that makes a RAM copy of the specified drawable.
-  Offscreen(const Drawable &d, ColorMode color_mode = ColorMode())
-      : Offscreen(d.extents(), color_mode) {
-    if (color_mode.transparency() != TRANSPARENCY_NONE) {
-      fillRect(0, 0, raw_width() - 1, raw_height() - 1, color::Transparent);
-    }
-    Box extents = d.extents();
-    Surface s(*this, -extents.xMin(), -extents.yMin(),
-              Box(0, 0, raw_width(), raw_height()));
-    s.drawObject(d);
-  }
-
-  Offscreen(Offscreen &&other) = delete;
-
-  ~Offscreen() override {
-    if (owns_buffer_) delete[] buffer_;
-  }
-
-  void drawTo(const Surface &s) const override { s.drawObject(raster_); }
-
-  // This is to implement the Drawable interface.
-  Box extents() const override { return raster_.extents(); }
+  // // This is to implement the Drawable interface.
+  // Box extents() const override { return raster_.extents(); }
 
   void orientationUpdated();
 
@@ -220,25 +170,37 @@ class Offscreen : public DisplayDevice, public Rasterizable {
   void fillRects(PaintMode mode, Color color, int16_t *x0, int16_t *y0,
                  int16_t *x1, int16_t *y1, uint16_t count) override;
 
-  const ColorMode &color_mode() const { return raster_.color_mode(); }
+  const ColorMode &color_mode() const { return color_mode_; }
 
-  const Raster<const uint8_t *, ColorMode, pixel_order, byte_order> &raster()
+  // const Raster<const uint8_t *, ColorMode, pixel_order, byte_order> &raster()
+  //     const {
+  //   return raster_;
+  // }
+
+  const Raster<const uint8_t *, ColorMode, pixel_order, byte_order> raster()
       const {
-    return raster_;
+    return raster(0, 0);
   }
 
-  std::unique_ptr<PixelStream> CreateStream() const override {
-    return raster().CreateStream();
+  const Raster<const uint8_t *, ColorMode, pixel_order, byte_order> raster(
+      int16_t dx, int16_t dy) const {
+    return Raster<const uint8_t *, ColorMode, pixel_order, byte_order>(
+        Box(dx, dy, dx + raw_width() - 1, dy + raw_height() - 1), buffer_,
+        color_mode_);
   }
 
-  TransparencyMode GetTransparencyMode() const override {
-    return color_mode().transparency();
-  }
+  // std::unique_ptr<PixelStream> CreateStream() const override {
+  //   return raster().CreateStream();
+  // }
 
-  virtual void ReadColors(const int16_t *x, const int16_t *y, uint32_t count,
-                          Color *result) const override {
-    raster().ReadColors(x, y, count, result);
-  }
+  // TransparencyMode GetTransparencyMode() const override {
+  //   return color_mode().transparency();
+  // }
+
+  // virtual void ReadColors(const int16_t *x, const int16_t *y, uint32_t count,
+  //                         Color *result) const override {
+  //   raster().ReadColors(x, y, count, result);
+  // }
 
   // Allows direct access to the underlying buffer.
   uint8_t *buffer() { return buffer_; }
@@ -262,61 +224,206 @@ class Offscreen : public DisplayDevice, public Rasterizable {
   void fillVlinesAbsolute(PaintMode mode, Color color, int16_t *x0, int16_t *y0,
                           int16_t *y1, uint16_t count);
 
+  ColorMode color_mode_;
+
   uint8_t *buffer_;
-  bool owns_buffer_;
+
+  // bool owns_buffer_;
   internal::Orienter orienter_;
-  // Streaming read acess.
-  Raster<const uint8_t *, ColorMode, pixel_order, byte_order> raster_;
+  // // Streaming read acess.
+  // Raster<const uint8_t *, ColorMode, pixel_order, byte_order> raster_;
   internal::AddressWindow window_;
   PaintMode paint_mode_;
 };
 
-// A convenience class that bundles 'Offscreen' and 'Display', so that you can
-// start drawing to an offscreen more easily, like this:
-//
-// OffscreenDisplay<Rgb565> offscreen;
-// DrawingContext dc(&offscreen);
+// Offscreen<Rgb565> offscreen;
+// DrawingContext dc(offscreen);
 // dc.draw(...);
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN,
           int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           typename storage_type = ColorStorageType<ColorMode>>
-class OffscreenDisplay : public Display, public Rasterizable {
+class Offscreen : public Rasterizable {
  public:
-  typedef Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
-                    storage_type>
-      OffscreenDevice;
+  // Creates an offscreen with specified geometry, using the designated buffer.
+  // The buffer must have sufficient capacity, determined as (width * height *
+  // ColorMode::bits_per_pixel + 7) / 8. The buffer is not modified; it can
+  // contain pre-existing content.
+  Offscreen(int16_t width, int16_t height, uint8_t *buffer,
+            ColorMode color_mode = ColorMode())
+      : Offscreen(Box(0, 0, width - 1, height - 1), buffer, color_mode) {}
 
-  // Look at class Offscreen, above, to see supported parameter options.
-  template <typename... Args>
-  OffscreenDisplay(Args &&...args)
-      : Display(*(new OffscreenDevice(std::forward<Args>(args)...))) {}
+  // Creates an offscreen device with specified geometry, using the
+  // designated buffer. The buffer must have sufficient capacity, determined as
+  // (width * height * ColorMode::bits_per_pixel + 7) / 8. The buffer is not
+  // modified; it can contain pre-existing content.
+  Offscreen(Box extents, uint8_t *buffer, ColorMode color_mode = ColorMode())
+      : device_(extents.width(), extents.height(), buffer, color_mode),
+        raster_(device_.raster(extents.xMin(), extents.yMin())),
+        clip_box_(0, 0, extents.width() - 1, extents.height() - 1),
+        owns_buffer_(false) {}
 
-  ~OffscreenDisplay() { delete &offscreen(); }
+  // Creates an offscreen with specified geometry, using an internally
+  // allocated buffer. The buffer is not pre-initialized; it contains random
+  // bytes.
+  Offscreen(int16_t width, int16_t height, ColorMode color_mode = ColorMode())
+      : Offscreen(Box(0, 0, width - 1, height - 1), color_mode) {}
 
-  const OffscreenDevice &offscreen() const {
-    return (const OffscreenDevice &)output();
+  // Creates an offscreen with specified geometry, using an internally allocated
+  // buffer. The buffer is not pre-initialized; it contains random bytes.
+  Offscreen(Box extents, ColorMode color_mode = ColorMode())
+      : device_(
+            extents.width(), extents.height(),
+            new uint8_t[(ColorMode::bits_per_pixel * extents.area() + 7) / 8],
+            color_mode),
+        clip_box_(0, 0, extents.width() - 1, extents.height() - 1),
+        owns_buffer_(true),
+        raster_(device_.raster(extents.xMin(), extents.yMin())) {}
+
+  // Creates an offscreen with specified geometry, using an internally allocated
+  // buffer. The buffer is pre-filled using the specified  color.
+  Offscreen(int16_t width, int16_t height, Color fillColor,
+            ColorMode color_mode = ColorMode())
+      : Offscreen(Box(0, 0, width - 1, height - 1), fillColor, color_mode) {}
+
+  // Creates an offscreen with specified geometry, using an internally allocated
+  // buffer. The buffer is pre-filled using the specified  color.
+  Offscreen(Box extents, Color fillColor, ColorMode color_mode = ColorMode())
+      : Offscreen(extents, color_mode) {
+    device_.fillRect(0, 0, extents.width() - 1, extents.height() - 1,
+                     fillColor);
   }
 
-  OffscreenDevice &offscreen() { return (OffscreenDevice &)output(); }
+  // Convenience constructor that makes a RAM copy of the specified drawable.
+  Offscreen(const Drawable &d, ColorMode color_mode = ColorMode())
+      : Offscreen(d.extents(), color_mode) {
+    if (color_mode.transparency() != TRANSPARENCY_NONE) {
+      device_.fillRect(0, 0, width() - 1, height() - 1, color::Transparent);
+    }
+    Box extents = d.extents();
+    Surface s(device_, -extents.xMin(), -extents.yMin(),
+              Box(0, 0, width(), height()));
+    s.drawObject(d);
+  }
+
+  virtual ~Offscreen() {
+    if (owns_buffer_) delete output().buffer();
+  }
+
+  int16_t width() const { return output().effective_width(); }
+  int16_t height() const { return output().effective_height(); }
 
   const Raster<const uint8_t *, ColorMode, pixel_order, byte_order> &raster()
       const {
-    return offscreen().raster();
+    return raster_;
   }
-
-  void drawTo(const Surface &s) const override { s.drawObject(raster()); }
 
   Box extents() const override { return raster().extents(); }
 
   TransparencyMode GetTransparencyMode() const override {
-    return offscreen().GetTransparencyMode();
+    return raster().GetTransparencyMode();
   }
 
   void ReadColors(const int16_t *x, const int16_t *y, uint32_t count,
                   Color *result) const override {
-    return offscreen().ReadColors(x, y, count, result);
+    return raster().ReadColors(x, y, count, result);
+  }
+
+  const OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
+                        storage_type>
+      &output() const {
+    return device_;
+  }
+
+  OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
+                  storage_type>
+      &output() {
+    return device_;
+  }
+
+  uint8_t *buffer() { return output().buffer(); }
+  const uint8_t *buffer() const { return output().buffer(); }
+
+ protected:
+  // Sets the default (maximum) clip box, in device coordinates.
+  void set_clip_box(const Box &clip_box) { clip_box_ = clip_box; }
+
+ private:
+  friend class DrawingContext;
+
+  // Implements Drawable.
+  void drawTo(const Surface &s) const override { s.drawObject(raster()); }
+
+  // For DrawingContext.
+  void nest() const {}
+  void unnest() const {}
+  Box getClipBox() const { return clip_box_; }
+  Color getBgColor() const { return color::Transparent; }
+  const Rasterizable *getRasterizableBackground() const { return nullptr; }
+  int16_t dx() const { return -raster_.extents().xMin(); }
+  int16_t dy() const { return -raster_.extents().yMin(); }
+
+  OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
+                  storage_type>
+      device_;
+
+  const Raster<const uint8_t *, ColorMode, pixel_order, byte_order> raster_;
+  bool owns_buffer_;
+
+  // Default clip box, in device coordinates (i.e. zero-based).
+  Box clip_box_;
+};
+
+// Convenience specialization for constructing bit maps, e.g. to set them
+// as bit masks. Uses Monochrome with transparent background. Writing anything
+// but full transparency causes the bit to be set. The data is aligned row-wise
+// to full bytes; that is, each row of pixels starts on a new byte.
+class BitMaskOffscreen : public Offscreen<Monochrome> {
+ public:
+  // Creates a bit map offscreen with the specified geometry, using the
+  // designated buffer. The buffer must have sufficient capacity, determined as
+  // ((width + 7) / 8) * height. The buffer is not modified; it can contain
+  // pre-existing content.
+  BitMaskOffscreen(int16_t width, int16_t height, uint8_t *buffer)
+      : BitMaskOffscreen(Box(0, 0, width - 1, height - 1), buffer) {}
+
+  // Creates a bit map offscreen with the specified geometry, using the
+  // designated buffer. The buffer must have sufficient capacity, determined as
+  // ((width + 7) / 8) * height. The buffer is not modified; it can contain
+  // pre-existing content.
+  BitMaskOffscreen(Box extents, uint8_t *buffer)
+      : Offscreen(std::move(extents), buffer,
+                  Monochrome(color::Black, color::Transparent)) {
+    set_clip_box(extents);
+  }
+
+  // Creates an offscreen with specified geometry, using an internally
+  // allocated buffer. The buffer is not pre-initialized; it contains random
+  // bytes.
+  BitMaskOffscreen(int16_t width, int16_t height)
+      : BitMaskOffscreen(Box(0, 0, width - 1, height - 1)) {}
+
+  // Creates an offscreen with specified geometry, using an internally allocated
+  // buffer. The buffer is not pre-initialized; it contains random bytes.
+  BitMaskOffscreen(Box extents)
+      : Offscreen(extents, Monochrome(color::Black, color::Transparent)) {
+    set_clip_box(extents);
+  }
+
+  // Creates an offscreen with specified geometry, using an internally allocated
+  // buffer. The buffer is pre-filled using the specified  color.
+  BitMaskOffscreen(int16_t width, int16_t height, Color fillColor)
+      : BitMaskOffscreen(Box(0, 0, width - 1, height - 1), fillColor) {}
+
+  // Creates an offscreen with specified geometry, using an internally allocated
+  // buffer. The buffer is pre-filled using the specified  color.
+  BitMaskOffscreen(Box extents, Color fillColor)
+      : Offscreen(Box(extents.xMin(), extents.yMin(),
+                      extents.xMin() + ((extents.width() + 7) & ~7) - 1,
+                      extents.yMax()),
+                  fillColor, Monochrome(color::Black, color::Transparent)) {
+    set_clip_box(Box(0, 0, extents.width() - 1, extents.height() - 1));
   }
 };
 
@@ -786,16 +893,17 @@ inline void AddressWindow::advance(uint32_t count) {
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
-void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
-               storage_type>::orientationUpdated() {
+void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
+                     storage_type>::orientationUpdated() {
   orienter_.setOrientation(orientation());
 }
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
-void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
-               storage_type>::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
-                                         uint16_t y1, PaintMode mode) {
+void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
+                     storage_type>::setAddress(uint16_t x0, uint16_t y0,
+                                               uint16_t x1, uint16_t y1,
+                                               PaintMode mode) {
   window_.setAddress(x0, y0, x1, y1, raw_width(), raw_height(),
                      orienter_.orientation());
   paint_mode_ = mode;
@@ -803,8 +911,8 @@ void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
-void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
-               storage_type>::write(Color *color, uint32_t pixel_count) {
+void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
+                     storage_type>::write(Color *color, uint32_t pixel_count) {
   switch (paint_mode_) {
     case PAINT_MODE_REPLACE: {
       internal::ReplaceWriter<ColorMode, pixel_order, byte_order> writer(
@@ -825,10 +933,10 @@ void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
-void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
-               storage_type>::writePixels(PaintMode mode, Color *color,
-                                          int16_t *x, int16_t *y,
-                                          uint16_t pixel_count) {
+void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
+                     storage_type>::writePixels(PaintMode mode, Color *color,
+                                                int16_t *x, int16_t *y,
+                                                uint16_t pixel_count) {
   uint8_t *buffer = buffer_;
   int16_t w = raw_width();
   orienter_.OrientPixels(x, y, pixel_count);
@@ -856,10 +964,10 @@ void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
-void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
-               storage_type>::fillPixels(PaintMode mode, Color color,
-                                         int16_t *x, int16_t *y,
-                                         uint16_t pixel_count) {
+void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
+                     storage_type>::fillPixels(PaintMode mode, Color color,
+                                               int16_t *x, int16_t *y,
+                                               uint16_t pixel_count) {
   uint8_t *buffer = buffer_;
   int16_t w = raw_width();
   orienter_.OrientPixels(x, y, pixel_count);
@@ -887,10 +995,11 @@ void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
-void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
-               storage_type>::writeRects(PaintMode mode, Color *color,
-                                         int16_t *x0, int16_t *y0, int16_t *x1,
-                                         int16_t *y1, uint16_t count) {
+void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
+                     storage_type>::writeRects(PaintMode mode, Color *color,
+                                               int16_t *x0, int16_t *y0,
+                                               int16_t *x1, int16_t *y1,
+                                               uint16_t count) {
   orienter_.OrientRects(x0, y0, x1, y1, count);
   while (count-- > 0) {
     fillRectsAbsolute(mode, *color++, x0++, y0++, x1++, y1++, 1);
@@ -899,10 +1008,11 @@ void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
-void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
-               storage_type>::fillRects(PaintMode mode, Color color,
-                                        int16_t *x0, int16_t *y0, int16_t *x1,
-                                        int16_t *y1, uint16_t count) {
+void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
+                     storage_type>::fillRects(PaintMode mode, Color color,
+                                              int16_t *x0, int16_t *y0,
+                                              int16_t *x1, int16_t *y1,
+                                              uint16_t count) {
   orienter_.OrientRects(x0, y0, x1, y1, count);
   if (y0 == y1) {
     fillHlinesAbsolute(mode, color, x0, y0, x1, count);
@@ -962,11 +1072,12 @@ void fillVlinesAbsoluteImpl(Filler &fill, uint8_t *buffer, int16_t width,
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
-void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
-               storage_type>::fillRectsAbsolute(PaintMode mode, Color color,
-                                                int16_t *x0, int16_t *y0,
-                                                int16_t *x1, int16_t *y1,
-                                                uint16_t count) {
+void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
+                     storage_type>::fillRectsAbsolute(PaintMode mode,
+                                                      Color color, int16_t *x0,
+                                                      int16_t *y0, int16_t *x1,
+                                                      int16_t *y1,
+                                                      uint16_t count) {
   if (y0 == y1) {
     fillHlinesAbsolute(mode, color, x0, y0, x1, count);
   } else if (x0 == x1) {
@@ -994,10 +1105,11 @@ void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
-void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
-               storage_type>::fillHlinesAbsolute(PaintMode mode, Color color,
-                                                 int16_t *x0, int16_t *y0,
-                                                 int16_t *x1, uint16_t count) {
+void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
+                     storage_type>::fillHlinesAbsolute(PaintMode mode,
+                                                       Color color, int16_t *x0,
+                                                       int16_t *y0, int16_t *x1,
+                                                       uint16_t count) {
   switch (mode) {
     case PAINT_MODE_REPLACE: {
       internal::ReplaceFiller<ColorMode, pixel_order, byte_order> fill(
@@ -1018,10 +1130,11 @@ void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
-void Offscreen<ColorMode, pixel_order, byte_order, pixels_per_byte,
-               storage_type>::fillVlinesAbsolute(PaintMode mode, Color color,
-                                                 int16_t *x0, int16_t *y0,
-                                                 int16_t *y1, uint16_t count) {
+void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
+                     storage_type>::fillVlinesAbsolute(PaintMode mode,
+                                                       Color color, int16_t *x0,
+                                                       int16_t *y0, int16_t *y1,
+                                                       uint16_t count) {
   switch (mode) {
     case PAINT_MODE_REPLACE: {
       internal::ReplaceFiller<ColorMode, pixel_order, byte_order> fill(

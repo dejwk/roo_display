@@ -203,6 +203,9 @@ struct Reader<ColorMode, pixel_order, byte_order, 1, storage_type> {
 
 }  // namespace internal
 
+// The raster does not own its buffer. The representation of a raster it
+// reasonably small (14-18 bytes, depending on the color mode), and can be
+// passed by value.
 template <typename PtrType, typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>

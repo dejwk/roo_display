@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include "roo_display/core/device.h"
 #include "roo_display/core/drawable.h"
 #include "roo_display/core/streamable.h"
@@ -76,6 +78,8 @@ class Display {
     bgcolor_ = color::Transparent;
   }
 
+  const Rasterizable *getRasterizableBackground() const { return background_; }
+
   // Sets a background color to be used by all derived contexts.
   // Initially set to color::Transparent.
   void setBackground(Color bgcolor) {
@@ -83,6 +87,8 @@ class Display {
     bgcolor_ = bgcolor;
     display_device_.setBgColorHint(bgcolor);
   }
+
+  Color getBgColor() const { return bgcolor_; }
 
   // Clears the display, respecting the clip box, and background settings.
   void clear();
@@ -103,6 +109,9 @@ class Display {
       display_device_.end();
     }
   }
+
+  int16_t dx() const { return 0; }
+  int16_t dy() const { return 0; }
 
   void updateBounds();
 
@@ -149,23 +158,28 @@ class Display {
 // balance between performance and program size.
 class DrawingContext {
  public:
+  template <typename Display>
   DrawingContext(Display &display)
-      : display_(display),
+      : output_(display.output()),
+        width_(display.width()),
+        height_(display.height()),
+        max_clip_box_(display.getClipBox()),
+        unnest_([&display]() { display.unnest(); }),
         fill_mode_(FILL_MODE_VISIBLE),
         paint_mode_(PAINT_MODE_BLEND),
-        clip_box_(display.clip_box_),
+        clip_box_(display.getClipBox()),
         clip_mask_(nullptr),
-        background_(display.background_),
-        bgcolor_(display.bgcolor_),
-        transformed_(false),
-        transform_() {
-    display_.nest();
+        background_(display.getRasterizableBackground()),
+        bgcolor_(display.getBgColor()),
+        transformed_(display.dx() != 0 || display.dy() != 0),
+        transform_(Transform().translate(display.dx(), display.dy())) {
+    display.nest();
   }
 
-  ~DrawingContext() { display_.unnest(); }
+  ~DrawingContext() { unnest_(); }
 
-  int16_t width() const { return display_.width(); }
-  int16_t height() const { return display_.height(); }
+  int16_t width() const { return width_; }
+  int16_t height() const { return height_; }
 
   void setBackground(const Rasterizable *bg) {
     background_ = bg;
@@ -190,7 +204,7 @@ class DrawingContext {
   void fill(Color color);
 
   void setClipBox(const Box &clip_box) {
-    clip_box_ = Box::intersect(clip_box, display_.clip_box_);
+    clip_box_ = Box::intersect(clip_box, max_clip_box_);
   }
 
   void setClipBox(int16_t x0, int16_t y0, int16_t x1, int16_t y1) {
@@ -268,8 +282,8 @@ class DrawingContext {
              VAlign valign);
 
  private:
-  DisplayOutput &output() { return display_.output(); }
-  const DisplayOutput &output() const { return display_.output(); }
+  DisplayOutput &output() { return output_; }
+  const DisplayOutput &output() const { return output_; }
 
   void drawInternal(const Drawable &object, int16_t dx, int16_t dy,
                     Color bgcolor) {
@@ -306,7 +320,12 @@ class DrawingContext {
     }
   }
 
-  Display &display_;
+  DisplayOutput &output_;
+  int16_t width_;
+  int16_t height_;
+  Box max_clip_box_;
+  std::function<void()> unnest_;
+
   FillMode fill_mode_;
   PaintMode paint_mode_;
 

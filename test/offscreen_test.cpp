@@ -665,82 +665,109 @@ TEST(AddressWindow, Advance200) {
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
-const Raster<const uint8_t*, ColorMode, pixel_order, byte_order>& RasterOf(
-    const Offscreen<ColorMode, pixel_order, byte_order>& offscreen) {
+const Raster<const uint8_t*, ColorMode, pixel_order, byte_order> RasterOf(
+    const OffscreenDevice<ColorMode, pixel_order, byte_order>& offscreen) {
   return offscreen.raster();
 }
 
 class OffscreenTest
     : public testing::TestWithParam<std::tuple<PaintMode, Orientation>> {};
 
+template <typename ColorMode,
+          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
+          ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN,
+          int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
+          typename storage_type = ColorStorageType<ColorMode>>
+class OffscreenDeviceForTest
+    : public OffscreenDevice<ColorMode, pixel_order, byte_order,
+                             pixels_per_byte, storage_type> {
+ public:
+  OffscreenDeviceForTest(int16_t width, int16_t height)
+      : OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
+                        storage_type>(
+            width, height,
+            new uint8_t[(ColorMode::bits_per_pixel * width * height + 7) / 8],
+            ColorMode()) {}
+  ~OffscreenDeviceForTest() {
+    delete OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
+                           storage_type>::buffer();
+  }
+};
+
 TEST_P(OffscreenTest, FillRects) {
-  TestFillRects<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
+  TestFillRects<OffscreenDeviceForTest<Argb4444>, FakeOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, FillHLines) {
-  TestFillHLines<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
+  TestFillHLines<OffscreenDeviceForTest<Argb4444>, FakeOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, FillVLines) {
-  TestFillVLines<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
+  TestFillVLines<OffscreenDeviceForTest<Argb4444>, FakeOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, FillDegeneratePixels) {
-  TestFillDegeneratePixels<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
-      std::get<0>(GetParam()), std::get<1>(GetParam()));
+  TestFillDegeneratePixels<OffscreenDeviceForTest<Argb4444>,
+                           FakeOffscreen<Argb4444>>(std::get<0>(GetParam()),
+                                                    std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, FillPixels) {
-  TestFillPixels<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
+  TestFillPixels<OffscreenDeviceForTest<Argb4444>, FakeOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteRects) {
-  TestWriteRects<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
+  TestWriteRects<OffscreenDeviceForTest<Argb4444>, FakeOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteHLines) {
-  TestWriteHLines<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
+  TestWriteHLines<OffscreenDeviceForTest<Argb4444>, FakeOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteVLines) {
-  TestWriteVLines<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
+  TestWriteVLines<OffscreenDeviceForTest<Argb4444>, FakeOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteDegeneratePixels) {
-  TestWriteDegeneratePixels<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
-      std::get<0>(GetParam()), std::get<1>(GetParam()));
+  TestWriteDegeneratePixels<OffscreenDeviceForTest<Argb4444>,
+                            FakeOffscreen<Argb4444>>(std::get<0>(GetParam()),
+                                                     std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WritePixels) {
-  TestWritePixels<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
+  TestWritePixels<OffscreenDeviceForTest<Argb4444>, FakeOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WritePixelsStress) {
-  TestWritePixelsStress<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
-      std::get<0>(GetParam()), std::get<1>(GetParam()));
+  TestWritePixelsStress<OffscreenDeviceForTest<Argb4444>,
+                        FakeOffscreen<Argb4444>>(std::get<0>(GetParam()),
+                                                 std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WritePixelsSnake) {
-  TestWritePixelsSnake<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
-      std::get<0>(GetParam()), std::get<1>(GetParam()));
+  TestWritePixelsSnake<OffscreenDeviceForTest<Argb4444>,
+                       FakeOffscreen<Argb4444>>(std::get<0>(GetParam()),
+                                                std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteRectWindowSimple) {
-  TestWriteRectWindowSimple<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
-      std::get<0>(GetParam()), std::get<1>(GetParam()));
+  TestWriteRectWindowSimple<OffscreenDeviceForTest<Argb4444>,
+                            FakeOffscreen<Argb4444>>(std::get<0>(GetParam()),
+                                                     std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteRectWindowStress) {
-  TestWriteRectWindowStress<Offscreen<Argb4444>, FakeOffscreen<Argb4444>>(
-      std::get<0>(GetParam()), std::get<1>(GetParam()));
+  TestWriteRectWindowStress<OffscreenDeviceForTest<Argb4444>,
+                            FakeOffscreen<Argb4444>>(std::get<0>(GetParam()),
+                                                     std::get<1>(GetParam()));
 }
 
 INSTANTIATE_TEST_CASE_P(

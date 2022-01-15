@@ -109,6 +109,14 @@ class Box {
 
   Box rotateLeft() const { return Box(yMin_, -xMax_, yMax_, -xMin_); }
 
+  Box extend(int16_t x, int16_t y) {
+    int16_t x_min = std::min(xMin(), x);
+    int16_t y_min = std::min(yMin(), y);
+    int16_t x_max = std::max(xMax(), x);
+    int16_t y_max = std::max(yMax(), y);
+    return Box(x_min, y_min, x_max, y_max);
+  }
+
  private:
   int16_t xMin_, yMin_, xMax_, yMax_;
 };

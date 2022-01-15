@@ -15,7 +15,10 @@ struct Emulator {
 
   FakeSt77xxSpi display;
 
-  Emulator() : viewport(), flexViewport(viewport, 2), display(flexViewport, 240, 240) {
+  Emulator()
+      : viewport(),
+        flexViewport(viewport, 2),
+        display(flexViewport, 240, 240) {
     FakeEsp32().attachSpiDevice(display, 18, 19, 23);
     FakeEsp32().gpio.attachOutput(5, display.cs());
     FakeEsp32().gpio.attachOutput(2, display.dc());
@@ -27,7 +30,6 @@ struct Emulator {
 
 #include <string>
 
-#include "Arduino.h"
 #include "roo_display.h"
 #include "roo_display/core/offscreen.h"
 #include "roo_display/filter/clip_mask.h"

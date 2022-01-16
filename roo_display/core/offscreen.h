@@ -277,9 +277,9 @@ class Offscreen : public Rasterizable {
             extents.width(), extents.height(),
             new uint8_t[(ColorMode::bits_per_pixel * extents.area() + 7) / 8],
             color_mode),
+        raster_(device_.raster(extents.xMin(), extents.yMin())),
         clip_box_(0, 0, extents.width() - 1, extents.height() - 1),
-        owns_buffer_(true),
-        raster_(device_.raster(extents.xMin(), extents.yMin())) {}
+        owns_buffer_(true) {}
 
   // Creates an offscreen with specified geometry, using an internally allocated
   // buffer. The buffer is pre-filled using the specified  color.
@@ -369,10 +369,12 @@ class Offscreen : public Rasterizable {
       device_;
 
   const Raster<const uint8_t *, ColorMode, pixel_order, byte_order> raster_;
-  bool owns_buffer_;
 
   // Default clip box, in device coordinates (i.e. zero-based).
   Box clip_box_;
+
+  bool owns_buffer_;
+
 };
 
 // Convenience specialization for constructing bit maps, e.g. to set them

@@ -176,13 +176,14 @@ bool is_space(unicode_t code) {
          code == 0xFEFF;
 }
 
-void SmoothFont::drawGlyphNoBackground(DisplayOutput &output, int16_t x,
-                                       int16_t y, const GlyphMetrics &metrics,
-                                       const uint8_t *PROGMEM data,
-                                       const Box &clip_box, Color color,
-                                       PaintMode paint_mode) const {
+void SmoothFont::drawGlyphModeVisible(DisplayOutput &output, int16_t x,
+                                      int16_t y, const GlyphMetrics &metrics,
+                                      const uint8_t *PROGMEM data,
+                                      const Box &clip_box, Color color,
+                                      Color bgcolor,
+                                      PaintMode paint_mode) const {
   Surface s(output, x + metrics.bearingX(), y - metrics.bearingY(), clip_box,
-            color::Transparent, FILL_MODE_VISIBLE, paint_mode);
+            bgcolor, FILL_MODE_VISIBLE, paint_mode);
   if (rle()) {
     RleImage4bppxBiased<Alpha4> glyph(metrics.width(), metrics.height(), data,
                                       color);
@@ -236,13 +237,12 @@ void SmoothFont::drawBordered(DisplayOutput &output, int16_t x, int16_t y,
   }
 }
 
-void SmoothFont::drawGlyphWithBackground(DisplayOutput &output, int16_t x,
-                                         int16_t y, int16_t bgwidth,
-                                         const GlyphMetrics &glyph_metrics,
-                                         const uint8_t *PROGMEM data,
-                                         int16_t offset, const Box &clip_box,
-                                         Color color, Color bgColor,
-                                         PaintMode paint_mode) const {
+void SmoothFont::drawGlyphModeFill(DisplayOutput &output, int16_t x, int16_t y,
+                                   int16_t bgwidth,
+                                   const GlyphMetrics &glyph_metrics,
+                                   const uint8_t *PROGMEM data, int16_t offset,
+                                   const Box &clip_box, Color color,
+                                   Color bgColor, PaintMode paint_mode) const {
   Box box = glyph_metrics.screen_extents().translate(offset, 0);
   if (rle()) {
     auto glyph = MakeDrawableRawStreamable(
@@ -256,7 +256,7 @@ void SmoothFont::drawGlyphWithBackground(DisplayOutput &output, int16_t x,
   }
 }
 
-void SmoothFont::drawKernedGlyphsWithBackground(
+void SmoothFont::drawKernedGlyphsModeFill(
     DisplayOutput &output, int16_t x, int16_t y, int16_t bgwidth,
     const GlyphMetrics &left_metrics, const uint8_t *PROGMEM left_data,
     int16_t left_offset, const GlyphMetrics &right_metrics,
@@ -387,10 +387,9 @@ void SmoothFont::drawHorizontalString(const Surface &s,
     return;
   }
   unicode_t next_code = decoder.next();
-  bool has_background = (s.fill_mode() == FILL_MODE_RECTANGLE);
   int16_t x = s.dx();
   int16_t y = s.dy();
-  DisplayOutput& output = s.out();
+  DisplayOutput &output = s.out();
 
   GlyphPairIterator glyphs(this);
   glyphs.push(next_code);
@@ -413,11 +412,11 @@ void SmoothFont::drawHorizontalString(const Surface &s,
       glyphs.pushNull();
       kern = 0;
     }
-    if (!has_background) {
-      // Transparent background; simply draw and shift.
-      drawGlyphNoBackground(output, x - preadvanced, y, glyphs.left_metrics(),
-                            glyphs.left_data(), s.clip_box(), color,
-                            s.paint_mode());
+    if (s.fill_mode() == FILL_MODE_VISIBLE) {
+      // No fill; simply draw and shift.
+      drawGlyphModeVisible(output, x - preadvanced, y, glyphs.left_metrics(),
+                           glyphs.left_data(), s.clip_box(), color, s.bgcolor(),
+                           s.paint_mode());
       x += (glyphs.left_metrics().advance() - kern);
     } else {
       // General case. We may have two glyphs to worry about, and we may be
@@ -434,7 +433,7 @@ void SmoothFont::drawHorizontalString(const Surface &s,
           glyphs.left_metrics().glyphXMax() + 1 - preadvanced;
       if (gap < 0) {
         // Glyphs overlap; need to use the overlay method.
-        drawKernedGlyphsWithBackground(
+        drawKernedGlyphsModeFill(
             output, x, y, total_rect_width, glyphs.left_metrics(),
             glyphs.left_data(), -preadvanced, glyphs.right_metrics(),
             glyphs.right_data(), advance - preadvanced,
@@ -453,7 +452,7 @@ void SmoothFont::drawHorizontalString(const Surface &s,
           // After the last character, fill up the right-side bearing.
           total_rect_width += glyphs.left_metrics().rsb();
         }
-        drawGlyphWithBackground(
+        drawGlyphModeFill(
             output, x, y, total_rect_width, glyphs.left_metrics(),
             glyphs.left_data(), -preadvanced,
             Box::intersect(s.clip_box(), Box(x, y - metrics().glyphYMax(),

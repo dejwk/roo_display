@@ -40,14 +40,35 @@ namespace internal {
 
 template <typename RawPixelStream>
 struct RectFillerVisible {
-  void operator()(DisplayOutput& output, const Box &extents,
-                  RawPixelStream *stream, PaintMode mode) const {
+  void operator()(DisplayOutput &output, const Box &extents, Color bgcolor,
+                  RawPixelStream *stream, PaintMode mode,
+                  TransparencyMode transparency_mode) const {
     BufferedPixelWriter writer(output, mode);
-    for (int16_t j = extents.yMin(); j <= extents.yMax(); ++j) {
-      for (int16_t i = extents.xMin(); i <= extents.xMax(); ++i) {
-        Color color = stream->next();
-        if (color.a() != 0) {
-          writer.writePixel(i, j, color);
+    if (bgcolor.a() == 0) {
+      for (int16_t j = extents.yMin(); j <= extents.yMax(); ++j) {
+        for (int16_t i = extents.xMin(); i <= extents.xMax(); ++i) {
+          Color color = stream->next();
+          if (color.a() != 0) {
+            writer.writePixel(i, j, color);
+          }
+        }
+      }
+    } else if (transparency_mode == TRANSPARENCY_GRADUAL) {
+      for (int16_t j = extents.yMin(); j <= extents.yMax(); ++j) {
+        for (int16_t i = extents.xMin(); i <= extents.xMax(); ++i) {
+          Color color = stream->next();
+          if (color.a() != 0) {
+            writer.writePixel(i, j, alphaBlend(bgcolor, color));
+          }
+        }
+      }
+    } else {
+      for (int16_t j = extents.yMin(); j <= extents.yMax(); ++j) {
+        for (int16_t i = extents.xMin(); i <= extents.xMax(); ++i) {
+          Color color = stream->next();
+          if (color.a() != 0) {
+            writer.writePixel(i, j, color);
+          }
         }
       }
     }
@@ -56,7 +77,7 @@ struct RectFillerVisible {
 
 template <typename RawPixelStream>
 struct RectFillerRectangle {
-  void operator()(DisplayOutput& output, const Box &extents, Color bgcolor,
+  void operator()(DisplayOutput &output, const Box &extents, Color bgcolor,
                   RawPixelStream *stream, PaintMode paint_mode,
                   TransparencyMode transparency_mode) const {
     output.setAddress(extents, paint_mode);
@@ -101,7 +122,7 @@ void FillRectFromRawStream(DisplayOutput &output, const Box &extents,
     fill(output, extents, bgcolor, stream, paint_mode, stream->transparency());
   } else {
     RectFillerVisible<RawPixelStream> fill;
-    fill(output, extents, stream, paint_mode);
+    fill(output, extents, bgcolor, stream, paint_mode, stream->transparency());
   }
 };
 

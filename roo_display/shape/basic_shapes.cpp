@@ -512,6 +512,8 @@ void Triangle::drawInteriorTo(const Surface &s) const {
 }
 
 void FilledTriangle::drawInteriorTo(const Surface &s) const {
+  Box box = extents().translate(s.dx(), s.dy());
+  if (!box.intersects(s.clip_box())) return;
   Color color = alphaBlend(s.bgcolor(), this->color());
   int16_t x0 = x0_ + s.dx();
   int16_t y0 = y0_ + s.dy();
@@ -519,7 +521,7 @@ void FilledTriangle::drawInteriorTo(const Surface &s) const {
   int16_t y1 = y1_ + s.dy();
   int16_t x2 = x2_ + s.dx();
   int16_t y2 = y2_ + s.dy();
-  if (s.clip_box().contains(extents().translate(s.dx(), s.dy()))) {
+  if (s.clip_box().contains(box)) {
     BufferedHLineFiller drawer(s.out(), color, s.paint_mode());
     fillTriangle(&drawer, x0, y0, x1, y1, x2, y2);
   } else {

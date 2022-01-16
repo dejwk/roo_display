@@ -1,6 +1,35 @@
+#include "Arduino.h"
+
+#ifdef ROO_TESTING
+
+#include "roo_testing/devices/display/st77xx/st77xx.h"
+#include "roo_testing/transducers/ui/viewport/flex_viewport.h"
+#include "roo_testing/transducers/ui/viewport/fltk/fltk_viewport.h"
+
+using roo_testing_transducers::FlexViewport;
+using roo_testing_transducers::FltkViewport;
+
+struct Emulator {
+  FltkViewport viewport;
+  FlexViewport flexViewport;
+
+  FakeSt77xxSpi display;
+
+  Emulator()
+      : viewport(),
+        flexViewport(viewport, 1),
+        display(flexViewport, 240, 240) {
+    FakeEsp32().attachSpiDevice(display, 18, 19, 23);
+    FakeEsp32().gpio.attachOutput(5, display.cs());
+    FakeEsp32().gpio.attachOutput(2, display.dc());
+    FakeEsp32().gpio.attachOutput(4, display.rst());
+  }
+} emulator;
+
+#endif
+
 #include <string>
 
-#include "Arduino.h"
 #include "roo_display.h"
 #include "roo_display/core/offscreen.h"
 #include "roo_display/font/font.h"
@@ -80,12 +109,11 @@ void printText(DrawingContext& dc, const Drawable& widget) {
   dc.draw(widget);
 }
 
-// Use the device's 'default' background color, and write the text as
-// transparent.
-void printTransparentlyUsingDeviceBackground(Color bgcolor) {
+// Use the display's 'default' background color, set during initalization,
+// and write the text as transparent.
+void printTransparentlyUsingDeviceBackground() {
   Serial.println("Drawing with device background.");
   DrawingContext dc(display);
-  device.setBgColorHint(bgcolor);
   printText(dc, Widget(FILL_MODE_VISIBLE));
 }
 
@@ -97,6 +125,16 @@ void printUsingSolidBackground(Color bgcolor) {
   printText(dc, Widget());
 }
 
+// Draws the glyphs using a background, but not filling spaces that would have
+// been filled with the background color. This is only appropriate when you know
+// that the background has been pre-filled.
+void printVisibleUsingBackground(Color bgcolor) {
+  Serial.println("Drawing with a background, but in mode VISIBLE.");
+  DrawingContext dc(display);
+  dc.setBackground(bgcolor);
+  printText(dc, Widget(FILL_MODE_VISIBLE));
+}
+
 void printUsingRamBuffer() {
   Serial.println("Drawing using RAM buffer. This should look great overall.");
   // This constructor allocates memory on the heap. The heap allocation has
@@ -104,7 +142,7 @@ void printUsingRamBuffer() {
   // that get deleted before anything else is allocated on the heap.
   // As an alternative, OffscreenDisplay (and Offscreen) can take pre-allocated
   // buffer in the constructor.
-  OffscreenDisplay<Rgb565> offscreen(40, 40);
+  Offscreen<Rgb565> offscreen(40, 40);
   {
     // It is important to ensure the drawing context gets destroyed before using
     // the content. (It is achieved here by enclosing it in a nested bock).
@@ -144,26 +182,26 @@ void loop() {
 
   // This would have looked good on white background, but it does not look good
   // on either red or green.
-  printTransparentlyUsingDeviceBackground(color::White);
+  printTransparentlyUsingDeviceBackground();
   delay(2000);
 
   // Using the same bg and fg colors disables anti-aliasing completely.
-  printTransparentlyUsingDeviceBackground(color::Black);
+  printVisibleUsingBackground(color::Black);
   delay(2000);
 
   // Being somewhat 'in-between', Gray looks 'ok-ish' but not great on neither
   // red nor green.
-  printTransparentlyUsingDeviceBackground(color::Gray);
+  printVisibleUsingBackground(color::Gray);
   delay(2000);
 
   // Using red makes the font look great on the red background, but horrible on
   // the green background.
-  printTransparentlyUsingDeviceBackground(color::IndianRed);
+  printVisibleUsingBackground(color::IndianRed);
   delay(2000);
 
   // Using red makes the font look great on the red background, but horrible on
   // the green background.
-  printTransparentlyUsingDeviceBackground(color::LightGreen);
+  printVisibleUsingBackground(color::LightGreen);
   delay(2000);
 
   // Using a solid background will make the edges look great, but it overwrites

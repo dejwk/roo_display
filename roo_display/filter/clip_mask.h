@@ -101,14 +101,14 @@ class ClipMaskFilter : public DisplayOutput {
   void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     while (count-- > 0) {
-      fillRect(mode, *color++, *x0++, *y0++, *x1++, *y1++);
+      fillSingleRect(mode, *color++, *x0++, *y0++, *x1++, *y1++);
     }
   }
 
   void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
     while (count-- > 0) {
-      fillRect(mode, color, *x0++, *y0++, *x1++, *y1++);
+      fillSingleRect(mode, color, *x0++, *y0++, *x1++, *y1++);
     }
   }
 
@@ -149,8 +149,8 @@ class ClipMaskFilter : public DisplayOutput {
   }
 
  private:
-  void fillRect(PaintMode mode, Color color, int16_t x0, int16_t y0, int16_t x1,
-                int16_t y1) {
+  void fillSingleRect(PaintMode mode, Color color, int16_t x0, int16_t y0,
+                      int16_t x1, int16_t y1) {
     // Note: we need to flush these every rect, because the rectangles may
     // be overlapping. (A possible alternative would be to only use
     // rectfiller).

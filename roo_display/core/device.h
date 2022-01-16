@@ -68,6 +68,13 @@ class DisplayOutput {
     fillRect(PAINT_MODE_REPLACE, rect, color);
   }
 
+  // Convenience method to fill a single rectangle.
+  // Invalidates the address window.
+  inline void fillRect(PaintMode mode, int16_t x0, int16_t y0, int16_t x1,
+                       int16_t y1, Color color) {
+    fillRects(mode, color, &x0, &y0, &x1, &y1, 1);
+  }
+
   // Convenience method to fill a single rectangle using REPLACE mode.
   // Invalidates the address window.
   inline void fillRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1,

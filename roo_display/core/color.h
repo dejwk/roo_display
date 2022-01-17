@@ -517,7 +517,7 @@ class Monochrome {
   }
 
   inline constexpr uint8_t fromArgbColor(Color color) const {
-    return (color == bg_) ? 0 : 1;
+    return (color == bg_ || color.a() == 0) ? 0 : 1;
   }
 
   constexpr Color fg() const { return fg_; }

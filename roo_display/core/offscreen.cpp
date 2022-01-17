@@ -1,14 +1,15 @@
 // Support for drawing to in-memory buffers, using various color modes.
 
-#include "roo_display/core/color.h"
 #include "roo_display/core/offscreen.h"
+
+#include "roo_display/core/color.h"
 #include "roo_display/core/raster.h"
 #include "roo_display/internal/byte_order.h"
 #include "roo_display/internal/memfill.h"
 
 namespace roo_display {
 namespace internal {
-    
+
 AddressWindow::AddressWindow()
     : orientation_(Orientation::Default()),
       offset_(0),
@@ -48,4 +49,32 @@ void AddressWindow::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
 }
 
 }  // namespace internal
+
+namespace {
+
+Box alignExtents(Box extents) {
+  return Box(extents.xMin(), extents.yMin(),
+             extents.xMin() + ((extents.width() + 7) & ~7) - 1, extents.yMax());
+}
+
+}  // namespace
+
+BitMaskOffscreen::BitMaskOffscreen(Box extents, uint8_t *buffer)
+    : Offscreen(alignExtents(extents), buffer,
+                Monochrome(color::Black, color::Transparent)) {
+  set_clip_box(extents);
+}
+
+BitMaskOffscreen::BitMaskOffscreen(Box extents)
+    : Offscreen(alignExtents(extents),
+                Monochrome(color::Black, color::Transparent)) {
+  set_clip_box(extents);
+}
+
+BitMaskOffscreen::BitMaskOffscreen(Box extents, Color fillColor)
+    : Offscreen(alignExtents(extents), fillColor,
+                Monochrome(color::Black, color::Transparent)) {
+  set_clip_box(extents);
+}
+
 }  // namespace roo_display

@@ -779,4 +779,50 @@ INSTANTIATE_TEST_CASE_P(
                         Orientation::RightUp(), Orientation::UpRight(),
                         Orientation::LeftUp(), Orientation::UpLeft())));
 
+// Now, let's also test some basic functionality.
+
+TEST_F(OffscreenTest, OffsetedDrawing) {
+  Offscreen<Monochrome> offscreen(Box(-6, -5, 4, 3), color::Black,
+                                  WhiteOnBlack());
+  EXPECT_THAT(offscreen.raster(), MatchesContent(WhiteOnBlack(), 11, 9,
+                                                 "           "
+                                                 "           "
+                                                 "           "
+                                                 "           "
+                                                 "           "
+                                                 "           "
+                                                 "           "
+                                                 "           "
+                                                 "           "));
+
+  DrawingContext dc(offscreen);
+  EXPECT_FALSE(dc.transform().is_rescaled());
+  EXPECT_FALSE(dc.transform().is_translated());
+  EXPECT_EQ(dc.bounds(), Box(-6, -5, 4, 3));
+  dc.draw(SolidRect(-4, -3, 2, 1, color::White));
+  EXPECT_THAT(offscreen.raster(), MatchesContent(WhiteOnBlack(), 11, 9,
+                                                 "           "
+                                                 "           "
+                                                 "  *******  "
+                                                 "  *******  "
+                                                 "  *******  "
+                                                 "  *******  "
+                                                 "  *******  "
+                                                 "           "
+                                                 "           "));
+  dc.setClipBox(-100, -100, 1, 0);
+  EXPECT_EQ(dc.getClipBox(), Box(-6, -5, 1, 0));
+  dc.clear();
+  EXPECT_THAT(offscreen.raster(), MatchesContent(WhiteOnBlack(), 11, 9,
+                                                 "           "
+                                                 "           "
+                                                 "        *  "
+                                                 "        *  "
+                                                 "        *  "
+                                                 "        *  "
+                                                 "  *******  "
+                                                 "           "
+                                                 "           "));
+}
+
 }  // namespace roo_display

@@ -278,7 +278,7 @@ class Offscreen : public Rasterizable {
             new uint8_t[(ColorMode::bits_per_pixel * extents.area() + 7) / 8],
             color_mode),
         raster_(device_.raster(extents.xMin(), extents.yMin())),
-        clip_box_(0, 0, extents.width() - 1, extents.height() - 1),
+        clip_box_(extents),
         owns_buffer_(true) {}
 
   // Creates an offscreen with specified geometry, using an internally allocated
@@ -298,12 +298,13 @@ class Offscreen : public Rasterizable {
   // Convenience constructor that makes a RAM copy of the specified drawable.
   Offscreen(const Drawable &d, ColorMode color_mode = ColorMode())
       : Offscreen(d.extents(), color_mode) {
-    if (color_mode.transparency() != TRANSPARENCY_NONE) {
-      device_.fillRect(0, 0, width() - 1, height() - 1, color::Transparent);
-    }
     Box extents = d.extents();
+    if (color_mode.transparency() != TRANSPARENCY_NONE) {
+      device_.fillRect(0, 0, extents.width() - 1, extents.height() - 1,
+                       color::Transparent);
+    }
     Surface s(device_, -extents.xMin(), -extents.yMin(),
-              Box(0, 0, width(), height()));
+              Box(0, 0, extents.width(), extents.height()));
     s.drawObject(d);
   }
 
@@ -311,15 +312,12 @@ class Offscreen : public Rasterizable {
     if (owns_buffer_) delete output().buffer();
   }
 
-  int16_t width() const { return output().effective_width(); }
-  int16_t height() const { return output().effective_height(); }
-
   const Raster<const uint8_t *, ColorMode, pixel_order, byte_order> &raster()
       const {
     return raster_;
   }
 
-  Box extents() const override { return raster().extents(); }
+  Box extents() const override { return clip_box_; }
 
   TransparencyMode GetTransparencyMode() const override {
     return raster().GetTransparencyMode();
@@ -358,7 +356,7 @@ class Offscreen : public Rasterizable {
   // For DrawingContext.
   void nest() const {}
   void unnest() const {}
-  Box getClipBox() const { return clip_box_; }
+  // Box getClipBox() const { return clip_box_; }
   Color getBgColor() const { return color::Transparent; }
   const Rasterizable *getRasterizableBackground() const { return nullptr; }
   int16_t dx() const { return -raster_.extents().xMin(); }
@@ -374,7 +372,6 @@ class Offscreen : public Rasterizable {
   Box clip_box_;
 
   bool owns_buffer_;
-
 };
 
 // Convenience specialization for constructing bit maps, e.g. to set them
@@ -394,11 +391,7 @@ class BitMaskOffscreen : public Offscreen<Monochrome> {
   // designated buffer. The buffer must have sufficient capacity, determined as
   // ((width + 7) / 8) * height. The buffer is not modified; it can contain
   // pre-existing content.
-  BitMaskOffscreen(Box extents, uint8_t *buffer)
-      : Offscreen(std::move(extents), buffer,
-                  Monochrome(color::Black, color::Transparent)) {
-    set_clip_box(extents);
-  }
+  BitMaskOffscreen(Box extents, uint8_t *buffer);
 
   // Creates an offscreen with specified geometry, using an internally
   // allocated buffer. The buffer is not pre-initialized; it contains random
@@ -408,10 +401,7 @@ class BitMaskOffscreen : public Offscreen<Monochrome> {
 
   // Creates an offscreen with specified geometry, using an internally allocated
   // buffer. The buffer is not pre-initialized; it contains random bytes.
-  BitMaskOffscreen(Box extents)
-      : Offscreen(extents, Monochrome(color::Black, color::Transparent)) {
-    set_clip_box(extents);
-  }
+  BitMaskOffscreen(Box extents);
 
   // Creates an offscreen with specified geometry, using an internally allocated
   // buffer. The buffer is pre-filled using the specified  color.
@@ -420,13 +410,7 @@ class BitMaskOffscreen : public Offscreen<Monochrome> {
 
   // Creates an offscreen with specified geometry, using an internally allocated
   // buffer. The buffer is pre-filled using the specified  color.
-  BitMaskOffscreen(Box extents, Color fillColor)
-      : Offscreen(Box(extents.xMin(), extents.yMin(),
-                      extents.xMin() + ((extents.width() + 7) & ~7) - 1,
-                      extents.yMax()),
-                  fillColor, Monochrome(color::Black, color::Transparent)) {
-    set_clip_box(Box(0, 0, extents.width() - 1, extents.height() - 1));
-  }
+  BitMaskOffscreen(Box extents, Color fillColor);
 };
 
 // Implementation details follow.

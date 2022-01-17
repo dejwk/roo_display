@@ -39,10 +39,10 @@ Display::Display(DisplayDevice& display_device, TouchDevice* touch_device)
              touch_device == nullptr ? dummy_touch : *touch_device),
       nest_level_(0),
       orientation_(display_device.orientation()),
-      clip_box_(Box::MaximumBox()),
+      extents_(Box::MaximumBox()),
       bgcolor_(Color(0)),
       background_(nullptr) {
-  updateBounds();
+  resetExtents();
 }
 
 void Display::setOrientation(Orientation orientation) {
@@ -51,7 +51,8 @@ void Display::setOrientation(Orientation orientation) {
   nest();
   display_device_.setOrientation(orientation);
   unnest();
-  updateBounds();
+  // Update, since the width and height might have gotten swapped.
+  resetExtents();
 }
 
 void Display::init(Color bgcolor) {
@@ -68,11 +69,6 @@ void Display::init(Color bgcolor) {
 void Display::clear() {
   DrawingContext dc(*this);
   dc.clear();
-}
-
-void Display::updateBounds() {
-  // Width and height might have gotten swapped.
-  clip_box_ = Box(0, 0, width() - 1, height() - 1);
 }
 
 void DrawingContext::fill(Color color) { draw(Fill(color)); }

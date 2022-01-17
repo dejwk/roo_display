@@ -31,15 +31,11 @@ class Display {
   Display(DisplayDevice &display_device, TouchDevice &touch_device)
       : Display(display_device, &touch_device) {}
 
-  int16_t width() const { return display_device_.effective_width(); }
-
-  int16_t height() const { return display_device_.effective_height(); }
-
   int32_t area() const {
     return display_device_.raw_width() * display_device_.raw_height();
   }
 
-  Box extents() const { return Box(0, 0, width() - 1, height() - 1); }
+  const Box &extents() const { return extents_; }
 
   // Initializes the device.
   void init() { display_device_.init(); }
@@ -59,18 +55,17 @@ class Display {
 
   bool getTouch(int16_t &x, int16_t &y) { return touch_.getTouch(x, y); }
 
-  // Sets a default clip box, inherited by all derived contexts.
-  void setClipBox(int16_t x0, int16_t y0, int16_t x1, int16_t y1) {
-    setClipBox(Box(x0, y0, x1, y1));
+  // Resets the clip box to the maximum device-allowed values.
+  void resetExtents() {
+    extents_ = Box(0, 0, display_device_.effective_width() - 1,
+                   display_device_.effective_height() - 1);
   }
 
   // Sets a default clip box, inherited by all derived contexts.
-  void setClipBox(const Box &clip_box) {
-    clip_box_ = Box::intersect(clip_box, extents());
+  void setExtents(const Box &extents) {
+    resetExtents();
+    extents_ = Box::intersect(extents_, extents);
   }
-
-  // Returns the default clip box.
-  const Box &getClipBox() const { return clip_box_; }
 
   // Sets a rasterizable background to be used by all derived contexts.
   void setBackground(const Rasterizable *bg) {
@@ -113,14 +108,12 @@ class Display {
   int16_t dx() const { return 0; }
   int16_t dy() const { return 0; }
 
-  void updateBounds();
-
   DisplayDevice &display_device_;
   TouchDisplay touch_;
   int16_t nest_level_;
   Orientation orientation_;
 
-  Box clip_box_;
+  Box extents_;
   Color bgcolor_;
   const Rasterizable *background_;
 };
@@ -161,25 +154,24 @@ class DrawingContext {
   template <typename Display>
   DrawingContext(Display &display)
       : output_(display.output()),
-        width_(display.width()),
-        height_(display.height()),
-        max_clip_box_(display.getClipBox()),
+        dx_(display.dx()),
+        dy_(display.dy()),
+        bounds_(display.extents()),
+        clip_box_(bounds_),
         unnest_([&display]() { display.unnest(); }),
         fill_mode_(FILL_MODE_VISIBLE),
         paint_mode_(PAINT_MODE_BLEND),
-        clip_box_(display.getClipBox()),
         clip_mask_(nullptr),
         background_(display.getRasterizableBackground()),
         bgcolor_(display.getBgColor()),
-        transformed_(display.dx() != 0 || display.dy() != 0),
-        transform_(Transform().translate(display.dx(), display.dy())) {
+        transformed_(false),
+        transform_() {
     display.nest();
   }
 
   ~DrawingContext() { unnest_(); }
 
-  int16_t width() const { return width_; }
-  int16_t height() const { return height_; }
+  const Box &bounds() const { return bounds_; }
 
   void setBackground(const Rasterizable *bg) {
     background_ = bg;
@@ -204,7 +196,7 @@ class DrawingContext {
   void fill(Color color);
 
   void setClipBox(const Box &clip_box) {
-    clip_box_ = Box::intersect(clip_box, max_clip_box_);
+    clip_box_ = Box::intersect(clip_box, bounds());
   }
 
   void setClipBox(int16_t x0, int16_t y0, int16_t x1, int16_t y1) {
@@ -232,9 +224,10 @@ class DrawingContext {
 
   inline void drawPixel(int16_t x, int16_t y, Color color,
                         PaintMode paint_mode) {
+    // TODO(dawidk): handle transformation.
     if (!clip_box_.contains(x, y)) return;
     if (clip_mask_ != nullptr && clip_mask_->isMasked(x, y)) return;
-    output().fillPixels(paint_mode, color, &x, &y, 1);
+    output().fillPixels(paint_mode, color, &x + dx_, &y + dy_, 1);
   }
 
   // Draws the object using its inherent coordinates. The point (0, 0) in the
@@ -307,7 +300,8 @@ class DrawingContext {
 
   void drawInternalTransformed(DisplayOutput &output, const Drawable &object,
                                int16_t dx, int16_t dy, Color bgcolor) {
-    Surface s(output, dx, dy, clip_box_, bgcolor, fill_mode_, paint_mode_);
+    Surface s(output, dx + dx_, dy + dy_, clip_box_.translate(dx_, dy_),
+              bgcolor, fill_mode_, paint_mode_);
     if (!transformed_) {
       s.drawObject(object);
     } else if (!transform_.is_rescaled() && !transform_.xy_swap()) {
@@ -321,16 +315,21 @@ class DrawingContext {
   }
 
   DisplayOutput &output_;
-  int16_t width_;
-  int16_t height_;
-  Box max_clip_box_;
+
+  // Offset of the origin in the output coordinates. Empty transform maps (0, 0)
+  // in drawing coordinates onto (dx_, dy_) in device coordinates.
+  int16_t dx_;
+  int16_t dy_;
+
+  Box bounds_;
+  // Absolute coordinates of the clip region in the device space. Inclusive.
+  Box clip_box_;
+
   std::function<void()> unnest_;
 
   FillMode fill_mode_;
   PaintMode paint_mode_;
 
-  // Absolute coordinates of the clip region in the device space. Inclusive.
-  Box clip_box_;
   const ClipMask *clip_mask_;
   const Rasterizable *background_;
   Color bgcolor_;

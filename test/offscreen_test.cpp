@@ -825,4 +825,73 @@ TEST_F(OffscreenTest, OffsetedDrawing) {
                                                  "           "));
 }
 
+TEST_F(OffscreenTest, DrawingOffscreen) {
+  Offscreen<Grayscale4> offscreen(Box(-6, -5, 4, 3), color::Black);
+  DrawingContext dc(offscreen);
+  dc.draw(SolidRect(-4, -3, 2, 1, Color(0xFF444444)));
+  dc.draw(SolidRect(-3, -2, 1, 0, Color(0xFF666666)));
+  FakeOffscreen<Argb4444> test_screen(13, 9, color::White);
+  Display display(test_screen);
+  {
+    DrawingContext dc(display);
+    dc.draw(offscreen, 5, 4);
+  }
+  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 13, 9,
+                                          "          ***"
+                                          " 4444444  ***"
+                                          " 4666664  ***"
+                                          " 4666664  ***"
+                                          " 4666664  ***"
+                                          " 4444444  ***"
+                                          "          ***"
+                                          "          ***"
+                                          "*************"));
+}
+
+TEST_F(OffscreenTest, DrawingOffscreenStreamable) {
+  Offscreen<Grayscale4> offscreen(Box(-6, -5, 4, 3), color::Black);
+  DrawingContext dc(offscreen);
+  dc.draw(SolidRect(-4, -3, 2, 1, Color(0xFF444444)));
+  dc.draw(SolidRect(-3, -2, 1, 0, Color(0xFF666666)));
+  FakeOffscreen<Argb4444> test_screen(13, 9, color::White);
+  Display display(test_screen);
+  {
+    DrawingContext dc(display);
+    dc.draw(ForcedStreamable(&offscreen), 5, 4);
+  }
+  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 13, 9,
+                                          "          ***"
+                                          " 4444444  ***"
+                                          " 4666664  ***"
+                                          " 4666664  ***"
+                                          " 4666664  ***"
+                                          " 4444444  ***"
+                                          "          ***"
+                                          "          ***"
+                                          "*************"));
+}
+
+TEST_F(OffscreenTest, DrawingOffscreenRasterizable) {
+  Offscreen<Grayscale4> offscreen(Box(-6, -5, 4, 3), color::Black);
+  DrawingContext dc(offscreen);
+  dc.draw(SolidRect(-4, -3, 2, 1, Color(0xFF444444)));
+  dc.draw(SolidRect(-3, -2, 1, 0, Color(0xFF666666)));
+  FakeOffscreen<Argb4444> test_screen(13, 9, color::White);
+  Display display(test_screen);
+  {
+    DrawingContext dc(display);
+    dc.draw(ForcedRasterizable(&offscreen), 5, 4);
+  }
+  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 13, 9,
+                                          "          ***"
+                                          " 4444444  ***"
+                                          " 4666664  ***"
+                                          " 4666664  ***"
+                                          " 4666664  ***"
+                                          " 4444444  ***"
+                                          "          ***"
+                                          "          ***"
+                                          "*************"));
+}
+
 }  // namespace roo_display

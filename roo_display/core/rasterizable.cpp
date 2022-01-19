@@ -6,11 +6,11 @@ namespace {
 
 class Stream : public PixelStream {
  public:
-  Stream(const Rasterizable* data, Box extents)
+  Stream(const Rasterizable* data, Box bounds)
       : data_(data),
-        extents_(std::move(extents)),
-        x_(extents_.xMin()),
-        y_(extents_.yMin()) {}
+        bounds_(std::move(bounds)),
+        x_(bounds_.xMin()),
+        y_(bounds_.yMin()) {}
 
   void Read(Color* buf, uint16_t size) override {
     int16_t x[size];
@@ -18,10 +18,10 @@ class Stream : public PixelStream {
     for (int i = 0; i < size; ++i) {
       x[i] = x_;
       y[i] = y_;
-      if (x_ < extents_.xMax()) {
+      if (x_ < bounds_.xMax()) {
         ++x_;
       } else {
-        x_ = extents_.xMin();
+        x_ = bounds_.xMin();
         ++y_;
       }
     }
@@ -29,10 +29,10 @@ class Stream : public PixelStream {
   }
 
   void Skip(uint32_t count) override {
-    auto w = extents_.width();
+    auto w = bounds_.width();
     y_ += count / w;
     x_ += count % w;
-    if (x_ > extents_.xMax()) {
+    if (x_ > bounds_.xMax()) {
       x_ -= w;
       ++y_;
     }
@@ -40,7 +40,7 @@ class Stream : public PixelStream {
 
  private:
   const Rasterizable* data_;
-  Box extents_;
+  Box bounds_;
   int16_t x_, y_;
 };
 
@@ -69,6 +69,10 @@ bool Rasterizable::ReadColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
 
 std::unique_ptr<PixelStream> Rasterizable::CreateStream() const {
   return std::unique_ptr<PixelStream>(new Stream(this, this->extents()));
+}
+
+std::unique_ptr<PixelStream> Rasterizable::CreateStream(const Box& bounds) const {
+  return std::unique_ptr<PixelStream>(new Stream(this, bounds));
 }
 
 void Rasterizable::drawTo(const Surface& s) const {

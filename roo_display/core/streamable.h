@@ -303,10 +303,11 @@ class BufferingStream {
 //   The caller should guarantee that the sum of these two quantities
 //   (width and width_skip) is equal to the pixel width of the image represented
 //   by the underlying stream.
+template <typename Delegate>
 class SubRectangleStream : public PixelStream {
  public:
-  SubRectangleStream(std::unique_ptr<PixelStream> delegate, uint32_t count,
-                     int16_t width, int16_t width_skip)
+  SubRectangleStream(Delegate delegate, uint32_t count, int16_t width,
+                     int16_t width_skip)
       : stream_(std::move(delegate)),
         x_(0),
         width_(width),
@@ -356,13 +357,13 @@ class SubRectangleStream : public PixelStream {
     count -= buffered;
     idx_ = kPixelWritingBufferSize;
     if (count >= kPixelWritingBufferSize / 2) {
-      stream_->Skip(count);
+      stream_.Skip(count);
       remaining_ -= count;
       return;
     }
     uint16_t n = kPixelWritingBufferSize;
     if (n > remaining_) n = remaining_;
-    stream_->Read(buf_, n);
+    stream_.Read(buf_, n);
     remaining_ -= n;
     idx_ = count;
   }
@@ -371,7 +372,7 @@ class SubRectangleStream : public PixelStream {
     if (idx_ >= kPixelWritingBufferSize) {
       uint16_t n = kPixelWritingBufferSize;
       if (n > remaining_) n = remaining_;
-      stream_->Read(buf_, n);
+      stream_.Read(buf_, n);
       idx_ = 0;
       remaining_ -= n;
     }
@@ -385,7 +386,7 @@ class SubRectangleStream : public PixelStream {
 
   SubRectangleStream(const SubRectangleStream &) = delete;
 
-  std::unique_ptr<PixelStream> stream_;
+  Delegate stream_;
   int16_t x_;
   const int16_t width_;
   const int16_t width_skip_;
@@ -395,20 +396,30 @@ class SubRectangleStream : public PixelStream {
   int idx_;
 };
 
-inline std::unique_ptr<PixelStream> SubRectangle(
-    std::unique_ptr<PixelStream> delegate, uint32_t count, int16_t width,
-    int16_t width_skip) {
-  return std::unique_ptr<PixelStream>(
-      new SubRectangleStream(std::move(delegate), count, width, width_skip));
-}
-
 }  // namespace internal
+
+template <typename Stream>
+inline std::unique_ptr<PixelStream> SubRectangle(Stream stream,
+                                                 const Box &extents,
+                                                 const Box &bounds) {
+  int line_offset = extents.width() - bounds.width();
+  int xoffset = bounds.xMin() - extents.xMin();
+  int yoffset = bounds.yMin() - extents.yMin();
+  uint32_t skipped = yoffset * extents.width() + xoffset;
+  stream.Skip(skipped);
+  return std::unique_ptr<PixelStream>(new internal::SubRectangleStream<Stream>(
+      std::move(stream), extents.area() - skipped, bounds.width(),
+      line_offset));
+}
 
 class Streamable : public virtual Drawable {
  public:
   // CreateStream creates the stream of pixels that should be drawn to
   // the extents box.
   virtual std::unique_ptr<PixelStream> CreateStream() const = 0;
+
+  virtual std::unique_ptr<PixelStream> CreateStream(
+      const Box &clip_box) const = 0;
 
   // GetTransparencyMode is an optimization hint that a streamable can
   // give to the renderer. The default, safe to use, is TRANSPARENCY_GRADUAL,
@@ -423,29 +434,17 @@ class Streamable : public virtual Drawable {
  private:
   void drawTo(const Surface &s) const override {
     Box ext = extents();
-    Box bounds = Box::intersect(s.clip_box(), ext.translate(s.dx(), s.dy()));
+    Box bounds = Box::intersect(s.clip_box().translate(-s.dx(), -s.dy()), ext);
     if (bounds.empty()) return;
     std::unique_ptr<PixelStream> stream;
     if (ext.width() == bounds.width() && ext.height() == bounds.height()) {
-      // Optimized case: rendering full stream.
       stream = CreateStream();
-      internal::FillRectFromStream(s.out(), bounds, stream.get(), s.bgcolor(),
-                                   s.fill_mode(), s.paint_mode(),
-                                   GetTransparencyMode());
     } else {
-      // Non-optimized case: rendering sub-rectangle. Need to go line-by-line.
-      int line_offset = ext.width() - bounds.width();
-      int xoffset = bounds.xMin() - ext.xMin() - s.dx();
-      int yoffset = bounds.yMin() - ext.yMin() - s.dy();
-      std::unique_ptr<PixelStream> stream = CreateStream();
-      uint32_t skipped = yoffset * ext.width() + xoffset;
-      stream->Skip(skipped);
-      internal::SubRectangleStream sub(std::move(stream), ext.area() - skipped,
-                                       bounds.width(), line_offset);
-      internal::FillRectFromStream(s.out(), bounds, &sub, s.bgcolor(),
-                                   s.fill_mode(), s.paint_mode(),
-                                   GetTransparencyMode());
+      stream = CreateStream(bounds);
     }
+    internal::FillRectFromStream(s.out(), bounds.translate(s.dx(), s.dy()),
+                                 stream.get(), s.bgcolor(), s.fill_mode(),
+                                 s.paint_mode(), GetTransparencyMode());
   }
 };
 
@@ -476,6 +475,11 @@ class SimpleStreamable : public Streamable {
   std::unique_ptr<PixelStream> CreateStream() const override {
     return std::unique_ptr<PixelStream>(
         new StreamType(resource_.Open(), color_mode_));
+  }
+
+  std::unique_ptr<PixelStream> CreateStream(const Box &bounds) const override {
+    return SubRectangle(StreamType(resource_.Open(), color_mode_), extents(),
+                        bounds);
   }
 
   std::unique_ptr<StreamType> CreateRawStream() const {

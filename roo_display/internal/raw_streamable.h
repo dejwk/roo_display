@@ -286,6 +286,12 @@ class DrawableRawStreamable : public Streamable {
             streamable_.CreateRawStream()));
   }
 
+  std::unique_ptr<PixelStream> CreateStream(const Box &bounds) const override {
+    return std::unique_ptr<PixelStream>(
+        new Stream<ClipperedRawStreamTypeOf<RawStreamable>>(
+            CreateClippedRawStreamFor(streamable_, bounds)));
+  }
+
   decltype(std::declval<RawStreamable>().CreateRawStream()) CreateRawStream()
       const {
     return streamable_.CreateRawStream();

@@ -22,6 +22,8 @@ class Rasterizable : public virtual Streamable {
 
   std::unique_ptr<PixelStream> CreateStream() const override;
 
+  std::unique_ptr<PixelStream> CreateStream(const Box& bounds) const override;
+
  private:
   void drawTo(const Surface& s) const override;
 };

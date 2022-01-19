@@ -123,6 +123,7 @@ class FilledRect : public RectBase, public Rasterizable {
   }
 
   std::unique_ptr<PixelStream> CreateStream() const override;
+  std::unique_ptr<PixelStream> CreateStream(const Box& bounds) const override;
 
   void ReadColors(const int16_t *x, const int16_t *y, uint32_t count,
                   Color *result) const override {

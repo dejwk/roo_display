@@ -217,8 +217,9 @@ Color NextColorFromString<Rgb565WithTransparency>(
 template <typename ColorMode>
 class ParserStream : public PixelStream {
  public:
-  ParserStream<ColorMode>(ColorMode mode, const string& content)
-      : mode_(mode), stream_(content) {}
+  ParserStream<ColorMode>(ColorMode mode, const string& content, Box extents, Box bounds)
+      : mode_(mode), stream_(content), extents_(extents), bounds_(bounds),
+        x_(extents.xMin()), y_(extents.yMin()) {}
 
   void Read(Color* buf, uint16_t size) override {
     while (size-- > 0) *buf++ = next();
@@ -228,7 +229,21 @@ class ParserStream : public PixelStream {
 
   TransparencyMode transparency() const { return mode_.transparency(); }
 
-  Color next() { return NextColorFromString(mode_, stream_); }
+  Color next() {
+    while (y_ < bounds_.yMin()) streamNext();
+    while (x_ < bounds_.xMin() || x_ > bounds_.xMax()) streamNext();
+    return streamNext();
+  }
+
+  Color streamNext() {
+    Color result = NextColorFromString(mode_, stream_);
+    x_++;
+    if (x_ > extents_.xMax()) {
+      x_ = extents_.xMin();
+      y_++;
+    }
+    return result;
+  }
 
   void skip(int16_t count) {
     while (count-- > 0) next();
@@ -237,6 +252,9 @@ class ParserStream : public PixelStream {
  private:
   ColorMode mode_;
   std::istringstream stream_;
+  Box extents_;
+  Box bounds_;
+  int16_t x_, y_;
 };
 
 template <typename ColorMode>
@@ -259,12 +277,17 @@ class ParserStreamable : public Streamable {
 
   std::unique_ptr<ParserStream<ColorMode>> CreateRawStream() const {
     return std::unique_ptr<ParserStream<ColorMode>>(
-        new ParserStream<ColorMode>(mode_, data_));
+        new ParserStream<ColorMode>(mode_, data_, extents(), extents()));
   }
 
   std::unique_ptr<PixelStream> CreateStream() const override {
     return std::unique_ptr<PixelStream>(
-        new ParserStream<ColorMode>(mode_, data_));
+        new ParserStream<ColorMode>(mode_, data_, extents(), extents()));
+  }
+
+  std::unique_ptr<PixelStream> CreateStream(const Box& bounds) const override {
+    return std::unique_ptr<PixelStream>(
+        new ParserStream<ColorMode>(mode_, data_, extents(), bounds));
   }
 
  private:
@@ -1175,6 +1198,10 @@ class ForcedStreamable : public Streamable {
 
   std::unique_ptr<PixelStream> CreateStream() const override {
     return delegate_->CreateStream();
+  }
+
+  std::unique_ptr<PixelStream> CreateStream(const Box& bounds) const override {
+    return delegate_->CreateStream(bounds);
   }
 
   TransparencyMode GetTransparencyMode() const override {

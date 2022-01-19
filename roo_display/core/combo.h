@@ -28,7 +28,7 @@ class Input {
   Box extents_;
 };
 
-} // namespace internal
+}  // namespace internal
 
 // Combo represents a multi-layered stack of streamables.
 class Combo : public Drawable {
@@ -49,9 +49,10 @@ class Combo : public Drawable {
 
   // Returns minimal extents that will fit all components without clipping.
   Box NaturalExtents() {
-    Box result(0, 0, -1, -1);
-    for (const auto& i : inputs_) {
-      result = Box::extent(result, i.extents());
+    if (inputs_.empty()) return Box(0, 0, -1, -1);
+    Box result = inputs_[0].extents();
+    for (int i = 1; i < inputs_.size(); i++) {
+      result = Box::extent(result, inputs_[i].extents());
     }
     return result;
   }

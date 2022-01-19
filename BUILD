@@ -22,8 +22,8 @@ cc_test(
         "test/byte_order_test.cpp",
     ],
     copts = ["-Iexternal/gtest/include"],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -36,8 +36,23 @@ cc_test(
         "test/color_test.cpp",
     ],
     copts = ["-Iexternal/gtest/include"],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
+    deps = [
+        "//lib/roo_display",
+        "@gtest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "combo_test",
+    srcs = [
+        "test/combo_test.cpp",
+        "test/testing.h",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    defines = ["ROO_DISPLAY_TEST"],
+    linkstatic = 1,
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -52,8 +67,8 @@ cc_test(
         "test/testing_display_device.h",
     ],
     copts = ["-Iexternal/gtest/include"],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -66,8 +81,8 @@ cc_test(
         "test/color_subpixel_test.cpp",
     ],
     copts = ["-Iexternal/gtest/include"],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -82,8 +97,8 @@ cc_test(
         "test/testing_display_device.h",
     ],
     copts = ["-Iexternal/gtest/include"],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -95,8 +110,8 @@ cc_test(
     srcs = [
         "test/orientation_test.cpp",
     ],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -108,8 +123,8 @@ cc_test(
     srcs = [
         "test/io_memory_test.cpp",
     ],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -121,8 +136,8 @@ cc_test(
     srcs = [
         "test/memfill_test.cpp",
     ],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -135,8 +150,8 @@ cc_test(
         "test/streamable_test.cpp",
         "test/testing.h",
     ],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -149,8 +164,8 @@ cc_test(
         "test/rasterizable_test.cpp",
         "test/testing.h",
     ],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -163,8 +178,8 @@ cc_test(
         "test/raster_test.cpp",
         "test/testing.h",
     ],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -177,8 +192,8 @@ cc_test(
         "test/raw_streamable_test.cpp",
         "test/testing.h",
     ],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -193,8 +208,8 @@ cc_test(
         "test/testing_display_device.h",
         #        "test/testing_drawable.h"
     ],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -207,8 +222,8 @@ cc_test(
         "test/basic_shapes_test.cpp",
         "test/testing.h",
     ],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -221,8 +236,8 @@ cc_test(
         "test/image_test.cpp",
         "test/testing.h",
     ],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -236,8 +251,8 @@ cc_test(
         "test/testing_drawable.h",
         "test/transformed_test.cpp",
     ],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -251,8 +266,8 @@ cc_test(
         "test/testing_drawable.h",
         "test/tile_test.cpp",
     ],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -262,12 +277,12 @@ cc_test(
 cc_test(
     name = "smooth_font_test",
     srcs = [
+        "test/smooth_font_test.cpp",
         "test/testing.h",
         "test/testing_drawable.h",
-        "test/smooth_font_test.cpp",
     ],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -281,8 +296,8 @@ cc_test(
         "test/testing_drawable.h",
         "test/text_label_test.cpp",
     ],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -292,11 +307,11 @@ cc_test(
 cc_test(
     name = "compactor_test",
     srcs = [
-        "test/testing.h",
         "test/compactor_test.cpp",
+        "test/testing.h",
     ],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -306,12 +321,12 @@ cc_test(
 cc_test(
     name = "addr_window_device_test",
     srcs = [
+        "test/addr_window_device_test.cpp",
         "test/testing.h",
         "test/testing_display_device.h",
-        "test/addr_window_device_test.cpp",
     ],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",
@@ -324,8 +339,8 @@ cc_test(
         "test/hashtable_test.cpp",
     ],
     copts = ["-Iexternal/gtest/include"],
+    defines = ["ROO_DISPLAY_TEST"],
     linkstatic = 1,
-    defines = [ "ROO_DISPLAY_TEST" ],
     deps = [
         "//lib/roo_display",
         "@gtest//:gtest_main",

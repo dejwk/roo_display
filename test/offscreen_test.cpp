@@ -41,87 +41,123 @@ uint32_t read_bytes<BYTE_ORDER_LITTLE_ENDIAN>(const uint8_t* p, int count) {
   return result;
 }
 
-// Allows sequencing over 'raw' color data, as if over ARGB8888 sequence.
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           typename storage_type = ColorStorageType<ColorMode>,
           int bytes_per_pixel = ColorTraits<ColorMode>::bytes_per_pixel,
           int pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           bool sub_pixel = (ColorTraits<ColorMode>::pixels_per_byte > 1)>
-class RawColorStream : public PixelStream {
+class RawColorReader {
  public:
-  RawColorStream(const uint8_t* ptr, ColorMode color_mode)
-      : color_mode_(color_mode), ptr_(ptr) {}
+  RawColorReader(const uint8_t* data, Box extents, ColorMode color_mode)
+      : color_mode_(color_mode), data_(data), extents_(extents) {}
 
-  void Read(Color* buf, uint16_t size) override {
-    while (size-- > 0) {
-      *buf++ = next();
-    }
-  }
-
-  Color next() {
+  Color get(int16_t x, int16_t y) const {
     int size = ColorMode::bits_per_pixel / 8;
-    Color color = color_mode_.toArgbColor(read_bytes<byte_order>(ptr_, size));
-    ptr_ += size;
-    return color;
-  }
-
- private:
-  ColorMode color_mode_;
-  const uint8_t* ptr_;
-};
-
-template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
-          int pixels_per_byte>
-class RawColorStream<ColorMode, pixel_order, byte_order, uint8_t, 1,
-                     pixels_per_byte, true> : public PixelStream {
- public:
-  RawColorStream(const uint8_t* data, ColorMode color_mode, int pixel_index = 0)
-      : color_mode_(color_mode), data_(data), pixel_index_(pixel_index) {}
-
-  void Read(Color* buf, uint16_t size) override {
-    while (size-- > 0) {
-      *buf++ = next();
-    }
-  }
-
-  Color next() {
-    SubPixelColorHelper<ColorMode, pixel_order> helper;
-    Color result = color_mode_.toArgbColor(
-        helper.ReadSubPixelColor(*data_, pixel_index_++));
-    if (pixel_index_ >= pixels_per_byte) {
-      ++data_;
-      pixel_index_ = 0;
-    }
-    return result;
+    uint32_t offset =
+        (x - extents_.xMin() + (y - extents_.yMin()) * extents_.width());
+    const uint8_t* ptr = data_ + (offset * size);
+    return color_mode_.toArgbColor(read_bytes<byte_order>(ptr, size));
   }
 
  private:
   ColorMode color_mode_;
   const uint8_t* data_;
+  Box extents_;
+};
+
+template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
+          int pixels_per_byte>
+class RawColorReader<ColorMode, pixel_order, byte_order, uint8_t, 1,
+                     pixels_per_byte, true> {
+ public:
+  RawColorReader(const uint8_t* data, Box extents, ColorMode color_mode,
+                 int pixel_index = 0)
+      : color_mode_(color_mode),
+        data_(data),
+        extents_(extents),
+        pixel_index_(pixel_index) {}
+
+  Color get(int16_t x, int16_t y) const {
+    uint32_t offset =
+        (x - extents_.xMin() + (y - extents_.yMin()) * extents_.width());
+    SubPixelColorHelper<ColorMode, pixel_order> helper;
+    int32_t byte_offset = (offset + pixel_index_) / pixels_per_byte;
+    int pixel_idx = (offset + pixel_index_) % pixels_per_byte;
+    return color_mode_.toArgbColor(
+        helper.ReadSubPixelColor(data_[byte_offset], pixel_idx));
+  }
+
+ private:
+  ColorMode color_mode_;
+  const uint8_t* data_;
+  Box extents_;
   int pixel_index_;
 };
 
-class TrivialColorStream : public PixelStream {
+class TrivialColorReader {
  public:
   template <typename ColorMode>
-  TrivialColorStream(const Color* colors, ColorMode mode) : colors_(colors) {}
+  TrivialColorReader(const Color* colors, Box extents, ColorMode mode)
+      : colors_(colors), extents_(extents) {}
 
-  void Read(Color* buf, uint16_t size) override {
-    while (size-- > 0) {
-      *buf++ = next();
-    }
+  Color get(int16_t x, int16_t y) const {
+    uint32_t offset =
+        (x - extents_.xMin() + (y - extents_.yMin()) * extents_.width());
+    return colors_[offset];
   }
-
-  Color next() { return *colors_++; }
 
  private:
   const Color* colors_;
+  Box extents_;
+};
+
+template <typename Reader>
+class ColorStream : public PixelStream {
+ public:
+  template <typename... Args>
+  ColorStream(Box bounds, Args&&... args)
+      : reader_(std::forward<Args>(args)...),
+        bounds_(std::move(bounds)),
+        x_(bounds_.xMin()),
+        y_(bounds_.yMin()) {}
+
+  void Read(Color* buf, uint16_t size) override {
+    for (int i = 0; i < size; ++i) {
+      buf[i++] = next();
+    }
+  }
+
+  void Skip(uint32_t count) override {
+    auto w = bounds_.width();
+    y_ += count / w;
+    x_ += count % w;
+    if (x_ > bounds_.xMax()) {
+      x_ -= w;
+      ++y_;
+    }
+  }
+
+  Color next() {
+    Color result = reader_.get(x_, y_);
+    if (x_ < bounds_.xMax()) {
+      ++x_;
+    } else {
+      x_ = bounds_.xMin();
+      ++y_;
+    }
+    return result;
+  }
+
+ private:
+  Reader reader_;
+  Box bounds_;
+  int16_t x_, y_;
 };
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order>
 class RawColorRect : public Streamable {
  public:
-  typedef RawColorStream<ColorMode, pixel_order, byte_order> Stream;
+  typedef RawColorReader<ColorMode, pixel_order, byte_order> Reader;
 
   RawColorRect(int16_t width, int16_t height, const uint8_t* data,
                const ColorMode& color_mode = ColorMode())
@@ -130,11 +166,18 @@ class RawColorRect : public Streamable {
         color_mode_(color_mode) {}
 
   std::unique_ptr<PixelStream> CreateStream() const override {
-    return std::unique_ptr<PixelStream>(new Stream(data_, color_mode_));
+    return std::unique_ptr<PixelStream>(
+        new ColorStream<Reader>(extents_, data_, extents_, color_mode_));
   }
 
-  std::unique_ptr<Stream> CreateRawStream() const {
-    return std::unique_ptr<Stream>(new Stream(data_, color_mode_));
+  std::unique_ptr<PixelStream> CreateStream(const Box& bounds) const override {
+    return std::unique_ptr<PixelStream>(
+        new ColorStream<Reader>(bounds, data_, extents_, color_mode_));
+  }
+
+  std::unique_ptr<ColorStream<Reader>> CreateRawStream() const {
+    return std::unique_ptr<ColorStream<Reader>>(
+        new ColorStream<Reader>(extents_, data_, extents_, color_mode_));
   }
 
   Box extents() const override { return extents_; }
@@ -157,13 +200,19 @@ class TrivialColorRect : public Streamable {
         color_mode_(color_mode) {}
 
   std::unique_ptr<PixelStream> CreateStream() const override {
-    return std::unique_ptr<PixelStream>(
-        new TrivialColorStream(colors_, color_mode_));
+    return std::unique_ptr<PixelStream>(new ColorStream<TrivialColorReader>(
+        extents_, colors_, extents_, color_mode_));
   }
 
-  std::unique_ptr<TrivialColorStream> CreateRawStream() const {
-    return std::unique_ptr<TrivialColorStream>(
-        new TrivialColorStream(colors_, color_mode_));
+  std::unique_ptr<PixelStream> CreateStream(const Box& bounds) const override {
+    return std::unique_ptr<PixelStream>(new ColorStream<TrivialColorReader>(
+        bounds, colors_, extents_, color_mode_));
+  }
+
+  std::unique_ptr<ColorStream<TrivialColorReader>> CreateRawStream() const {
+    return std::unique_ptr<ColorStream<TrivialColorReader>>(
+        new ColorStream<TrivialColorReader>(extents_, colors_, extents_,
+                                            color_mode_));
   }
 
   Box extents() const override { return extents_; }

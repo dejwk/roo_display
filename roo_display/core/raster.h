@@ -239,6 +239,11 @@ class Raster : public Rasterizable {
     return std::unique_ptr<PixelStream>(new StreamType(s, color_mode_));
   }
 
+  std::unique_ptr<PixelStream> CreateStream(const Box& bounds) const override {
+    MemoryStream<PtrType> s(ptr_);
+    return SubRectangle(StreamType(s, color_mode_), extents(), bounds);
+  }
+
   void ReadColors(const int16_t* x, const int16_t* y, uint32_t count,
                   Color* result) const override {
     internal::Reader<ColorMode, pixel_order, byte_order> read;

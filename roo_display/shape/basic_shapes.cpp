@@ -180,6 +180,10 @@ std::unique_ptr<PixelStream> FilledRect::CreateStream() const {
   return std::unique_ptr<PixelStream>(new FilledRectStream(color()));
 }
 
+std::unique_ptr<PixelStream> FilledRect::CreateStream(const Box& bounds) const {
+  return std::unique_ptr<PixelStream>(new FilledRectStream(color()));
+}
+
 // Also used to draw regular circles.
 template <typename PixelFiller>
 void drawRoundRectCorners(PixelFiller &drawer, int16_t x0, int16_t y0, int x1,

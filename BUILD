@@ -90,6 +90,21 @@ cc_test(
 )
 
 cc_test(
+    name = "drawing_context_test",
+    srcs = [
+        "test/drawing_context_test.cpp",
+        "test/testing.h",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    defines = ["ROO_DISPLAY_TEST"],
+    linkstatic = 1,
+    deps = [
+        "//lib/roo_display",
+        "@gtest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "nibble_rect_test",
     srcs = [
         "test/nibble_rect_test.cpp",

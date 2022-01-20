@@ -261,6 +261,19 @@ class DrawingContext {
                  bgcolor_);
   }
 
+  void draw(const Drawable &object, int16_t dx, int16_t dy, HAlign halign) {
+    draw(object, dx, dy, halign, VAlign::None());
+  }
+
+  void draw(const Drawable &object, int16_t dx, int16_t dy, VAlign valign) {
+    draw(object, dx, dy, HAlign::None(), valign);
+  }
+
+  void draw(const Drawable &object, int16_t dx, int16_t dy, VAlign valign,
+            HAlign halign) {
+    draw(object, dx, dy, halign, valign);
+  }
+
   // Analogous to draw(object), but instead of drawing, replaces all the output
   // pixels with the background color.
   void erase(const Drawable &object);

@@ -256,9 +256,13 @@ class DrawingContext {
   void draw(const Drawable &object, int16_t dx, int16_t dy, HAlign halign,
             VAlign valign) {
     const Box &extents = object.extents();
-    drawInternal(object, dx - halign.GetOffset(extents.xMin(), extents.xMax()),
-                 dy - valign.GetOffset(extents.yMin(), extents.yMax()),
-                 bgcolor_);
+    int16_t xMin = extents.xMin();
+    int16_t yMin = extents.yMin();
+    int16_t xMax = extents.xMax();
+    int16_t yMax = extents.yMax();
+    if (transformed_) transform_.transformRect(xMin, yMin, xMax, yMax);
+    drawInternal(object, dx - halign.GetOffset(xMin, xMax),
+                 dy - valign.GetOffset(yMin, yMax), bgcolor_);
   }
 
   void draw(const Drawable &object, int16_t dx, int16_t dy, HAlign halign) {

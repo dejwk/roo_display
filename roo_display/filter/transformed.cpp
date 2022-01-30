@@ -11,7 +11,8 @@ Transform::Transform(bool xy_swap, int16_t x_scale, int16_t y_scale,
       x_offset_(x_offset),
       y_offset_(y_offset),
       xy_swap_(xy_swap),
-      clipped_(false) {}
+      clipped_(false),
+      clip_box_(Box::MaximumBox()) {}
 
 Transform::Transform(bool xy_swap, int16_t x_scale, int16_t y_scale,
                      int16_t x_offset, int16_t y_offset, bool clipped,

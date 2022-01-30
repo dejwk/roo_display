@@ -217,9 +217,14 @@ Color NextColorFromString<Rgb565WithTransparency>(
 template <typename ColorMode>
 class ParserStream : public PixelStream {
  public:
-  ParserStream<ColorMode>(ColorMode mode, const string& content, Box extents, Box bounds)
-      : mode_(mode), stream_(content), extents_(extents), bounds_(bounds),
-        x_(extents.xMin()), y_(extents.yMin()) {}
+  ParserStream<ColorMode>(ColorMode mode, const string& content, Box extents,
+                          Box bounds)
+      : mode_(mode),
+        stream_(content),
+        extents_(extents),
+        bounds_(bounds),
+        x_(extents.xMin()),
+        y_(extents.yMin()) {}
 
   void Read(Color* buf, uint16_t size) override {
     while (size-- > 0) *buf++ = next();
@@ -268,7 +273,7 @@ class ParserStreamable : public Streamable {
 
   int16_t width() const { return width_; }
   int16_t height() const { return height_; }
-  Box extents() const { return Box(0, 0, width() - 1, height() - 1); }
+  Box extents() const override { return Box(0, 0, width() - 1, height() - 1); }
   const ColorMode& color_mode() const { return mode_; }
 
   TransparencyMode GetTransparencyMode() const override {

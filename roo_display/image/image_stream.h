@@ -141,7 +141,7 @@ class RleStreamRgb565Alpha4 : public PixelStream {
     }
   }
 
-  void Skip(int count) override {
+  void Skip(uint32_t count) override {
     while (--count >= 0) next();
   }
 

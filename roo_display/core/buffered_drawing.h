@@ -25,7 +25,7 @@
 
 namespace roo_display {
 
-#ifndef ROO_DISPLAY_TEST
+#ifndef ROO_DISPLAY_TESTING
 static const uint8_t kPixelWritingBufferSize = 64;
 #else
 // Use a small and 'weird' buffer size to challenge unit tests better.
@@ -36,6 +36,12 @@ class BufferedPixelWriter {
  public:
   BufferedPixelWriter(DisplayOutput& device, PaintMode mode)
       : device_(device), mode_(mode), buffer_size_(0) {}
+
+  BufferedPixelWriter(BufferedPixelWriter&) = delete;
+  BufferedPixelWriter(const BufferedPixelWriter&) = delete;
+
+  BufferedPixelWriter& operator=(const BufferedPixelWriter&) = delete;
+  BufferedPixelWriter& operator=(BufferedPixelWriter&&) = delete;
 
   void writePixel(int16_t x, int16_t y, Color color) {
     if (buffer_size_ == kPixelWritingBufferSize) flush();
@@ -58,10 +64,10 @@ class BufferedPixelWriter {
  private:
   DisplayOutput& device_;
   PaintMode mode_;
+  int16_t buffer_size_;
   Color color_buffer_[kPixelWritingBufferSize];
   int16_t x_buffer_[kPixelWritingBufferSize];
   int16_t y_buffer_[kPixelWritingBufferSize];
-  int16_t buffer_size_;
 };
 
 template <typename PixelWriter>
@@ -83,6 +89,9 @@ class ClippingBufferedPixelWriter {
                               PaintMode mode)
       : writer_(device, mode), clip_box_(std::move(clip_box)) {}
 
+  ClippingBufferedPixelWriter(ClippingBufferedPixelWriter&) = delete;
+  ClippingBufferedPixelWriter(const ClippingBufferedPixelWriter&) = delete;
+
   void writePixel(int16_t x, int16_t y, Color color) {
     if (clip_box_.contains(x, y)) {
       writer_.writePixel(x, y, color);
@@ -93,7 +102,7 @@ class ClippingBufferedPixelWriter {
 
   const Box& clip_box() const { return clip_box_; }
 
-  void set_clip_box(Box clip_box) { clip_box_ = std::move(clip_box); }
+  // void set_clip_box(Box clip_box) { clip_box_ = std::move(clip_box); }
 
  private:
   BufferedPixelWriter writer_;
@@ -124,9 +133,9 @@ class BufferedPixelFiller {
   DisplayOutput& device_;
   Color color_;
   PaintMode mode_;
+  int16_t buffer_size_;
   int16_t x_buffer_[kPixelWritingBufferSize];
   int16_t y_buffer_[kPixelWritingBufferSize];
-  int16_t buffer_size_;
 };
 
 class ClippingBufferedPixelFiller {
@@ -145,7 +154,7 @@ class ClippingBufferedPixelFiller {
 
   const Box& clip_box() const { return clip_box_; }
 
-  void set_clip_box(Box clip_box) { clip_box_ = std::move(clip_box); }
+  // void set_clip_box(Box clip_box) { clip_box_ = std::move(clip_box); }
 
  private:
   BufferedPixelFiller filler_;
@@ -292,10 +301,10 @@ class BufferedHLineFiller {
   DisplayOutput& device_;
   PaintMode mode_;
   Color color_;
+  int16_t buffer_size_;
   int16_t x0_buffer_[kPixelWritingBufferSize];
   int16_t y0_buffer_[kPixelWritingBufferSize];
   int16_t x1_buffer_[kPixelWritingBufferSize];
-  int16_t buffer_size_;
 };
 
 class ClippingBufferedHLineFiller {
@@ -319,7 +328,7 @@ class ClippingBufferedHLineFiller {
 
   const Box& clip_box() const { return clip_box_; }
 
-  void set_clip_box(Box clip_box) { clip_box_ = std::move(clip_box); }
+  // void set_clip_box(Box clip_box) { clip_box_ = std::move(clip_box); }
 
  private:
   BufferedHLineFiller filler_;
@@ -352,10 +361,10 @@ class BufferedVLineFiller {
   DisplayOutput& device_;
   PaintMode mode_;
   Color color_;
+  int16_t buffer_size_;
   int16_t x0_buffer_[kPixelWritingBufferSize];
   int16_t y0_buffer_[kPixelWritingBufferSize];
   int16_t y1_buffer_[kPixelWritingBufferSize];
-  int16_t buffer_size_;
 };
 
 class ClippingBufferedVLineFiller {
@@ -379,7 +388,7 @@ class ClippingBufferedVLineFiller {
 
   const Box& clip_box() const { return clip_box_; }
 
-  void set_clip_box(Box clip_box) { clip_box_ = std::move(clip_box); }
+  // void set_clip_box(Box clip_box) { clip_box_ = std::move(clip_box); }
 
  private:
   BufferedVLineFiller filler_;
@@ -425,12 +434,12 @@ class BufferedRectWriter {
  private:
   DisplayOutput& device_;
   PaintMode mode_;
+  int16_t buffer_size_;
   Color color_[kPixelWritingBufferSize];
   int16_t x0_buffer_[kPixelWritingBufferSize];
   int16_t y0_buffer_[kPixelWritingBufferSize];
   int16_t x1_buffer_[kPixelWritingBufferSize];
   int16_t y1_buffer_[kPixelWritingBufferSize];
-  int16_t buffer_size_;
 };
 
 template <typename RectWriter>
@@ -496,7 +505,7 @@ class ClippingBufferedRectWriter {
 
   const Box& clip_box() const { return clip_box_; }
 
-  void set_clip_box(Box clip_box) { clip_box_ = std::move(clip_box); }
+  // void set_clip_box(Box clip_box) { clip_box_ = std::move(clip_box); }
 
  private:
   BufferedRectWriter writer_;
@@ -540,11 +549,11 @@ class BufferedRectFiller {
   DisplayOutput& device_;
   PaintMode mode_;
   Color color_;
+  int16_t buffer_size_;
   int16_t x0_buffer_[kPixelWritingBufferSize];
   int16_t y0_buffer_[kPixelWritingBufferSize];
   int16_t x1_buffer_[kPixelWritingBufferSize];
   int16_t y1_buffer_[kPixelWritingBufferSize];
-  int16_t buffer_size_;
 };
 
 class ClippingBufferedRectFiller {
@@ -581,7 +590,7 @@ class ClippingBufferedRectFiller {
 
   const Box& clip_box() const { return clip_box_; }
 
-  void set_clip_box(Box clip_box) { clip_box_ = std::move(clip_box); }
+  // void set_clip_box(Box clip_box) { clip_box_ = std::move(clip_box); }
 
  private:
   BufferedRectFiller filler_;

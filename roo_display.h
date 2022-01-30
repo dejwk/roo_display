@@ -218,17 +218,8 @@ class DrawingContext {
 
   const Transform &transform() const { return transform_; }
 
-  inline void drawPixel(int16_t x, int16_t y, Color color) {
-    drawPixel(x, y, color, paint_mode_);
-  }
-
-  inline void drawPixel(int16_t x, int16_t y, Color color,
-                        PaintMode paint_mode) {
-    // TODO(dawidk): handle transformation.
-    if (!clip_box_.contains(x, y)) return;
-    if (clip_mask_ != nullptr && clip_mask_->isMasked(x, y)) return;
-    output().fillPixels(paint_mode, color, &x + dx_, &y + dy_, 1);
-  }
+  void drawPixels(const std::function<void(ClippingBufferedPixelWriter&)>& fn,
+                  PaintMode paint_mode = PAINT_MODE_BLEND);
 
   // Draws the object using its inherent coordinates. The point (0, 0) in the
   // object's coordinates maps to (0, 0) in the context's coordinates.

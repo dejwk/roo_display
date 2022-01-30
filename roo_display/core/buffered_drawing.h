@@ -109,6 +109,8 @@ class ClippingBufferedPixelWriter {
   Box clip_box_;
 };
 
+using PixelWriter = ClippingBufferedPixelWriter;
+
 class BufferedPixelFiller {
  public:
   BufferedPixelFiller(DisplayOutput& device, Color color, PaintMode mode)

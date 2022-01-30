@@ -76,6 +76,42 @@ void DrawingContext::clear() { draw(Clear()); }
 
 namespace {
 
+class Pixels : public Drawable {
+ public:
+  Pixels(const std::function<void(ClippingBufferedPixelWriter&)>& fn,
+         Box extents, PaintMode paint_mode)
+      : fn_(fn), extents_(extents), paint_mode_(paint_mode) {}
+
+  Box extents() const override { return extents_; }
+
+ private:
+  void drawTo(const Surface& s) const override {
+    if (s.dx() == 0 && s.dy() == 0) {
+      ClippingBufferedPixelWriter writer(s.out(), extents_, paint_mode_);
+      fn_(writer);
+    } else {
+      TransformedDisplayOutput out(s.out(),
+                                   Transform().translate(s.dx(), s.dy()));
+      ClippingBufferedPixelWriter writer(out, extents_, paint_mode_);
+      fn_(writer);
+    }
+  }
+
+  const std::function<void(ClippingBufferedPixelWriter&)>& fn_;
+  Box extents_;
+  PaintMode paint_mode_;
+};
+
+}  // namespace
+
+void DrawingContext::drawPixels(
+    const std::function<void(ClippingBufferedPixelWriter&)>& fn,
+    PaintMode paint_mode) {
+  draw(Pixels(fn, transform_.smallestEnclosingRect(clip_box_), paint_mode));
+}
+
+namespace {
+
 class ErasedDrawable : public Drawable {
  public:
   ErasedDrawable(const Drawable* delegate) : delegate_(delegate) {}

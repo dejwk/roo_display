@@ -115,4 +115,92 @@ TEST(DrawingContext, DrawTransformed) {
                                           "          "));
 }
 
+TEST(DrawingContext, DrawPixels) {
+  FakeOffscreen<Argb4444> test_screen(10, 7, color::Black);
+  Display display(test_screen);
+  {
+    DrawingContext dc(display);
+    dc.drawPixels([](PixelWriter& w) {
+      w.writePixel(4, 1, Color(0xFF222222));
+      w.writePixel(3, 2, Color(0xFF222222));
+      w.writePixel(4, 2, Color(0xFF333333));
+      w.writePixel(5, 2, Color(0xFF222222));
+      w.writePixel(2, 3, Color(0xFF222222));
+      w.writePixel(3, 3, Color(0xFF333333));
+      w.writePixel(4, 3, Color(0xFF444444));
+      w.writePixel(5, 3, Color(0xFF333333));
+      w.writePixel(6, 3, Color(0xFF222222));
+    });
+  }
+  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 7,
+                                          "          "
+                                          "    2     "
+                                          "   232    "
+                                          "  23432   "
+                                          "          "
+                                          "          "
+                                          "          "));
+}
+
+TEST(DrawingContext, DrawPixelsWithOffset) {
+  FakeOffscreen<Argb4444> test_screen(10, 7, color::Black);
+  Display display(test_screen);
+  {
+    DrawingContext dc(display);
+    dc.setTransform(Transform().translate(1, 2));
+    dc.setClipBox(3, 3, 7, 5);
+    dc.drawPixels([](PixelWriter& w) {
+      w.writePixel(4, 1, Color(0xFF222222));
+      w.writePixel(3, 2, Color(0xFF222222));
+      w.writePixel(4, 2, Color(0xFF333333));
+      w.writePixel(5, 2, Color(0xFF222222));
+      w.writePixel(2, 3, Color(0xFF222222));
+      w.writePixel(3, 3, Color(0xFF333333));
+      w.writePixel(4, 3, Color(0xFF444444));
+      w.writePixel(5, 3, Color(0xFF333333));
+      w.writePixel(6, 3, Color(0xFF222222));
+    });
+  }
+  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 7,
+                                          "          "
+                                          "          "
+                                          "          "
+                                          "     2    "
+                                          "    232   "
+                                          "   23432  "
+                                          "          "));
+}
+
+TEST(DrawingContext, DrawPixelsWithOffsetScaled) {
+  FakeOffscreen<Argb4444> test_screen(10, 11, color::Black);
+  Display display(test_screen);
+  {
+    DrawingContext dc(display);
+    dc.setTransform(Transform().scale(1, 2).translate(1, 2));
+    dc.drawPixels([](PixelWriter& w) {
+      w.writePixel(4, 1, Color(0xFF222222));
+      w.writePixel(3, 2, Color(0xFF222222));
+      w.writePixel(4, 2, Color(0xFF333333));
+      w.writePixel(5, 2, Color(0xFF222222));
+      w.writePixel(2, 3, Color(0xFF222222));
+      w.writePixel(3, 3, Color(0xFF333333));
+      w.writePixel(4, 3, Color(0xFF444444));
+      w.writePixel(5, 3, Color(0xFF333333));
+      w.writePixel(6, 3, Color(0xFF222222));
+    });
+  }
+  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
+                                          "          "
+                                          "          "
+                                          "          "
+                                          "          "
+                                          "     2    "
+                                          "     2    "
+                                          "    232   "
+                                          "    232   "
+                                          "   23432  "
+                                          "   23432  "
+                                          "          "));
+}
+
 }  // namespace roo_display

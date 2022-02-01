@@ -28,6 +28,31 @@ TEST(DrawingContext, DrawSimple) {
                                           "          "));
 }
 
+TEST(DrawingContext, DrawSimpleWithBackgroundColor) {
+  FakeOffscreen<Argb4444> test_screen(10, 11, color::Black);
+  Display display(test_screen);
+  {
+    DrawingContext dc(display);
+    // Opaque gray background.
+    dc.setBackground(Color(0xFF777777));
+    // Draw rectangle that is white but 50% transparent.
+    dc.draw(SolidRect(1, 2, 3, 4, Color(0x77FFFFFF)));
+  }
+  // The result should be lighter gray.
+  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
+                                          "          "
+                                          "          "
+                                          " BBB      "
+                                          " BBB      "
+                                          " BBB      "
+                                          "          "
+                                          "          "
+                                          "          "
+                                          "          "
+                                          "          "
+                                          "          "));
+}
+
 TEST(DrawingContext, DrawWithOffset) {
   FakeOffscreen<Argb4444> test_screen(10, 11, color::Black);
   Display display(test_screen);

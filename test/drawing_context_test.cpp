@@ -257,4 +257,50 @@ TEST(DrawingContext, DrawPixelsWithOffsetScaled) {
                                           "          "));
 }
 
+TEST(DrawingContext, ContextOfSurface) {
+  class MyLine : public Drawable {
+   public:
+    Box extents() const override { return Box(0, 0, 5, 0); }
+
+   private:
+    void drawTo(const Surface& s) const override {
+      s.out().fillRect(PAINT_MODE_REPLACE, extents().translate(s.dx(), s.dy()),
+                       color::White);
+    }
+  };
+
+  class MyCompound : public Drawable {
+   public:
+    Box extents() const override { return Box(0, 0, 9, 9); }
+
+   private:
+    void drawTo(const Surface& s) const override {
+      DrawingContext dc(s);
+      dc.draw(MyLine());
+      dc.draw(MyLine(), 3, 2);
+      dc.setTransform(Transform().scale(1, 3));
+      dc.draw(MyLine(), 3, 4);
+    }
+  };
+
+  FakeOffscreen<Argb4444> test_screen(10, 11, color::Black);
+  Display display(test_screen);
+  {
+    DrawingContext dc(display);
+    dc.draw(MyCompound());
+  }
+  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
+                                          "******    "
+                                          "          "
+                                          "   ****** "
+                                          "          "
+                                          "   ****** "
+                                          "   ****** "
+                                          "   ****** "
+                                          "          "
+                                          "          "
+                                          "          "
+                                          "          "));
+}
+
 }  // namespace roo_display

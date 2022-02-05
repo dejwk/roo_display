@@ -21,6 +21,8 @@ enum FillMode {
   FILL_MODE_VISIBLE = 1
 };
 
+class Rasterizable;
+
 // Low-level 'handle' to draw to an underlying device. Passed by the library
 // to Drawable.draw() (see below). Don't create directly.
 //
@@ -154,6 +156,15 @@ class Surface {
   }
 
  private:
+  friend class DrawingContext;
+
+  DisplayOutput& output() const { return *out_; }
+  Box extents() const { return clip_box_; }
+  void nest() const {}
+  void unnest() const {}
+  const Rasterizable* getRasterizableBackground() const { return nullptr; }
+  Color getBgColor() const { return bgcolor_; }
+
   DisplayOutput *out_;
   int16_t dx_;
   int16_t dy_;

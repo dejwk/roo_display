@@ -91,7 +91,7 @@ void Rasterizable::ReadColorsMaybeOutOfBounds(const int16_t* x,
     int buf_idx = 0;
     for (uint32_t i = start_offset; i < offset; ++i) {
       Color c = color::Transparent;
-      if (offsets[buf_idx] == i) {
+      if (buf_idx < buf_size && offsets[buf_idx] == i) {
         // Found point in the bounds for which we have the color.
         c = newresult[buf_idx];
         ++buf_idx;

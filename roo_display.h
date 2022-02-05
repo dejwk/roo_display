@@ -237,7 +237,7 @@ class DrawingContext {
   // halign = Left(), the object's xMin will be drawn at dx; for valign =
   // Bottom(), the object's yMax will be drawn at dy - 1, and so one.
   //
-  // CAUtION: don't use this to right-align numeric values. The digit '1' has
+  // Caution: don't use this to right-align numeric values. The digit '1' has
   // the nasty property of being narrower than others, so aligning numbers this
   // way will cause some jitter when the last digit changes to and from '1'.
   // Instead, explicitly shift dx by the text's advance, e.g.:

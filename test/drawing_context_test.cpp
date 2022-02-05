@@ -53,6 +53,35 @@ TEST(DrawingContext, DrawSimpleWithBackgroundColor) {
                                           "          "));
 }
 
+TEST(DrawingContext, DrawSimpleWithBackground) {
+  FakeOffscreen<Argb4444> test_screen(10, 11, color::Black);
+  Display display(test_screen);
+  auto bg = MakeRasterizable(
+      Box(2, 3, 5, 6),
+      [](int16_t x, int16_t y) -> Color {
+        return (x + y) % 2 ? color::Transparent : Color(0xFF777777);
+      },
+      TRANSPARENCY_GRADUAL);
+  {
+    DrawingContext dc(display);
+    dc.setBackground(&bg);
+    // Draw rectangle that is white but 50% transparent.
+    dc.draw(SolidRect(1, 2, 6, 7, Color(0x77FFFFFF)));
+  }
+  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
+                                          "          "
+                                          "          "
+                                          " 777777   "
+                                          " 77B7B7   "
+                                          " 7B7B77   "
+                                          " 77B7B7   "
+                                          " 7B7B77   "
+                                          " 777777   "
+                                          "          "
+                                          "          "
+                                          "          "));
+}
+
 TEST(DrawingContext, DrawWithOffset) {
   FakeOffscreen<Argb4444> test_screen(10, 11, color::Black);
   Display display(test_screen);

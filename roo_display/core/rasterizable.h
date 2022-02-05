@@ -10,13 +10,17 @@ namespace roo_display {
 
 class Rasterizable : public virtual Streamable {
  public:
+  // Read colors corresponding to the specified collection of points, and store
+  // the results in the result array. The caller must ensure that the points are
+  // within this rasterizable's bounds.
   virtual void ReadColors(const int16_t* x, const int16_t* y, uint32_t count,
                           Color* result) const = 0;
 
   // Read colors corresponding to the specified rectangle. Returns true if all
   // colors are known to be the same. In this case, only the result[0] is
   // supposed to be read. Otherwise, the result array is filled with colors
-  // corresponding to all the pixels corresponding to the rectangle.
+  // corresponding to all the pixels corresponding to the rectangle. The caller
+  // must ensure that the points are within this rasterizable's bounds.
   virtual bool ReadColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
                              int16_t yMax, Color* result) const;
 

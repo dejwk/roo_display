@@ -36,6 +36,21 @@ cc_library(
 )
 
 cc_test(
+    name = "background_filter_test",
+    srcs = [
+        "test/background_filter_test.cpp",
+        "test/testing.h",
+        "test/testing_display_device.h",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    deps = [
+        "//lib/roo_display:testing",
+        "@gtest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "byte_order_test",
     srcs = [
         "test/byte_order_test.cpp",

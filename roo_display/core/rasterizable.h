@@ -16,6 +16,13 @@ class Rasterizable : public virtual Streamable {
   virtual void ReadColors(const int16_t* x, const int16_t* y, uint32_t count,
                           Color* result) const = 0;
 
+  // Read colors corresponding to the specified collection of points, and store
+  // the results in the result array. The points may be outside of this
+  // rasterizable's bounds. This function calls ReadColors after isolating the
+  // points that are within the bounds.
+  void ReadColorsMaybeOutOfBounds(const int16_t* x, const int16_t* y,
+                                  uint32_t count, Color* result) const;
+
   // Read colors corresponding to the specified rectangle. Returns true if all
   // colors are known to be the same. In this case, only the result[0] is
   // supposed to be read. Otherwise, the result array is filled with colors

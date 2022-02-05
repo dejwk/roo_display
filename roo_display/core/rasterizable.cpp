@@ -44,7 +44,62 @@ class Stream : public PixelStream {
   int16_t x_, y_;
 };
 
+static const int kMaxBufSize = 32;
+
 }  // namespace
+
+void Rasterizable::ReadColorsMaybeOutOfBounds(const int16_t* x,
+                                              const int16_t* y, uint32_t count,
+                                              Color* result) const {
+  Box bounds = extents();
+  // First process as much as we can without copying and extra memory.
+  uint32_t offset = 0;
+  bool fastpath = true;
+  while (true) {
+    int buf_size = 64;
+    if (buf_size > count) buf_size = count;
+    for (uint32_t i = 0; i < buf_size && fastpath; ++i) {
+      fastpath &= bounds.contains(x[i], y[i]);
+    }
+    if (!fastpath) break;
+    ReadColors(x, y, buf_size, result);
+    count -= buf_size;
+    if (count == 0) return;
+    x += buf_size;
+    y += buf_size;
+    result += buf_size;
+  }
+
+  int16_t newx[kMaxBufSize];
+  int16_t newy[kMaxBufSize];
+  Color newresult[kMaxBufSize];
+  uint32_t offsets[kMaxBufSize];
+  offset = 0;
+  while (offset < count) {
+    int buf_size = 0;
+    uint32_t start_offset = offset;
+    do {
+      if (bounds.contains(x[offset], y[offset])) {
+        newx[buf_size] = x[offset];
+        newy[buf_size] = y[offset];
+        offsets[buf_size] = offset;
+        ++buf_size;
+      }
+      offset++;
+    } while (offset < count && buf_size < kMaxBufSize);
+    ReadColors(newx, newy, buf_size, newresult);
+    int buf_idx = 0;
+    for (uint32_t i = start_offset; i < offset; ++i) {
+      Color c = color::Transparent;
+      if (offsets[buf_idx] == i) {
+        // Found point in the bounds for which we have the color.
+        c = newresult[buf_idx];
+        ++buf_idx;
+      }
+      result[i] = c;
+    }
+  }
+}
 
 bool Rasterizable::ReadColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
                                  int16_t yMax, Color* result) const {
@@ -71,7 +126,8 @@ std::unique_ptr<PixelStream> Rasterizable::CreateStream() const {
   return std::unique_ptr<PixelStream>(new Stream(this, this->extents()));
 }
 
-std::unique_ptr<PixelStream> Rasterizable::CreateStream(const Box& bounds) const {
+std::unique_ptr<PixelStream> Rasterizable::CreateStream(
+    const Box& bounds) const {
   return std::unique_ptr<PixelStream>(new Stream(this, bounds));
 }
 

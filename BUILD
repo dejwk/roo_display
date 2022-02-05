@@ -133,6 +133,21 @@ cc_test(
 )
 
 cc_test(
+    name = "foreground_filter_test",
+    srcs = [
+        "test/foreground_filter_test.cpp",
+        "test/testing.h",
+        "test/testing_display_device.h",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    deps = [
+        "//lib/roo_display:testing",
+        "@gtest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "nibble_rect_test",
     srcs = [
         "test/nibble_rect_test.cpp",

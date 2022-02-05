@@ -46,7 +46,7 @@ class ForegroundFilter : public DisplayOutput {
         cursor_x_ = address_window_.xMin();
       }
     }
-    foreground_->ReadColors(x, y, pixel_count, newcolor);
+    foreground_->ReadColorsMaybeOutOfBounds(x, y, pixel_count, newcolor);
     for (uint32_t i = 0; i < pixel_count; ++i) {
       newcolor[i] = alphaBlend(color[i], newcolor[i]);
     }
@@ -106,7 +106,7 @@ class ForegroundFilter : public DisplayOutput {
  private:
   void read(int16_t* x, int16_t* y, uint16_t pixel_count, Color* result) {
     if (dx_ == 0 && dy_ == 0) {
-      foreground_->ReadColors(x, y, pixel_count, result);
+      foreground_->ReadColorsMaybeOutOfBounds(x, y, pixel_count, result);
     } else {
       // NOTE(dawidk): to conserve stack, this could be done in-place and then
       // undone, although it would take 2x longer.
@@ -116,12 +116,42 @@ class ForegroundFilter : public DisplayOutput {
         xp[i] = x[i] - dx_;
         yp[i] = y[i] - dy_;
       }
-      foreground_->ReadColors(xp, yp, pixel_count, result);
+      foreground_->ReadColorsMaybeOutOfBounds(xp, yp, pixel_count, result);
     }
   }
 
   void fillRect(PaintMode mode, int16_t xMin, int16_t yMin, int16_t xMax,
                 int16_t yMax, Color color) {
+    Box full(xMin, yMin, xMax, yMax);
+    Box fgbounds = foreground_->extents();
+    Box trimmed = Box::intersect(full, fgbounds);
+    if (full.yMin() < trimmed.yMin()) {
+      // Draw top bar of the border.
+      output_.fillRect(mode, full.xMin(), full.yMin(), full.xMax(),
+                       trimmed.yMin() - 1, color);
+    }
+    if (full.xMin() < trimmed.xMin()) {
+      // Draw left bar of the border.
+      output_.fillRect(mode, full.xMin(), trimmed.yMin(), trimmed.xMin() - 1,
+                       trimmed.yMax(), color);
+    }
+    fillRectIntersectingForeground(mode, trimmed.xMin(), trimmed.yMin(),
+                                   trimmed.xMax(), trimmed.yMax(), color);
+    if (full.xMax() > trimmed.xMax()) {
+      // Draw right bar of the border.
+      output_.fillRect(mode, trimmed.xMax() + 1, trimmed.yMin(), full.xMax(),
+                       trimmed.yMax(), color);
+    }
+    if (full.yMax() > trimmed.yMax()) {
+      // Draw bottom bar of the border.
+      output_.fillRect(mode, full.xMin(), trimmed.yMax() + 1, full.xMax(),
+                       full.yMax(), color);
+    }
+  }
+
+  void fillRectIntersectingForeground(PaintMode mode, int16_t xMin,
+                                      int16_t yMin, int16_t xMax, int16_t yMax,
+                                      Color color) {
     uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
     if (pixel_count <= 64) {
       fillRectInternal(mode, xMin, yMin, xMax, yMax, color);

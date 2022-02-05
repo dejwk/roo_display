@@ -124,6 +124,36 @@ class BackgroundFilter : public DisplayOutput {
 
   void fillRect(PaintMode mode, int16_t xMin, int16_t yMin, int16_t xMax,
                 int16_t yMax, Color color) {
+    Box full(xMin, yMin, xMax, yMax);
+    Box bgbounds = background_->extents();
+    Box trimmed = Box::intersect(full, bgbounds);
+    if (full.yMin() < trimmed.yMin()) {
+      // Draw top bar of the border.
+      output_.fillRect(mode, full.xMin(), full.yMin(), full.xMax(),
+                       trimmed.yMin() - 1, color);
+    }
+    if (full.xMin() < trimmed.xMin()) {
+      // Draw left bar of the border.
+      output_.fillRect(mode, full.xMin(), trimmed.yMin(), trimmed.xMin() - 1,
+                       trimmed.yMax(), color);
+    }
+    fillRectIntersectingBackground(mode, trimmed.xMin(), trimmed.yMin(),
+                                   trimmed.xMax(), trimmed.yMax(), color);
+    if (full.xMax() > trimmed.xMax()) {
+      // Draw right bar of the border.
+      output_.fillRect(mode, trimmed.xMax() + 1, trimmed.yMin(), full.xMax(),
+                       trimmed.yMax(), color);
+    }
+    if (full.yMax() > trimmed.yMax()) {
+      // Draw bottom bar of the border.
+      output_.fillRect(mode, full.xMin(), trimmed.yMax() + 1, full.xMax(),
+                       full.yMax(), color);
+    }
+  }
+
+  void fillRectIntersectingBackground(PaintMode mode, int16_t xMin,
+                                      int16_t yMin, int16_t xMax, int16_t yMax,
+                                      Color color) {
     BackgroundFilter::setAddress(xMin, yMin, xMax, yMax, mode);
     int16_t x[64];
     int16_t y[64];
@@ -135,7 +165,7 @@ class BackgroundFilter : public DisplayOutput {
       y[i] = cursor_y_;
       i++;
       if (i == 64) {
-        background_->ReadColorsMaybeOutOfBounds(x, y, 64, newcolor);
+        background_->ReadColors(x, y, 64, newcolor);
         for (uint16_t i = 0; i < 64; ++i) {
           newcolor[i] = alphaBlend(newcolor[i], color);
         }
@@ -149,7 +179,7 @@ class BackgroundFilter : public DisplayOutput {
     }
     int16_t remaining = i;
     if (remaining > 0) {
-      background_->ReadColorsMaybeOutOfBounds(x, y, remaining, newcolor);
+      background_->ReadColors(x, y, remaining, newcolor);
       for (uint16_t i = 0; i < remaining; ++i) {
         newcolor[i] = alphaBlend(newcolor[i], color);
       }

@@ -180,11 +180,8 @@ class BufferingStream {
   Color next() {
     if (idx_ >= kPixelWritingBufferSize) {
       idx_ = 0;
-      uint32_t n = kPixelWritingBufferSize;
-      if (n > remaining_) n = remaining_;
-      stream_->Read(buf_, n);
+      fetch();
     }
-    --remaining_;
     return buf_[idx_++];
   }
 
@@ -205,9 +202,7 @@ class BufferingStream {
   void read(Color *buf, uint16_t count) {
     if (idx_ >= kPixelWritingBufferSize) {
       idx_ = 0;
-      uint32_t n = kPixelWritingBufferSize;
-      if (n > remaining_) n = remaining_;
-      stream_->Read(buf_, n);
+      fetch();
     }
     const Color *in = buf_ + idx_;
     uint16_t batch = kPixelWritingBufferSize - idx_;
@@ -222,19 +217,14 @@ class BufferingStream {
       buf += batch;
       idx_ = 0;
       in = buf_;
-      uint32_t n = kPixelWritingBufferSize;
-      if (n > remaining_) n = remaining_;
-      stream_->Read(buf_, n);
-      batch = n;
+      batch = fetch();
     }
   }
 
   void blend(Color *buf, uint16_t count) {
     if (idx_ >= kPixelWritingBufferSize) {
       idx_ = 0;
-      uint32_t n = kPixelWritingBufferSize;
-      if (n > remaining_) n = remaining_;
-      stream_->Read(buf_, n);
+      fetch();
     }
     const Color *in = buf_ + idx_;
     uint16_t batch = kPixelWritingBufferSize - idx_;
@@ -256,10 +246,7 @@ class BufferingStream {
       }
       idx_ = 0;
       in = buf_;
-      uint32_t n = kPixelWritingBufferSize;
-      if (n > remaining_) n = remaining_;
-      stream_->Read(buf_, n);
-      batch = n;
+      batch = fetch();
     }
   }
 
@@ -267,26 +254,28 @@ class BufferingStream {
     uint16_t buffered = kPixelWritingBufferSize - idx_;
     if (count < buffered) {
       idx_ += count;
-      remaining_ -= count;
       return;
     }
     count -= buffered;
-    remaining_ -= buffered;
     idx_ = 0;
     do {
-      uint16_t n = kPixelWritingBufferSize;
-      if (n > remaining_) n = remaining_;
-      stream_->Read(buf_, n);
+      uint16_t n = fetch();
       if (count < n) {
         idx_ = count;
-        remaining_ -= count;
         return;
       }
-      remaining_ -= n;
     } while (remaining_ > 0);
   }
 
  private:
+  uint16_t fetch() {
+    uint16_t n = kPixelWritingBufferSize;
+    if (n > remaining_) n = remaining_;
+    stream_->Read(buf_, n);
+    remaining_ -= n;
+    return n;
+  }
+
   std::unique_ptr<PixelStream> stream_;
   uint32_t remaining_;
   Color buf_[kPixelWritingBufferSize];

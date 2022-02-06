@@ -23,9 +23,9 @@ class RasterPixelStream : public PixelStream {
   //     : RasterPixelStream(resource.Open(), color_mode) {}
 
   RasterPixelStream(StreamType<Resource> stream, const ColorMode& color_mode)
-      : stream_(std::move(stream)), pixel_index_(0), color_mode_(color_mode) {
-    fetch();
-  }
+      : stream_(std::move(stream)),
+        pixel_index_(ColorTraits<ColorMode>::pixels_per_byte),
+        color_mode_(color_mode) {}
 
   void Read(Color* buf, uint16_t size) override {
     while (size-- > 0) {
@@ -37,23 +37,30 @@ class RasterPixelStream : public PixelStream {
 
   // Advances the iterator to the next pixel in the buffer.
   Color next() {
-    Color color = cache_[pixel_index_];
-    if (++pixel_index_ == ColorTraits<ColorMode>::pixels_per_byte) {
+    if (pixel_index_ == ColorTraits<ColorMode>::pixels_per_byte) {
       pixel_index_ = 0;
       fetch();
     }
-    return color;
+    return cache_[pixel_index_++];
   }
 
   void skip(uint32_t count) {
     uint32_t new_pixel_index = count + pixel_index_;
+    if (new_pixel_index <= ColorTraits<ColorMode>::pixels_per_byte) {
+      pixel_index_ = new_pixel_index;
+      return;
+    }
     uint32_t bytes_to_skip =
-        new_pixel_index / ColorTraits<ColorMode>::pixels_per_byte;
+        new_pixel_index / ColorTraits<ColorMode>::pixels_per_byte - 1;
     if (bytes_to_skip > 0) {
-      stream_.advance(bytes_to_skip - 1);
-      fetch();
+      stream_.advance(bytes_to_skip);
     }
     pixel_index_ = new_pixel_index % ColorTraits<ColorMode>::pixels_per_byte;
+    if (pixel_index_ == 0) {
+      pixel_index_ = ColorTraits<ColorMode>::pixels_per_byte;
+    } else {
+      fetch();
+    }
   }
 
   TransparencyMode transparency() const { return color_mode_.transparency(); }

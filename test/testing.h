@@ -21,11 +21,12 @@ inline static Monochrome WhiteOnBlack() {
 namespace internal {
 
 char NextChar(std::istream& in) {
-  if (in.eof()) {
+  char c = in.get();
+  if (c < 0) {
     ADD_FAILURE() << "Reading past EOF";
     return '_';
   }
-  return in.get();
+  return c;
 }
 
 template <typename ColorMode>
@@ -40,7 +41,7 @@ Color NextColorFromString<Monochrome>(const Monochrome& mode,
   } else if (c == '*') {
     return mode.fg();
   } else {
-    ADD_FAILURE();
+    ADD_FAILURE() << "Invalid character for Monochrome: " << (int)c;
     return Color();
   }
 }
@@ -57,7 +58,7 @@ uint8_t ParseHexNibble(std::istream& in) {
   } else if (c >= 'a' && c <= 'f') {
     return c - 'a' + 10;
   } else {
-    ADD_FAILURE();
+    ADD_FAILURE() << "Invalid character for hex nibble: " << (int)c;
     return 0;
   }
 }
@@ -76,7 +77,7 @@ uint8_t ParseGrayscale4(std::istream& in) {
   } else if (c >= 'a' && c <= 'f') {
     return c - 'a' + 10;
   } else {
-    ADD_FAILURE();
+    ADD_FAILURE() << "Invalid character for Grayscale4: " << (int)c;
     return 0;
   }
 }
@@ -95,7 +96,7 @@ uint8_t ParseAlpha4(std::istream& in) {
   } else if (c >= 'a' && c <= 'f') {
     return c - 'a' + 10;
   } else {
-    ADD_FAILURE();
+    ADD_FAILURE() << "Invalid character for Alpha4: " << (int)c;
     return 0;
   }
 }

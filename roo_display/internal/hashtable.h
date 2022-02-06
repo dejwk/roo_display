@@ -131,7 +131,7 @@ class Hashtable {
     p += (cap - 2);
     int32_t j = 2 - cap;
     while (true) {
-      if (p > cap) p -= cap;
+      if (p >= cap) p -= cap;
       if (states_[p] == EMPTY) return end();
       if (states_[p] == FULL && buffer_[p] == key) {
         return Iterator(this, p);
@@ -181,7 +181,7 @@ class Hashtable {
     p += (cap - 2);
     int32_t j = 2 - cap;
     while (true) {
-      if (p > cap) p -= cap;
+      if (p >= cap) p -= cap;
       if (states_[p] == EMPTY) {
         // We can insert here.
         states_[p] = FULL;

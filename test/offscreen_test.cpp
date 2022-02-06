@@ -731,16 +731,18 @@ class OffscreenDeviceForTest
     : public OffscreenDevice<ColorMode, pixel_order, byte_order,
                              pixels_per_byte, storage_type> {
  public:
-  OffscreenDeviceForTest(int16_t width, int16_t height)
-      : OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
-                        storage_type>(
-            width, height,
-            new uint8_t[(ColorMode::bits_per_pixel * width * height + 7) / 8],
-            ColorMode()) {}
-  ~OffscreenDeviceForTest() {
-    delete OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
-                           storage_type>::buffer();
+  typedef OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
+                          storage_type>
+      Base;
+
+  OffscreenDeviceForTest(int16_t width, int16_t height, Color bg)
+      : Base(width, height,
+             new uint8_t[(ColorMode::bits_per_pixel * width * height + 7) / 8],
+             ColorMode()) {
+    Base::fillRect(0, 0, width - 1, height - 1, bg);
   }
+
+  ~OffscreenDeviceForTest() { delete[] Base::buffer(); }
 };
 
 TEST_P(OffscreenTest, FillRects) {

@@ -26,11 +26,8 @@ class TestDisplayDevice : public DisplayDevice {
   TestDisplayDevice(int16_t width, int16_t height,
                     Color fill = color::Transparent)
       : DisplayDevice(width, height),
-        refc_(width, height),
-        test_(width, height) {
-    refc_.fillRect(0, 0, width - 1, height - 1, fill);
-    test_.fillRect(0, 0, width - 1, height - 1, fill);
-  }
+        refc_(width, height, fill),
+        test_(width, height, fill) {}
 
   void orientationUpdated() override {
     refc_.setOrientation(orientation());

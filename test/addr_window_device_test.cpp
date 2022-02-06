@@ -17,7 +17,7 @@ class TestTarget {
   typedef ColorModeP ColorMode;
   static constexpr ByteOrder byte_order = byte_order_p;
 
-  TestTarget(int16_t width, int16_t height)
+  TestTarget(int16_t width, int16_t height, Color bg)
       : width_(width),
         height_(height),
         data_(new Color[width * height]),
@@ -30,7 +30,11 @@ class TestTarget {
         yCursor_(-1),
         initialized_(false),
         inTransaction_(false),
-        inRamWrite_(false) {}
+        inRamWrite_(false) {
+    ColorMode mode;
+    bg = mode.toArgbColor(mode.fromArgbColor(bg));
+    std::fill(&data_[0], &data_[width * height], bg);
+  }
 
   int16_t width() const { return width_; }
   int16_t height() const { return height_; }
@@ -131,7 +135,8 @@ class TestDevice : public AddrWindowDevice<TestTarget<ColorMode, byte_order>> {
  public:
   typedef AddrWindowDevice<TestTarget<ColorMode, byte_order>> Base;
 
-  TestDevice(int16_t width, int16_t height) : Base(width, height) {}
+  TestDevice(int16_t width, int16_t height, Color color)
+      : Base(TestTarget<ColorMode, byte_order>(width, height, color)) {}
 
   const Color* data() const { return Base::target_.data(); }
 };

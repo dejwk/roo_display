@@ -996,6 +996,7 @@ class FakeOffscreen : public DisplayDevice {
     EXPECT_GE(y, 0);
     EXPECT_LT(y, effective_height());
     if (x < 0 || y < 0 || x >= effective_width() || y >= effective_height()) {
+      abort();
       return;
     }
     if (orientation().isXYswapped()) {
@@ -1048,11 +1049,13 @@ class FakeFilteringOffscreen : public DisplayOutput {
   FakeFilteringOffscreen(int16_t width, int16_t height,
                          Color background = color::Transparent,
                          ColorMode color_mode = ColorMode())
-      : offscreen_(width, height, background, color_mode) {}
+      : offscreen_(width, height, background, color_mode),
+        filter_(offscreen_.extents()) {}
 
   FakeFilteringOffscreen(Box extents, Color background = color::Transparent,
                          ColorMode color_mode = ColorMode())
-      : offscreen_(extents, background, color_mode) {}
+      : offscreen_(extents, background, color_mode),
+        filter_(offscreen_.extents()) {}
 
   void setOrientation(Orientation orientation) {
     offscreen_.setOrientation(orientation);
@@ -1117,12 +1120,12 @@ class FakeFilteringOffscreen : public DisplayOutput {
   }
 
   void writePixel(PaintMode mode, int16_t x, int16_t y, Color color) {
-    Filter filter;
-    filter.writePixel(mode, x, y, color, &offscreen_);
+    filter_.writePixel(mode, x, y, color, &offscreen_);
   }
 
  private:
   FakeOffscreen<ColorMode> offscreen_;
+  Filter filter_;
   Box window_;
   PaintMode paint_mode_;
   int16_t cursor_x_;
@@ -1142,7 +1145,7 @@ class FilteredOutput : public DisplayOutput {
                  Color background = color::Transparent,
                  ColorMode color_mode = ColorMode())
       : offscreen_(width, height, background, color_mode),
-        filter_(FilterFactory::Create(offscreen_)) {}
+        filter_(FilterFactory::Create(offscreen_, offscreen_.extents())) {}
 
   FilteredOutput(Box extents, Color background = color::Transparent,
                  ColorMode color_mode = ColorMode())

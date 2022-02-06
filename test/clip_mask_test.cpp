@@ -12,6 +12,8 @@ namespace roo_display {
 
 class SimpleRoundMask {
  public:
+  SimpleRoundMask(Box extents) {}
+
   template <typename ColorMode>
   void writePixel(PaintMode mode, int16_t x, int16_t y, Color color,
                   FakeOffscreen<ColorMode>* offscreen) {
@@ -28,7 +30,7 @@ class SimpleRoundMask {
     offscreen->writePixel(mode, x, y, color);
   }
 
-  static ClipMaskFilter* Create(DisplayOutput& output) {
+  static ClipMaskFilter* Create(DisplayOutput& output, Box extents) {
     static const uint8_t clip_mask_data[] = {
         0x00, 0x00, 0x1F, 0xC0, 0x3F, 0xE0, 0x7F,
         0xF0, 0x3F, 0xE0, 0x1F, 0xC0, 0x00, 0x00,
@@ -40,6 +42,8 @@ class SimpleRoundMask {
 
 class LargeMask {
  public:
+  LargeMask(Box extents) {}
+
   template <typename ColorMode>
   void writePixel(PaintMode mode, int16_t x, int16_t y, Color color,
                   FakeOffscreen<ColorMode>* offscreen) {
@@ -70,7 +74,7 @@ class LargeMask {
     offscreen->writePixel(mode, x, y, color);
   }
 
-  static ClipMaskFilter* Create(DisplayOutput& output) {
+  static ClipMaskFilter* Create(DisplayOutput& output, Box extents) {
     static const uint8_t clip_mask_data[] = {
         0b00000000, 0b00000000, 0b00000000, 0b00000000,  // NOFORMAT
         0b00011111, 0b11111111, 0b11111111, 0b11000000,  // NOFORMAT

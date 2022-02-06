@@ -20,6 +20,7 @@ static const char mask[] =
 
 class SimpleRoundBg {
  public:
+  SimpleRoundBg(Box extents) {}
   template <typename ColorMode>
   void writePixel(PaintMode mode, int16_t x, int16_t y, Color color,
                   FakeOffscreen<ColorMode>* offscreen) {
@@ -34,7 +35,7 @@ class SimpleRoundBg {
     offscreen->writePixel(mode, x, y, alphaBlend(bgcolor, color));
   }
 
-  static DisplayOutput* Create(DisplayOutput& output) {
+  static DisplayOutput* Create(DisplayOutput& output, Box extents) {
     Box bounds(1, 2, 16, 8);
     static auto raster = MakeRasterizable(
         bounds,

@@ -309,7 +309,7 @@ class Offscreen : public Rasterizable {
   }
 
   virtual ~Offscreen() {
-    if (owns_buffer_) delete output().buffer();
+    if (owns_buffer_) delete[] output().buffer();
   }
 
   const Raster<const uint8_t *, ColorMode, pixel_order, byte_order> &raster()

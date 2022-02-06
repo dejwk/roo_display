@@ -125,6 +125,7 @@ class NibbleRectWindowStreamable {
 
 TEST(NibbleRect, WindowIteratorFull) {
   uint8_t buffer[40];
+  memset(buffer, 0, 40);
   NibbleRect nibble_rect(buffer, 5, 8);
   initNibbleRect(&nibble_rect,
                  "123456789A"
@@ -149,6 +150,7 @@ TEST(NibbleRect, WindowIteratorFull) {
 
 TEST(NibbleRect, WindowIteratorTopLeftOffset) {
   uint8_t buffer[40];
+  memset(buffer, 0, 40);
   NibbleRect nibble_rect(buffer, 5, 8);
   initNibbleRect(&nibble_rect,
                  "123456789A"
@@ -171,6 +173,7 @@ TEST(NibbleRect, WindowIteratorTopLeftOffset) {
 
 TEST(NibbleRect, WindowIteratorMiddle) {
   uint8_t buffer[40];
+  memset(buffer, 0, 40);
   NibbleRect nibble_rect(buffer, 5, 8);
   initNibbleRect(&nibble_rect,
                  "123456789A"
@@ -190,6 +193,7 @@ TEST(NibbleRect, WindowIteratorMiddle) {
 
 TEST(NibbleRect, WindowIteratorSinglePixel) {
   uint8_t buffer[40];
+  memset(buffer, 0, 40);
   NibbleRect nibble_rect(buffer, 5, 8);
   initNibbleRect(&nibble_rect,
                  "123456789A"

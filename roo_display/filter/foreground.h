@@ -125,6 +125,11 @@ class ForegroundFilter : public DisplayOutput {
     Box full(xMin, yMin, xMax, yMax);
     Box fgbounds = foreground_->extents();
     Box trimmed = Box::intersect(full, fgbounds);
+    if (trimmed.empty()) {
+      output_.fillRect(mode, full.xMin(), full.yMin(), full.xMax(),
+                       full.yMax(), color);
+      return;
+    }
     if (full.yMin() < trimmed.yMin()) {
       // Draw top bar of the border.
       output_.fillRect(mode, full.xMin(), full.yMin(), full.xMax(),

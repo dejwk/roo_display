@@ -7,10 +7,13 @@
 #include "roo_display/core/streamable.h"
 #include "roo_display/filter/background.h"
 #include "roo_display/filter/clip_mask.h"
+#include "roo_display/filter/front_to_back_writer.h"
 #include "roo_display/filter/transformed.h"
 #include "roo_display/ui/alignment.h"
 
 namespace roo_display {
+
+class FrontToBackWriter;
 
 class TouchDisplay {
  public:
@@ -36,6 +39,9 @@ class Display {
   }
 
   const Box &extents() const { return extents_; }
+
+  int16_t width() const { return extents_.width(); }
+  int16_t height() const { return extents_.height(); }
 
   // Initializes the device.
   void init() { display_device_.init(); }
@@ -107,6 +113,7 @@ class Display {
 
   int16_t dx() const { return 0; }
   int16_t dy() const { return 0; }
+  bool is_write_once() const { return false; }
 
   DisplayDevice &display_device_;
   TouchDisplay touch_;
@@ -159,6 +166,7 @@ class DrawingContext {
         bounds_(display.extents()),
         clip_box_(bounds_),
         unnest_([&display]() { display.unnest(); }),
+        write_once_(display.is_write_once()),
         fill_mode_(FILL_MODE_VISIBLE),
         paint_mode_(PAINT_MODE_BLEND),
         clip_mask_(nullptr),
@@ -169,7 +177,7 @@ class DrawingContext {
     display.nest();
   }
 
-  ~DrawingContext() { unnest_(); }
+  ~DrawingContext();
 
   const Box &bounds() const { return bounds_; }
 
@@ -217,6 +225,8 @@ class DrawingContext {
   }
 
   const Transform &transform() const { return transform_; }
+
+  void setWriteOnce();
 
   void drawPixels(const std::function<void(ClippingBufferedPixelWriter&)>& fn,
                   PaintMode paint_mode = PAINT_MODE_BLEND);
@@ -287,40 +297,13 @@ class DrawingContext {
   const DisplayOutput &output() const { return output_; }
 
   void drawInternal(const Drawable &object, int16_t dx, int16_t dy,
-                    Color bgcolor) {
-    if (clip_mask_ == nullptr) {
-      drawInternalWithBackground(output(), object, dx, dy, bgcolor);
-    } else {
-      ClipMaskFilter filter(output(), clip_mask_);
-      drawInternalWithBackground(filter, object, dx, dy, bgcolor);
-    }
-  }
+                    Color bgcolor);
 
   void drawInternalWithBackground(DisplayOutput &output, const Drawable &object,
-                                  int16_t dx, int16_t dy, Color bgcolor) {
-    if (background_ == nullptr) {
-      drawInternalTransformed(output, object, dx, dy, bgcolor);
-    } else {
-      BackgroundFilter filter(output, background_);
-      drawInternalTransformed(filter, object, dx, dy, bgcolor);
-    }
-  }
+                                  int16_t dx, int16_t dy, Color bgcolor);
 
   void drawInternalTransformed(DisplayOutput &output, const Drawable &object,
-                               int16_t dx, int16_t dy, Color bgcolor) {
-    Surface s(output, dx + dx_, dy + dy_, clip_box_.translate(dx_, dy_),
-              false, bgcolor, fill_mode_, paint_mode_);
-    if (!transformed_) {
-      s.drawObject(object);
-    } else if (!transform_.is_rescaled() && !transform_.xy_swap()) {
-      // Translation only.
-      s.set_dx(s.dx() + transform_.x_offset());
-      s.set_dy(s.dy() + transform_.y_offset());
-      s.drawObject(object);
-    } else {
-      s.drawObject(TransformedDrawable(transform_, &object));
-    }
-  }
+                               int16_t dx, int16_t dy, Color bgcolor);
 
   DisplayOutput &output_;
 
@@ -334,6 +317,9 @@ class DrawingContext {
   Box clip_box_;
 
   std::function<void()> unnest_;
+
+  bool write_once_;
+  std::unique_ptr<FrontToBackWriter> front_to_back_writer_;
 
   FillMode fill_mode_;
   PaintMode paint_mode_;

@@ -2,7 +2,6 @@
 
 // Support for drawing to in-memory buffers, using various color modes.
 
-#include "roo_display.h"
 #include "roo_display/core/color.h"
 #include "roo_display/core/raster.h"
 #include "roo_display/internal/byte_order.h"
@@ -361,6 +360,7 @@ class Offscreen : public Rasterizable {
   const Rasterizable *getRasterizableBackground() const { return nullptr; }
   int16_t dx() const { return -raster_.extents().xMin(); }
   int16_t dy() const { return -raster_.extents().yMin(); }
+  bool is_write_once() const { return false; }
 
   OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                   storage_type>

@@ -163,7 +163,7 @@ class Surface {
   friend class DrawingContext;
 
   DisplayOutput& output() const { return *out_; }
-  Box extents() const { return clip_box_; }
+  Box extents() const { return clip_box_.translate(-dx_, -dy_); }
   void nest() const {}
   void unnest() const {}
   const Rasterizable* getRasterizableBackground() const { return nullptr; }

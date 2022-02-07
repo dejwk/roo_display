@@ -104,10 +104,61 @@ class Pixels : public Drawable {
 
 }  // namespace
 
+DrawingContext::~DrawingContext() { unnest_(); }
+
+void DrawingContext::setWriteOnce() {
+  if (write_once_) return;
+  write_once_ = true;
+  front_to_back_writer_.reset(
+      new FrontToBackWriter(output(), bounds().translate(dx_, dy_)));
+}
+
 void DrawingContext::drawPixels(
     const std::function<void(ClippingBufferedPixelWriter&)>& fn,
     PaintMode paint_mode) {
   draw(Pixels(fn, transform_.smallestEnclosingRect(clip_box_), paint_mode));
+}
+
+void DrawingContext::drawInternal(const Drawable& object, int16_t dx,
+                                  int16_t dy, Color bgcolor) {
+  DisplayOutput& out = front_to_back_writer_.get() != nullptr
+                           ? *front_to_back_writer_
+                           : output();
+  if (clip_mask_ == nullptr) {
+    drawInternalWithBackground(out, object, dx, dy, bgcolor);
+  } else {
+    ClipMaskFilter filter(out, clip_mask_);
+    drawInternalWithBackground(filter, object, dx, dy, bgcolor);
+  }
+}
+
+void DrawingContext::drawInternalWithBackground(DisplayOutput& output,
+                                                const Drawable& object,
+                                                int16_t dx, int16_t dy,
+                                                Color bgcolor) {
+  if (background_ == nullptr) {
+    drawInternalTransformed(output, object, dx, dy, bgcolor);
+  } else {
+    BackgroundFilter filter(output, background_);
+    drawInternalTransformed(filter, object, dx, dy, bgcolor);
+  }
+}
+
+void DrawingContext::drawInternalTransformed(DisplayOutput& output,
+                                             const Drawable& object, int16_t dx,
+                                             int16_t dy, Color bgcolor) {
+  Surface s(output, dx + dx_, dy + dy_, clip_box_.translate(dx_, dy_),
+            write_once_, bgcolor, fill_mode_, paint_mode_);
+  if (!transformed_) {
+    s.drawObject(object);
+  } else if (!transform_.is_rescaled() && !transform_.xy_swap()) {
+    // Translation only.
+    s.set_dx(s.dx() + transform_.x_offset());
+    s.set_dy(s.dy() + transform_.y_offset());
+    s.drawObject(object);
+  } else {
+    s.drawObject(TransformedDrawable(transform_, &object));
+  }
 }
 
 namespace {

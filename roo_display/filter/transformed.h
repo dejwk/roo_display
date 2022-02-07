@@ -114,7 +114,8 @@ class TransformedDrawable : public Drawable {
     Transform adjusted =
         transform_.translate(s.dx(), s.dy()).clip(s.clip_box());
     TransformedDisplayOutput new_output(s.out(), adjusted);
-    Surface news(&new_output, adjusted.smallestBoundingRect(), s.bgcolor());
+    Surface news(&new_output, adjusted.smallestBoundingRect(),
+                 s.is_write_once(), s.bgcolor(), s.fill_mode(), s.paint_mode());
     news.drawObject(*delegate_);
   }
 

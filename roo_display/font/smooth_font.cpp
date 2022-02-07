@@ -183,7 +183,7 @@ void SmoothFont::drawGlyphModeVisible(DisplayOutput &output, int16_t x,
                                       Color bgcolor,
                                       PaintMode paint_mode) const {
   Surface s(output, x + metrics.bearingX(), y - metrics.bearingY(), clip_box,
-            bgcolor, FILL_MODE_VISIBLE, paint_mode);
+            false, bgcolor, FILL_MODE_VISIBLE, paint_mode);
   if (rle()) {
     RleImage4bppxBiased<Alpha4> glyph(metrics.width(), metrics.height(), data,
                                       color);
@@ -221,7 +221,8 @@ void SmoothFont::drawBordered(DisplayOutput &output, int16_t x, int16_t y,
         Box(outer.xMin(), inner.yMin(), inner.xMin() - 1, inner.yMax()),
         bgColor);
   }
-  Surface s(output, x, y, clip_box, bgColor, FILL_MODE_RECTANGLE, paint_mode);
+  Surface s(output, x, y, clip_box, false, bgColor, FILL_MODE_RECTANGLE,
+            paint_mode);
   s.drawObject(glyph);
   if (outer.xMax() > inner.xMax()) {
     output.fillRect(

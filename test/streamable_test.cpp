@@ -16,7 +16,7 @@ void Draw(DisplayDevice& output, int16_t x, int16_t y, const Box& clip_box,
           PaintMode paint_mode = PAINT_MODE_BLEND,
           Color bgcolor = color::Transparent) {
   output.begin();
-  Surface s(output, x, y, clip_box, bgcolor, fill_mode, paint_mode);
+  Surface s(output, x, y, clip_box, false, bgcolor, fill_mode, paint_mode);
   s.drawObject(object);
   output.end();
 }

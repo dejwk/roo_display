@@ -53,13 +53,14 @@ class Rasterizable;
 //
 class Surface {
  public:
-  Surface(DisplayOutput &out, int16_t dx, int16_t dy, Box clip,
+  Surface(DisplayOutput &out, int16_t dx, int16_t dy, Box clip, bool is_write_once,
           Color bg = color::Transparent, FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND)
       : out_(&out),
         dx_(dx),
         dy_(dy),
         clip_box_(std::move(clip)),
+        is_write_once_(is_write_once),
         bgcolor_(bg),
         fill_mode_(fill_mode),
         paint_mode_(paint_mode) {
@@ -68,13 +69,14 @@ class Surface {
     }
   }
 
-  Surface(DisplayOutput *out, Box clip, Color bg = color::Transparent,
+  Surface(DisplayOutput *out, Box clip, bool is_write_once, Color bg = color::Transparent,
           FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND)
       : out_(out),
         dx_(0),
         dy_(0),
         clip_box_(std::move(clip)),
+        is_write_once_(is_write_once),
         bgcolor_(bg),
         fill_mode_(fill_mode),
         paint_mode_(paint_mode) {
@@ -96,6 +98,8 @@ class Surface {
 
   // Returns the y offset that should be applied to the drawn object.
   int16_t dy() const { return dy_; }
+
+  bool is_write_once() const { return is_write_once_; }
 
   // Returns the clip box, in the device coordinates (independent of
   // the x, y offset), that must be respected by the drawn object.
@@ -169,6 +173,7 @@ class Surface {
   int16_t dx_;
   int16_t dy_;
   Box clip_box_;
+  bool is_write_once_;
   Color bgcolor_;
   FillMode fill_mode_;
   PaintMode paint_mode_;

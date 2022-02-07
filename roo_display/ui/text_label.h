@@ -46,10 +46,10 @@ class TextLabel : public Drawable {
                  metrics_.glyphXMax(), -font_->metrics().glyphYMin()) {}
 
   void drawTo(const Surface& s) const override {
-    Surface news(
-        s.out(), s.dx(), s.dy(), s.clip_box(), s.bgcolor(),
-        fill_mode_ == FILL_MODE_RECTANGLE ? FILL_MODE_RECTANGLE : s.fill_mode(),
-        s.paint_mode());
+    Surface news = s;
+    if (fill_mode_ == FILL_MODE_RECTANGLE) {
+      news.set_fill_mode(FILL_MODE_RECTANGLE);
+    }
     font_->drawHorizontalString(news, (const uint8_t*)label_.c_str(),
                                 label_.length(), color_);
   }

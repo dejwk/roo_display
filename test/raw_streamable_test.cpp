@@ -18,7 +18,7 @@ void Draw(DisplayDevice& output, int16_t x, int16_t y, const Box& clip_box,
           Color bgcolor = color::Transparent) {
   output.begin();
   DrawableRawStreamable<RawStreamable> drawable(object);
-  Surface s(output, x, y, clip_box, bgcolor, fill_mode, paint_mode);
+  Surface s(output, x, y, clip_box, false, bgcolor, fill_mode, paint_mode);
   s.drawObject(drawable);
   output.end();
 }

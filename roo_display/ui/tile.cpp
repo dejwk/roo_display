@@ -11,8 +11,8 @@ namespace internal {
 void TileBase::draw(const Surface& s, const Drawable& content) const {
   if (background_ != nullptr) {
     BackgroundFilter filter(s.out(), background_, s.dx(), s.dy());
-    Surface news(filter, s.dx(), s.dy(), s.clip_box(), color::Transparent,
-                 s.fill_mode(), s.paint_mode());
+    Surface news(filter, s.dx(), s.dy(), s.clip_box(), s.is_write_once(),
+                 color::Transparent, s.fill_mode(), s.paint_mode());
     drawInternal(news, content);
   } else {
     drawInternal(s, content);
@@ -54,8 +54,8 @@ void TileBase::drawInternal(const Surface& s, const Drawable& content) const {
     }
   }
   Surface inner(s.out(), s.dx() + border_.x_offset(),
-                s.dy() + border_.y_offset(), extents, bgcolor, fill_mode,
-                s.paint_mode());
+                s.dy() + border_.y_offset(), extents, s.is_write_once(),
+                bgcolor, fill_mode, s.paint_mode());
   inner.drawObject(content);
   if (fill_mode == FILL_MODE_RECTANGLE) {
     if (extents.xMax() > interior.xMax()) {

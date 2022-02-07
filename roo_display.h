@@ -309,7 +309,7 @@ class DrawingContext {
   void drawInternalTransformed(DisplayOutput &output, const Drawable &object,
                                int16_t dx, int16_t dy, Color bgcolor) {
     Surface s(output, dx + dx_, dy + dy_, clip_box_.translate(dx_, dy_),
-              bgcolor, fill_mode_, paint_mode_);
+              false, bgcolor, fill_mode_, paint_mode_);
     if (!transformed_) {
       s.drawObject(object);
     } else if (!transform_.is_rescaled() && !transform_.xy_swap()) {

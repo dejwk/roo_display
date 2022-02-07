@@ -71,7 +71,6 @@ class FrontToBackWriter : public DisplayOutput {
       if (offscreen_.extents().contains(cx, cy)) {
         cx -= offscreen_.extents().xMin();
         cy -= offscreen_.extents().yMin();
-        Color c = color::Black;
         offscreen_.output().fillPixels(mode, color::Black, &cx, &cy, 1);
       }
     }
@@ -92,7 +91,6 @@ class FrontToBackWriter : public DisplayOutput {
       int16_t cy = y[i];
       mask_filter_.fillPixels(mode, color, &x[i], &y[i], 1);
       if (offscreen_.extents().contains(cx, cy)) {
-        Color c = color::Black;
         cx -= offscreen_.extents().xMin();
         cy -= offscreen_.extents().yMin();
         offscreen_.output().fillPixels(mode, color::Black, &cx, &cy, 1);

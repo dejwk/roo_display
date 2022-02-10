@@ -83,6 +83,13 @@ class Border : public RectBase {
          int16_t vborder, Color color)
       : Border(x0, y0, x1, y1, hborder, vborder, hborder, vborder, color) {}
 
+  Border(const roo_display::Box &outer, const roo_display::Box &inner,
+         Color color)
+      : Border(outer.xMin(), outer.yMin(), outer.xMax(), outer.yMax(),
+               inner.xMin() - outer.xMin(), inner.yMin() - outer.yMin(),
+               outer.xMax() - inner.xMax(), outer.yMax() - inner.yMax(),
+               color) {}
+
   Border(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t left,
          int16_t top, int16_t right, int16_t bottom, Color color)
       : RectBase(x0, y0, x1, y1, color),
@@ -123,7 +130,7 @@ class FilledRect : public RectBase, public Rasterizable {
   }
 
   std::unique_ptr<PixelStream> CreateStream() const override;
-  std::unique_ptr<PixelStream> CreateStream(const Box& bounds) const override;
+  std::unique_ptr<PixelStream> CreateStream(const Box &bounds) const override;
 
   void ReadColors(const int16_t *x, const int16_t *y, uint32_t count,
                   Color *result) const override {

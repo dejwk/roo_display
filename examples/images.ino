@@ -1,6 +1,33 @@
+#include "Arduino.h"
+
+#ifdef ROO_TESTING
+
+#include "roo_testing/devices/display/st77xx/st77xx.h"
+#include "roo_testing/transducers/ui/viewport/flex_viewport.h"
+#include "roo_testing/transducers/ui/viewport/fltk/fltk_viewport.h"
+
+using roo_testing_transducers::FlexViewport;
+using roo_testing_transducers::FltkViewport;
+
+struct Emulator {
+  FltkViewport viewport;
+  FlexViewport flexViewport;
+
+  FakeSt77xxSpi display;
+
+  Emulator()
+      : viewport(), flexViewport(viewport, 2), display(flexViewport, 240, 240) {
+    FakeEsp32().attachSpiDevice(display, 18, 19, 23);
+    FakeEsp32().gpio.attachOutput(5, display.cs());
+    FakeEsp32().gpio.attachOutput(2, display.dc());
+    FakeEsp32().gpio.attachOutput(4, display.rst());
+  }
+} emulator;
+
+#endif
+
 #include <string>
 
-#include "Arduino.h"
 #include "roo_display.h"
 #include "roo_display/font/font.h"
 #include "roo_display/image/image.h"
@@ -38,7 +65,7 @@ void setup() {
 }
 
 void loop(void) {
-  OffscreenDisplay<Rgb565> buffer(110, 60);
+  Offscreen<Rgb565> buffer(110, 60);
   int16_t y0 = display.height() / 2 + rand() % 100 - 50;
   int16_t y;
   y = y0;

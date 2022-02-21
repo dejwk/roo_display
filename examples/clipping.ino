@@ -121,12 +121,12 @@ void polarToCartesian(float angle, int16_t radius, int16_t* x, int16_t* y) {
 }
 
 void fillMask(float angleStart, float angleEnd, int16_t radius) {
-  OffscreenDisplay<Monochrome> offscreen(
+  Offscreen<Monochrome> offscreen(
       display.width(), display.height(), clipmask,
       Monochrome(color::White, color::Transparent));
   int16_t quadrantStart = (int16_t)(angleStart / 90);
   int16_t quadrantEnd = (int16_t)(angleEnd / 90);
-  DrawingContext odc(&offscreen);
+  DrawingContext odc(offscreen);
   odc.fill(color::White);
   int16_t x1, y1, x2, y2;
   polarToCartesian(angleStart, 2 * radius, &x1, &y1);
@@ -184,7 +184,7 @@ TileOf<TextLabel> centeredLabel(const std::string& content, Color color,
 }
 
 void clippedFont1() {
-  OffscreenDisplay<Monochrome> offscreen(
+  Offscreen<Monochrome> offscreen(
       display.width(), display.height(), clipmask,
       Monochrome(color::White, color::Transparent));
   DrawingContext odc(offscreen);
@@ -200,7 +200,7 @@ void clippedFont1() {
 }
 
 void clippedFont2() {
-  OffscreenDisplay<Monochrome> offscreen(
+  Offscreen<Monochrome> offscreen(
       display.width(), display.height(), clipmask,
       Monochrome(color::Black, color::White));
 

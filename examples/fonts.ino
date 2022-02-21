@@ -1,6 +1,41 @@
-#include <string>
+// NOTE: this test uses almost 100 font files of different sizes, and produces
+// a large binary (over 3MB). To deploy it to stock ESP32, you need to use a
+// non-standard partition table, e.g. huge_app.csv:
+// https://github.com/espressif/arduino-esp32/blob/master/tools/partitions/huge_app.csv
+
+// See
+// https://docs.platformio.org/en/latest/platforms/espressif32.html#partition-tables
+// for details.
 
 #include "Arduino.h"
+
+#ifdef ROO_TESTING
+
+#include "roo_testing/devices/display/st77xx/st77xx.h"
+#include "roo_testing/transducers/ui/viewport/flex_viewport.h"
+#include "roo_testing/transducers/ui/viewport/fltk/fltk_viewport.h"
+
+using roo_testing_transducers::FlexViewport;
+using roo_testing_transducers::FltkViewport;
+
+struct Emulator {
+  FltkViewport viewport;
+  FlexViewport flexViewport;
+
+  FakeSt77xxSpi display;
+
+  Emulator()
+      : viewport(), flexViewport(viewport, 2), display(flexViewport, 240, 240) {
+    FakeEsp32().attachSpiDevice(display, 18, 19, 23);
+    FakeEsp32().gpio.attachOutput(5, display.cs());
+    FakeEsp32().gpio.attachOutput(2, display.dc());
+    FakeEsp32().gpio.attachOutput(4, display.rst());
+  }
+} emulator;
+
+#endif
+
+#include <string>
 
 #include "roo_display.h"
 #include "roo_display/font/font.h"

@@ -303,7 +303,7 @@ class Offscreen : public Rasterizable {
                        color::Transparent);
     }
     Surface s(device_, -extents.xMin(), -extents.yMin(),
-              Box(0, 0, extents.width(), extents.height()));
+              Box(0, 0, extents.width(), extents.height()), false);
     s.drawObject(d);
   }
 

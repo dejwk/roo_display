@@ -2,6 +2,7 @@
 
 #include "roo_display/core/device.h"
 #include "roo_display/core/offscreen.h"
+#include "roo_display/filter/clip_mask.h"
 
 namespace roo_display {
 

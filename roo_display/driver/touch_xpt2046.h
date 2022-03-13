@@ -104,19 +104,21 @@ void get_raw_touch_xy(Spi& spi, uint16_t* x, uint16_t* y) {
   spi.transfer(0xd3);
   *x = spi.transfer16(0xd3) >> 3;
   *x = spi.transfer16(0xd3) >> 3;
-  while (last_x != *x) {
-    last_x = *x;
-    *x = spi.transfer16(0xd3) >> 3;
-  }
+  *x = spi.transfer16(0x93) >> 3;
+  // while (last_x != *x) {
+  //   last_x = *x;
+  //   *x = spi.transfer16(0xd3) >> 3;
+  // }
 
   // Start bit + XP sample request for y position
-  spi.transfer(0x93);
+  // spi.transfer(0x93);
   *y = spi.transfer16(0x93) >> 3;
   *y = spi.transfer16(0x93) >> 3;
-  while (last_y != *y) {
-    last_y = *y;
-    *y = spi.transfer16(0x93) >> 3;
-  }
+  *y = spi.transfer16(0x00) >> 3;
+  // while (last_y != *y) {
+  //   last_y = *y;
+  //   *y = spi.transfer16(0x93) >> 3;
+  // }
 }
 
 template <typename Spi>
@@ -149,6 +151,10 @@ ConversionResult single_conversion(Spi& spi, uint16_t z_threshold, uint16_t* x,
   get_raw_touch_xy(spi, &x2, &y2);
   if (abs(x1 - x2) > kMaxRawSettlingDistance) return UNSETTLED;
   if (abs(y1 - y2) > kMaxRawSettlingDistance) return UNSETTLED;
+  uint16_t z3 = get_raw_touch_z(spi);
+  if (z3 <= z_threshold) {
+    return UNSETTLED;
+  }
 
   // We have a valid touch sample pair. Return an arithmetic average as the
   // result.

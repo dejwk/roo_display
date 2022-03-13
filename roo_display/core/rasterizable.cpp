@@ -56,7 +56,7 @@ void Rasterizable::ReadColorsMaybeOutOfBounds(const int16_t* x,
   uint32_t offset = 0;
   bool fastpath = true;
   while (true) {
-    int buf_size = 64;
+    uint32_t buf_size = 64;
     if (buf_size > count) buf_size = count;
     for (uint32_t i = 0; i < buf_size && fastpath; ++i) {
       fastpath &= bounds.contains(x[i], y[i]);

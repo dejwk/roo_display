@@ -24,6 +24,7 @@ class Align {
       case MAX:
         return offset_ + last_outer - last_inner;
       case NONE:
+      default:
         return offset_;
     }
   }

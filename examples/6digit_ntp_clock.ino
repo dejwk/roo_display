@@ -12,19 +12,19 @@
 
 using namespace roo_display;
 
-//********* WIFI CREDENTIALS ********** 
+//********* ENTER YOUR WIFI CREDENTIALS ********** 
 const char *ssid     = "*******";
 const char *password = "**********";
 
 //********* NTP TIME  ********** 
-// Set TZ_INFO from:  https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
-const char* TZ_INFO    = "PST8PDT,M3.2.0,M11.1.0";  //e.g Los Angeles US Pacific
+// Set TZ_INFO for your location:  https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
+const char* TZ_INFO    = "PST8PDT,M3.2.0,M11.1.0";  //e.g Los Angeles US Pacific and DST details
 // Specify your nearest NTP server
 const char* NTP_SERVER = "0.pool.ntp.org";
 
 tm timeinfo;
 time_t now;
-bool us_datefmt = true; // mon/day/year
+bool us_datefmt = true; // mon/day/year, set to false for day/mon/year format
 
 // 
 // Change these two lines to use a different driver, transport, or pins.

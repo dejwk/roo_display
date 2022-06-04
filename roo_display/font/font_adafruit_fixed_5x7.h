@@ -15,6 +15,11 @@ class FontAdafruitFixed5x7 : public Font {
 
   GlyphMetrics getHorizontalStringMetrics(const uint8_t *utf8_data,
                                           uint32_t size) const override;
+
+  uint32_t getHorizontalStringGlyphMetrics(const uint8_t *utf8_data,
+                                           uint32_t size, GlyphMetrics *result,
+                                           uint32_t offset,
+                                           uint32_t max_count) const override;
 };
 
 }  // namespace roo_display

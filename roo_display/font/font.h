@@ -10,6 +10,38 @@ namespace roo_display {
 
 typedef uint16_t unicode_t;
 
+// Writes the UTF-8 representation of the rune to buf. The `buf` must have
+// sufficient size (4 is always safe). Returns the number of bytes actually
+// written.
+inline int EncodeRuneAsUtf8(uint32_t rune, uint8_t *buf) {
+  if (rune <= 0x7F) {
+    buf[0] = rune;
+    return 1;
+  }
+  if (rune <= 0x7FF) {
+    buf[1] = (rune & 0x3F) | 0x80;
+    rune >>= 6;
+    buf[0] = rune | 0xC0;
+    return 2;
+  }
+  if (rune <= 0xFFFF) {
+    buf[2] = (rune & 0x3F) | 0x80;
+    rune >>= 6;
+    buf[1] = (rune & 0x3F) | 0x80;
+    rune >>= 6;
+    buf[0] = rune | 0xE0;
+    return 3;
+  }
+  buf[3] = (rune & 0x3F) | 0x80;
+  rune >>= 6;
+  buf[2] = (rune & 0x3F) | 0x80;
+  rune >>= 6;
+  buf[1] = (rune & 0x3F) | 0x80;
+  rune >>= 6;
+  buf[0] = rune | 0xF0;
+  return 4;
+}
+
 class Utf8Decoder {
  public:
   Utf8Decoder(const uint8_t *data, uint32_t size)
@@ -18,6 +50,8 @@ class Utf8Decoder {
       : data_((const uint8_t *)data), remaining_(size) {}
 
   bool has_next() const { return remaining_ > 0; }
+  const uint8_t *data() const { return data_; }
+  uint32_t remaining() const { return remaining_; }
 
   unicode_t next() {
     --remaining_;
@@ -233,6 +267,16 @@ class Font {
   // Returns metrics of the specified string, as if it was a single glyph.
   virtual GlyphMetrics getHorizontalStringMetrics(const uint8_t *utf8_data,
                                                   uint32_t size) const = 0;
+
+  // Returns metrics of the consecutive glyphs of the specified string,
+  // beginning at the specified `offset`, and stores them in the `result`. The
+  // glyphs may be overlapping due to kerning. The number of glyphs in the
+  // result is limited by `max_count`. Returns the number of glyphs actually
+  // measured, which may be smaller than `max_count` if the input string is
+  // shorter.
+  virtual uint32_t getHorizontalStringGlyphMetrics(
+      const uint8_t *utf8_data, uint32_t size, GlyphMetrics *result,
+      uint32_t offset, uint32_t max_count) const = 0;
 
   virtual ~Font() {}
 

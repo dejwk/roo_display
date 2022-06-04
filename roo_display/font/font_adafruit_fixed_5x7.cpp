@@ -196,4 +196,23 @@ GlyphMetrics FontAdafruitFixed5x7::getHorizontalStringMetrics(
                       advance * length - 1);
 }
 
+uint32_t FontAdafruitFixed5x7::getHorizontalStringGlyphMetrics(
+    const uint8_t* utf8_data, uint32_t size, GlyphMetrics* result,
+    uint32_t offset, uint32_t max_count) const {
+  Utf8Decoder decoder(utf8_data, size);
+  uint32_t i = 0;
+  uint32_t count = 0;
+  while (decoder.has_next() && count < max_count) {
+    uint16_t running = 0;
+    decoder.next();
+    if (i >= offset) {
+      result[count++] = GlyphMetrics(running, descent, running + 4, ascent,
+                                     running + advance);
+    }
+    running += advance;
+    ++i;
+  }
+  return count;
+}
+
 }  // namespace roo_display

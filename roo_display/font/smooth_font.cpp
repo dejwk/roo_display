@@ -379,6 +379,51 @@ GlyphMetrics SmoothFont::getHorizontalStringMetrics(const uint8_t *utf8_data,
                       yMax, advance);
 }
 
+uint32_t SmoothFont::getHorizontalStringGlyphMetrics(const uint8_t *utf8_data,
+                                                     uint32_t size,
+                                                     GlyphMetrics *result,
+                                                     uint32_t offset,
+                                                     uint32_t max_count) const {
+  Utf8LookAheadDecoder decoder(utf8_data, size);
+  if (!decoder.has_next()) {
+    // Nothing to measure.
+    return 0;
+  }
+  uint32_t glyph_idx = 0;
+  uint32_t glyph_count = 0;
+  unicode_t next_code = decoder.next();
+  GlyphPairIterator glyphs(this);
+  glyphs.push(next_code);
+  bool has_more;
+  int16_t advance = 0;
+  do {
+    if (glyph_count >= max_count) return glyph_count;
+    unicode_t code = next_code;
+    has_more = decoder.has_next();
+    int16_t kern;
+    if (has_more) {
+      next_code = decoder.next();
+      glyphs.push(next_code);
+      kern = kerning(code, next_code);
+    } else {
+      next_code = 0;
+      glyphs.pushNull();
+      kern = 0;
+    }
+    if (glyph_idx >= offset) {
+      result[glyph_count++] =
+          GlyphMetrics(glyphs.left_metrics().glyphXMin() + advance,
+                       glyphs.left_metrics().glyphYMin(),
+                       glyphs.left_metrics().glyphXMax() + advance,
+                       glyphs.left_metrics().glyphYMax(),
+                       glyphs.left_metrics().advance() + advance);
+    }
+    ++glyph_idx;
+    advance += (glyphs.left_metrics().advance() - kern);
+  } while (has_more);
+  return glyph_count;
+}
+
 void SmoothFont::drawHorizontalString(const Surface &s,
                                       const uint8_t *utf8_data, uint32_t size,
                                       Color color) const {

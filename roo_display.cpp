@@ -1,6 +1,13 @@
+#include <Arduino.h>
+
 #include "roo_display.h"
 
+#include <cmath>
+
 #include "roo_display/filter/color_filter.h"
+
+static const int smoothingWindowMs = 10;
+static const float smoothingFactor = 0.1;
 
 namespace roo_display {
 
@@ -8,21 +15,37 @@ bool TouchDisplay::getTouch(int16_t& x, int16_t& y) {
   int16_t raw_x, raw_y, raw_z;
   bool touched = touch_device_.getTouch(raw_x, raw_y, raw_z);
   if (!touched) {
+    touched_ = false;
     return false;
   }
+  long now = millis();
   Orientation orientation = display_device_.orientation();
   if (orientation.isRightToLeft()) {
-    raw_x = 4096 - raw_x;
+    raw_x = 4095 - raw_x;
   }
   if (orientation.isBottomToTop()) {
-    raw_y = 4096 - raw_y;
+    raw_y = 4095 - raw_y;
   }
   if (orientation.isXYswapped()) {
     std::swap(raw_x, raw_y);
   }
+  if (!touched_) {
+    raw_touch_x_ = raw_x;
+    raw_touch_y_ = raw_y;
+    raw_touch_z_ = raw_z;
+    touched_ = true;
+  } else if (now != last_sample_time_) {
+    float k = (float)(now - last_sample_time_) / smoothingWindowMs;
+    float weight_past = pow(1 - smoothingFactor, k);
+    float weight_present = 1 - weight_past;
+    raw_touch_x_ = (int16_t)(raw_touch_x_ * weight_past + raw_x * weight_present);
+    raw_touch_y_ = (int16_t)(raw_touch_y_ * weight_past + raw_y * weight_present);
+    raw_touch_z_ = (int16_t)(raw_touch_z_ * weight_past + raw_z * weight_present);
+    last_sample_time_ = now;
+  }
 
-  x = ((int32_t)raw_x * display_device_.effective_width()) / 4096;
-  y = ((int32_t)raw_y * display_device_.effective_height()) / 4096;
+  x = ((int32_t)raw_touch_x_ * (display_device_.effective_width() - 1)) / 4095;
+  y = ((int32_t)raw_touch_y_ * (display_device_.effective_height() - 1)) / 4095;
   return true;
 }
 

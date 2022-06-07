@@ -66,22 +66,16 @@ static const int kInitialTouchZThreshold = 200;
 
 // How hard the press needs to be to count as continued touch (i.e., once
 // the display has been touched). See kTouchSensitivityLagMs.
-static const int kSustainedTouchZThreshold = 50;
+static const int kSustainedTouchZThreshold = 20;
 
 // To avoid spurious drops in drag touch, the driver is more sensitive to touch
 // (and thus more prone to picking up noise) for this many ms since last
 // definitive touch.
-static const int kTouchSensitivityLagMs = 200;
+static const int kTouchSensitivityLagMs = 250;
 
 // If there is no touch detected for up to this many ms, we will still report
 // that the pad is touched, with previously reported coordinates.
-static const int kTouchIntertiaMs = 100;
-
-// How do we exponentially average subsequent conversion. In the range of (0 -
-// 255, where 0 is no smoothing, i.e., the last converted value is returned.
-// Generally, the last converted value is taken with weight of smoothing_factor
-// / 256.
-static const int kExponentialSmoothingFactor = 224;
+static const int kTouchIntertiaMs = 80;
 
 // Implementation follows.
 
@@ -105,20 +99,12 @@ void get_raw_touch_xy(Spi& spi, uint16_t* x, uint16_t* y) {
   *x = spi.transfer16(0xd3) >> 3;
   *x = spi.transfer16(0xd3) >> 3;
   *x = spi.transfer16(0x93) >> 3;
-  // while (last_x != *x) {
-  //   last_x = *x;
-  //   *x = spi.transfer16(0xd3) >> 3;
-  // }
 
   // Start bit + XP sample request for y position
   // spi.transfer(0x93);
   *y = spi.transfer16(0x93) >> 3;
   *y = spi.transfer16(0x93) >> 3;
   *y = spi.transfer16(0x00) >> 3;
-  // while (last_y != *y) {
-  //   last_y = *y;
-  //   *y = spi.transfer16(0x93) >> 3;
-  // }
 }
 
 template <typename Spi>
@@ -160,31 +146,9 @@ ConversionResult single_conversion(Spi& spi, uint16_t z_threshold, uint16_t* x,
   // result.
   *x = (x1 + x2) / 2;
   *y = (y1 + y2) / 2;
+  *z = z3;
   return TOUCHED;
 }
-
-class Smoother {
- public:
-  Smoother(int smoothing_factor)
-      : smoothing_factor_(smoothing_factor), value_(0), initialized_(false) {}
-  uint16_t value() const { return value_; }
-
-  void update(uint16_t value) {
-    if (!initialized_) {
-      value_ = value;
-      initialized_ = true;
-    } else {
-      value_ = ((uint32_t)value_ * smoothing_factor_ +
-                (uint32_t)value * (256 - smoothing_factor_)) /
-               256;
-    }
-  }
-
- private:
-  int smoothing_factor_;
-  uint16_t value_;
-  bool initialized_;
-};
 
 template <int pinCS, typename Spi, typename Gpio>
 bool TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::getTouch(int16_t& x,
@@ -202,9 +166,17 @@ bool TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::getTouch(int16_t& x,
 
   int settled_conversions = 0;
   uint16_t x_tmp, y_tmp, z_tmp;
-  Smoother x_result(kExponentialSmoothingFactor);
-  Smoother y_result(kExponentialSmoothingFactor);
-  Smoother z_result(kExponentialSmoothingFactor);
+  int32_t x_sum = 0;
+  int32_t y_sum = 0;
+  int32_t z_max = 0;
+  int count = 0;
+
+  // Discard a few initial conversions so that the sensor settles.
+  for (int i = 0; i < 5; ++i) {
+    ConversionResult result =
+        single_conversion(spi_transport_, z_threshold, &x_tmp, &y_tmp, &z_tmp);
+    if (result == UNSETTLED) continue;
+  }
 
   bool touched = false;
   for (int i = 0; i < kMaxConversionAttempts; ++i) {
@@ -214,17 +186,18 @@ bool TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::getTouch(int16_t& x,
     settled_conversions++;
     if (result == TOUCHED) {
       touched = true;
-      x_result.update(x_tmp);
-      y_result.update(y_tmp);
-      z_result.update(z_tmp);
+      x_sum += x_tmp;
+      y_sum += y_tmp;
+      if (z_max < z_tmp) z_max = z_tmp;
+      count++;
     }
     if (settled_conversions >= kMinSettledConversions) {
       // We got enough settled conversions to return a result.
       if (touched) {
-        x = press_x_ = 4095 - x_result.value();
-        y = press_y_ = 4095 - y_result.value();
-        z = press_z_ = z_result.value();
-        if (z_result.value() >= kInitialTouchZThreshold) {
+        x = press_x_ = 4095 - (x_sum / count);
+        y = press_y_ = 4095 - (y_sum / count);
+        z = press_z_ = z_max;
+        if (z >= kInitialTouchZThreshold) {
           // We got a definite press.
           latest_confirmed_pressed_timestamp_ = now;
         }

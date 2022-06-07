@@ -18,13 +18,20 @@ class FrontToBackWriter;
 class TouchDisplay {
  public:
   TouchDisplay(DisplayDevice &display_device, TouchDevice &touch_device)
-      : display_device_(display_device), touch_device_(touch_device) {}
+      : display_device_(display_device), touch_device_(touch_device),
+        touched_(false) {}
 
   bool getTouch(int16_t &x, int16_t &y);
 
  private:
   DisplayDevice &display_device_;
   TouchDevice &touch_device_;
+
+  bool touched_;
+  long last_sample_time_;
+  int16_t raw_touch_x_;
+  int16_t raw_touch_y_;
+  int16_t raw_touch_z_;
 };
 
 class Display {

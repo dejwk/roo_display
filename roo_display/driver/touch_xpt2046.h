@@ -77,7 +77,7 @@ static const int kTouchSensitivityLagMs = 250;
 
 // If there is no touch detected for up to this many ms, we will still report
 // that the pad is touched, with previously reported coordinates.
-static const int kTouchIntertiaMs = 80;
+static const int kTouchIntertiaMs = 60;
 
 // Implementation follows.
 

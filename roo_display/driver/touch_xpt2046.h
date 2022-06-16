@@ -24,9 +24,11 @@ class TouchXpt2046Uncalibrated : public TouchDevice {
 
   bool pressed_;
   unsigned long latest_confirmed_pressed_timestamp_;
-  uint16_t press_x_;
-  uint16_t press_y_;
-  uint16_t press_z_;
+  int16_t press_x_;
+  int16_t press_y_;
+  int16_t press_z_;
+  int16_t press_vx_;
+  int16_t press_vy_;
 };
 
 template <int pinCS, typename Spi = DefaultSpi, typename Gpio = DefaultGpio>
@@ -86,7 +88,9 @@ TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::TouchXpt2046Uncalibrated(Spi spi)
       latest_confirmed_pressed_timestamp_(0),
       press_x_(0),
       press_y_(0),
-      press_z_(0) {
+      press_z_(0),
+      press_vx_(0),
+      press_vy_(0) {
   Gpio::setOutput(pinCS);
   Gpio::template setHigh<pinCS>();
 }
@@ -191,24 +195,47 @@ bool TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::getTouch(int16_t& x,
       if (z_max < z_tmp) z_max = z_tmp;
       count++;
     }
+    unsigned long dt = now - latest_confirmed_pressed_timestamp_;
     if (settled_conversions >= kMinSettledConversions) {
       // We got enough settled conversions to return a result.
       if (touched) {
-        x = press_x_ = 4095 - (x_sum / count);
-        y = press_y_ = 4095 - (y_sum / count);
-        z = press_z_ = z_max;
+        x = 4095 - (x_sum / count);
+        y = 4095 - (y_sum / count);
+        z = z_max;
+        if (!pressed_) {
+          // First touch.
+          press_vx_ = 0;
+          press_vy_ = 0;
+        } else {
+          if (dt != 0) {
+            // Note: the velocity unit is fairly arbitrary, chosen
+            // so that the velocity fits in int16_t.
+            press_vx_ = 8 * (x - (int16_t)press_x_) / (long)dt;
+            press_vy_ = 8 * (y - (int16_t)press_y_) / (long)dt;
+          }
+        }
+        press_x_ = x;
+        press_y_ = y;
+        press_z_ = z;
         if (z >= kInitialTouchZThreshold) {
           // We got a definite press.
           latest_confirmed_pressed_timestamp_ = now;
         }
-      } else if (pressed_ &&
-                 now - latest_confirmed_pressed_timestamp_ < kTouchIntertiaMs) {
+      } else if (pressed_ && dt < kTouchIntertiaMs) {
         // We did not detect touch, but the latest confirmed touch was not long
-        // ago so we report as touched anyway.
-        touched = true;
-        x = press_x_;
-        y = press_y_;
-        z = press_z_;
+        // ago so we extrapolate as touched anyway, unless it would go out of
+        // bounds.
+        int16_t maybe_x = press_x_ + (press_vx_ * (long)dt) / 8;
+        int16_t maybe_y = press_y_ + (press_vy_ * (long)dt) / 8;
+        // TODO: this extrapolation should probably be based on smoothed
+        // values...
+        if (maybe_x >= 0 && maybe_x <= 4095 && maybe_y >= 0 &&
+            maybe_y <= 4095) {
+          touched = true;
+          x = maybe_x;
+          y = maybe_y;
+          z = press_z_;
+        }
       }
       pressed_ = touched;
       return touched;

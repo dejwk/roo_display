@@ -7,7 +7,7 @@
 #include "roo_display/filter/color_filter.h"
 
 static const int smoothingWindowMs = 10;
-static const float smoothingFactor = 0.1;
+static const float smoothingFactor = 0.8;  // Closer to 1 -> more smoothing.
 
 namespace roo_display {
 
@@ -36,7 +36,7 @@ bool TouchDisplay::getTouch(int16_t& x, int16_t& y) {
     touched_ = true;
   } else if (now != last_sample_time_) {
     float k = (float)(now - last_sample_time_) / smoothingWindowMs;
-    float weight_past = pow(1 - smoothingFactor, k);
+    float weight_past = pow(smoothingFactor, k);
     float weight_present = 1 - weight_past;
     raw_touch_x_ = (int16_t)(raw_touch_x_ * weight_past + raw_x * weight_present);
     raw_touch_y_ = (int16_t)(raw_touch_y_ * weight_past + raw_y * weight_present);

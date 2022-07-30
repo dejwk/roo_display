@@ -201,7 +201,7 @@ void SmoothFont::drawBordered(DisplayOutput &output, int16_t x, int16_t y,
                               const Box &clip_box, Color bgColor,
                               PaintMode paint_mode) const {
   Box outer(x, y - metrics().glyphYMax(), x + bgwidth - 1,
-            y + metrics().maxHeight() - 1);
+            y - metrics().glyphYMin());
   if (bgColor.a() == 0xFF) paint_mode = PAINT_MODE_REPLACE;
   if (outer.clip(clip_box) == Box::CLIP_RESULT_EMPTY) return;
   Box inner = glyph.extents().translate(x, y);

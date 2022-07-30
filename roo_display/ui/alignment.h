@@ -115,6 +115,14 @@ class VAlign : public internal::Align {
   }
 
   // Returns an absolute vertical pixel offset implied by this alignment
+  // object, for the specified vertical bounds and the interior.
+  int16_t GetOffset(int16_t yMinOuter, int16_t yMaxOuter, int16_t yMinInner,
+                    int16_t yMaxInner) const {
+    return internal::Align::GetOffset(yMinOuter, yMaxOuter, yMinInner,
+                                      yMaxInner);
+  }
+
+  // Returns an absolute vertical pixel offset implied by this alignment
   // object, for the specified bounding rectangle and the interior rectangle.
   int16_t GetOffset(int16_t yMin, int16_t yMax) const {
     return internal::Align::GetOffset(yMin, yMax, 0, 0);

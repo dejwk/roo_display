@@ -5,136 +5,9 @@
 
 #include "roo_display/core/device.h"
 #include "roo_display/core/drawable.h"
+#include "roo_display/core/utf8.h"
 
 namespace roo_display {
-
-typedef uint16_t unicode_t;
-
-// Writes the UTF-8 representation of the rune to buf. The `buf` must have
-// sufficient size (4 is always safe). Returns the number of bytes actually
-// written.
-inline int EncodeRuneAsUtf8(uint32_t rune, uint8_t *buf) {
-  if (rune <= 0x7F) {
-    buf[0] = rune;
-    return 1;
-  }
-  if (rune <= 0x7FF) {
-    buf[1] = (rune & 0x3F) | 0x80;
-    rune >>= 6;
-    buf[0] = rune | 0xC0;
-    return 2;
-  }
-  if (rune <= 0xFFFF) {
-    buf[2] = (rune & 0x3F) | 0x80;
-    rune >>= 6;
-    buf[1] = (rune & 0x3F) | 0x80;
-    rune >>= 6;
-    buf[0] = rune | 0xE0;
-    return 3;
-  }
-  buf[3] = (rune & 0x3F) | 0x80;
-  rune >>= 6;
-  buf[2] = (rune & 0x3F) | 0x80;
-  rune >>= 6;
-  buf[1] = (rune & 0x3F) | 0x80;
-  rune >>= 6;
-  buf[0] = rune | 0xF0;
-  return 4;
-}
-
-class Utf8Decoder {
- public:
-  Utf8Decoder(const uint8_t *data, uint32_t size)
-      : data_(data), remaining_(size) {}
-  Utf8Decoder(const char *data, uint32_t size)
-      : data_((const uint8_t *)data), remaining_(size) {}
-
-  bool has_next() const { return remaining_ > 0; }
-  const uint8_t *data() const { return data_; }
-  uint32_t remaining() const { return remaining_; }
-
-  unicode_t next() {
-    --remaining_;
-    uint8_t first = *data_++;
-    // 7 bit Unicode
-    if ((first & 0x80) == 0x00) {
-      return first;
-    }
-
-    // 11 bit Unicode
-    if (((first & 0xE0) == 0xC0) && (remaining_ >= 1)) {
-      --remaining_;
-      uint8_t second = *data_++;
-      return ((first & 0x1F) << 6) | (second & 0x3F);
-    }
-
-    // 16 bit Unicode
-    if (((first & 0xF0) == 0xE0) && (remaining_ >= 2)) {
-      remaining_ -= 2;
-      uint8_t second = *data_++;
-      uint8_t third = *data_++;
-      return ((first & 0x0F) << 12) | ((second & 0x3F) << 6) | ((third & 0x3F));
-    }
-
-    // 21 bit Unicode not supported so fall-back to extended ASCII
-    if ((first & 0xF8) == 0xF0) {
-    }
-    // fall-back to extended ASCII
-    return first;
-  }
-
- private:
-  const uint8_t *data_;
-  uint32_t remaining_;
-};
-
-// Helper Utf8 iterator that allows to peek at up to 8 subsequent
-// characters before consuming the next one. Useful for fonts supporting
-// kerning and ligatures.
-class Utf8LookAheadDecoder {
- public:
-  Utf8LookAheadDecoder(const uint8_t *data, uint32_t size)
-      : decoder_(data, size), buffer_offset_(0), buffer_size_(0) {
-    // Fill in the lookahead buffer.
-    while (decoder_.has_next() && lookahead_buffer_size() < 8) {
-      push(decoder_.next());
-    }
-  }
-
-  int lookahead_buffer_size() const { return buffer_size_; }
-
-  bool has_next() const { return lookahead_buffer_size() > 0; }
-
-  unicode_t peek_next(int index) const {
-    assert(index < lookahead_buffer_size());
-    return buffer_[(buffer_offset_ + index) % 8];
-  }
-
-  unicode_t next() {
-    assert(has_next());
-    unicode_t result = buffer_[buffer_offset_];
-    ++buffer_offset_;
-    buffer_offset_ %= 8;
-    --buffer_size_;
-    if (decoder_.has_next()) {
-      push(decoder_.next());
-    }
-
-    return result;
-  }
-
- private:
-  void push(unicode_t c) {
-    assert(lookahead_buffer_size() < 8);
-    buffer_[(buffer_offset_ + buffer_size_) % 8] = c;
-    ++buffer_size_;
-  }
-
-  Utf8Decoder decoder_;
-  unicode_t buffer_[8];
-  int buffer_offset_;
-  int buffer_size_;
-};
 
 enum FontLayout { FONT_LAYOUT_HORIZONTAL, FONT_LAYOUT_VERTICAL };
 
@@ -261,10 +134,19 @@ class Font {
 
   // See https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html
 
+  void drawHorizontalString(const Surface &s, StringView text,
+                            Color color) const {
+    drawHorizontalString(s, text.data(), text.size(), color);
+  }
+
   virtual void drawHorizontalString(const Surface &s, const uint8_t *utf8_data,
                                     uint32_t size, Color color) const = 0;
 
   // Returns metrics of the specified string, as if it was a single glyph.
+  GlyphMetrics getHorizontalStringMetrics(StringView text) const {
+    return getHorizontalStringMetrics(text.data(), text.size());
+  }
+
   virtual GlyphMetrics getHorizontalStringMetrics(const uint8_t *utf8_data,
                                                   uint32_t size) const = 0;
 
@@ -274,6 +156,14 @@ class Font {
   // result is limited by `max_count`. Returns the number of glyphs actually
   // measured, which may be smaller than `max_count` if the input string is
   // shorter.
+  uint32_t getHorizontalStringGlyphMetrics(StringView text,
+                                           GlyphMetrics *result,
+                                           uint32_t offset,
+                                           uint32_t max_count) const {
+    return getHorizontalStringGlyphMetrics(text.data(), text.size(), result,
+                                           offset, max_count);
+  }
+
   virtual uint32_t getHorizontalStringGlyphMetrics(
       const uint8_t *utf8_data, uint32_t size, GlyphMetrics *result,
       uint32_t offset, uint32_t max_count) const = 0;

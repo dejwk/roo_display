@@ -40,8 +40,7 @@ class TextLabel : public Drawable {
         label_(std::move(label)),
         color_(color),
         fill_mode_(fill_mode),
-        metrics_(font_->getHorizontalStringMetrics(
-            (const uint8_t*)label_.c_str(), label_.length())),
+        metrics_(font_->getHorizontalStringMetrics(label_)),
         extents_(metrics_.glyphXMin(), -font_->metrics().glyphYMax(),
                  metrics_.glyphXMax(), -font_->metrics().glyphYMin()) {}
 
@@ -50,8 +49,7 @@ class TextLabel : public Drawable {
     if (fill_mode_ == FILL_MODE_RECTANGLE) {
       news.set_fill_mode(FILL_MODE_RECTANGLE);
     }
-    font_->drawHorizontalString(news, (const uint8_t*)label_.c_str(),
-                                label_.length(), color_);
+    font_->drawHorizontalString(news, label_, color_);
   }
 
   Box extents() const override { return extents_; }
@@ -88,14 +86,12 @@ class ClippedTextLabel : public Drawable {
       : font_(&font),
         label_(std::move(label)),
         color_(color),
-        metrics_(font_->getHorizontalStringMetrics(
-            (const uint8_t*)label_.c_str(), label_.length())) {}
+        metrics_(font_->getHorizontalStringMetrics(label_)) {}
 
   void drawTo(const Surface& s) const override {
     Surface news(s);
     news.clipToExtents(extents());
-    font_->drawHorizontalString(news, (const uint8_t*)label_.c_str(),
-                                label_.length(), color_);
+    font_->drawHorizontalString(news, label_, color_);
   }
 
   Box extents() const override { return metrics_.screen_extents(); }

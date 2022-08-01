@@ -17,15 +17,11 @@ class Label : public Drawable {
 
  private:
   void drawTo(const Surface &s) const override {
-    font().drawHorizontalString(s, (const uint8_t *)label_.c_str(),
-                                label_.length(), color::White);
+    font().drawHorizontalString(s, label_, color::White);
   }
 
   Box extents() const override {
-    return font()
-        .getHorizontalStringMetrics((const uint8_t *)label_.c_str(),
-                                    label_.length())
-        .screen_extents();
+    return font().getHorizontalStringMetrics(label_).screen_extents();
   }
 
   std::string label_;
@@ -46,8 +42,7 @@ TEST(SmoothFontTest, FontMetrics) {
 
 TEST(SmoothFontTest, HorizontalStringMetrics) {
   string text = "Aftp";
-  GlyphMetrics metrics =
-      font().getHorizontalStringMetrics((const uint8_t *)text.c_str(), 4);
+  GlyphMetrics metrics = font().getHorizontalStringMetrics(text);
   EXPECT_EQ(-1, metrics.bearingX());
   EXPECT_EQ(-1, metrics.lsb());
   EXPECT_EQ(-1, metrics.glyphXMin());

@@ -34,12 +34,6 @@ St7789spi_172x320<5, 2, 4> device;
 
 Display display(device);
 
-// Return Horizontal size of font/string combo (font.h)
-GlyphMetrics getAsciiStringMetrics(const Font& font, const std::string& ascii) {
-  return font.getHorizontalStringMetrics((const uint8_t*)ascii.c_str(),
-                                         ascii.size());
-}
-
 //FWD Declarations
 void initNTP(std::string s);
 bool getNTPtime(int sec);
@@ -88,9 +82,9 @@ void loop() {
   const Font& timeFont = font_NotoSans_Bold_60();
   const Font& dateFont = font_NotoSans_Regular_40();
 
-  GlyphMetrics timeMetrics = getAsciiStringMetrics(timeFont, "00:00:00");
+  GlyphMetrics timeMetrics = timeFont.getHorizontalStringMetrics("00:00:00");
   Box timeBox = timeMetrics.screen_extents();
-  GlyphMetrics dateMetrics = getAsciiStringMetrics(dateFont, "00/00/0000");
+  GlyphMetrics dateMetrics = dateFont.getHorizontalStringMetrics("00/00/0000");
   Box dateBox = dateMetrics.screen_extents();
 
   getNTPtime(10);

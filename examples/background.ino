@@ -248,11 +248,6 @@ void printCentered(const std::string& text, int16_t y) {
           (display.height() - label.extents().height()) / 2 + y);
 }
 
-GlyphMetrics getAsciiStringMetrics(const Font& font, const std::string& ascii) {
-  return font.getHorizontalStringMetrics((const uint8_t*)ascii.c_str(),
-                                         ascii.size());
-}
-
 void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {
   if (benchmark->background) {
     display.setBackground(&slantedGradient);
@@ -274,10 +269,11 @@ void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {
   // various bearings; e.g., '1' will be narrower than '0'. As a result,
   // aligning to left or to right will not work as expected. We need to use
   // 'absolute' alignment, so that the bearings don't get coalesced.
-  GlyphMetrics digitMetrics = getAsciiStringMetrics(timerFont, "0");
-  GlyphMetrics timerMetrics = getAsciiStringMetrics(timerFont, "00\"000");
+  GlyphMetrics digitMetrics = timerFont.getHorizontalStringMetrics("0");
+  GlyphMetrics timerMetrics = timerFont.getHorizontalStringMetrics("00\"000");
   Box timerBox = timerMetrics.screen_extents();
-  Box fpsBox = getAsciiStringMetrics(fpsFont, "100000.0 fps").screen_extents();
+  Box fpsBox =
+      fpsFont.getHorizontalStringMetrics("100000.0 fps").screen_extents();
 
   // Draw label of the benchmark.
   std::string bgStr =

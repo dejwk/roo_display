@@ -38,6 +38,8 @@ struct Emulator {
   }
 } emulator;
 
+#endif
+
 #include <string>
 
 #include "roo_display.h"

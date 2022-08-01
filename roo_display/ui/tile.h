@@ -187,9 +187,23 @@ class TileOf : public internal::TileBase {
 };
 
 // Convenience function that creates a tile with a specified interior.
-template <typename DrawableType, typename... Args>
-TileOf<DrawableType> MakeTileOf(DrawableType interior, Args &&...args) {
-  return TileOf<DrawableType>(std::move(interior), std::forward<Args>(args)...);
+template <typename DrawableType>
+TileOf<DrawableType> MakeTileOf(DrawableType interior, Box extents,
+                                HAlign halign, VAlign valign,
+                                Color bgcolor = color::Transparent,
+                                FillMode fill_mode = FILL_MODE_RECTANGLE) {
+  return TileOf<DrawableType>(std::move(interior), std::move(extents), halign,
+                              valign, bgcolor, fill_mode);
+}
+
+// Similar to the above, but takes an arbitrary background.
+template <typename DrawableType>
+TileOf<DrawableType> MakeTileOf(DrawableType interior, Box extents,
+                                HAlign halign, VAlign valign,
+                                const Rasterizable *background,
+                                FillMode fill_mode = FILL_MODE_RECTANGLE) {
+  return TileOf<DrawableType>(std::move(interior), std::move(extents), halign,
+                              valign, background, fill_mode);
 }
 
 }  // namespace roo_display

@@ -16,9 +16,7 @@ struct Emulator {
   FakeSt77xxSpi display;
 
   Emulator()
-      : viewport(),
-        flexViewport(viewport, 1),
-        display(flexViewport, 240, 240) {
+      : viewport(), flexViewport(viewport, 1), display(flexViewport, 240, 240) {
     FakeEsp32().attachSpiDevice(display, 18, 19, 23);
     FakeEsp32().gpio.attachOutput(5, display.cs());
     FakeEsp32().gpio.attachOutput(2, display.dc());
@@ -55,7 +53,7 @@ using namespace roo_display;
 // to repetitive drawing using clip regions.
 
 // Change these two lines to use a different driver, transport, or pins.
-#include "roo_display/driver/st7789.h" 
+#include "roo_display/driver/st7789.h"
 St7789spi_240x240<5, 2, 4> device;
 
 Display display(device);
@@ -76,10 +74,10 @@ class Widget : public Drawable {
   void drawTo(const Surface& s) const override {
     s.drawObject(FilledRect(0, 0, 19, 39, color::IndianRed));
     s.drawObject(FilledRect(20, 0, 39, 39, color::LightGreen));
-    s.drawObject(
-        MakeTileOf(TextLabel(font_NotoSerif_Italic_27(), "FJ", color::Black),
-                   Box(5, 2, 34, 37), HAlign::Center(), VAlign::Middle(),
-                   color::Transparent, fill_mode_));
+    s.drawObject(MakeTileOf(
+        StringViewLabel(font_NotoSerif_Italic_27(), "FJ", color::Black),
+        Box(5, 2, 34, 37), HAlign::Center(), VAlign::Middle(),
+        color::Transparent, fill_mode_));
   }
 
  private:

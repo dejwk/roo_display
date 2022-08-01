@@ -16,9 +16,7 @@ struct Emulator {
   FakeSt77xxSpi display;
 
   Emulator()
-      : viewport(),
-        flexViewport(viewport, 2),
-        display(flexViewport, 240, 240) {
+      : viewport(), flexViewport(viewport, 2), display(flexViewport, 240, 240) {
     FakeEsp32().attachSpiDevice(display, 18, 19, 23);
     FakeEsp32().gpio.attachOutput(5, display.cs());
     FakeEsp32().gpio.attachOutput(2, display.dc());
@@ -121,9 +119,8 @@ void polarToCartesian(float angle, int16_t radius, int16_t* x, int16_t* y) {
 }
 
 void fillMask(float angleStart, float angleEnd, int16_t radius) {
-  Offscreen<Monochrome> offscreen(
-      display.width(), display.height(), clipmask,
-      Monochrome(color::White, color::Transparent));
+  Offscreen<Monochrome> offscreen(display.width(), display.height(), clipmask,
+                                  Monochrome(color::White, color::Transparent));
   int16_t quadrantStart = (int16_t)(angleStart / 90);
   int16_t quadrantEnd = (int16_t)(angleEnd / 90);
   DrawingContext odc(offscreen);
@@ -133,7 +130,7 @@ void fillMask(float angleStart, float angleEnd, int16_t radius) {
   while (quadrantStart < quadrantEnd) {
     polarToCartesian((quadrantStart + 1) * 90, 2 * radius, &x2, &y2);
     odc.erase(FilledTriangle(0, 0, x1, y1, x2, y2, color::Black),
-             display.width() / 2, display.height() / 2);
+              display.width() / 2, display.height() / 2);
     quadrantStart++;
     x1 = x2;
     y1 = y2;
@@ -141,7 +138,7 @@ void fillMask(float angleStart, float angleEnd, int16_t radius) {
   // Simple case; just draw the triangle and be done with it.
   polarToCartesian(angleEnd, 2 * radius, &x2, &y2);
   odc.erase(FilledTriangle(0, 0, x1, y1, x2, y2, color::Black),
-           display.width() / 2, display.height() / 2);
+            display.width() / 2, display.height() / 2);
   return;
 }
 
@@ -176,33 +173,31 @@ void pieChart() {
 
 // Note: graphic primitives are small objects, and it's quite OK to pass them
 // by value, particularly that the compiler can optimize most copying away.
-TileOf<TextLabel> centeredLabel(const std::string& content, Color color,
-                                Color bgcolor = color::Transparent) {
-  return MakeTileOf(TextLabel(font_NotoSerif_Italic_90(), content, color),
+TileOf<StringViewLabel> centeredStringViewLabel(
+    StringView content, Color color, Color bgcolor = color::Transparent) {
+  return MakeTileOf(StringViewLabel(font_NotoSerif_Italic_90(), content, color),
                     display.extents(), HAlign::Center(), VAlign::Middle(),
                     bgcolor);
 }
 
 void clippedFont1() {
-  Offscreen<Monochrome> offscreen(
-      display.width(), display.height(), clipmask,
-      Monochrome(color::White, color::Transparent));
+  Offscreen<Monochrome> offscreen(display.width(), display.height(), clipmask,
+                                  Monochrome(color::White, color::Transparent));
   DrawingContext odc(offscreen);
   odc.fill(color::White);
-  odc.erase(FilledCircle::ByRadius(display.width() / 2, display.height() / 2, 50,
-                                   color::Black));
+  odc.erase(FilledCircle::ByRadius(display.width() / 2, display.height() / 2,
+                                   50, color::Black));
 
   DrawingContext dc(display);
   dc.fill(color::LightGray);
   ClipMask mask(clipmask, display.extents());
   dc.setClipMask(&mask);
-  dc.draw(centeredLabel("JF", color::Black, color::LightBlue));
+  dc.draw(centeredStringViewLabel("JF", color::Black, color::LightBlue));
 }
 
 void clippedFont2() {
-  Offscreen<Monochrome> offscreen(
-      display.width(), display.height(), clipmask,
-      Monochrome(color::Black, color::White));
+  Offscreen<Monochrome> offscreen(display.width(), display.height(), clipmask,
+                                  Monochrome(color::Black, color::White));
 
   DrawingContext dc(display);
   dc.fill(color::LightGray);
@@ -215,7 +210,7 @@ void clippedFont2() {
       odc.draw(FilledRect(0, i, display.width() - 1, i + 1, color::Black));
     }
   }
-  dc.draw(centeredLabel("Ostendo", color::Black));
+  dc.draw(centeredStringViewLabel("Ostendo", color::Black));
   {
     DrawingContext odc(offscreen);
     odc.fill(color::White);
@@ -223,7 +218,7 @@ void clippedFont2() {
       odc.draw(FilledRect(0, i, display.width() - 1, i + 1, color::Black));
     }
   }
-  dc.draw(centeredLabel("Ostendo", color::Red));
+  dc.draw(centeredStringViewLabel("Ostendo", color::Red));
 }
 
 void loop() {

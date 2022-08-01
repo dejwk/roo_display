@@ -90,11 +90,11 @@ void loop() {
   getNTPtime(10);
   stringifyTime(timeinfo,time,date);
 
-  auto t_label = ClippedTextLabel(timeFont, time, color::BlueViolet);
+  auto t_label = ClippedStringViewLabel(timeFont, time, color::BlueViolet);
   auto t_tile = MakeTileOf(t_label, timeBox, HAlign::None(), VAlign::None(), 
                         color::Transparent, FillMode::FILL_MODE_RECTANGLE);
 
-  auto d_label = ClippedTextLabel(dateFont, date, color::BlanchedAlmond);
+  auto d_label = ClippedStringViewLabel(dateFont, date, color::BlanchedAlmond);
   auto d_tile = MakeTileOf(d_label, dateBox, HAlign::None(), VAlign::None(), 
                         color::Transparent, FillMode::FILL_MODE_RECTANGLE);
 
@@ -168,7 +168,7 @@ void bootMsg(std::string s){
   const Font& font = font_NotoSans_Regular_40();
   DrawingContext dc(display);
   display.clear();
-  dc.draw(TextLabel(font, s, color::Black), 10, display.height()/2);
+  dc.draw(StringViewLabel(font, s, color::Black), 10, display.height()/2);
 }
 
 // Connect to WiFi

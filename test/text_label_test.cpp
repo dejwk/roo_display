@@ -51,4 +51,29 @@ TEST(TextLabel, SimpleTextNoBackground) {
                                      "                          "));
 }
 
+TEST(StringViewLabel, SimpleTextNoBackground) {
+  FakeScreen<Argb4444> screen(26, 18, color::Black);
+  StringViewLabel label(font12(), "Aftp", color::White);
+  screen.Draw(label, 2, 14);
+  EXPECT_THAT(screen, MatchesContent(Grayscale4(), 26, 18,
+                                     "                          "
+                                     "                          "
+                                     "                          "
+                                     "                          "
+                                     "           3DE2           "
+                                     "     4*2   B5  5          "
+                                     "     CC4   *  1C          "
+                                     "    5A96 3C*E5D*E4688EA   "
+                                     "    C377  6A  97  9D4 D3  "
+                                     "   5A 69  97  C4  C7  B5  "
+                                     "   DEEEB  C3  E1  *1  D3  "
+                                     "  6B114D  *1 2D  2E  2E   "
+                                     "  D3  1* 3D  4C  5*2 B8   "
+                                     " 6B    E16A  1CE397CE9    "
+                                     "         97      C4       "  // Baseline.
+                                     "         D2      E1       "
+                                     "       4E8      2D        "
+                                     "                          "));
+}
+
 }  // namespace roo_display

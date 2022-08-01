@@ -43,7 +43,7 @@ using namespace roo_display;
 // string labels, as is demonstrated in this example.
 
 // Change these two lines to use a different driver, transport, or pins.
-#include "roo_display/driver/st7789.h" 
+#include "roo_display/driver/st7789.h"
 St7789spi_240x240<5, 2, 4> device;
 
 Display display(device);
@@ -91,8 +91,8 @@ void loop(void) {
     utf8[2] = (c & 0x3F) | 0x80;
     utf8[3] = 0;
   }
-  TextLabel label(font_NotoSerif_BoldItalic_27(),
-                  std::string((const char*)utf8), fg, FILL_MODE_RECTANGLE);
+  StringViewLabel label(font_NotoSerif_BoldItalic_27(), (const char*)utf8, fg,
+                        FILL_MODE_RECTANGLE);
   DrawingContext dc(display);
   dc.setBackground(bg);
   dc.setTransform(Transform()

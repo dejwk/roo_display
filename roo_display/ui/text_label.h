@@ -1,6 +1,7 @@
 #pragma once
 
 #include <inttypes.h>
+
 #include <string>
 
 #include "roo_display/core/drawable.h"
@@ -27,6 +28,8 @@ namespace roo_display {
 // When using for text fields whose values may be changing on the screen,
 // you want to enclose TextLabel in a Tile, which supports flicker-less
 // redrawing.
+//
+// See also StringViewLabel.
 class TextLabel : public Drawable {
  public:
   template <typename String>
@@ -46,10 +49,10 @@ class TextLabel : public Drawable {
 
   void drawTo(const Surface& s) const override {
     Surface news = s;
-    if (fill_mode_ == FILL_MODE_RECTANGLE) {
+    if (fill_mode() == FILL_MODE_RECTANGLE) {
       news.set_fill_mode(FILL_MODE_RECTANGLE);
     }
-    font_->drawHorizontalString(news, label_, color_);
+    font().drawHorizontalString(news, label(), color());
   }
 
   Box extents() const override { return extents_; }
@@ -76,37 +79,87 @@ class TextLabel : public Drawable {
 // bounding box of the rendered text; i.e. the smallest rectangle that fits
 // all pixels. The origin is at the text's reference point; i.e. at the text
 // baseline, and horizontally affected by the text's bearing.
-class ClippedTextLabel : public Drawable {
+class ClippedTextLabel : public TextLabel {
  public:
-  template <typename String>
-  ClippedTextLabel(const Font& font, const String& label, Color color)
-      : ClippedTextLabel(font, std::string(std::move(label)), color) {}
-
-  ClippedTextLabel(const Font& font, std::string label, Color color)
-      : font_(&font),
-        label_(std::move(label)),
-        color_(color),
-        metrics_(font_->getHorizontalStringMetrics(label_)) {}
+  using TextLabel::TextLabel;
 
   void drawTo(const Surface& s) const override {
     Surface news(s);
-    news.clipToExtents(extents());
-    font_->drawHorizontalString(news, label_, color_);
+    if (fill_mode() == FILL_MODE_RECTANGLE) {
+      news.set_fill_mode(FILL_MODE_RECTANGLE);
+    }
+    news.clipToExtents(metrics().screen_extents());
+    font().drawHorizontalString(news, label(), color());
   }
 
-  Box extents() const override { return metrics_.screen_extents(); }
+  Box extents() const override { return metrics().screen_extents(); }
+};
+
+// Similar to TextLabel, but the text content is not owned. Does not use any
+// dynamic memory allocation. Perfect when the labels are const literals, or if
+// the label is created temporarily during drawing.
+class StringViewLabel : public Drawable {
+ public:
+  template <typename String>
+  StringViewLabel(const Font& font, const String& label, Color color,
+                  FillMode fill_mode = FILL_MODE_VISIBLE)
+      : StringViewLabel(font, StringView(std::move(label)), color, fill_mode) {}
+
+  StringViewLabel(const Font& font, StringView label, Color color,
+                  FillMode fill_mode = FILL_MODE_VISIBLE)
+      : font_(&font),
+        label_(std::move(label)),
+        color_(color),
+        fill_mode_(fill_mode),
+        metrics_(font_->getHorizontalStringMetrics(label_)),
+        extents_(metrics_.glyphXMin(), -font_->metrics().glyphYMax(),
+                 metrics_.glyphXMax(), -font_->metrics().glyphYMin()) {}
+
+  void drawTo(const Surface& s) const override {
+    Surface news = s;
+    if (fill_mode() == FILL_MODE_RECTANGLE) {
+      news.set_fill_mode(FILL_MODE_RECTANGLE);
+    }
+    font().drawHorizontalString(news, label(), color());
+  }
+
+  Box extents() const override { return extents_; }
 
   const Font& font() const { return *font_; }
   const GlyphMetrics& metrics() const { return metrics_; }
-  const std::string& label() const { return label_; }
+  const StringView label() const { return label_; }
   const Color color() const { return color_; }
+  const FillMode fill_mode() const { return fill_mode_; }
+
+  void setColor(Color color) { color_ = color; }
+  void setFillMode(FillMode fill_mode) { fill_mode_ = fill_mode; }
 
  private:
   const Font* font_;
-  std::string label_;
+  StringView label_;
   Color color_;
+  FillMode fill_mode_;
   GlyphMetrics metrics_;
   Box extents_;
+};
+
+// Similar to ClippedTextLabel, but the text content is not owned. Does not use
+// any dynamic memory allocation. Perfect when the labels are const literals, or
+// if the label is created temporarily during drawing.
+class ClippedStringViewLabel : public StringViewLabel {
+ public:
+  using StringViewLabel::StringViewLabel;
+
+  void drawTo(const Surface& s) const override {
+    Surface news(s);
+    if (fill_mode() == FILL_MODE_RECTANGLE) {
+      news.set_fill_mode(FILL_MODE_RECTANGLE);
+    }
+    news.clipToExtents(metrics().screen_extents());
+    font().drawHorizontalString(news, label(), color());
+  }
+
+  Box extents() const override { return metrics().screen_extents(); }
 };
 
 }  // namespace roo_display

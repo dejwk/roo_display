@@ -124,7 +124,7 @@ Point calculateSpiralXY(double time) {
 }
 
 void someFunWithAntiAliasedFonts() {
-  TextLabel qa(font_NotoSerif_Italic_60(), "Ostendo", color::Black);
+  StringViewLabel qa(font_NotoSerif_Italic_60(), "Ostendo", color::Black);
   // Now, we make a memory copy of the rendered label. By using Alpha4 with
   // no background, we only use half-byte per pixel, yet we wan apply
   // arbitrary colors to the text and still enjoy anti-aliasing.

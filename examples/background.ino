@@ -162,8 +162,8 @@ void tileWithSemiTransparentBackground() {
   for (int i = 0; i < 1000; i++) {
     auto label =
         StringViewLabel(font_NotoSans_Italic_27(), "Ostendo", color::Black);
-    auto tile = MakeTileOf(label, Box(0, 0, 103, 27), HAlign::Center(),
-                           VAlign::Middle(), &hashGrid);
+    auto tile =
+        MakeTileOf(label, Box(0, 0, 103, 27), kCenter | kMiddle, &hashGrid);
     int16_t dx = (display.width() - tile.extents().width()) / 2;
     int16_t dy = (display.height() - tile.extents().height()) / 2;
     {
@@ -310,7 +310,7 @@ void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {
       // Try experimenting, e.g. unconditionally setting fill mode to
       // FILL_MODE_VISIBLE, and see how it affects rendering.
       auto tile = MakeTileOf(
-          label, timerBox, HAlign::None(), VAlign::None(), color::Transparent,
+          label, timerBox, kNoAlign, color::Transparent,
           (benchmark->inplace ? FILL_MODE_RECTANGLE : FILL_MODE_VISIBLE));
       auto clear = Clear();
       DrawingContext dc(display);
@@ -347,9 +347,8 @@ void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {
         lastFpsRefresh = t;
         StringPrinter p;
         p.printf("%0.1f fps", fps);
-        auto fpsTile =
-            MakeTileOf(StringViewLabel(fpsFont, p.get(), color::Black), fpsBox,
-                       HAlign::Center(), VAlign::None());
+        auto fpsTile = MakeTileOf(
+            StringViewLabel(fpsFont, p.get(), color::Black), fpsBox, kCenter);
         dc.draw(fpsTile, -fpsBox.width() / 2, -fpsBox.height() / 2 + 30);
       }
     }
@@ -415,10 +414,11 @@ void scrollingText() {
   display.setBackground(&tile_pattern);
   display.clear();
 
-  StringViewLabel label(font_NotoSans_Italic_40(),
-                  "Check out this awesome text banner. Note anti-aliased "
-                  "glyphs, with overlapping bounding boxes: 'Afy', 'fff'.  ",
-                  color::DarkRed, FILL_MODE_RECTANGLE);
+  StringViewLabel label(
+      font_NotoSans_Italic_40(),
+      "Check out this awesome text banner. Note anti-aliased "
+      "glyphs, with overlapping bounding boxes: 'Afy', 'fff'.  ",
+      color::DarkRed, FILL_MODE_RECTANGLE);
   int16_t dy = (label.font().metrics().ascent() + display.height()) / 2;
   for (int i = 0; i < label.extents().width(); i += 8) {
     {

@@ -76,7 +76,7 @@ class Widget : public Drawable {
     s.drawObject(FilledRect(20, 0, 39, 39, color::LightGreen));
     s.drawObject(MakeTileOf(
         StringViewLabel(font_NotoSerif_Italic_27(), "FJ", color::Black),
-        Box(5, 2, 34, 37), HAlign::Center(), VAlign::Middle(),
+        Box(5, 2, 34, 37), kCenter | kMiddle,
         color::Transparent, fill_mode_));
   }
 

@@ -108,8 +108,7 @@ TEST(DrawingContext, DrawAlignedTopLeft) {
   Display display(test_screen);
   {
     DrawingContext dc(display);
-    dc.draw(SolidRect(1, 2, 3, 4, color::White), 2, 3, HAlign::Left(),
-            VAlign::Top());
+    dc.draw(SolidRect(1, 2, 3, 4, color::White), 2, 3, kLeft | kTop);
   }
   EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
                                           "          "
@@ -130,7 +129,7 @@ TEST(DrawingContext, DrawAlignedBottom) {
   Display display(test_screen);
   {
     DrawingContext dc(display);
-    dc.draw(SolidRect(1, 2, 3, 4, color::White), 2, 6, VAlign::Bottom());
+    dc.draw(SolidRect(1, 2, 3, 4, color::White), 2, 6, kBottom);
   }
   EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
                                           "          "
@@ -152,8 +151,7 @@ TEST(DrawingContext, DrawTransformed) {
   {
     DrawingContext dc(display);
     dc.setTransform(Transform().scale(2, 3));
-    dc.draw(SolidRect(1, 2, 3, 4, color::White), 2, 1, HAlign::Left(),
-            VAlign::Top());
+    dc.draw(SolidRect(1, 2, 3, 4, color::White), 2, 1, kLeft | kTop);
   }
   EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
                                           "          "

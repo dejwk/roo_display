@@ -18,7 +18,8 @@ class FrontToBackWriter;
 class TouchDisplay {
  public:
   TouchDisplay(DisplayDevice &display_device, TouchDevice &touch_device)
-      : display_device_(display_device), touch_device_(touch_device),
+      : display_device_(display_device),
+        touch_device_(touch_device),
         touched_(false) {}
 
   bool getTouch(int16_t &x, int16_t &y);
@@ -235,7 +236,7 @@ class DrawingContext {
 
   void setWriteOnce();
 
-  void drawPixels(const std::function<void(ClippingBufferedPixelWriter&)>& fn,
+  void drawPixels(const std::function<void(ClippingBufferedPixelWriter &)> &fn,
                   PaintMode paint_mode = PAINT_MODE_BLEND);
 
   // Draws the object using its inherent coordinates. The point (0, 0) in the
@@ -261,29 +262,16 @@ class DrawingContext {
   //
   // TextLabel label(...);
   // dc.draw(label, dx - label.metrics().advance(), dy);
-  void draw(const Drawable &object, int16_t dx, int16_t dy, HAlign halign,
-            VAlign valign) {
+  void draw(const Drawable &object, int16_t dx, int16_t dy,
+            Alignment alignment) {
     const Box &extents = object.extents();
     int16_t xMin = extents.xMin();
     int16_t yMin = extents.yMin();
     int16_t xMax = extents.xMax();
     int16_t yMax = extents.yMax();
     if (transformed_) transform_.transformRect(xMin, yMin, xMax, yMax);
-    drawInternal(object, dx - halign.GetOffset(xMin, xMax),
-                 dy - valign.GetOffset(yMin, yMax), bgcolor_);
-  }
-
-  void draw(const Drawable &object, int16_t dx, int16_t dy, HAlign halign) {
-    draw(object, dx, dy, halign, VAlign::None());
-  }
-
-  void draw(const Drawable &object, int16_t dx, int16_t dy, VAlign valign) {
-    draw(object, dx, dy, HAlign::None(), valign);
-  }
-
-  void draw(const Drawable &object, int16_t dx, int16_t dy, VAlign valign,
-            HAlign halign) {
-    draw(object, dx, dy, halign, valign);
+    drawInternal(object, dx - alignment.h().GetOffset(xMin, xMax),
+                 dy - alignment.v().GetOffset(yMin, yMax), bgcolor_);
   }
 
   // Analogous to draw(object), but instead of drawing, replaces all the output
@@ -296,8 +284,8 @@ class DrawingContext {
 
   // Analogous to draw(object, dx, dy, halign, valign), but instead of drawing,
   // replaces all the output pixels with the background color.
-  void erase(const Drawable &object, int16_t dx, int16_t dy, HAlign halign,
-             VAlign valign);
+  void erase(const Drawable &object, int16_t dx, int16_t dy,
+             Alignment alignment);
 
  private:
   DisplayOutput &output() { return output_; }

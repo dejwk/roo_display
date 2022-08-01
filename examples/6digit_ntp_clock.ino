@@ -131,12 +131,10 @@ void loop() {
   stringifyTime(timeinfo,time,date);
 
   auto t_label = ClippedStringViewLabel(timeFont, time, color::BlueViolet);
-  auto t_tile = MakeTileOf(t_label, timeBox, HAlign::None(), VAlign::None(), 
-                        color::Transparent, FillMode::FILL_MODE_RECTANGLE);
+  auto t_tile = MakeTileOf(t_label, timeBox);
 
   auto d_label = ClippedStringViewLabel(dateFont, date, color::BlanchedAlmond);
-  auto d_tile = MakeTileOf(d_label, dateBox, HAlign::None(), VAlign::None(), 
-                        color::Transparent, FillMode::FILL_MODE_RECTANGLE);
+  auto d_tile = MakeTileOf(d_label, dateBox);
 
   DrawingContext dc(display);
   // Translate dc to center of display

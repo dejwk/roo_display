@@ -12,10 +12,11 @@ namespace internal {
 
 class SolidBorder {
  public:
-  SolidBorder(Box extents, Box interior, HAlign halign, VAlign valign)
+  SolidBorder(Box extents, Box interior, HAlign halign, VAlign valign,
+              int16_t dx, int16_t dy)
       : extents_(std::move(extents)),
-        x_offset_(halign.GetOffset(extents_, interior)),
-        y_offset_(valign.GetOffset(extents_, interior)),
+        x_offset_(halign.GetOffset(extents_, interior) + dx),
+        y_offset_(valign.GetOffset(extents_, interior) + dy),
         interior_(Box::intersect(interior.translate(x_offset_, y_offset_),
                                  extents_)) {}
 
@@ -42,19 +43,20 @@ class SolidBorder {
 
 class TileBase : public Drawable {
  public:
-  TileBase(const Drawable &interior, Box extents, HAlign halign, VAlign valign,
-           Color bgcolor, FillMode fill_mode = FILL_MODE_RECTANGLE)
-      : border_(std::move(extents), std::move(interior.extents()), halign,
-                valign),
+  TileBase(const Drawable &interior, Box extents, Alignment alignment,
+           int16_t dx, int16_t dy, Color bgcolor,
+           FillMode fill_mode = FILL_MODE_RECTANGLE)
+      : border_(std::move(extents), std::move(interior.extents()),
+                alignment.h(), alignment.v(), dx, dy),
         bgcolor_(bgcolor),
         background_(nullptr),
         fill_mode_(fill_mode) {}
 
-  TileBase(const Drawable &interior, Box extents, HAlign halign, VAlign valign,
-           const Rasterizable *background,
+  TileBase(const Drawable &interior, Box extents, Alignment alignment,
+           int16_t dx, int16_t dy, const Rasterizable *background,
            FillMode fill_mode = FILL_MODE_RECTANGLE)
-      : border_(std::move(extents), std::move(interior.extents()), halign,
-                valign),
+      : border_(std::move(extents), std::move(interior.extents()),
+                alignment.h(), alignment.v(), dx, dy),
         bgcolor_(color::Transparent),
         background_(background),
         fill_mode_(fill_mode) {}
@@ -128,17 +130,27 @@ class Tile : public internal::TileBase {
   // constraints. The function returns the same bounds that the interior will
   // have when a tile with these pararameters is drawn.
   static Box InteriorBounds(const Box &exterior, const Box &interior,
-                            HAlign halign, VAlign valign) {
-    return interior.translate(halign.GetOffset(exterior, interior),
-                              valign.GetOffset(exterior, interior));
+                            Alignment alignment, int16_t dx = 0,
+                            int16_t dy = 0) {
+    return interior.translate(alignment.h().GetOffset(exterior, interior) + dx,
+                              alignment.v().GetOffset(exterior, interior) + dy);
   }
 
   // Creates a tile with the specified interior, alignment, and optionally
   // background color.
-  Tile(const Drawable *interior, Box extents, HAlign halign, VAlign valign,
+  Tile(const Drawable *interior, Box extents, Alignment alignment,
        Color bgcolor = color::Transparent,
        FillMode fill_mode = FILL_MODE_RECTANGLE)
-      : internal::TileBase(*interior, extents, halign, valign, bgcolor,
+      : internal::TileBase(*interior, extents, alignment, 0, 0, bgcolor,
+                           fill_mode),
+        interior_(interior) {}
+
+  // Creates a tile with the specified interior, alignment, interior offset,
+  // and optionally background color.
+  Tile(const Drawable *interior, Box extents, Alignment alignment, int16_t dx,
+       int16_t dy, Color bgcolor = color::Transparent,
+       FillMode fill_mode = FILL_MODE_RECTANGLE)
+      : internal::TileBase(*interior, extents, alignment, dx, dy, bgcolor,
                            fill_mode),
         interior_(interior) {}
 
@@ -159,23 +171,37 @@ class TileOf : public internal::TileBase {
  public:
   // Creates a tile with the specified interior, alignment, and optionally
   // background color.
-  TileOf(DrawableType interior, Box extents, HAlign halign, VAlign valign,
+  TileOf(DrawableType interior, Box extents, Alignment alignment,
          Color bgcolor = color::Transparent,
          FillMode fill_mode = FILL_MODE_RECTANGLE)
-      : internal::TileBase(interior, extents, halign, valign, bgcolor,
+      : internal::TileBase(interior, extents, alignment, 0, 0, bgcolor,
                            fill_mode),
         interior_(std::move(interior)) {}
 
-  TileOf(DrawableType interior, Box extents, HAlign halign, VAlign valign,
+  TileOf(DrawableType interior, Box extents, Alignment alignment, int16_t dx,
+         int16_t dy, Color bgcolor = color::Transparent,
+         FillMode fill_mode = FILL_MODE_RECTANGLE)
+      : internal::TileBase(interior, extents, alignment, dx, dy, bgcolor,
+                           fill_mode),
+        interior_(std::move(interior)) {}
+
+  TileOf(DrawableType interior, Box extents, Alignment alignment,
          const Rasterizable *background,
          FillMode fill_mode = FILL_MODE_RECTANGLE)
-      : internal::TileBase(interior, extents, halign, valign, background,
+      : internal::TileBase(interior, extents, alignment, 0, 0, background,
                            fill_mode),
+        interior_(std::move(interior)) {}
+
+  TileOf(DrawableType interior, Box extents, Alignment alignment, int16_t dx,
+         int16_t dy, const Rasterizable *background,
+         FillMode fill_mode = FILL_MODE_RECTANGLE)
+      : internal::TileBase(interior, extents, alignment, alignment, dx, dy,
+                           background, fill_mode),
         interior_(std::move(interior)) {}
 
   // template <typename... Args>
-  // TileOf(Rect extents, HAlign halign, VAlign valign, Args &&... args)
-  //     : internal::TileBase(interior, extents, halign, valign),
+  // TileOf(Rect extents, HAlign halignment,VAlign valignment,Args &&... args)
+  //     : internal::TileBase(interior, extents, halignment,valign),
   //       interior_(std::forward<Args>(args)...),
   //       border_(std::move(extents),
   //               interior_.extents().translate(x_offset, y_offset)) {}
@@ -186,24 +212,46 @@ class TileOf : public internal::TileBase {
   DrawableType interior_;
 };
 
-// Convenience function that creates a tile with a specified interior.
+// Convenience function that creates a tile with a specified interior and an
+// optional alignment.
 template <typename DrawableType>
 TileOf<DrawableType> MakeTileOf(DrawableType interior, Box extents,
-                                HAlign halign, VAlign valign,
+                                Alignment alignment = kNoAlign,
                                 Color bgcolor = color::Transparent,
                                 FillMode fill_mode = FILL_MODE_RECTANGLE) {
-  return TileOf<DrawableType>(std::move(interior), std::move(extents), halign,
-                              valign, bgcolor, fill_mode);
+  return TileOf<DrawableType>(std::move(interior), std::move(extents),
+                              alignment, bgcolor, fill_mode);
+}
+
+// Convenience function that creates a tile with a specified interior,
+// alignment, and an absolute interior offset.
+template <typename DrawableType>
+TileOf<DrawableType> MakeTileOf(DrawableType interior, Box extents,
+                                Alignment alignment, int16_t dx, int16_t dy,
+                                Color bgcolor = color::Transparent,
+                                FillMode fill_mode = FILL_MODE_RECTANGLE) {
+  return TileOf<DrawableType>(std::move(interior), std::move(extents),
+                              alignment, dx, dy, bgcolor, fill_mode);
 }
 
 // Similar to the above, but takes an arbitrary background.
 template <typename DrawableType>
 TileOf<DrawableType> MakeTileOf(DrawableType interior, Box extents,
-                                HAlign halign, VAlign valign,
+                                Alignment alignment,
                                 const Rasterizable *background,
                                 FillMode fill_mode = FILL_MODE_RECTANGLE) {
-  return TileOf<DrawableType>(std::move(interior), std::move(extents), halign,
-                              valign, background, fill_mode);
+  return TileOf<DrawableType>(std::move(interior), std::move(extents),
+                              alignment, background, fill_mode);
+}
+
+// Similar to the above, but takes an arbitrary background.
+template <typename DrawableType>
+TileOf<DrawableType> MakeTileOf(DrawableType interior, Box extents,
+                                Alignment alignment, int16_t dx, int16_t dy,
+                                const Rasterizable *background,
+                                FillMode fill_mode = FILL_MODE_RECTANGLE) {
+  return TileOf<DrawableType>(std::move(interior), std::move(extents),
+                              alignment, dx, dy, background, fill_mode);
 }
 
 }  // namespace roo_display

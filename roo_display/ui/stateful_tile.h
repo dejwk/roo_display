@@ -8,25 +8,24 @@
 
 namespace roo_display {
 
+// Deprecated.
 class StatefulTile : public roo_display::Drawable {
  public:
   StatefulTile(std::initializer_list<const Drawable*> drawables,
-               int initial_state = 0, HAlign halign = HAlign::Center(),
-               VAlign valign = VAlign::Middle(),
+               int initial_state = 0, Alignment alignment = kCenter | kMiddle,
                Color bgcolor = color::Transparent)
       : tiles_(), extents_(), state_(initial_state) {
     for (auto i : drawables) {
       extents_ = Box::extent(extents_, i->extents());
     }
-    initTiles(drawables, extents_, halign, valign, bgcolor);
+    initTiles(drawables, extents_, alignment, bgcolor);
   }
 
   StatefulTile(std::initializer_list<const Drawable*> drawables, Box extents,
-               int initial_state = 0, HAlign halign = HAlign::Center(),
-               VAlign valign = VAlign::Middle(),
+               int initial_state = 0, Alignment alignment = kCenter | kMiddle,
                Color bgcolor = color::Transparent)
       : tiles_(), extents_(std::move(extents)), state_(initial_state) {
-    initTiles(drawables, extents, halign, valign, bgcolor);
+    initTiles(drawables, extents, alignment, bgcolor);
   }
 
   Box extents() const override { return extents_; }
@@ -42,10 +41,9 @@ class StatefulTile : public roo_display::Drawable {
 
  private:
   void initTiles(std::initializer_list<const Drawable*> tiles,
-                 const Box& extents, HAlign halign, VAlign valign,
-                 Color bgcolor) {
+                 const Box& extents, Alignment alignment, Color bgcolor) {
     for (auto i : tiles) {
-      tiles_.emplace_back(i, extents, halign, valign, bgcolor);
+      tiles_.emplace_back(i, extents, alignment, bgcolor);
     }
   }
 

@@ -215,8 +215,8 @@ void DrawingContext::erase(const Drawable& object, int16_t dx, int16_t dy) {
 }
 
 void DrawingContext::erase(const Drawable& object, int16_t dx, int16_t dy,
-                           HAlign halign, VAlign valign) {
-  draw(ErasedDrawable(&object), dx, dy, halign, valign);
+                           Alignment alignment) {
+  draw(ErasedDrawable(&object), dx, dy, alignment);
 }
 
 }  // namespace roo_display

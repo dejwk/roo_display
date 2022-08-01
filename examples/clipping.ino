@@ -176,7 +176,7 @@ void pieChart() {
 TileOf<StringViewLabel> centeredStringViewLabel(
     StringView content, Color color, Color bgcolor = color::Transparent) {
   return MakeTileOf(StringViewLabel(font_NotoSerif_Italic_90(), content, color),
-                    display.extents(), HAlign::Center(), VAlign::Middle(),
+                    display.extents(), kCenter | kMiddle,
                     bgcolor);
 }
 

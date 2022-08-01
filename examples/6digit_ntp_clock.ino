@@ -1,5 +1,43 @@
 #include <Arduino.h>
 
+#ifdef ROO_TESTING
+
+#include "roo_testing/devices/display/st77xx/st77xx.h"
+#include "roo_testing/transducers/ui/viewport/flex_viewport.h"
+#include "roo_testing/transducers/ui/viewport/fltk/fltk_viewport.h"
+#include "roo_testing/transducers/wifi/wifi.h"
+
+using roo_testing_transducers::FlexViewport;
+using roo_testing_transducers::FltkViewport;
+
+struct Emulator {
+  FltkViewport viewport;
+  FlexViewport flexViewport;
+  roo_testing_transducers::wifi::Environment wifi;
+
+  FakeSt77xxSpi display;
+
+  Emulator()
+      : viewport(),
+        flexViewport(viewport, 1, FlexViewport::kRotationLeft),
+        display(flexViewport, 240, 320) {
+    FakeEsp32().attachSpiDevice(display, 18, 19, 23);
+    FakeEsp32().gpio.attachOutput(5, display.cs());
+    FakeEsp32().gpio.attachOutput(2, display.dc());
+    FakeEsp32().gpio.attachOutput(4, display.rst());
+
+    auto ap = std::unique_ptr<roo_testing_transducers::wifi::AccessPoint>(
+      new roo_testing_transducers::wifi::AccessPoint(
+        roo_testing_transducers::wifi::MacAddress(1, 1, 1, 1, 1, 1),
+        "*******"));
+    ap->setAuthMode(roo_testing_transducers::wifi::AUTH_WEP);
+    ap->setPasswd("**********");
+    wifi.addAccessPoint(std::move(ap));
+
+    FakeEsp32().wifi.setEnvironment(wifi);
+  }
+} emulator;
+
 #include <string>
 
 #include "roo_display.h"

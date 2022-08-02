@@ -43,9 +43,7 @@ class TextLabel : public Drawable {
         label_(std::move(label)),
         color_(color),
         fill_mode_(fill_mode),
-        metrics_(font_->getHorizontalStringMetrics(label_)),
-        extents_(metrics_.glyphXMin(), -font_->metrics().glyphYMax(),
-                 metrics_.glyphXMax(), -font_->metrics().glyphYMin()) {}
+        metrics_(font.getHorizontalStringMetrics(label)) {}
 
   void drawTo(const Surface& s) const override {
     Surface news = s;
@@ -55,7 +53,12 @@ class TextLabel : public Drawable {
     font().drawHorizontalString(news, label(), color());
   }
 
-  Box extents() const override { return extents_; }
+  Box extents() const override { return metrics_.screen_extents(); }
+
+  Box anchorExtents() const override {
+    return Box(0, -font().metrics().ascent(), metrics_.advance() - 1,
+               -font().metrics().descent());
+  }
 
   const Font& font() const { return *font_; }
   const GlyphMetrics& metrics() const { return metrics_; }
@@ -72,7 +75,6 @@ class TextLabel : public Drawable {
   Color color_;
   FillMode fill_mode_;
   GlyphMetrics metrics_;
-  Box extents_;
 };
 
 // A single-line, single-colored. text label, with extents equal to the
@@ -88,11 +90,11 @@ class ClippedTextLabel : public TextLabel {
     if (fill_mode() == FILL_MODE_RECTANGLE) {
       news.set_fill_mode(FILL_MODE_RECTANGLE);
     }
-    news.clipToExtents(metrics().screen_extents());
+    // news.clipToExtents(metrics().screen_extents());
     font().drawHorizontalString(news, label(), color());
   }
 
-  Box extents() const override { return metrics().screen_extents(); }
+  Box anchorExtents() const override { return metrics().screen_extents(); }
 };
 
 // Similar to TextLabel, but the text content is not owned. Does not use any
@@ -111,9 +113,7 @@ class StringViewLabel : public Drawable {
         label_(std::move(label)),
         color_(color),
         fill_mode_(fill_mode),
-        metrics_(font_->getHorizontalStringMetrics(label_)),
-        extents_(metrics_.glyphXMin(), -font_->metrics().glyphYMax(),
-                 metrics_.glyphXMax(), -font_->metrics().glyphYMin()) {}
+        metrics_(font.getHorizontalStringMetrics(label)) {}
 
   void drawTo(const Surface& s) const override {
     Surface news = s;
@@ -123,7 +123,12 @@ class StringViewLabel : public Drawable {
     font().drawHorizontalString(news, label(), color());
   }
 
-  Box extents() const override { return extents_; }
+  Box extents() const override { return metrics_.screen_extents(); }
+
+  Box anchorExtents() const override {
+    return Box(0, -font().metrics().ascent(), metrics_.advance() - 1,
+               -font().metrics().descent());
+  }
 
   const Font& font() const { return *font_; }
   const GlyphMetrics& metrics() const { return metrics_; }
@@ -140,7 +145,6 @@ class StringViewLabel : public Drawable {
   Color color_;
   FillMode fill_mode_;
   GlyphMetrics metrics_;
-  Box extents_;
 };
 
 // Similar to ClippedTextLabel, but the text content is not owned. Does not use
@@ -155,7 +159,6 @@ class ClippedStringViewLabel : public StringViewLabel {
     if (fill_mode() == FILL_MODE_RECTANGLE) {
       news.set_fill_mode(FILL_MODE_RECTANGLE);
     }
-    news.clipToExtents(metrics().screen_extents());
     font().drawHorizontalString(news, label(), color());
   }
 

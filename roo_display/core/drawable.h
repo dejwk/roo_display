@@ -53,8 +53,9 @@ class Rasterizable;
 //
 class Surface {
  public:
-  Surface(DisplayOutput &out, int16_t dx, int16_t dy, Box clip, bool is_write_once,
-          Color bg = color::Transparent, FillMode fill_mode = FILL_MODE_VISIBLE,
+  Surface(DisplayOutput &out, int16_t dx, int16_t dy, Box clip,
+          bool is_write_once, Color bg = color::Transparent,
+          FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND)
       : out_(&out),
         dx_(dx),
@@ -69,8 +70,8 @@ class Surface {
     }
   }
 
-  Surface(DisplayOutput *out, Box clip, bool is_write_once, Color bg = color::Transparent,
-          FillMode fill_mode = FILL_MODE_VISIBLE,
+  Surface(DisplayOutput *out, Box clip, bool is_write_once,
+          Color bg = color::Transparent, FillMode fill_mode = FILL_MODE_VISIBLE,
           PaintMode paint_mode = PAINT_MODE_BLEND)
       : out_(out),
         dx_(0),
@@ -89,7 +90,7 @@ class Surface {
   Surface(const Surface &other) = default;
 
   // Returns the device to which to draw.
-  DisplayOutput& out() const { return *out_; }
+  DisplayOutput &out() const { return *out_; }
 
   void set_out(DisplayOutput *out) { out_ = out; }
 
@@ -105,7 +106,7 @@ class Surface {
   // the x, y offset), that must be respected by the drawn object.
   const Box &clip_box() const { return clip_box_; }
 
-  void set_clip_box(const Box& clip_box) { clip_box_ = clip_box; }
+  void set_clip_box(const Box &clip_box) { clip_box_ = clip_box; }
 
   // Returns the background color that should be applied in case when the
   // drawn object has any non-fully-opaque content.
@@ -162,11 +163,11 @@ class Surface {
  private:
   friend class DrawingContext;
 
-  DisplayOutput& output() const { return *out_; }
+  DisplayOutput &output() const { return *out_; }
   Box extents() const { return clip_box_.translate(-dx_, -dy_); }
   void nest() const {}
   void unnest() const {}
-  const Rasterizable* getRasterizableBackground() const { return nullptr; }
+  const Rasterizable *getRasterizableBackground() const { return nullptr; }
   Color getBgColor() const { return bgcolor_; }
 
   DisplayOutput *out_;
@@ -194,7 +195,14 @@ class Surface {
 class Drawable {
  public:
   virtual ~Drawable() {}
+
+  // Returns the bounding box encompassing all pixels that need to be drawn.
   virtual Box extents() const = 0;
+
+  // Returns the boundaries to be used when aligning this drawable. By default,
+  // equivalent to extents(). Some drawables, notably text labels, may want to
+  // use different bounds for alignment.
+  virtual Box anchorExtents() const { return extents(); }
 
   // A singleton, representing a 'no-op' drawable with no bounding box.
   static const Drawable *Empty();

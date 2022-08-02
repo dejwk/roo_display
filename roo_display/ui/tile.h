@@ -12,11 +12,11 @@ namespace internal {
 
 class SolidBorder {
  public:
-  SolidBorder(Box extents, Box interior, HAlign halign, VAlign valign,
-              int16_t dx, int16_t dy)
+  SolidBorder(Box extents, Box interior, Box anchorExtents, HAlign halign,
+              VAlign valign, int16_t dx, int16_t dy)
       : extents_(std::move(extents)),
-        x_offset_(halign.GetOffset(extents_, interior) + dx),
-        y_offset_(valign.GetOffset(extents_, interior) + dy),
+        x_offset_(halign.GetOffset(extents_, anchorExtents) + dx),
+        y_offset_(valign.GetOffset(extents_, anchorExtents) + dy),
         interior_(Box::intersect(interior.translate(x_offset_, y_offset_),
                                  extents_)) {}
 
@@ -47,7 +47,8 @@ class TileBase : public Drawable {
            int16_t dx, int16_t dy, Color bgcolor,
            FillMode fill_mode = FILL_MODE_RECTANGLE)
       : border_(std::move(extents), std::move(interior.extents()),
-                alignment.h(), alignment.v(), dx, dy),
+                std::move(interior.anchorExtents()), alignment.h(),
+                alignment.v(), dx, dy),
         bgcolor_(bgcolor),
         background_(nullptr),
         fill_mode_(fill_mode) {}
@@ -56,7 +57,8 @@ class TileBase : public Drawable {
            int16_t dx, int16_t dy, const Rasterizable *background,
            FillMode fill_mode = FILL_MODE_RECTANGLE)
       : border_(std::move(extents), std::move(interior.extents()),
-                alignment.h(), alignment.v(), dx, dy),
+                std::move(interior.anchorExtents()), alignment.h(),
+                alignment.v(), dx, dy),
         bgcolor_(color::Transparent),
         background_(background),
         fill_mode_(fill_mode) {}

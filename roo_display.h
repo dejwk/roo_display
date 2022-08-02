@@ -264,11 +264,11 @@ class DrawingContext {
   // dc.draw(label, dx - label.metrics().advance(), dy);
   void draw(const Drawable &object, int16_t dx, int16_t dy,
             Alignment alignment) {
-    const Box &extents = object.extents();
-    int16_t xMin = extents.xMin();
-    int16_t yMin = extents.yMin();
-    int16_t xMax = extents.xMax();
-    int16_t yMax = extents.yMax();
+    const Box &anchorExtents = object.anchorExtents();
+    int16_t xMin = anchorExtents.xMin();
+    int16_t yMin = anchorExtents.yMin();
+    int16_t xMax = anchorExtents.xMax();
+    int16_t yMax = anchorExtents.yMax();
     if (transformed_) transform_.transformRect(xMin, yMin, xMax, yMax);
     drawInternal(object, dx - alignment.h().GetOffset(xMin, xMax),
                  dy - alignment.v().GetOffset(yMin, yMax), bgcolor_);

@@ -56,8 +56,8 @@ class TextLabel : public Drawable {
   Box extents() const override { return metrics_.screen_extents(); }
 
   Box anchorExtents() const override {
-    return Box(0, -font().metrics().ascent(), metrics_.advance() - 1,
-               -font().metrics().descent());
+    return Box(0, -font().metrics().ascent() - font().metrics().linegap(),
+               metrics_.advance() - 1, -font().metrics().descent());
   }
 
   const Font& font() const { return *font_; }
@@ -126,8 +126,8 @@ class StringViewLabel : public Drawable {
   Box extents() const override { return metrics_.screen_extents(); }
 
   Box anchorExtents() const override {
-    return Box(0, -font().metrics().ascent(), metrics_.advance() - 1,
-               -font().metrics().descent());
+    return Box(0, -font().metrics().ascent() - font().metrics().linegap(),
+               metrics_.advance() - 1, -font().metrics().descent());
   }
 
   const Font& font() const { return *font_; }

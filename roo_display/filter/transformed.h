@@ -109,6 +109,16 @@ class TransformedDrawable : public Drawable {
     return Box(x0, y0, x1, y1);
   }
 
+  Box anchorExtents() const override {
+    Box base = delegate_->anchorExtents();
+    int16_t x0 = base.xMin();
+    int16_t y0 = base.yMin();
+    int16_t x1 = base.xMax();
+    int16_t y1 = base.yMax();
+    transform_.transformRect(x0, y0, x1, y1);
+    return Box(x0, y0, x1, y1);
+  }
+
  private:
   void drawTo(const Surface &s) const override {
     Transform adjusted =

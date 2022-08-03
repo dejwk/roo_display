@@ -130,10 +130,10 @@ void loop() {
   getNTPtime(10);
   stringifyTime(timeinfo,time,date);
 
-  auto t_label = ClippedStringViewLabel(timeFont, time, color::BlueViolet);
+  auto t_label = ClippedStringViewLabel(time, timeFont, color::BlueViolet);
   auto t_tile = MakeTileOf(t_label, timeBox);
 
-  auto d_label = ClippedStringViewLabel(dateFont, date, color::BlanchedAlmond);
+  auto d_label = ClippedStringViewLabel(date, dateFont, color::BlanchedAlmond);
   auto d_tile = MakeTileOf(d_label, dateBox);
 
   DrawingContext dc(display);
@@ -202,11 +202,11 @@ void stringifyTime(tm localTime, char* time, char* date) {
 }
 
 // Show short message during boot in vertical center of display
-void bootMsg(std::string s){
+void bootMsg(const std::string& s){
   const Font& font = font_NotoSans_Regular_40();
   DrawingContext dc(display);
   display.clear();
-  dc.draw(StringViewLabel(font, s, color::Black), 10, display.height()/2);
+  dc.draw(StringViewLabel(s, font, color::Black), 10, display.height()/2);
 }
 
 // Connect to WiFi

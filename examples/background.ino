@@ -110,11 +110,11 @@ void simpleBackground() {
   // see that the colors of translucent (anti-aliased) pixels indeed inherit
   // from the background; i.e. it is green-ish when the text falls over green,
   // blue-ish if it falls over blue, etc.
-  auto labelOrig = StringViewLabel(font_NotoSans_Italic_60(), "Afy",
+  auto labelOrig = StringViewLabel("Afy", font_NotoSans_Italic_60(),
                                    color::Black, FILL_MODE_RECTANGLE);
-  auto labelScaled = StringViewLabel(font_NotoSans_Italic_12(), "Afy",
+  auto labelScaled = StringViewLabel("Afy", font_NotoSans_Italic_12(),
                                      color::Black, FILL_MODE_RECTANGLE);
-  auto labelScaledMore = StringViewLabel(font_NotoSans_Italic_8(), "Afy",
+  auto labelScaledMore = StringViewLabel("Afy", font_NotoSans_Italic_8(),
                                          color::Black, FILL_MODE_RECTANGLE);
   int16_t dx = (display.width() - labelOrig.extents().width()) / 2;
   int16_t dy = labelOrig.metrics().glyphYMax() +
@@ -161,9 +161,8 @@ void tileWithSemiTransparentBackground() {
   bool sc2 = false;
   for (int i = 0; i < 1000; i++) {
     auto label =
-        StringViewLabel(font_NotoSans_Italic_27(), "Ostendo", color::Black);
-    auto tile =
-        MakeTileOf(label, Box(0, 0, 103, 27), kCenter | kMiddle);
+        StringViewLabel("Ostendo", font_NotoSans_Italic_27(), color::Black);
+    auto tile = MakeTileOf(label, Box(0, 0, 103, 27), kCenter | kMiddle);
     tile.setBackground(&hashGrid);
     int16_t dx = (display.width() - tile.extents().width()) / 2;
     int16_t dy = (display.height() - tile.extents().height()) / 2;
@@ -244,7 +243,7 @@ struct TimerBenchmark {
 };
 
 void printCentered(const std::string& text, int16_t y) {
-  ClippedStringViewLabel label(font_NotoSans_Italic_18(), text, color::Black);
+  ClippedStringViewLabel label(text, font_NotoSans_Italic_18(), color::Black);
   DrawingContext dc(display);
   dc.draw(label, (display.width() - label.extents().width()) / 2,
           (display.height() - label.extents().height()) / 2 + y);
@@ -295,7 +294,7 @@ void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {
     fps = 1000.0 * frames / t;
     int first_changed = timerToString(t, time);
     {
-      auto label = ClippedStringViewLabel(timerFont, time, color::Black);
+      auto label = ClippedStringViewLabel(time, timerFont, color::Black);
       // See the comment above for explanation why we need to use HAlign::None()
       // here (i.e., absolute alignment, instead of left- or right- alignment).
       //
@@ -349,7 +348,7 @@ void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {
         StringPrinter p;
         p.printf("%0.1f fps", fps);
         auto fpsTile = MakeTileOf(
-            StringViewLabel(fpsFont, p.get(), color::Black), fpsBox, kCenter);
+            StringViewLabel(p.get(), fpsFont, color::Black), fpsBox, kCenter);
         dc.draw(fpsTile, -fpsBox.width() / 2, -fpsBox.height() / 2 + 30);
       }
     }
@@ -416,10 +415,9 @@ void scrollingText() {
   display.clear();
 
   StringViewLabel label(
-      font_NotoSans_Italic_40(),
       "Check out this awesome text banner. Note anti-aliased "
       "glyphs, with overlapping bounding boxes: 'Afy', 'fff'.  ",
-      color::DarkRed, FILL_MODE_RECTANGLE);
+      font_NotoSans_Italic_40(), color::DarkRed, FILL_MODE_RECTANGLE);
   int16_t dy = (label.font().metrics().ascent() + display.height()) / 2;
   for (int i = 0; i < label.extents().width(); i += 8) {
     {

@@ -192,7 +192,7 @@ class ScreenPrinter {
                         .translate(0, font.metrics().glyphYMax())
                         .scale(scale_, scale_)
                         .translate(x_, y_));
-    dc.draw(StringViewLabel(font, s, color_));
+    dc.draw(StringViewLabel(s, font, color_));
     y_ += font.metrics().linespace() * scale_;
   }
   void println(double d) {

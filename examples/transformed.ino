@@ -91,7 +91,7 @@ void loop(void) {
     utf8[2] = (c & 0x3F) | 0x80;
     utf8[3] = 0;
   }
-  StringViewLabel label(font_NotoSerif_BoldItalic_27(), (const char*)utf8, fg,
+  StringViewLabel label((const char*)utf8, font_NotoSerif_BoldItalic_27(), fg,
                         FILL_MODE_RECTANGLE);
   DrawingContext dc(display);
   dc.setBackground(bg);

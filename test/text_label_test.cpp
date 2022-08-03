@@ -28,7 +28,7 @@ TEST(SmoothFontTest, FontMetrics) {
 
 TEST(TextLabel, SimpleTextNoBackground) {
   FakeScreen<Argb4444> screen(26, 18, color::Black);
-  TextLabel label(font12(), "Aftp", color::White);
+  TextLabel label("Aftp", font12(), color::White);
   screen.Draw(label, 2, 14);
   EXPECT_THAT(screen, MatchesContent(Grayscale4(), 26, 18,
                                      "                          "
@@ -53,7 +53,7 @@ TEST(TextLabel, SimpleTextNoBackground) {
 
 TEST(StringViewLabel, SimpleTextNoBackground) {
   FakeScreen<Argb4444> screen(26, 18, color::Black);
-  StringViewLabel label(font12(), "Aftp", color::White);
+  StringViewLabel label("Aftp", font12(), color::White);
   screen.Draw(label, 2, 14);
   EXPECT_THAT(screen, MatchesContent(Grayscale4(), 26, 18,
                                      "                          "

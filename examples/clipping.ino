@@ -175,9 +175,8 @@ void pieChart() {
 // by value, particularly that the compiler can optimize most copying away.
 TileOf<StringViewLabel> centeredStringViewLabel(
     StringView content, Color color, Color bgcolor = color::Transparent) {
-  return MakeTileOf(StringViewLabel(font_NotoSerif_Italic_90(), content, color),
-                    display.extents(), kCenter | kMiddle,
-                    bgcolor);
+  return MakeTileOf(StringViewLabel(content, font_NotoSerif_Italic_90(), color),
+                    display.extents(), kCenter | kMiddle, bgcolor);
 }
 
 void clippedFont1() {

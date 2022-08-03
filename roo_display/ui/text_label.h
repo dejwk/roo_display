@@ -33,10 +33,25 @@ namespace roo_display {
 class TextLabel : public Drawable {
  public:
   template <typename String>
+  TextLabel(const String& label, const Font& font, Color color,
+            FillMode fill_mode = FILL_MODE_VISIBLE)
+      : TextLabel(std::string(std::move(label)), font, color, fill_mode) {}
+
+  TextLabel(std::string label, const Font& font, Color color,
+            FillMode fill_mode = FILL_MODE_VISIBLE)
+      : font_(&font),
+        label_(std::move(label)),
+        color_(color),
+        fill_mode_(fill_mode),
+        metrics_(font.getHorizontalStringMetrics(label)) {}
+
+  // Deprecated. Use the format with label-first.
+  template <typename String>
   TextLabel(const Font& font, const String& label, Color color,
             FillMode fill_mode = FILL_MODE_VISIBLE)
       : TextLabel(font, std::string(std::move(label)), color, fill_mode) {}
 
+  // Deprecated. Use the format with label-first.
   TextLabel(const Font& font, std::string label, Color color,
             FillMode fill_mode = FILL_MODE_VISIBLE)
       : font_(&font),
@@ -103,11 +118,11 @@ class ClippedTextLabel : public TextLabel {
 class StringViewLabel : public Drawable {
  public:
   template <typename String>
-  StringViewLabel(const Font& font, const String& label, Color color,
+  StringViewLabel(String& label, const Font& font, const Color color,
                   FillMode fill_mode = FILL_MODE_VISIBLE)
-      : StringViewLabel(font, StringView(std::move(label)), color, fill_mode) {}
+      : StringViewLabel(StringView(std::move(label)), font, color, fill_mode) {}
 
-  StringViewLabel(const Font& font, StringView label, Color color,
+  StringViewLabel(StringView label, const Font& font, Color color,
                   FillMode fill_mode = FILL_MODE_VISIBLE)
       : font_(&font),
         label_(std::move(label)),

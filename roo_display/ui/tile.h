@@ -12,11 +12,10 @@ namespace internal {
 
 class SolidBorder {
  public:
-  SolidBorder(Box extents, Box interior, Box anchorExtents, HAlign halign,
-              VAlign valign, int16_t dx, int16_t dy)
+  SolidBorder(Box extents, Box interior, Box anchorExtents, Alignment alignment)
       : extents_(std::move(extents)),
-        x_offset_(halign.GetOffset(extents_, anchorExtents) + dx),
-        y_offset_(valign.GetOffset(extents_, anchorExtents) + dy),
+        x_offset_(alignment.h().GetOffset(extents_, anchorExtents)),
+        y_offset_(alignment.v().GetOffset(extents_, anchorExtents)),
         interior_(Box::intersect(interior.translate(x_offset_, y_offset_),
                                  extents_)) {}
 
@@ -29,25 +28,22 @@ class SolidBorder {
   // Absolute extents, when the border is drawn at (0, 0).
   Box extents_;
 
-  // Absolute offset by which the interior needs to be shifted horizontally in
-  // order to comply with requested alignment.
+  // Absolute offset by which the interior needs to be shifted in order to
+  // comply with requested alignment.
   int16_t x_offset_;
-
-  // Absolute offset by which the interior needs to be shifted vertically in
-  // order to comply with requested alignment.
   int16_t y_offset_;
 
-  // Absolute coordinates of the interior, when the border is drawn at (0, 0).
+  // Absolute coordinates of the (aligned) interior, when the border is drawn at
+  // (0, 0), truncated to the extents_.
   Box interior_;
 };
 
 class TileBase : public Drawable {
  public:
   TileBase(const Drawable &interior, Box extents, Alignment alignment,
-           int16_t dx, int16_t dy, Color bgcolor = color::Background)
+           Color bgcolor = color::Background)
       : border_(std::move(extents), std::move(interior.extents()),
-                std::move(interior.anchorExtents()), alignment.h(),
-                alignment.v(), dx, dy),
+                std::move(interior.anchorExtents()), alignment),
         bgcolor_(bgcolor),
         background_(nullptr) {}
 
@@ -115,18 +111,11 @@ class Tile : public internal::TileBase {
                               alignment.v().GetOffset(exterior, interior) + dy);
   }
 
-  // Creates a tile with the specified interior, alignment, and optionally
-  // background color.
+  // Creates a tile with the specified interior, extents, alignment, and
+  // optionally background color.
   Tile(const Drawable *interior, Box extents, Alignment alignment,
        Color bgcolor = color::Background)
-      : internal::TileBase(*interior, extents, alignment, 0, 0, bgcolor),
-        interior_(interior) {}
-
-  // Creates a tile with the specified interior, alignment, interior offset,
-  // and optionally background color.
-  Tile(const Drawable *interior, Box extents, Alignment alignment, int16_t dx,
-       int16_t dy, Color bgcolor = color::Background)
-      : internal::TileBase(*interior, extents, alignment, dx, dy, bgcolor),
+      : internal::TileBase(*interior, extents, alignment, bgcolor),
         interior_(interior) {}
 
   void drawTo(const Surface &s) const override {
@@ -148,12 +137,7 @@ class TileOf : public internal::TileBase {
   // background color.
   TileOf(DrawableType interior, Box extents, Alignment alignment,
          Color bgcolor = color::Background)
-      : internal::TileBase(interior, extents, alignment, 0, 0, bgcolor),
-        interior_(std::move(interior)) {}
-
-  TileOf(DrawableType interior, Box extents, Alignment alignment, int16_t dx,
-         int16_t dy, Color bgcolor = color::Background)
-      : internal::TileBase(interior, extents, alignment, dx, dy, bgcolor),
+      : internal::TileBase(interior, extents, alignment, bgcolor),
         interior_(std::move(interior)) {}
 
   void drawTo(const Surface &s) const override { TileBase::draw(s, interior_); }
@@ -170,16 +154,6 @@ TileOf<DrawableType> MakeTileOf(DrawableType interior, Box extents,
                                 Color bgcolor = color::Background) {
   return TileOf<DrawableType>(std::move(interior), std::move(extents),
                               alignment, bgcolor);
-}
-
-// Convenience function that creates a tile with a specified interior,
-// alignment, and an absolute interior offset.
-template <typename DrawableType>
-TileOf<DrawableType> MakeTileOf(DrawableType interior, Box extents,
-                                Alignment alignment, int16_t dx, int16_t dy,
-                                Color bgcolor = color::Background) {
-  return TileOf<DrawableType>(std::move(interior), std::move(extents),
-                              alignment, dx, dy, bgcolor);
 }
 
 }  // namespace roo_display

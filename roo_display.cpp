@@ -1,6 +1,6 @@
-#include "roo_display.h"
-
 #include <Arduino.h>
+
+#include "roo_display.h"
 
 #include <cmath>
 
@@ -38,12 +38,9 @@ bool TouchDisplay::getTouch(int16_t& x, int16_t& y) {
     float k = (float)(now - last_sample_time_) / smoothingWindowMs;
     float weight_past = pow(smoothingFactor, k);
     float weight_present = 1 - weight_past;
-    raw_touch_x_ =
-        (int16_t)(raw_touch_x_ * weight_past + raw_x * weight_present);
-    raw_touch_y_ =
-        (int16_t)(raw_touch_y_ * weight_past + raw_y * weight_present);
-    raw_touch_z_ =
-        (int16_t)(raw_touch_z_ * weight_past + raw_z * weight_present);
+    raw_touch_x_ = (int16_t)(raw_touch_x_ * weight_past + raw_x * weight_present);
+    raw_touch_y_ = (int16_t)(raw_touch_y_ * weight_past + raw_y * weight_present);
+    raw_touch_z_ = (int16_t)(raw_touch_z_ * weight_past + raw_z * weight_present);
     last_sample_time_ = now;
   }
 

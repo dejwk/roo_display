@@ -69,19 +69,18 @@ void setup() {
 // to draw it.
 class Widget : public Drawable {
  public:
-  Widget(FillMode fill_mode = FILL_MODE_RECTANGLE) : fill_mode_(fill_mode) {}
+  Widget(Color bgcolor = color::Background) : bgcolor_(bgcolor) {}
   Box extents() const override { return Box(0, 0, 39, 39); }
   void drawTo(const Surface& s) const override {
     s.drawObject(FilledRect(0, 0, 19, 39, color::IndianRed));
     s.drawObject(FilledRect(20, 0, 39, 39, color::LightGreen));
     s.drawObject(MakeTileOf(
         StringViewLabel(font_NotoSerif_Italic_27(), "FJ", color::Black),
-        Box(5, 2, 34, 37), kCenter | kMiddle,
-        color::Transparent, fill_mode_));
+        Box(5, 2, 34, 37), kCenter | kMiddle, bgcolor_));
   }
 
  private:
-  FillMode fill_mode_;
+  Color bgcolor_;
 };
 
 // This helper method takes our widget, and draws two copies of it: first
@@ -112,7 +111,7 @@ void printText(DrawingContext& dc, const Drawable& widget) {
 void printTransparentlyUsingDeviceBackground() {
   Serial.println("Drawing with device background.");
   DrawingContext dc(display);
-  printText(dc, Widget(FILL_MODE_VISIBLE));
+  printText(dc, Widget(color::Transparent));
 }
 
 // Draws the glyphs using a solid background (overwriting previous background).
@@ -126,11 +125,11 @@ void printUsingSolidBackground(Color bgcolor) {
 // Draws the glyphs using a background, but not filling spaces that would have
 // been filled with the background color. This is only appropriate when you know
 // that the background has been pre-filled.
-void printVisibleUsingBackground(Color bgcolor) {
-  Serial.println("Drawing with a background, but in mode VISIBLE.");
+void printTransparentUsingBackground(Color bgcolor) {
+  Serial.println("Drawing with a background, but as a transparent tile.");
   DrawingContext dc(display);
   dc.setBackground(bgcolor);
-  printText(dc, Widget(FILL_MODE_VISIBLE));
+  printText(dc, Widget(color::Transparent));
 }
 
 void printUsingRamBuffer() {
@@ -184,22 +183,22 @@ void loop() {
   delay(2000);
 
   // Using the same bg and fg colors disables anti-aliasing completely.
-  printVisibleUsingBackground(color::Black);
+  printTransparentUsingBackground(color::Black);
   delay(2000);
 
   // Being somewhat 'in-between', Gray looks 'ok-ish' but not great on neither
   // red nor green.
-  printVisibleUsingBackground(color::Gray);
+  printTransparentUsingBackground(color::Gray);
   delay(2000);
 
   // Using red makes the font look great on the red background, but horrible on
   // the green background.
-  printVisibleUsingBackground(color::IndianRed);
+  printTransparentUsingBackground(color::IndianRed);
   delay(2000);
 
   // Using red makes the font look great on the red background, but horrible on
   // the green background.
-  printVisibleUsingBackground(color::LightGreen);
+  printTransparentUsingBackground(color::LightGreen);
   delay(2000);
 
   // Using a solid background will make the edges look great, but it overwrites

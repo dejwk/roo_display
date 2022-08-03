@@ -617,7 +617,16 @@ static constexpr Color Graylevel(uint8_t level) {
 
 namespace color {
 
+// When drawn in FILL_MODE_RECTANGLE, substituted by the current surface's
+// background color. When drawn in FILL_MODE_VISIBLE, the pixels are not
+// actually pushed to the underlying device, leaving the previous content
+// intact.
 static constexpr auto Transparent = Color(0);
+
+// Substituted by the current surface's background color when drawn,
+// regardless of the fill mode. Use it as a background color if you want
+// the pixels actually pushed to the device, even in FILL_MODE_VISIBLE.
+static constexpr auto Background = Color(0x00FFFFFF);
 
 // Pink colors
 

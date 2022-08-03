@@ -20,8 +20,8 @@ void TileBase::draw(const Surface& s, const Drawable& content) const {
 }
 
 void TileBase::drawInternal(const Surface& s, const Drawable& content) const {
-  FillMode fill_mode = s.fill_mode();
-  if (fill_mode_ == FILL_MODE_RECTANGLE) fill_mode = FILL_MODE_RECTANGLE;
+  FillMode fill_mode =
+      bgcolor_ == color::Transparent ? s.fill_mode() : FILL_MODE_RECTANGLE;
   Box extents =
       Box::intersect(s.clip_box(), border_.extents().translate(s.dx(), s.dy()));
   if (extents.empty()) return;

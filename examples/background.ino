@@ -163,7 +163,8 @@ void tileWithSemiTransparentBackground() {
     auto label =
         StringViewLabel(font_NotoSans_Italic_27(), "Ostendo", color::Black);
     auto tile =
-        MakeTileOf(label, Box(0, 0, 103, 27), kCenter | kMiddle, &hashGrid);
+        MakeTileOf(label, Box(0, 0, 103, 27), kCenter | kMiddle);
+    tile.setBackground(&hashGrid);
     int16_t dx = (display.width() - tile.extents().width()) / 2;
     int16_t dy = (display.height() - tile.extents().height()) / 2;
     {
@@ -299,19 +300,19 @@ void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {
       // here (i.e., absolute alignment, instead of left- or right- alignment).
       //
       // In case of the (optimal) inplace drawing, we need to use
-      // FILL_MODE_RECTANGLE (which is actually the default which could
+      // color::Background (which is actually the default which could
       // generally be omitted), so that the entire bounding box of the glyph
       // gets redrawn, erasing any previous content in one pass. In the
       // (sub-optimal) case of non-inplace drawing, we are going to clear the
       // background before drawing the glyph, which means that the glyph can
       // draw only the non-empty pixels, rather than the entire bounding box.
-      // It is achieved by using FILL_MODE_VISIBLE.
+      // It is achieved by using color::Transparent.
       //
       // Try experimenting, e.g. unconditionally setting fill mode to
-      // FILL_MODE_VISIBLE, and see how it affects rendering.
+      // color::Transparent, and see how it affects rendering.
       auto tile = MakeTileOf(
-          label, timerBox, kNoAlign, color::Transparent,
-          (benchmark->inplace ? FILL_MODE_RECTANGLE : FILL_MODE_VISIBLE));
+          label, timerBox, kNoAlign,
+          (benchmark->inplace ? color::Background : color::Transparent));
       auto clear = Clear();
       DrawingContext dc(display);
       // Since everything is oriented about the center, let's move the origin

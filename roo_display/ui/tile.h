@@ -51,7 +51,7 @@ class TileBase : public Drawable {
   }
 
   void setBackground(const Rasterizable *background) {
-    bgcolor_ = color::Transparent;
+    bgcolor_ = color::Background;
     background_ = background;
   }
 

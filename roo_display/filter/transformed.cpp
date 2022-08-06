@@ -122,6 +122,15 @@ void Transform::transformRect(int16_t &x0, int16_t &y0, int16_t &x1,
   }
 }
 
+Box Transform::transformBox(Box in) const {
+  int16_t x0 = in.xMin();
+  int16_t y0 = in.yMin();
+  int16_t x1 = in.xMax();
+  int16_t y1 = in.yMax();
+  transformRect(x0, y0, x1, y1);
+  return Box(x0, y0, x1, y1);
+}
+
 int floor_div(int a, int b) {
   // https://stackoverflow.com/questions/3602827/what-is-the-behavior-of-integer-division
   int d = a / b;

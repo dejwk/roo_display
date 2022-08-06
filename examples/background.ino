@@ -245,8 +245,7 @@ struct TimerBenchmark {
 void printCentered(const std::string& text, int16_t y) {
   ClippedStringViewLabel label(text, font_NotoSans_Italic_18(), color::Black);
   DrawingContext dc(display);
-  dc.draw(label, (display.width() - label.extents().width()) / 2,
-          (display.height() - label.extents().height()) / 2 + y);
+  dc.draw(label, kCenter | kMiddle.shiftBy(y));
 }
 
 void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {

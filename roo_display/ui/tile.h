@@ -14,14 +14,13 @@ class SolidBorder {
  public:
   SolidBorder(Box extents, Box interior, Box anchorExtents, Alignment alignment)
       : extents_(std::move(extents)),
-        x_offset_(alignment.h().GetOffset(extents_, anchorExtents)),
-        y_offset_(alignment.v().GetOffset(extents_, anchorExtents)),
-        interior_(Box::intersect(interior.translate(x_offset_, y_offset_),
+        offset_(alignment.resolveOffset(extents_, anchorExtents)),
+        interior_(Box::intersect(interior.translate(offset_.first, offset_.second),
                                  extents_)) {}
 
   const Box &extents() const { return extents_; }
-  int16_t x_offset() const { return x_offset_; }
-  int16_t y_offset() const { return y_offset_; }
+  int16_t x_offset() const { return offset_.first; }
+  int16_t y_offset() const { return offset_.second; }
   const Box &interior() const { return interior_; }
 
  private:
@@ -30,8 +29,7 @@ class SolidBorder {
 
   // Absolute offset by which the interior needs to be shifted in order to
   // comply with requested alignment.
-  int16_t x_offset_;
-  int16_t y_offset_;
+  std::pair<int16_t, int16_t> offset_;
 
   // Absolute coordinates of the (aligned) interior, when the border is drawn at
   // (0, 0), truncated to the extents_.
@@ -100,17 +98,6 @@ class TileBase : public Drawable {
 // e.g. active, inactive, selected, clicked, etc.
 class Tile : public internal::TileBase {
  public:
-  // Utility function to calculate the bounds of the tile's interior, given
-  // its exterior bounds, the original interior bounds, and the alignment
-  // constraints. The function returns the same bounds that the interior will
-  // have when a tile with these pararameters is drawn.
-  static Box InteriorBounds(const Box &exterior, const Box &interior,
-                            Alignment alignment, int16_t dx = 0,
-                            int16_t dy = 0) {
-    return interior.translate(alignment.h().GetOffset(exterior, interior) + dx,
-                              alignment.v().GetOffset(exterior, interior) + dy);
-  }
-
   // Creates a tile with the specified interior, extents, alignment, and
   // optionally background color.
   Tile(const Drawable *interior, Box extents, Alignment alignment,

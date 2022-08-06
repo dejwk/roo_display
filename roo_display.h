@@ -168,11 +168,16 @@ class DrawingContext {
  public:
   template <typename Display>
   DrawingContext(Display &display)
+      : DrawingContext(display, display.extents()) {}
+
+  template <typename Display>
+  DrawingContext(Display &display, Box bounds)
       : output_(display.output()),
         dx_(display.dx()),
         dy_(display.dy()),
-        bounds_(display.extents()),
-        clip_box_(bounds_),
+        bounds_(bounds),
+        max_clip_box_(Box::intersect(bounds, display.extents())),
+        clip_box_(max_clip_box_),
         unnest_([&display]() { display.unnest(); }),
         write_once_(display.is_write_once()),
         fill_mode_(FILL_MODE_VISIBLE),
@@ -212,7 +217,7 @@ class DrawingContext {
   void fill(Color color);
 
   void setClipBox(const Box &clip_box) {
-    clip_box_ = Box::intersect(clip_box, bounds());
+    clip_box_ = Box::intersect(clip_box, max_clip_box_);
   }
 
   void setClipBox(int16_t x0, int16_t y0, int16_t x1, int16_t y1) {
@@ -243,35 +248,23 @@ class DrawingContext {
   // object's coordinates maps to (0, 0) in the context's coordinates.
   void draw(const Drawable &object) { drawInternal(object, 0, 0, bgcolor_); }
 
-  // Draws the object using the specified offset. The point (0, 0) in the
-  // object's coordinates maps to (dx, dy) in the context's coordinates.
+  // Draws the object using the specified absolute offset. The point (0, 0) in
+  // the object's coordinates maps to (dx, dy) in the context's coordinates.
   void draw(const Drawable &object, int16_t dx, int16_t dy) {
     drawInternal(object, dx, dy, bgcolor_);
   }
 
-  // Draws the object applying the specified offset, and the specified
-  // alignment. The point indicated by the alignment, in the object's
-  // coordinates, maps to (dx, dy) in the contex't coordinates. For example, for
-  // halign = Left(), the object's xMin will be drawn at dx; for valign =
-  // Bottom(), the object's yMax will be drawn at dy - 1, and so one.
-  //
-  // Caution: don't use this to right-align numeric values. The digit '1' has
-  // the nasty property of being narrower than others, so aligning numbers this
-  // way will cause some jitter when the last digit changes to and from '1'.
-  // Instead, explicitly shift dx by the text's advance, e.g.:
-  //
-  // TextLabel label(...);
-  // dc.draw(label, dx - label.metrics().advance(), dy);
-  void draw(const Drawable &object, int16_t dx, int16_t dy,
-            Alignment alignment) {
-    const Box &anchorExtents = object.anchorExtents();
-    int16_t xMin = anchorExtents.xMin();
-    int16_t yMin = anchorExtents.yMin();
-    int16_t xMax = anchorExtents.xMax();
-    int16_t yMax = anchorExtents.yMax();
-    if (transformed_) transform_.transformRect(xMin, yMin, xMax, yMax);
-    drawInternal(object, dx - alignment.h().GetOffset(xMin, xMax),
-                 dy - alignment.v().GetOffset(yMin, yMax), bgcolor_);
+  // Draws the object applying the specified alignment, relative to the
+  // bounds(). For example, for with kMiddle | kCenter, the object will be
+  // centered relative to the bounds().
+  void draw(const Drawable &object, Alignment alignment) {
+    Box anchorExtents = object.anchorExtents();
+    if (transformed_) {
+      anchorExtents = transform_.transformBox(anchorExtents);
+    }
+    std::pair<int16_t, int16_t> offset =
+        alignment.resolveOffset(bounds(), anchorExtents);
+    drawInternal(object, offset.first, offset.second, bgcolor_);
   }
 
   // Analogous to draw(object), but instead of drawing, replaces all the output
@@ -282,10 +275,9 @@ class DrawingContext {
   // output pixels with the background color.
   void erase(const Drawable &object, int16_t dx, int16_t dy);
 
-  // Analogous to draw(object, dx, dy, halign, valign), but instead of drawing,
-  // replaces all the output pixels with the background color.
-  void erase(const Drawable &object, int16_t dx, int16_t dy,
-             Alignment alignment);
+  // Analogous to draw(object, alignment), but instead of drawing, replaces all
+  // the output pixels with the background color.
+  void erase(const Drawable &object, Alignment alignment);
 
  private:
   DisplayOutput &output() { return output_; }
@@ -307,7 +299,14 @@ class DrawingContext {
   int16_t dx_;
   int16_t dy_;
 
+  // Bounds used for alignment. Default to device extents. If different than
+  // device extents, they both constrain the initial and max clip box.
   Box bounds_;
+
+  // The maximum allowed clip box. setClipBox will intersect its argument
+  // with it. Equal to the intersection of bounds() and the original device extents.
+  const Box max_clip_box_;
+
   // Absolute coordinates of the clip region in the device space. Inclusive.
   Box clip_box_;
 

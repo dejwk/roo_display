@@ -39,6 +39,7 @@ class Transform {
   bool is_translated() const { return x_offset_ != 0 || y_offset_ != 0; }
 
   void transformRect(int16_t &x0, int16_t &y0, int16_t &x1, int16_t &y1) const;
+  Box transformBox(Box in) const;
 
   Box smallestEnclosingRect(const Box &rect) const;
   Box smallestBoundingRect() const;

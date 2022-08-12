@@ -169,6 +169,10 @@ class Alignment {
                                             inner.yMin(), inner.yMax()));
   }
 
+  Alignment shiftBy(int16_t dx, int16_t dy) {
+    return Alignment(h_.shiftBy(dx), v_.shiftBy(dy));
+  }
+
  private:
   HAlign h_;
   VAlign v_;

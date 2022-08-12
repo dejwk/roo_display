@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <inttypes.h>
+#include <ostream>
 
 namespace roo_display {
 
@@ -142,7 +143,7 @@ inline bool operator>=(StringView x, StringView y) noexcept {
 }
 
 inline std::ostream &operator<<(std::ostream &os, StringView v) {
-  for (size_t i = 0; i < v.size(); ++i) os << v[i];
+  os.write((const char *)v.data(), v.size());
   return os;
 }
 

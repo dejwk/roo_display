@@ -43,7 +43,7 @@ class TextLabel : public Drawable {
         label_(std::move(label)),
         color_(color),
         fill_mode_(fill_mode),
-        metrics_(font.getHorizontalStringMetrics(label)) {}
+        metrics_(font.getHorizontalStringMetrics(label_)) {}
 
   // Deprecated. Use the format with label-first.
   template <typename String>
@@ -58,7 +58,7 @@ class TextLabel : public Drawable {
         label_(std::move(label)),
         color_(color),
         fill_mode_(fill_mode),
-        metrics_(font.getHorizontalStringMetrics(label)) {}
+        metrics_(font.getHorizontalStringMetrics(label_)) {}
 
   void drawTo(const Surface& s) const override {
     Surface news = s;

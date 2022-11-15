@@ -2,13 +2,14 @@
 
 #include <Arduino.h>
 
-#if defined(ESP32)
+#if (defined(ESP32) && !defined(ROO_TESTING))
+
 #include "soc/gpio_struct.h"
 #endif
 
 namespace roo_display {
 
-#if defined(ESP32)
+#if (defined(ESP32) && !defined(ROO_TESTING))
 
 struct Esp32Gpio {
   static void setOutput(int pin) { pinMode(pin, OUTPUT); }

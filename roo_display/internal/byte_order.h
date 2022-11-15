@@ -10,8 +10,8 @@
 // Note: a decent compiler will completely remove 'no-op' conversions,
 // and inline swaps using native builtins.
 
+#include <endian.h>
 #include <inttypes.h>
-#include "endian.h"
 
 namespace roo_display {
 

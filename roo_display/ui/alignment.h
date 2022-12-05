@@ -13,7 +13,8 @@ enum Anchor {
 
 namespace internal {
 
-inline int16_t resolveAnchor(Anchor anchor, int16_t first, int16_t last) {
+template <typename Dim>
+inline Dim resolveAnchor(Anchor anchor, Dim first, Dim last) {
   switch (anchor) {
     case ANCHOR_MIN:
       return first;
@@ -39,10 +40,11 @@ class AlignBase {
 
   constexpr int16_t shift() const { return (int16_t)((rep_ >> 4) - (1 << 11)); }
 
-  int16_t resolveOffset(int16_t first_outer, int16_t last_outer,
-                        int16_t first_inner, int16_t last_inner) const {
-    return resolveAnchor(dst(), first_outer, last_outer) -
-           resolveAnchor(src(), first_inner, last_inner) + shift();
+  template <typename Dim>
+  Dim resolveOffset(Dim first_outer, Dim last_outer,
+                    Dim first_inner, Dim last_inner) const {
+    return resolveAnchor<Dim>(dst(), first_outer, last_outer) -
+           resolveAnchor<Dim>(src(), first_inner, last_inner) + shift();
   }
 
   uint16_t rep_;

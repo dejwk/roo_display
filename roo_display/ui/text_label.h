@@ -7,7 +7,6 @@
 #include "roo_display/core/drawable.h"
 #include "roo_display/filter/transformed.h"
 #include "roo_display/font/font.h"
-#include "roo_display/shape/basic_shapes.h"
 #include "roo_display/ui/tile.h"
 
 namespace roo_display {

@@ -3,6 +3,7 @@
 #ifdef ROO_TESTING
 
 #include "roo_testing/devices/display/ili9486/ili9486spi.h"
+#include "roo_testing/devices/microcontroller/esp32/fake_esp32.h"
 #include "roo_testing/devices/touch/xpt2046/xpt2046spi.h"
 #include "roo_testing/transducers/ui/viewport/flex_viewport.h"
 #include "roo_testing/transducers/ui/viewport/fltk/fltk_viewport.h"

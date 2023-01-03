@@ -56,6 +56,25 @@ class ColorFilter : public DisplayOutput {
     }
   }
 
+  // NOTE: in principle, we could apply the filter to 'c', and then alpha-blend
+  // the result with bgcolor. It would make the filter interface simpler.
+  // Instead, we're pushing bgcolor also to the filter, so that all of that
+  // blending is done in the filter. The reason is performance. The foreground
+  // color 'c' may often be transparent or translucent. The filter may then
+  // combine it with another translucent color (e.g. a translucent overlay), and
+  // we would then finally alpha-blend it over the background color (usually
+  // opaque):
+  //
+  //   alphaBlend(bg, alphaBlend(c, overlay))
+  //
+  // But alpha-blending translucencies is more expensive than alpha-blending
+  // with opaque. Therefore, it is equivalent but faster, in case of our
+  // translucent overlay, to first alpha-blend 'c' over background (which will
+  // usually produce an opaque color), and then alpha-blend the overlay over it:
+  //
+  //   alphaBlend(alphaBlend(bg, c), overlay)
+  //
+  // We push bg to the filter so that it could apply such reorderings if needed.
   Color transform(Color c) const { return filter_(c, bgcolor_); }
 
   DisplayOutput& output_;

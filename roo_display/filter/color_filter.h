@@ -5,6 +5,10 @@
 
 namespace roo_display {
 
+// Modifies the color of the pixels written using some transformation that only
+// depends on the color, and not on the position. For example, changing
+// translucency, changing color parameters (saturation, hue, brightness, etc.),
+// applying (translucent) overlays.
 template <typename Filter>
 class ColorFilter : public DisplayOutput {
  public:

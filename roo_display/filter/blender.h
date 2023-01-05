@@ -195,7 +195,7 @@ class BlendingFilter : public DisplayOutput {
                                        yMax - dy_, newcolor);
     if (same) {
       output_.fillRect(mode, Box(xMin, yMin, xMax, yMax),
-                       alphaBlend(color, newcolor[0]));
+                       blender_(color, newcolor[0]));
     } else {
       for (uint16_t i = 0; i < pixel_count; ++i) {
         newcolor[i] = blender_(color, newcolor[i]);

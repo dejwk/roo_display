@@ -44,13 +44,17 @@ class RectUnion {
 class RectUnionFilter : public DisplayOutput {
  public:
   RectUnionFilter(DisplayOutput& output, const RectUnion* exclusion)
-      : output_(output),
+      : output_(&output),
         exclusion_(exclusion),
         address_window_(0, 0, 0, 0),
         cursor_x_(0),
         cursor_y_(0) {}
 
   virtual ~RectUnionFilter() {}
+
+  void setOutput(DisplayOutput& output) {
+    output_ = &output;
+  }
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
                   PaintMode mode) override {
@@ -63,7 +67,7 @@ class RectUnionFilter : public DisplayOutput {
   void write(Color* color, uint32_t pixel_count) override {
     // Naive implementation, for now.
     uint32_t i = 0;
-    BufferedPixelWriter writer(output_, paint_mode_);
+    BufferedPixelWriter writer(*output_, paint_mode_);
     while (i < pixel_count) {
       if (!exclusion_->contains(cursor_x_, cursor_y_)) {
         writer.writePixel(cursor_x_, cursor_y_, color[i]);
@@ -94,7 +98,7 @@ class RectUnionFilter : public DisplayOutput {
 
   void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
-    BufferedRectWriter writer(output_, mode);
+    BufferedRectWriter writer(*output_, mode);
     while (count-- > 0) {
       writeRect(*color++, *x0++, *y0++, *x1++, *y1++, 0, &writer);
     }
@@ -102,7 +106,7 @@ class RectUnionFilter : public DisplayOutput {
 
   void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
-    BufferedRectFiller filler(output_, color, mode);
+    BufferedRectFiller filler(*output_, color, mode);
     while (count-- > 0) {
       fillRect(*x0++, *y0++, *x1++, *y1++, 0, &filler);
     }
@@ -123,7 +127,7 @@ class RectUnionFilter : public DisplayOutput {
       }
     }
     if (new_pixel_count > 0) {
-      output_.writePixels(mode, color, x, y, new_pixel_count);
+      output_->writePixels(mode, color, x, y, new_pixel_count);
     }
   }
 
@@ -140,7 +144,7 @@ class RectUnionFilter : public DisplayOutput {
       }
     }
     if (new_pixel_count > 0) {
-      output_.fillPixels(mode, color, x, y, new_pixel_count);
+      output_->fillPixels(mode, color, x, y, new_pixel_count);
     }
   }
 
@@ -203,7 +207,7 @@ class RectUnionFilter : public DisplayOutput {
     }
   }
 
-  DisplayOutput& output_;
+  DisplayOutput* output_;
   const RectUnion* exclusion_;
   Box address_window_;
   PaintMode paint_mode_;

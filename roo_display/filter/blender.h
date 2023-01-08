@@ -26,7 +26,7 @@ class BlendingFilter : public DisplayOutput {
 
   BlendingFilter(DisplayOutput& output, Blender blender,
                  const Rasterizable* raster, int16_t dx, int16_t dy)
-      : output_(output),
+      : output_(&output),
         blender_(std::move(blender)),
         raster_(raster),
         address_window_(0, 0, 0, 0),
@@ -37,12 +37,16 @@ class BlendingFilter : public DisplayOutput {
 
   virtual ~BlendingFilter() {}
 
+  void setOutput(DisplayOutput& output) {
+    output_ = &output;
+  }
+
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
                   PaintMode mode) override {
     address_window_ = Box(x0 - dx_, y0 - dy_, x1 - dx_, y1 - dy_);
     cursor_x_ = x0 - dx_;
     cursor_y_ = y0 - dy_;
-    output_.setAddress(x0, y0, x1, y1, mode);
+    output_->setAddress(x0, y0, x1, y1, mode);
   }
 
   void write(Color* color, uint32_t pixel_count) override {
@@ -62,7 +66,7 @@ class BlendingFilter : public DisplayOutput {
     for (uint32_t i = 0; i < pixel_count; ++i) {
       newcolor[i] = blender_(color[i], newcolor[i]);
     }
-    output_.write(newcolor, pixel_count);
+    output_->write(newcolor, pixel_count);
   }
 
   // void fill(PaintMode mode, Color color, uint32_t pixel_count) override {
@@ -102,7 +106,7 @@ class BlendingFilter : public DisplayOutput {
     for (uint32_t i = 0; i < pixel_count; ++i) {
       newcolor[i] = blender_(color[i], newcolor[i]);
     }
-    output_.writePixels(mode, newcolor, x, y, pixel_count);
+    output_->writePixels(mode, newcolor, x, y, pixel_count);
   }
 
   void fillPixels(PaintMode mode, Color color, int16_t* x, int16_t* y,
@@ -112,7 +116,7 @@ class BlendingFilter : public DisplayOutput {
     for (uint32_t i = 0; i < pixel_count; ++i) {
       newcolor[i] = blender_(color, newcolor[i]);
     }
-    output_.writePixels(mode, newcolor, x, y, pixel_count);
+    output_->writePixels(mode, newcolor, x, y, pixel_count);
   }
 
  private:
@@ -138,31 +142,31 @@ class BlendingFilter : public DisplayOutput {
     Box raster_bounds = raster_->extents();
     Box trimmed = Box::intersect(full, raster_bounds);
     if (trimmed.empty()) {
-      output_.fillRect(mode, full.xMin(), full.yMin(), full.xMax(), full.yMax(),
-                       color);
+      output_->fillRect(mode, full.xMin(), full.yMin(), full.xMax(),
+                        full.yMax(), color);
       return;
     }
     if (full.yMin() < trimmed.yMin()) {
       // Draw top bar of the border.
-      output_.fillRect(mode, full.xMin(), full.yMin(), full.xMax(),
-                       trimmed.yMin() - 1, color);
+      output_->fillRect(mode, full.xMin(), full.yMin(), full.xMax(),
+                        trimmed.yMin() - 1, color);
     }
     if (full.xMin() < trimmed.xMin()) {
       // Draw left bar of the border.
-      output_.fillRect(mode, full.xMin(), trimmed.yMin(), trimmed.xMin() - 1,
-                       trimmed.yMax(), color);
+      output_->fillRect(mode, full.xMin(), trimmed.yMin(), trimmed.xMin() - 1,
+                        trimmed.yMax(), color);
     }
     fillRectIntersectingRaster(mode, trimmed.xMin(), trimmed.yMin(),
                                trimmed.xMax(), trimmed.yMax(), color);
     if (full.xMax() > trimmed.xMax()) {
       // Draw right bar of the border.
-      output_.fillRect(mode, trimmed.xMax() + 1, trimmed.yMin(), full.xMax(),
-                       trimmed.yMax(), color);
+      output_->fillRect(mode, trimmed.xMax() + 1, trimmed.yMin(), full.xMax(),
+                        trimmed.yMax(), color);
     }
     if (full.yMax() > trimmed.yMax()) {
       // Draw bottom bar of the border.
-      output_.fillRect(mode, full.xMin(), trimmed.yMax() + 1, full.xMax(),
-                       full.yMax(), color);
+      output_->fillRect(mode, full.xMin(), trimmed.yMax() + 1, full.xMax(),
+                        full.yMax(), color);
     }
   }
 
@@ -194,18 +198,18 @@ class BlendingFilter : public DisplayOutput {
     bool same = raster_->ReadColorRect(xMin - dx_, yMin - dy_, xMax - dx_,
                                        yMax - dy_, newcolor);
     if (same) {
-      output_.fillRect(mode, Box(xMin, yMin, xMax, yMax),
-                       blender_(color, newcolor[0]));
+      output_->fillRect(mode, Box(xMin, yMin, xMax, yMax),
+                        blender_(color, newcolor[0]));
     } else {
       for (uint16_t i = 0; i < pixel_count; ++i) {
         newcolor[i] = blender_(color, newcolor[i]);
       }
-      output_.setAddress(Box(xMin, yMin, xMax, yMax), mode);
-      output_.write(newcolor, pixel_count);
+      output_->setAddress(Box(xMin, yMin, xMax, yMax), mode);
+      output_->write(newcolor, pixel_count);
     }
   }
 
-  DisplayOutput& output_;
+  DisplayOutput* output_;
   Blender blender_;
   const Rasterizable* raster_;
   Box address_window_;

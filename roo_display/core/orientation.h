@@ -53,7 +53,7 @@ class Orientation {
   // (RightDown) and rotating it clockwise by 90 degree 'count' times. If count
   // is negative, the rotation is effectively counter-clockwise by abs(count).
   // Rotations with the same value of count % 4 are effectively equivalent.
-  static Orientation RotatedByCount(unsigned int count) {
+  static Orientation RotatedByCount(int count) {
     return Default().rotateClockwise(count);
   }
 

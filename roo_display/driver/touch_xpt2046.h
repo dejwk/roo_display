@@ -64,11 +64,11 @@ static const int kMaxConversionAttempts = 100;
 static const int kMinSettledConversions = 8;
 
 // How hard the press needs to be to count as touch.
-static const int kInitialTouchZThreshold = 200;
+static const int kInitialTouchZThreshold = 400;
 
 // How hard the press needs to be to count as continued touch (i.e., once
 // the display has been touched). See kTouchSensitivityLagMs.
-static const int kSustainedTouchZThreshold = 20;
+static const int kSustainedTouchZThreshold = 300;
 
 // To avoid spurious drops in drag touch, the driver is more sensitive to touch
 // (and thus more prone to picking up noise) for this many ms since last

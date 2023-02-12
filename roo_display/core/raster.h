@@ -272,6 +272,8 @@ class Raster : public Rasterizable {
         read(ptr_, x - extents_.xMin() + (y - extents_.yMin()) * width_));
   }
 
+  const PtrType buffer() const { return ptr_; }
+
  private:
   Box extents_;
   PtrType ptr_;

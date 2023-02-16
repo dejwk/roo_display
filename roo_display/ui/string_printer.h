@@ -18,7 +18,7 @@ class StringPrinter : public Print {
   const std::string get() && { return std::move(s_); }
 
   size_t write(uint8_t c) override {
-    s_.append((const char*)c);
+    s_.append((const char*)(&c));
     return 1;
   }
 

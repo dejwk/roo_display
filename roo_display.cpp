@@ -1,6 +1,6 @@
-#include <Arduino.h>
-
 #include "roo_display.h"
+
+#include <Arduino.h>
 
 #include <cmath>
 
@@ -38,9 +38,12 @@ bool TouchDisplay::getTouch(int16_t& x, int16_t& y) {
     float k = (float)(now - last_sample_time_) / smoothingWindowMs;
     float weight_past = pow(smoothingFactor, k);
     float weight_present = 1 - weight_past;
-    raw_touch_x_ = (int16_t)(raw_touch_x_ * weight_past + raw_x * weight_present);
-    raw_touch_y_ = (int16_t)(raw_touch_y_ * weight_past + raw_y * weight_present);
-    raw_touch_z_ = (int16_t)(raw_touch_z_ * weight_past + raw_z * weight_present);
+    raw_touch_x_ =
+        (int16_t)(raw_touch_x_ * weight_past + raw_x * weight_present);
+    raw_touch_y_ =
+        (int16_t)(raw_touch_y_ * weight_past + raw_y * weight_present);
+    raw_touch_z_ =
+        (int16_t)(raw_touch_z_ * weight_past + raw_z * weight_present);
     last_sample_time_ = now;
   }
 
@@ -147,31 +150,31 @@ void DrawingContext::drawInternal(const Drawable& object, int16_t dx,
   DisplayOutput& out = front_to_back_writer_.get() != nullptr
                            ? *front_to_back_writer_
                            : output();
+  Surface s(out, dx + dx_, dy + dy_, clip_box_.translate(dx_, dy_), write_once_,
+            bgcolor, fill_mode_, paint_mode_);
+
   if (clip_mask_ == nullptr) {
-    drawInternalWithBackground(out, object, dx, dy, bgcolor);
+    drawInternalWithBackground(s, object);
   } else {
     ClipMaskFilter filter(out, clip_mask_);
-    drawInternalWithBackground(filter, object, dx, dy, bgcolor);
+    s.set_out(&filter);
+    drawInternalWithBackground(s, object);
   }
 }
 
-void DrawingContext::drawInternalWithBackground(DisplayOutput& output,
-                                                const Drawable& object,
-                                                int16_t dx, int16_t dy,
-                                                Color bgcolor) {
+void DrawingContext::drawInternalWithBackground(Surface& s,
+                                                const Drawable& object) {
   if (background_ == nullptr) {
-    drawInternalTransformed(output, object, dx, dy, bgcolor);
+    drawInternalTransformed(s, object);
   } else {
-    BackgroundFilter filter(output, background_);
-    drawInternalTransformed(filter, object, dx, dy, bgcolor);
+    BackgroundFilter filter(s.out(), background_);
+    s.set_out(&filter);
+    drawInternalTransformed(s, object);
   }
 }
 
-void DrawingContext::drawInternalTransformed(DisplayOutput& output,
-                                             const Drawable& object, int16_t dx,
-                                             int16_t dy, Color bgcolor) {
-  Surface s(output, dx + dx_, dy + dy_, clip_box_.translate(dx_, dy_),
-            write_once_, bgcolor, fill_mode_, paint_mode_);
+void DrawingContext::drawInternalTransformed(Surface& s,
+                                             const Drawable& object) {
   if (!transformed_) {
     s.drawObject(object);
   } else if (!transform_.is_rescaled() && !transform_.xy_swap()) {

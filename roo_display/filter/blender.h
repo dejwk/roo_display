@@ -37,9 +37,7 @@ class BlendingFilter : public DisplayOutput {
 
   virtual ~BlendingFilter() {}
 
-  void setOutput(DisplayOutput& output) {
-    output_ = &output;
-  }
+  void setOutput(DisplayOutput& output) { output_ = &output; }
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
                   PaintMode mode) override {
@@ -138,49 +136,47 @@ class BlendingFilter : public DisplayOutput {
 
   void fillRect(PaintMode mode, int16_t xMin, int16_t yMin, int16_t xMax,
                 int16_t yMax, Color color) {
-    Box full(xMin, yMin, xMax, yMax);
-    Box raster_bounds = raster_->extents();
-    Box trimmed = Box::intersect(full, raster_bounds);
+    Box trimmed =
+        Box::intersect(Box(xMin, yMin, xMax, yMax), raster_->extents());
     if (trimmed.empty()) {
-      output_->fillRect(mode, full.xMin(), full.yMin(), full.xMax(),
-                        full.yMax(), color);
+      output_->fillRect(mode, xMin, yMin, xMax, yMax, color);
       return;
     }
-    if (full.yMin() < trimmed.yMin()) {
+    if (yMin < trimmed.yMin()) {
       // Draw top bar of the border.
-      output_->fillRect(mode, full.xMin(), full.yMin(), full.xMax(),
-                        trimmed.yMin() - 1, color);
+      output_->fillRect(mode, xMin, yMin, xMax, trimmed.yMin() - 1, color);
     }
-    if (full.xMin() < trimmed.xMin()) {
+    if (xMin < trimmed.xMin()) {
       // Draw left bar of the border.
-      output_->fillRect(mode, full.xMin(), trimmed.yMin(), trimmed.xMin() - 1,
+      output_->fillRect(mode, xMin, trimmed.yMin(), trimmed.xMin() - 1,
                         trimmed.yMax(), color);
     }
     fillRectIntersectingRaster(mode, trimmed.xMin(), trimmed.yMin(),
                                trimmed.xMax(), trimmed.yMax(), color);
-    if (full.xMax() > trimmed.xMax()) {
+    if (xMax > trimmed.xMax()) {
       // Draw right bar of the border.
-      output_->fillRect(mode, trimmed.xMax() + 1, trimmed.yMin(), full.xMax(),
+      output_->fillRect(mode, trimmed.xMax() + 1, trimmed.yMin(), xMax,
                         trimmed.yMax(), color);
     }
-    if (full.yMax() > trimmed.yMax()) {
+    if (yMax > trimmed.yMax()) {
       // Draw bottom bar of the border.
-      output_->fillRect(mode, full.xMin(), trimmed.yMax() + 1, full.xMax(),
-                        full.yMax(), color);
+      output_->fillRect(mode, xMin, trimmed.yMax() + 1, xMax, yMax, color);
     }
   }
 
   void fillRectIntersectingRaster(PaintMode mode, int16_t xMin, int16_t yMin,
                                   int16_t xMax, int16_t yMax, Color color) {
-    uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
-    if (pixel_count <= 64) {
-      fillRectInternal(mode, xMin, yMin, xMax, yMax, color);
-      return;
+    {
+      uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
+      if (pixel_count <= 64) {
+        fillRectInternal(mode, xMin, yMin, xMax, yMax, color);
+        return;
+      }
     }
-    int16_t xMinOuter = (xMin / 8) * 8;
-    int16_t yMinOuter = (yMin / 8) * 8;
-    int16_t xMaxOuter = (xMax / 8) * 8 + 7;
-    int16_t yMaxOuter = (yMax / 8) * 8 + 7;
+    const int16_t xMinOuter = (xMin / 8) * 8;
+    const int16_t yMinOuter = (yMin / 8) * 8;
+    const int16_t xMaxOuter = (xMax / 8) * 8 + 7;
+    const int16_t yMaxOuter = (yMax / 8) * 8 + 7;
     for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
       for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
         fillRectInternal(mode, std::max(x, xMin), std::max(y, yMin),

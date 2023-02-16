@@ -28,13 +28,10 @@ class Compactor {
                   Writer write = Writer()) {
     if (pixel_count == 0) return;
 
-    int i = 0;
-    int count = 0;
-    uint16_t x;
-    uint16_t y;
-
-    x = xs[0];
-    y = ys[0];
+    uint16_t i = 0;
+    uint16_t count = 0;
+    uint16_t x = xs[0];
+    uint16_t y = ys[0];
     uint16_t x_start;
     uint16_t y_start;
 

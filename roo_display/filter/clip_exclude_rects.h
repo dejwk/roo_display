@@ -180,16 +180,18 @@ class RectUnionFilter : public DisplayOutput {
 
   void fillRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int mask_idx,
                 BufferedRectFiller* filler) {
-    Box rect(x0, y0, x1, y1);
-    while (mask_idx < exclusion_->size() &&
-           !exclusion_->at(mask_idx).intersects(rect)) {
-      ++mask_idx;
+    {
+      Box rect(x0, y0, x1, y1);
+      while (mask_idx < exclusion_->size() &&
+            !exclusion_->at(mask_idx).intersects(rect)) {
+        ++mask_idx;
+      }
     }
     if (mask_idx == exclusion_->size()) {
       filler->fillRect(x0, y0, x1, y1);
       return;
     }
-    Box intruder = Box::intersect(exclusion_->at(mask_idx), rect);
+    Box intruder = Box::intersect(exclusion_->at(mask_idx), Box(x0, y0, x1, y1));
     if (intruder.yMin() > y0) {
       fillRect(x0, y0, x1, intruder.yMin() - 1, mask_idx + 1, filler);
       y0 = intruder.yMin();

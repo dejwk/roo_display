@@ -246,11 +246,13 @@ class DrawingContext {
 
   // Draws the object using its inherent coordinates. The point (0, 0) in the
   // object's coordinates maps to (0, 0) in the context's coordinates.
-  void draw(const Drawable &object) { drawInternal(object, 0, 0, bgcolor_); }
+  inline void draw(const Drawable &object) {
+    drawInternal(object, 0, 0, bgcolor_);
+  }
 
   // Draws the object using the specified absolute offset. The point (0, 0) in
   // the object's coordinates maps to (dx, dy) in the context's coordinates.
-  void draw(const Drawable &object, int16_t dx, int16_t dy) {
+  inline void draw(const Drawable &object, int16_t dx, int16_t dy) {
     drawInternal(object, dx, dy, bgcolor_);
   }
 
@@ -286,11 +288,9 @@ class DrawingContext {
   void drawInternal(const Drawable &object, int16_t dx, int16_t dy,
                     Color bgcolor);
 
-  void drawInternalWithBackground(DisplayOutput &output, const Drawable &object,
-                                  int16_t dx, int16_t dy, Color bgcolor);
+  void drawInternalWithBackground(Surface& s, const Drawable &object);
 
-  void drawInternalTransformed(DisplayOutput &output, const Drawable &object,
-                               int16_t dx, int16_t dy, Color bgcolor);
+  void drawInternalTransformed(Surface& s, const Drawable &object);
 
   DisplayOutput &output_;
 
@@ -304,7 +304,8 @@ class DrawingContext {
   Box bounds_;
 
   // The maximum allowed clip box. setClipBox will intersect its argument
-  // with it. Equal to the intersection of bounds() and the original device extents.
+  // with it. Equal to the intersection of bounds() and the original device
+  // extents.
   const Box max_clip_box_;
 
   // Absolute coordinates of the clip region in the device space. Inclusive.

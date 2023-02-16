@@ -27,9 +27,14 @@ namespace roo_display {
 
 #ifndef ROO_DISPLAY_TESTING
 static const uint8_t kPixelWritingBufferSize = 64;
+
+// Smaller, to conserve stack memory.
+static const uint8_t kRectWritingBufferSize = 32;
+
 #else
 // Use a small and 'weird' buffer size to challenge unit tests better.
 static const uint8_t kPixelWritingBufferSize = 5;
+static const uint8_t kRectWritingBufferSize = 5;
 #endif
 
 class BufferedPixelWriter {
@@ -415,7 +420,7 @@ class BufferedRectWriter {
   }
 
   void writeRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Color color) {
-    if (buffer_size_ == kPixelWritingBufferSize) flush();
+    if (buffer_size_ == kRectWritingBufferSize) flush();
     color_[buffer_size_] = color;
     x0_buffer_[buffer_size_] = x0;
     y0_buffer_[buffer_size_] = y0;
@@ -437,11 +442,11 @@ class BufferedRectWriter {
   DisplayOutput& device_;
   PaintMode mode_;
   int16_t buffer_size_;
-  Color color_[kPixelWritingBufferSize];
-  int16_t x0_buffer_[kPixelWritingBufferSize];
-  int16_t y0_buffer_[kPixelWritingBufferSize];
-  int16_t x1_buffer_[kPixelWritingBufferSize];
-  int16_t y1_buffer_[kPixelWritingBufferSize];
+  Color color_[kRectWritingBufferSize];
+  int16_t x0_buffer_[kRectWritingBufferSize];
+  int16_t y0_buffer_[kRectWritingBufferSize];
+  int16_t x1_buffer_[kRectWritingBufferSize];
+  int16_t y1_buffer_[kRectWritingBufferSize];
 };
 
 template <typename RectWriter>
@@ -530,7 +535,7 @@ class BufferedRectFiller {
   }
 
   void fillRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1) {
-    if (buffer_size_ == kPixelWritingBufferSize) flush();
+    if (buffer_size_ == kRectWritingBufferSize) flush();
     x0_buffer_[buffer_size_] = x0;
     y0_buffer_[buffer_size_] = y0;
     x1_buffer_[buffer_size_] = x1;
@@ -552,10 +557,10 @@ class BufferedRectFiller {
   PaintMode mode_;
   Color color_;
   int16_t buffer_size_;
-  int16_t x0_buffer_[kPixelWritingBufferSize];
-  int16_t y0_buffer_[kPixelWritingBufferSize];
-  int16_t x1_buffer_[kPixelWritingBufferSize];
-  int16_t y1_buffer_[kPixelWritingBufferSize];
+  int16_t x0_buffer_[kRectWritingBufferSize];
+  int16_t y0_buffer_[kRectWritingBufferSize];
+  int16_t x1_buffer_[kRectWritingBufferSize];
+  int16_t y1_buffer_[kRectWritingBufferSize];
 };
 
 class ClippingBufferedRectFiller {

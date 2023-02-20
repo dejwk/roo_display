@@ -69,14 +69,14 @@ class ColorFilter : public DisplayOutput {
   // we would then finally alpha-blend it over the background color (usually
   // opaque):
   //
-  //   alphaBlend(bg, alphaBlend(c, overlay))
+  //   AlphaBlend(bg, AlphaBlend(c, overlay))
   //
   // But alpha-blending translucencies is more expensive than alpha-blending
   // with opaque. Therefore, it is equivalent but faster, in case of our
   // translucent overlay, to first alpha-blend 'c' over background (which will
   // usually produce an opaque color), and then alpha-blend the overlay over it:
   //
-  //   alphaBlend(alphaBlend(bg, c), overlay)
+  //   AlphaBlend(AlphaBlend(bg, c), overlay)
   //
   // We push bg to the filter so that it could apply such reorderings if needed.
   Color transform(Color c) const { return filter_(c, bgcolor_); }
@@ -94,7 +94,7 @@ class Opaqueness {
 
   Color operator()(Color c, Color bg) const {
     c.set_a((c.a() * opaqueness_) >> 7);
-    return alphaBlend(bg, c);
+    return AlphaBlend(bg, c);
   }
 
  private:
@@ -165,7 +165,7 @@ class Overlay {
   Overlay(Color color) : color_(color) {}
 
   Color operator()(Color c, Color bg) const {
-    return alphaBlend(alphaBlend(bg, c), color_);
+    return AlphaBlend(AlphaBlend(bg, c), color_);
   }
 
  private:
@@ -185,7 +185,7 @@ struct Disablement {
   Color operator()(Color c, Color bg) const {
     uint8_t a = (c.a() * 32) >> 7;
     uint8_t gray = (((int16_t)c.r() * 3) + ((int16_t)c.g() * 4) + c.b()) >> 3;
-    return alphaBlend(bg, Color(a << 24 | gray * 0x010101));
+    return AlphaBlend(bg, Color(a << 24 | gray * 0x010101));
     // return color::Transparent;
   }
 };

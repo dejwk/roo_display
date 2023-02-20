@@ -96,7 +96,7 @@ void fillBackground() {
     // We want 'light' pastel colors. We can achieve that by alpha-blending
     // them over white background, using some level of transparency.
     color.set_a(0x40);
-    color = alphaBlend(Graylevel(0xE0), color);
+    color = AlphaBlend(Graylevel(0xE0), color);
     int16_t x = rand() % kBgWidth;
     int16_t y = rand() % kBgHeight;
     int16_t r = rand() % (kBgWidth / 3);
@@ -134,9 +134,9 @@ void someFunWithAntiAliasedFonts() {
   // Now, we're making two other versions of this text, using different colors,
   // but sharing the same underlying memory buffer.
   Color shadow1 =
-      alphaBlend(Graylevel(0x20), Color(0xE0, rand(), rand(), rand()));
+      AlphaBlend(Graylevel(0x20), Color(0xE0, rand(), rand(), rand()));
   Color shadow2 =
-      alphaBlend(Graylevel(0x20), Color(0xE0, rand(), rand(), rand()));
+      AlphaBlend(Graylevel(0x20), Color(0xE0, rand(), rand(), rand()));
 
   Offscreen<Alpha4> oqa_s1(oqa.extents(), oqa.buffer(), Alpha4(shadow1));
   Offscreen<Alpha4> oqa_s2(oqa.extents(), oqa.buffer(), Alpha4(shadow2));

@@ -8,7 +8,7 @@ namespace internal {
 
 struct FgBlendKernel {
   Color operator()(Color c, Color raster) const {
-    return alphaBlend(c, raster);
+    return AlphaBlend(c, raster);
   }
 };
 

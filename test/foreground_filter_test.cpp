@@ -32,7 +32,7 @@ class SimpleRoundFg {
         fgcolor = Color(grey, grey, grey);
       }
     }
-    offscreen->writePixel(mode, x, y, alphaBlend(color, fgcolor));
+    offscreen->writePixel(mode, x, y, AlphaBlend(color, fgcolor));
   }
 
   static DisplayOutput* Create(DisplayOutput& output, Box extents) {

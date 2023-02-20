@@ -68,7 +68,7 @@ void loop(void) {
     y_scale = rand() % 7 - 3;
   } while (y_scale == 0);
   int16_t rotations = rand() % 4;
-  Color fg = alphaBlend(Color(rand(), rand(), rand()), Color(0xE0000000));
+  Color fg = AlphaBlend(Color(rand(), rand(), rand()), Color(0xE0000000));
   Color bg(rand(), rand(), rand());
   int16_t x = rand() % (3 * display.width()) - display.width();
   int16_t y = rand() % (3 * display.height()) - display.height();

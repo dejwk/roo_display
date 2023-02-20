@@ -337,7 +337,7 @@ class Fill : public Drawable {
 
  private:
   void drawTo(const Surface &s) const override {
-    Color color = alphaBlend(s.bgcolor(), color_);
+    Color color = AlphaBlend(s.bgcolor(), color_);
     s.out().fillRect(PAINT_MODE_REPLACE, s.clip_box(), color);
   }
 

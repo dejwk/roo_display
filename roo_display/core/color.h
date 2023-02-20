@@ -19,12 +19,13 @@ enum PaintMode {
 };
 
 // Color is represented in ARGB8, and stored as 32-bit unsigned integer. It is a
-// POD type; i.e. it can be treated as uint32 for all intents and purposes
-// (e.g., passed by value), except that it has convenience methods and is
-// type-safe.
+// lightweight trivially-constructible type; i.e. it can be treated as uint32
+// for all intents and purposes (e.g., passed by value), except that it has
+// convenience methods and is type-safe.
 class Color {
  public:
   Color() : argb_(0) {}
+
   constexpr Color(uint8_t r, uint8_t g, uint8_t b)
       : argb_(0xFF000000LL | (r << 16) | (g << 8) | b) {}
 
@@ -92,7 +93,7 @@ inline constexpr uint8_t __div_255(uint32_t arg) {
 
 // Calculates alpha-blending of the foreground color (fgc) over the background
 // color (bgc), ignoring background color's alpha, as if it is fully opaque.
-inline Color alphaBlendOverOpaque(Color bgc, Color fgc) {
+inline Color AlphaBlendOverOpaque(Color bgc, Color fgc) {
   uint16_t alpha = fgc.a();
   uint16_t inv_alpha = alpha ^ 0xFF;
   uint8_t r = (uint8_t)(__div_255(alpha * fgc.r() + inv_alpha * bgc.r()));
@@ -115,15 +116,15 @@ inline Color alphaBlendOverOpaque(Color bgc, Color fgc) {
 // Calculates alpha-blending of the foreground color (fgc) over the background
 // color (bgc), in a general case, where bgc might be semi-transparent.
 // If the background is (or should be treated as) opaque, use
-// alphaBlendOverOpaque() instead.
-inline Color alphaBlend(Color bgc, Color fgc) {
+// AlphaBlendOverOpaque() instead.
+inline Color AlphaBlend(Color bgc, Color fgc) {
   uint16_t front_alpha = fgc.a();
   if (front_alpha == 0xFF) {
     return fgc;
   }
   uint16_t back_alpha = bgc.a();
   if (back_alpha == 0xFF) {
-    return alphaBlendOverOpaque(bgc, fgc);
+    return AlphaBlendOverOpaque(bgc, fgc);
   }
   if (front_alpha == 0) {
     return bgc;
@@ -144,13 +145,13 @@ inline Color alphaBlend(Color bgc, Color fgc) {
   return Color(alpha << 24 | r << 16 | g << 8 | b);
 }
 
-inline Color combineColors(Color bgc, Color fgc, PaintMode paint_mode) {
+inline Color CombineColors(Color bgc, Color fgc, PaintMode paint_mode) {
   switch (paint_mode) {
     case PAINT_MODE_REPLACE: {
       return fgc;
     }
     case PAINT_MODE_BLEND: {
-      return alphaBlend(bgc, fgc);
+      return AlphaBlend(bgc, fgc);
     }
     default: {
       return Color(0);
@@ -161,7 +162,7 @@ inline Color combineColors(Color bgc, Color fgc, PaintMode paint_mode) {
 // Ratio is expected in the range of [0, 128], inclusively.
 // The resulting color = c1 * (ratio/128) + c2 * (1 - ratio/128).
 // Use ratio = 64 for the arithmetic average.
-inline constexpr Color averageColors(Color c1, Color c2, uint8_t ratio) {
+inline constexpr Color AverageColors(Color c1, Color c2, uint8_t ratio) {
   return Color(
       (((uint8_t)c1.a() * ratio + (uint8_t)c2.a() * (128 - ratio)) >> 7) << 24 |
       (((uint8_t)c1.r() * ratio + (uint8_t)c2.r() * (128 - ratio)) >> 7) << 16 |
@@ -215,7 +216,7 @@ class Argb8888 {
   }
 
   inline uint32_t rawAlphaBlend(uint32_t bg, Color color) const {
-    return alphaBlend(Color(bg), color).asArgb();
+    return AlphaBlend(Color(bg), color).asArgb();
   }
 
   constexpr TransparencyMode transparency() const {
@@ -262,7 +263,7 @@ class Argb6666 {
   }
 
   inline uint32_t rawAlphaBlend(uint32_t bg, Color color) const {
-    return fromArgbColor(alphaBlend(toArgbColor(bg), color));
+    return fromArgbColor(AlphaBlend(toArgbColor(bg), color));
   }
 
   constexpr TransparencyMode transparency() const {
@@ -298,7 +299,7 @@ class Argb4444 {
   }
 
   inline uint16_t rawAlphaBlend(uint16_t bg, Color color) const {
-    return fromArgbColor(alphaBlend(toArgbColor(bg), color));
+    return fromArgbColor(AlphaBlend(toArgbColor(bg), color));
   }
 
   constexpr TransparencyMode transparency() const {
@@ -306,6 +307,7 @@ class Argb4444 {
   }
 };
 
+// The most common mode used by microcontrollers.
 class Rgb565 {
  public:
   static const int8_t bits_per_pixel = 16;
@@ -329,7 +331,7 @@ class Rgb565 {
   }
 
   inline uint16_t rawAlphaBlend(uint16_t bg, Color color) const {
-    return fromArgbColor(alphaBlendOverOpaque(toArgbColor(bg), color));
+    return fromArgbColor(AlphaBlendOverOpaque(toArgbColor(bg), color));
   }
 
   constexpr TransparencyMode transparency() const { return TRANSPARENCY_NONE; }
@@ -372,7 +374,7 @@ class Rgb565WithTransparency {
   inline uint16_t rawAlphaBlend(uint16_t bg, Color color) const {
     return fromArgbColor(bg == transparency_
                              ? color
-                             : alphaBlendOverOpaque(toArgbColor(bg), color));
+                             : AlphaBlendOverOpaque(toArgbColor(bg), color));
   }
 
   constexpr TransparencyMode transparency() const {

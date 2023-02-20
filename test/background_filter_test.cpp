@@ -32,7 +32,7 @@ class SimpleRoundBg {
         bgcolor = Color(grey, grey, grey);
       }
     }
-    offscreen->writePixel(mode, x, y, alphaBlend(bgcolor, color));
+    offscreen->writePixel(mode, x, y, AlphaBlend(bgcolor, color));
   }
 
   static DisplayOutput* Create(DisplayOutput& output, Box extents) {

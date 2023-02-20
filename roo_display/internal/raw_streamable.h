@@ -58,7 +58,7 @@ struct RectFillerVisible {
         for (int16_t i = extents.xMin(); i <= extents.xMax(); ++i) {
           Color color = stream->next();
           if (color.a() != 0) {
-            writer.writePixel(i, j, alphaBlend(bgcolor, color));
+            writer.writePixel(i, j, AlphaBlend(bgcolor, color));
           }
         }
       }
@@ -90,11 +90,11 @@ struct RectFillerRectangle {
     } else if (transparency_mode == TRANSPARENCY_GRADUAL) {
       if (bgcolor.a() == 0xFF) {
         while (count-- > 0) {
-          writer.writeColor(alphaBlendOverOpaque(bgcolor, stream->next()));
+          writer.writeColor(AlphaBlendOverOpaque(bgcolor, stream->next()));
         }
       } else {
         while (count-- > 0) {
-          writer.writeColor(alphaBlend(bgcolor, stream->next()));
+          writer.writeColor(AlphaBlend(bgcolor, stream->next()));
         }
       }
     } else {

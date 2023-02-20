@@ -1010,7 +1010,7 @@ class FakeOffscreen : public DisplayDevice {
       y = raw_height() - y - 1;
     }
     if (mode == PAINT_MODE_BLEND) {
-      color = alphaBlend(buffer_[y * raw_width() + x], color);
+      color = AlphaBlend(buffer_[y * raw_width() + x], color);
     }
     color = color_mode_.toArgbColor(color_mode_.fromArgbColor(color));
     buffer_[y * raw_width() + x] = color;

@@ -132,7 +132,7 @@ class AddrWindowDevice : public DisplayDevice {
                                    PAINT_MODE_REPLACE);
       Color mycolor = *color++;
       if (mode == PAINT_MODE_BLEND) {
-        mycolor = alphaBlend(bgcolor_, mycolor);
+        mycolor = AlphaBlend(bgcolor_, mycolor);
       }
       raw_color_type raw_color = to_raw_color(mycolor);
       target_.ramFill(raw_color, pixel_count);
@@ -142,7 +142,7 @@ class AddrWindowDevice : public DisplayDevice {
   void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
     if (mode == PAINT_MODE_BLEND) {
-      color = alphaBlend(bgcolor_, color);
+      color = AlphaBlend(bgcolor_, color);
     }
     raw_color_type raw_color = to_raw_color(color);
 
@@ -188,7 +188,7 @@ class AddrWindowDevice : public DisplayDevice {
   void fillPixels(PaintMode mode, Color color, int16_t* xs, int16_t* ys,
                   uint16_t pixel_count) override {
     if (mode == PAINT_MODE_BLEND) {
-      color = alphaBlend(bgcolor_, color);
+      color = AlphaBlend(bgcolor_, color);
     }
     raw_color_type raw_color = to_raw_color(color);
     compactor_.drawPixels(
@@ -244,7 +244,7 @@ class AddrWindowDevice : public DisplayDevice {
       }
       case PAINT_MODE_BLEND: {
         while (pixel_count-- > 0) {
-          *dest++ = to_raw_color(alphaBlend(bgcolor_, *src++));
+          *dest++ = to_raw_color(AlphaBlend(bgcolor_, *src++));
         }
       }
       default:

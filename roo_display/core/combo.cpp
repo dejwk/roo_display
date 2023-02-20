@@ -402,7 +402,7 @@ void writeRect(internal::Engine* engine, const Box& bounds,
           // results onto the background.
           if (s.bgcolor() != color::Transparent) {
             for (int i = 0; i < batch; ++i) {
-              buf[i] = alphaBlend(s.bgcolor(), buf[i]);
+              buf[i] = AlphaBlend(s.bgcolor(), buf[i]);
             }
           }
           writer.advance_buffer_ptr(batch);
@@ -462,7 +462,7 @@ void writeVisible(internal::Engine* engine, const Box& bounds,
           while (count-- > 0) {
             Color c = streams[input].next();
             if (c.a() != 0) {
-              writer.writePixel(x, y, alphaBlend(s.bgcolor(), c));
+              writer.writePixel(x, y, AlphaBlend(s.bgcolor(), c));
             }
             ++x;
             if (x > bounds.xMax()) {
@@ -515,7 +515,7 @@ void writeVisible(internal::Engine* engine, const Box& bounds,
           } else {
             for (int i = 0; i < batch; ++i) {
               if (buf[i].a() != 0) {
-                writer.writePixel(x, y, alphaBlend(s.bgcolor(), buf[i]));
+                writer.writePixel(x, y, AlphaBlend(s.bgcolor(), buf[i]));
               }
               ++x;
               if (x > bounds.xMax()) {

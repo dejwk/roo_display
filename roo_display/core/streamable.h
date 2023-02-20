@@ -48,7 +48,7 @@ inline void fillPaintRectOverOpaqueBg(DisplayOutput &output, const Box &extents,
     uint16_t n = kPixelWritingBufferSize;
     if (n > count) n = count;
     stream->Read(buf, n);
-    for (int i = 0; i < n; i++) buf[i] = alphaBlendOverOpaque(bgColor, buf[i]);
+    for (int i = 0; i < n; i++) buf[i] = AlphaBlendOverOpaque(bgColor, buf[i]);
     output.write(buf, n);
     count -= n;
   } while (count > 0);
@@ -65,7 +65,7 @@ inline void fillPaintRectOverBg(DisplayOutput &output, const Box &extents,
     if (n > count) n = count;
     stream->Read(buf, n);
     for (int i = 0; i < n; ++i) {
-      buf[i] = alphaBlend(bgcolor, buf[i]);
+      buf[i] = AlphaBlend(bgcolor, buf[i]);
     }
     output.write(buf, n);
     count -= n;
@@ -115,7 +115,7 @@ inline void writeRectVisibleOverOpaqueBg(DisplayOutput &output,
       }
       Color color = buf[idx++];
       if (color.a() != 0) {
-        writer.writePixel(i, j, alphaBlendOverOpaque(bgcolor, color));
+        writer.writePixel(i, j, AlphaBlendOverOpaque(bgcolor, color));
       }
     }
   }
@@ -139,7 +139,7 @@ inline void writeRectVisibleOverBg(DisplayOutput &output, const Box &extents,
       }
       Color color = buf[idx++];
       if (color.a() != 0) {
-        writer.writePixel(i, j, alphaBlend(bgcolor, color));
+        writer.writePixel(i, j, AlphaBlend(bgcolor, color));
       }
     }
   }
@@ -193,7 +193,7 @@ class BufferingStream {
 
   // void blend(Color* buf, uint16_t count) {
   //   while (count-- > 0) {
-  //     *buf = alphaBlend(*buf, next());
+  //     *buf = AlphaBlend(*buf, next());
   //     buf++;
   //   }
   //   return;
@@ -232,7 +232,7 @@ class BufferingStream {
       if (count <= batch) {
         idx_ += count;
         while (count-- > 0) {
-          *buf = alphaBlend(*buf, *in);
+          *buf = AlphaBlend(*buf, *in);
           buf++;
           in++;
         }
@@ -240,7 +240,7 @@ class BufferingStream {
       }
       count -= batch;
       while (batch-- > 0) {
-        *buf = alphaBlend(*buf, *in);
+        *buf = AlphaBlend(*buf, *in);
         buf++;
         in++;
       }

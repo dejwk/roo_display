@@ -104,7 +104,7 @@ class UnionStream {
   Color next() {
     Color bg = bg_->next();
     Color fg = fg_->next();
-    return alphaBlend(bg, fg);
+    return AlphaBlend(bg, fg);
   }
 
   void skip(uint32_t count) {

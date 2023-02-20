@@ -25,7 +25,7 @@ void TileBase::drawInternal(const Surface& s, const Drawable& content) const {
   Box extents =
       Box::intersect(s.clip_box(), border_.extents().translate(s.dx(), s.dy()));
   if (extents.empty()) return;
-  Color bgcolor = alphaBlend(s.bgcolor(), bgcolor_);
+  Color bgcolor = AlphaBlend(s.bgcolor(), bgcolor_);
   Box interior = Box::intersect(s.clip_box(),
                                 border_.interior().translate(s.dx(), s.dy()));
   if (interior.empty()) {

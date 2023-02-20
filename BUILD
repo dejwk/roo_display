@@ -26,12 +26,13 @@ cc_library(
         exclude = ["test/**"],
     ),
     defines = ["ROO_DISPLAY_TESTING"],
+    alwayslink = 1,
     includes = [
         ".",
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//roo_testing:arduino",
+        "//roo_testing:arduino_gtest_main",
     ],
 )
 
@@ -46,7 +47,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -59,7 +59,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -72,7 +71,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -86,7 +84,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -101,7 +98,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -114,7 +110,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -128,7 +123,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -143,7 +137,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -158,7 +151,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -173,7 +165,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -185,7 +176,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -197,7 +187,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -209,7 +198,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -222,7 +210,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -235,7 +222,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -248,7 +234,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -261,7 +246,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -276,7 +260,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -289,7 +272,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -302,7 +284,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -316,7 +297,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -330,7 +310,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -344,7 +323,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -358,7 +336,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -371,7 +348,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -385,7 +361,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )
 
@@ -398,6 +373,5 @@ cc_test(
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",
-        "@gtest//:gtest_main",
     ],
 )

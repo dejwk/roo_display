@@ -75,6 +75,21 @@ class GenericSpi {
     spi_.writeBytes(buf, len * 2);
   }
 
+  void fill24be(uint32_t data, uint32_t len) {
+    uint8_t buf[96];
+    if (len >= 32) {
+      pattern_fill<3>(buf, 32, ((uint8_t*)&data + 1));
+      while (len >= 32) {
+        spi_.writeBytes(buf, 96);
+        len -= 32;
+      }
+      spi_.writeBytes(buf, len * 3);
+      return;
+    }
+    pattern_fill<3>(buf, len, ((uint8_t*)&data + 1));
+    spi_.writeBytes(buf, len * 3);
+  }
+
   uint8_t transfer(uint8_t data) { return spi_.transfer(data); }
   uint16_t transfer16(uint16_t data) { return spi_.transfer16(data); }
   uint32_t transfer32(uint32_t data) { return spi_.transfer32(data); }
@@ -82,6 +97,7 @@ class GenericSpi {
  private:
   decltype(SPI)& spi_;
 };
+
 
 template <uint32_t _clock, uint8_t _bit_order, uint8_t _data_mode>
 struct SpiSettings {

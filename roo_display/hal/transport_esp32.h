@@ -207,6 +207,79 @@ class SpiTransport {
       ;
   }
 
+  void fill24be(uint32_t data, uint32_t len) {
+    const uint8_t* buf = (const uint8_t*)(&data);
+    uint32_t r = buf[1];
+    uint32_t g = buf[2];
+    uint32_t b = buf[3];
+    // Concatenate 4 pixels into three 32 bit blocks.
+    uint32_t d2 = b | r << 8 | g << 16 | b << 24;
+    uint32_t d1 = d2 << 8 | g;
+    uint32_t d0 = d1 << 8 | r;
+    len *= 3;
+    if (len >= 60) {
+      WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 479);
+      while (len >= 60) {
+        WRITE_PERI_REG(SPI_W0_REG(spi_port), d0);
+        WRITE_PERI_REG(SPI_W1_REG(spi_port), d1);
+        WRITE_PERI_REG(SPI_W2_REG(spi_port), d2);
+        WRITE_PERI_REG(SPI_W3_REG(spi_port), d0);
+        WRITE_PERI_REG(SPI_W4_REG(spi_port), d1);
+        WRITE_PERI_REG(SPI_W5_REG(spi_port), d2);
+        WRITE_PERI_REG(SPI_W6_REG(spi_port), d0);
+        WRITE_PERI_REG(SPI_W7_REG(spi_port), d1);
+        WRITE_PERI_REG(SPI_W8_REG(spi_port), d2);
+        WRITE_PERI_REG(SPI_W9_REG(spi_port), d0);
+        WRITE_PERI_REG(SPI_W10_REG(spi_port), d1);
+        WRITE_PERI_REG(SPI_W11_REG(spi_port), d2);
+        WRITE_PERI_REG(SPI_W12_REG(spi_port), d0);
+        WRITE_PERI_REG(SPI_W13_REG(spi_port), d1);
+        WRITE_PERI_REG(SPI_W14_REG(spi_port), d2);
+        SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
+        len -= 60;
+        while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR)
+          ;
+      }
+    }
+    if (len == 0) return;
+    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), (len << 3) - 1);
+    do {
+      WRITE_PERI_REG(SPI_W0_REG(spi_port), d0);
+      if (len <= 4) break;
+      WRITE_PERI_REG(SPI_W1_REG(spi_port), d1);
+      if (len <= 8) break;
+      WRITE_PERI_REG(SPI_W2_REG(spi_port), d2);
+      if (len <= 12) break;
+      WRITE_PERI_REG(SPI_W3_REG(spi_port), d0);
+      if (len <= 16) break;
+      WRITE_PERI_REG(SPI_W4_REG(spi_port), d1);
+      if (len <= 20) break;
+      WRITE_PERI_REG(SPI_W5_REG(spi_port), d2);
+      if (len <= 24) break;
+      WRITE_PERI_REG(SPI_W6_REG(spi_port), d0);
+      if (len <= 28) break;
+      WRITE_PERI_REG(SPI_W7_REG(spi_port), d1);
+      if (len <= 32) break;
+      WRITE_PERI_REG(SPI_W8_REG(spi_port), d2);
+      if (len <= 36) break;
+      WRITE_PERI_REG(SPI_W9_REG(spi_port), d0);
+      if (len <= 40) break;
+      WRITE_PERI_REG(SPI_W10_REG(spi_port), d1);
+      if (len <= 44) break;
+      WRITE_PERI_REG(SPI_W11_REG(spi_port), d2);
+      if (len <= 48) break;
+      WRITE_PERI_REG(SPI_W12_REG(spi_port), d0);
+      if (len <= 52) break;
+      WRITE_PERI_REG(SPI_W13_REG(spi_port), d1);
+      if (len <= 56) break;
+      WRITE_PERI_REG(SPI_W14_REG(spi_port), d2);
+
+    } while (false);
+    SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
+    while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR)
+      ;
+  }
+
   uint8_t transfer(uint8_t data) { return spi_.transfer(data); }
   uint16_t transfer16(uint16_t data) { return spi_.transfer16(data); }
   uint32_t transfer32(uint32_t data) { return spi_.transfer32(data); }

@@ -6,19 +6,15 @@
 
 #include "roo_display/filter/color_filter.h"
 
-static const int smoothingWindowMs = 10;
-static const float smoothingFactor = 0.8;  // Closer to 1 -> more smoothing.
-
 namespace roo_display {
 
 bool TouchDisplay::getTouch(int16_t& x, int16_t& y) {
   int16_t raw_x, raw_y, raw_z;
   bool touched = touch_device_.getTouch(raw_x, raw_y, raw_z);
   if (!touched) {
-    touched_ = false;
     return false;
   }
-  long now = millis();
+  touch_calibration_.Calibrate(raw_x, raw_y, raw_z);
   Orientation orientation = display_device_.orientation();
   if (orientation.isRightToLeft()) {
     raw_x = 4095 - raw_x;
@@ -29,26 +25,9 @@ bool TouchDisplay::getTouch(int16_t& x, int16_t& y) {
   if (orientation.isXYswapped()) {
     std::swap(raw_x, raw_y);
   }
-  if (!touched_) {
-    raw_touch_x_ = raw_x;
-    raw_touch_y_ = raw_y;
-    raw_touch_z_ = raw_z;
-    touched_ = true;
-  } else if (now != last_sample_time_) {
-    float k = (float)(now - last_sample_time_) / smoothingWindowMs;
-    float weight_past = pow(smoothingFactor, k);
-    float weight_present = 1 - weight_past;
-    raw_touch_x_ =
-        (int16_t)(raw_touch_x_ * weight_past + raw_x * weight_present);
-    raw_touch_y_ =
-        (int16_t)(raw_touch_y_ * weight_past + raw_y * weight_present);
-    raw_touch_z_ =
-        (int16_t)(raw_touch_z_ * weight_past + raw_z * weight_present);
-    last_sample_time_ = now;
-  }
 
-  x = ((int32_t)raw_touch_x_ * (display_device_.effective_width() - 1)) / 4095;
-  y = ((int32_t)raw_touch_y_ * (display_device_.effective_height() - 1)) / 4095;
+  x = ((int32_t)raw_x * (display_device_.effective_width() - 1)) / 4095;
+  y = ((int32_t)raw_y * (display_device_.effective_height() - 1)) / 4095;
   return true;
 }
 
@@ -59,10 +38,12 @@ class DummyTouch : public TouchDevice {
 
 static DummyTouch dummy_touch;
 
-Display::Display(DisplayDevice& display_device, TouchDevice* touch_device)
+Display::Display(DisplayDevice& display_device, TouchDevice* touch_device,
+                 TouchCalibration touch_calibration)
     : display_device_(display_device),
       touch_(display_device,
-             touch_device == nullptr ? dummy_touch : *touch_device),
+             touch_device == nullptr ? dummy_touch : *touch_device,
+             touch_calibration),
       nest_level_(0),
       orientation_(display_device.orientation()),
       extents_(Box::MaximumBox()),
@@ -83,13 +64,8 @@ void Display::setOrientation(Orientation orientation) {
 
 void Display::init(Color bgcolor) {
   display_device_.init();
-  nest();
-  display_device_.fillRect(Box(0, 0, display_device_.effective_width() - 1,
-                               display_device_.effective_height() - 1),
-                           bgcolor);
-  unnest();
   setBackground(bgcolor);
-  display_device_.setBgColorHint(bgcolor);
+  clear();
 }
 
 void Display::clear() {

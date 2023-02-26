@@ -45,7 +45,6 @@ struct Emulator {
 using namespace roo_display;
 
 Ili9486spi<5, 2, 4> device;
-TouchXpt2046Uncalibrated<15> touch_raw;
 TouchXpt2046<15> touch;
 
 Display display(device, touch);
@@ -107,7 +106,7 @@ void readCalibrationData(Display& display, int16_t x, int16_t y, Point& point) {
   int16_t read_x = 0, read_y = 0, read_z = 0;
   int32_t sum_x = 0, sum_y = 0;
   for (int i = 0; i < 128; ++i) {
-    while (!touch_raw.getTouch(read_x, read_y, read_z)) {
+    while (!touch.getTouch(read_x, read_y, read_z)) {
     }
     Serial.println("Registered!");
     sum_x += read_x;
@@ -120,7 +119,7 @@ void readCalibrationData(Display& display, int16_t x, int16_t y, Point& point) {
     dc.fill(color::Green);
     dc.fill(color::DarkGray);
   }
-  while (touch_raw.getTouch(read_x, read_y, read_z)) {
+  while (touch.getTouch(read_x, read_y, read_z)) {
   }
   delay(200);
 }
@@ -193,9 +192,9 @@ void calibrate(Display& display) {
   Serial.printf("Calibrated successfully: %d %d %d %d; direction: %s\n",
                 xMin - xborder, yMin - yborder, xMax + xborder, yMax + yborder,
                 orientation.asString());
-  touch.setCalibration(TouchCalibration(xMin - xborder, yMin - yborder,
-                                        xMax + xborder, yMax + yborder,
-                                        orientation));
+  display.setTouchCalibration(TouchCalibration(xMin - xborder, yMin - yborder,
+                                               xMax + xborder, yMax + yborder,
+                                               orientation));
 
   // int16_t x_span =
   //     (abs(input.tr.x - input.tl.x) + abs(input.br.x - input.bl.x)) / 2;

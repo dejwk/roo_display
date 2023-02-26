@@ -5,10 +5,12 @@
 #include "roo_display/core/device.h"
 #include "roo_display/core/drawable.h"
 #include "roo_display/core/streamable.h"
+#include "roo_display/core/touch_calibration.h"
 #include "roo_display/filter/background.h"
 #include "roo_display/filter/clip_mask.h"
 #include "roo_display/filter/front_to_back_writer.h"
 #include "roo_display/filter/transformed.h"
+#include "roo_display/products/combo_device.h"
 #include "roo_display/ui/alignment.h"
 
 namespace roo_display {
@@ -17,19 +19,23 @@ class FrontToBackWriter;
 
 class TouchDisplay {
  public:
-  TouchDisplay(DisplayDevice &display_device, TouchDevice &touch_device)
+  TouchDisplay(DisplayDevice &display_device, TouchDevice &touch_device,
+               TouchCalibration touch_calibration = TouchCalibration())
       : display_device_(display_device),
         touch_device_(touch_device),
-        touched_(false) {}
+        touch_calibration_(touch_calibration) {}
 
   bool getTouch(int16_t &x, int16_t &y);
+
+  void setCalibration(TouchCalibration touch_calibration) {
+    touch_calibration_ = touch_calibration;
+  }
 
  private:
   DisplayDevice &display_device_;
   TouchDevice &touch_device_;
+  TouchCalibration touch_calibration_;
 
-  bool touched_;
-  long last_sample_time_;
   int16_t raw_touch_x_;
   int16_t raw_touch_y_;
   int16_t raw_touch_z_;
@@ -37,10 +43,15 @@ class TouchDisplay {
 
 class Display {
  public:
-  Display(DisplayDevice &display_device) : Display(display_device, nullptr) {}
+  Display(DisplayDevice &display_device)
+      : Display(display_device, nullptr, TouchCalibration()) {}
 
-  Display(DisplayDevice &display_device, TouchDevice &touch_device)
-      : Display(display_device, &touch_device) {}
+  Display(DisplayDevice &display_device, TouchDevice &touch_device,
+          TouchCalibration touch_calibration = TouchCalibration())
+      : Display(display_device, &touch_device, touch_calibration) {}
+
+  Display(ComboDevice &device)
+      : Display(device.display(), device.touch(), device.touch_calibration()) {}
 
   int32_t area() const {
     return display_device_.raw_width() * display_device_.raw_height();
@@ -87,6 +98,10 @@ class Display {
     bgcolor_ = color::Transparent;
   }
 
+  void setTouchCalibration(TouchCalibration touch_calibration) {
+    touch_.setCalibration(touch_calibration);
+  }
+
   const Rasterizable *getRasterizableBackground() const { return background_; }
 
   // Sets a background color to be used by all derived contexts.
@@ -103,7 +118,8 @@ class Display {
   void clear();
 
  private:
-  Display(DisplayDevice &display_device, TouchDevice *touch_device);
+  Display(DisplayDevice &display_device, TouchDevice *touch_device,
+          TouchCalibration touch_calibration);
 
   friend class DrawingContext;
 
@@ -288,9 +304,9 @@ class DrawingContext {
   void drawInternal(const Drawable &object, int16_t dx, int16_t dy,
                     Color bgcolor);
 
-  void drawInternalWithBackground(Surface& s, const Drawable &object);
+  void drawInternalWithBackground(Surface &s, const Drawable &object);
 
-  void drawInternalTransformed(Surface& s, const Drawable &object);
+  void drawInternalTransformed(Surface &s, const Drawable &object);
 
   DisplayOutput &output_;
 

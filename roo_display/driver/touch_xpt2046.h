@@ -1,7 +1,6 @@
 #pragma once
 
 #include "roo_display/core/device.h"
-#include "roo_display/driver/common/touch_calibrated.h"
 #include "roo_display/hal/gpio.h"
 #include "roo_display/hal/transport.h"
 
@@ -13,9 +12,9 @@ typedef SpiSettings<kSpiTouchFrequency, MSBFIRST, SPI_MODE0>
     TouchXpt2046SpiSettings;
 
 template <int pinCS, typename Spi = DefaultSpi, typename Gpio = DefaultGpio>
-class TouchXpt2046Uncalibrated : public TouchDevice {
+class TouchXpt2046 : public TouchDevice {
  public:
-  explicit TouchXpt2046Uncalibrated(Spi spi = Spi());
+  explicit TouchXpt2046(Spi spi = Spi());
 
   bool getTouch(int16_t& x, int16_t& y, int16_t& z) override;
 
@@ -29,24 +28,6 @@ class TouchXpt2046Uncalibrated : public TouchDevice {
   int16_t press_z_;
   int16_t press_vx_;
   int16_t press_vy_;
-};
-
-template <int pinCS, typename Spi = DefaultSpi, typename Gpio = DefaultGpio>
-class TouchXpt2046 : public TouchDevice {
- public:
-  TouchXpt2046(Spi spi = Spi());
-
-  TouchXpt2046(TouchCalibration calibration, Spi spi = Spi());
-
-  void setCalibration(TouchCalibration calibration) {
-    calibration_ = std::move(calibration);
-  }
-
-  bool getTouch(int16_t& x, int16_t& y, int16_t& z) override;
-
- private:
-  TouchCalibration calibration_;
-  TouchXpt2046Uncalibrated<pinCS, Spi, Gpio> uncalibrated_;
 };
 
 // If two subsequent reads are further apart than this parameter, in either
@@ -82,7 +63,7 @@ static const int kTouchIntertiaMs = 60;
 // Implementation follows.
 
 template <int pinCS, typename Spi, typename Gpio>
-TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::TouchXpt2046Uncalibrated(Spi spi)
+TouchXpt2046<pinCS, Spi, Gpio>::TouchXpt2046(Spi spi)
     : spi_transport_(std::move(spi)),
       pressed_(false),
       latest_confirmed_pressed_timestamp_(0),
@@ -155,9 +136,8 @@ ConversionResult single_conversion(Spi& spi, uint16_t z_threshold, uint16_t* x,
 }
 
 template <int pinCS, typename Spi, typename Gpio>
-bool TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::getTouch(int16_t& x,
-                                                          int16_t& y,
-                                                          int16_t& z) {
+bool TouchXpt2046<pinCS, Spi, Gpio>::getTouch(int16_t& x, int16_t& y,
+                                              int16_t& z) {
   unsigned long now = millis();
   int z_threshold = kInitialTouchZThreshold;
   if (pressed_ &&
@@ -244,22 +224,6 @@ bool TouchXpt2046Uncalibrated<pinCS, Spi, Gpio>::getTouch(int16_t& x,
   // No reliable readout despite numerous attempts - aborting.
   pressed_ = false;
   return false;
-}
-
-template <int pinCS, typename Spi, typename Gpio>
-TouchXpt2046<pinCS, Spi, Gpio>::TouchXpt2046(Spi spi)
-    : calibration_(), uncalibrated_(std::move(spi)) {}
-
-template <int pinCS, typename Spi, typename Gpio>
-TouchXpt2046<pinCS, Spi, Gpio>::TouchXpt2046(TouchCalibration calibration,
-                                             Spi spi)
-    : calibration_(std::move(calibration)), uncalibrated_(std::move(spi)) {}
-
-template <int pinCS, typename Spi, typename Gpio>
-bool TouchXpt2046<pinCS, Spi, Gpio>::getTouch(int16_t& x, int16_t& y,
-                                              int16_t& z) {
-  bool touched = uncalibrated_.getTouch(x, y, z);
-  return touched ? calibration_.Calibrate(x, y, z) : false;
 }
 
 }  // namespace roo_display

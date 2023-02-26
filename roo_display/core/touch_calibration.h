@@ -1,7 +1,7 @@
 #pragma once
 
 #include "roo_display/core/box.h"
-#include "roo_display/core/device.h"
+#include "roo_display/core/orientation.h"
 
 namespace roo_display {
 
@@ -22,28 +22,11 @@ class TouchCalibration {
 
   // Augments x and y so that they are within range [0, 4095], and
   // correspond to the logical {x, y} direction of the calibrated device.
-  bool Calibrate(int16_t& x, int16_t& y, int16_t& z);
+  void Calibrate(int16_t& x, int16_t& y, int16_t& z);
 
  private:
   Box bounds_;
   Orientation orientation_;
-};
-
-class TouchCalibrated : public TouchDevice {
- public:
-  TouchCalibrated(TouchDevice* touch,
-                  TouchCalibration calibration = TouchCalibration())
-      : touch_(touch), calibration_(std::move(calibration)) {}
-
-  void setCalibration(TouchCalibration calibration) {
-    calibration_ = calibration;
-  }
-
-  bool getTouch(int16_t& x, int16_t& y, int16_t& z) override;
-
- private:
-  TouchDevice* touch_;
-  TouchCalibration calibration_;
 };
 
 }  // namespace roo_display

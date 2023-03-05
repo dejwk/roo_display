@@ -211,7 +211,7 @@ struct Reader<ColorMode, pixel_order, byte_order, 1, storage_type> {
 }  // namespace internal
 
 // The raster does not own its buffer. The representation of a raster it
-// reasonably small (14-18 bytes, depending on the color mode), and can be
+// reasonably small (22-26 bytes, depending on the color mode), and can be
 // passed by value.
 template <typename PtrType, typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
@@ -224,16 +224,30 @@ class Raster : public Rasterizable {
 
   Raster(int16_t width, int16_t height, PtrType ptr,
          const ColorMode& color_mode = ColorMode())
-      : Raster(Box(0, 0, width - 1, height - 1), ptr, std::move(color_mode)) {}
+      : Raster(Box(0, 0, width - 1, height - 1),
+               Box(0, 0, width - 1, height - 1), ptr, std::move(color_mode)) {}
+
+  Raster(int16_t width, int16_t height, Box extents, PtrType ptr,
+         const ColorMode& color_mode = ColorMode())
+      : Raster(extents, Box(0, 0, width - 1, height - 1), ptr,
+               std::move(color_mode)) {}
 
   Raster(Box extents, PtrType ptr, const ColorMode& color_mode = ColorMode())
+      : Raster(extents, extents, ptr, std::move(color_mode)) {}
+
+  Raster(Box extents, Box anchor_extents, PtrType ptr,
+         const ColorMode& color_mode = ColorMode())
       : extents_(std::move(extents)),
+        anchor_extents_(std::move(anchor_extents)),
         ptr_(ptr),
         color_mode_(color_mode),
         width_(extents.width()) {}
 
   Box extents() const override { return extents_; }
 
+  Box anchorExtents() const override { return anchor_extents_; }
+
+  ColorMode& color_mode() { return color_mode_; }
   const ColorMode& color_mode() const { return color_mode_; }
 
   std::unique_ptr<StreamType> CreateRawStream() const {
@@ -276,6 +290,7 @@ class Raster : public Rasterizable {
 
  private:
   Box extents_;
+  Box anchor_extents_;
   PtrType ptr_;
   ColorMode color_mode_;
   int16_t width_;

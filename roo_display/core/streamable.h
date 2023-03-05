@@ -444,18 +444,25 @@ class SimpleStreamable : public Streamable {
  public:
   SimpleStreamable(int16_t width, int16_t height, Resource resource,
                    const ColorMode &color_mode = ColorMode())
-      : SimpleStreamable(Box(0, 0, width - 1, height - 1), std::move(resource),
-                         std::move(color_mode)) {}
+      : SimpleStreamable(Box(0, 0, width - 1, height - 1),
+                         std::move(resource), std::move(color_mode)) {}
 
   SimpleStreamable(Box extents, Resource resource,
                    const ColorMode &color_mode = ColorMode())
+      : SimpleStreamable(extents, extents, std::move(resource), color_mode) {}
+
+  SimpleStreamable(Box extents, Box anchor_extents,
+                   Resource resource, const ColorMode &color_mode = ColorMode())
       : extents_(std::move(extents)),
+        anchor_extents_(anchor_extents),
         resource_(std::move(resource)),
         color_mode_(color_mode) {}
 
   void setColorMode(const ColorMode &color_mode) { color_mode_ = color_mode; }
 
   Box extents() const override { return extents_; }
+
+  Box anchorExtents() const override { return anchor_extents_; }
 
   const Resource &resource() const { return resource_; }
   const ColorMode &color_mode() const { return color_mode_; }
@@ -482,6 +489,8 @@ class SimpleStreamable : public Streamable {
 
  private:
   Box extents_;
+  Box anchor_extents_;
+
   Resource resource_;
   ColorMode color_mode_;
 };

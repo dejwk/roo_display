@@ -1,6 +1,7 @@
 #pragma once
 
 #include "roo_display/internal/raw_streamable.h"
+#include "roo_display/ui/alignment.h"
 
 namespace roo_display {
 
@@ -28,10 +29,10 @@ class SuperRectangleStream {
         width_skip_(width - inner.width()),
         transparency_(delegate_->transparency() != TRANSPARENCY_NONE
                           ? delegate_->transparency()
-                          : width == inner.width() && inner.xMin() == 0 &&
-                                    inner.yMin() == 0
-                                ? TRANSPARENCY_NONE
-                                : TRANSPARENCY_BINARY) {}
+                      : width == inner.width() && inner.xMin() == 0 &&
+                              inner.yMin() == 0
+                          ? TRANSPARENCY_NONE
+                          : TRANSPARENCY_BINARY) {}
 
   SuperRectangleStream(SuperRectangleStream &&) = default;
 
@@ -81,7 +82,8 @@ std::unique_ptr<SuperRectangleStream<RawPixelStream>> Realign(
   return std::unique_ptr<SuperRectangleStream<RawPixelStream>>(
       new SuperRectangleStream<RawPixelStream>(
           std::move(stream), outer_extents.width(),
-          inner_extents.translate(-outer_extents.xMin(), -outer_extents.yMin())));
+          inner_extents.translate(-outer_extents.xMin(),
+                                  -outer_extents.yMin())));
 }
 
 // The streams MUST be aligned first.
@@ -94,10 +96,10 @@ class UnionStream {
         transparency_(bg_->transparency() == TRANSPARENCY_NONE &&
                               fg_->transparency() == TRANSPARENCY_NONE
                           ? TRANSPARENCY_NONE
-                          : bg_->transparency() == TRANSPARENCY_GRADUAL ||
-                                    fg_->transparency() == TRANSPARENCY_GRADUAL
-                                ? TRANSPARENCY_GRADUAL
-                                : TRANSPARENCY_BINARY) {}
+                      : bg_->transparency() == TRANSPARENCY_GRADUAL ||
+                              fg_->transparency() == TRANSPARENCY_GRADUAL
+                          ? TRANSPARENCY_GRADUAL
+                          : TRANSPARENCY_BINARY) {}
 
   UnionStream(UnionStream &&) = default;
 
@@ -134,9 +136,10 @@ std::unique_ptr<UnionStream<Bg, Fg>> MakeUnionStream(std::unique_ptr<Bg> bg,
 template <typename Bg, typename Fg>
 class Superposition {
  public:
-  Superposition(Bg bg, int16_t bg_x, int16_t bg_y, Fg fg, int16_t fg_x,
-                int16_t fg_y)
-      : bg_(std::move(bg)),
+  Superposition(Box anchor_extents, Bg bg, int16_t bg_x, int16_t bg_y, Fg fg,
+                int16_t fg_x, int16_t fg_y)
+      : anchor_extents_(anchor_extents),
+        bg_(std::move(bg)),
         bg_x_(bg_x),
         bg_y_(bg_y),
         fg_(std::move(fg)),
@@ -156,9 +159,10 @@ class Superposition {
         Realign(extents_, fg_extents(), fg_.CreateRawStream()));
   }
 
-  auto CreateClippedStream(const Box &clip_box) const -> std::unique_ptr<
-      internal::UnionStream<SuperRectangleStream<ClipperedRawStreamTypeOf<Bg>>,
-                            SuperRectangleStream<ClipperedRawStreamTypeOf<Fg>>>> {
+  auto CreateClippedStream(const Box &clip_box) const
+      -> std::unique_ptr<internal::UnionStream<
+          SuperRectangleStream<ClipperedRawStreamTypeOf<Bg>>,
+          SuperRectangleStream<ClipperedRawStreamTypeOf<Fg>>>> {
     Box bounds = Box::intersect(extents_, clip_box);
     return MakeUnionStream(
         Realign(bounds, Box::intersect(bounds, bg_extents()),
@@ -168,10 +172,12 @@ class Superposition {
   }
 
   const Box &extents() const { return extents_; }
+  const Box &anchorExtents() const { return anchor_extents_; }
 
  private:
   Superposition(const Superposition &) = delete;
 
+  Box anchor_extents_;
   Bg bg_;
   int16_t bg_x_;
   int16_t bg_y_;
@@ -193,8 +199,8 @@ class RawStreamableRef {
  public:
   RawStreamableRef(const RawStreamable &ref) : ref_(ref) {}
   const Box extents() const { return ref_.extents(); }
-  decltype(std::declval<const RawStreamable &>().CreateRawStream()) CreateRawStream()
-      const {
+  decltype(std::declval<const RawStreamable &>().CreateRawStream())
+  CreateRawStream() const {
     return ref_.CreateRawStream();
   }
 
@@ -207,17 +213,22 @@ class RawStreamableRef {
 template <typename Bg, typename Fg>
 internal::Superposition<Bg, Fg> Overlay(Bg bg, int16_t bg_x, int16_t bg_y,
                                         Fg fg, int16_t fg_x, int16_t fg_y) {
-  return internal::Superposition<Bg, Fg>(std::move(bg), bg_x, bg_y,
-                                         std::move(fg), fg_x, fg_y);
+  return internal::Superposition<Bg, Fg>(bg.anchorExtents(), std::move(bg),
+                                         bg_x, bg_y, std::move(fg), fg_x, fg_y);
 }
 
-// template <typename Content>
-// internal::Superposition<StreamableFilledRect, Content>
-// OverlayOnSolidRectangle(
-//     const Rect &rect, Color bgcolor, Content content) {
-//   return Overlay(StreamableFilledRect(rect.width(), rect.height(), bgcolor),
-//                  rect.xMin(), rect.yMin(), std::move(content), 0, 0);
-// }
+template <typename Bg, typename Fg>
+internal::Superposition<Bg, Fg> Overlay(Box anchor_extents, Bg bg,
+                                        Alignment bg_align, Fg fg,
+                                        Alignment fg_align) {
+  std::pair<int16_t, int16_t> bg_offset =
+      bg_align.resolveOffset(anchor_extents, bg.anchorExtents());
+  std::pair<int16_t, int16_t> fg_offset =
+      fg_align.resolveOffset(anchor_extents, fg.anchorExtents());
+  return internal::Superposition<Bg, Fg>(
+      anchor_extents, std::move(bg), bg_offset.first, bg_offset.second,
+      std::move(fg), fg_offset.first, fg_offset.second);
+}
 
 template <typename RawStreamable>
 internal::RawStreamableRef<RawStreamable> Ref(const RawStreamable &ref) {

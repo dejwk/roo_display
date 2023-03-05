@@ -282,6 +282,8 @@ class DrawableRawStreamable : public Streamable {
 
   Box extents() const override { return streamable_.extents(); }
 
+  Box anchorExtents() const override { return streamable_.anchorExtents(); }
+
   const RawStreamable &contents() const { return streamable_; }
 
   std::unique_ptr<PixelStream> CreateStream() const override {
@@ -363,17 +365,20 @@ class SimpleRawStreamable {
   SimpleRawStreamable(int16_t width, int16_t height, Resource resource,
                       const ColorMode &color_mode = ColorMode())
       : SimpleRawStreamable(Box(0, 0, width - 1, height - 1),
+                            Box(0, 0, width - 1, height - 1),
                             std::move(resource), std::move(color_mode)) {}
 
-  SimpleRawStreamable(Box extents, Resource resource,
+  SimpleRawStreamable(Box extents, Box anchor_extents, Resource resource,
                       const ColorMode &color_mode = ColorMode())
       : extents_(std::move(extents)),
+        anchor_extents_(anchor_extents),
         resource_(std::move(resource)),
         color_mode_(color_mode) {}
 
   void setColorMode(const ColorMode &color_mode) { color_mode_ = color_mode; }
 
   const Box &extents() const { return extents_; }
+  const Box &anchorExtents() const { return anchor_extents_; }
   const Resource &resource() const { return resource_; }
   const ColorMode &color_mode() const { return color_mode_; }
 
@@ -384,6 +389,7 @@ class SimpleRawStreamable {
 
  private:
   Box extents_;
+  Box anchor_extents_;
   Resource resource_;
   ColorMode color_mode_;
 };
@@ -406,6 +412,7 @@ class Clipping {
         extents_(Box::intersect(streamable_.extents(), clip_box)) {}
 
   const Box &extents() const { return extents_; }
+  const Box &anchorExtents() const { return streamable_.anchorExtents(); }
 
   const ColorModeOf<RawStreamable> &color_mode() const {
     return streamable_.color_mode();

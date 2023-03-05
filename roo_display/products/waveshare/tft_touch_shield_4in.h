@@ -19,26 +19,25 @@ template <int8_t pinLcdCs, int8_t pinTouchCs, int8_t pinLcdDc,
           int8_t pinLcdReset = -1, int8_t pinLcdBacklit = -1>
 class TftTouchShield4in : public ComboDevice {
  public:
-  TftTouchShield4in(decltype(SPI)& spi = SPI)
-      : spi_(spi),
-        display_(spi),
-        touch_(roo_display::TouchCalibration(
-            365, 288, 3829, 3819, roo_display::Orientation::RightDown())) {}
-
-  void begin() {
-    spi_.begin();
+  TftTouchShield4in(Orientation orientation = Orientation(),
+                    decltype(SPI)& spi = SPI)
+      : spi_(spi), display_(spi), touch_() {
+    display_.setOrientation(orientation);
   }
+
+  void begin() { spi_.begin(); }
 
   void begin(uint8_t sck, uint8_t miso, uint8_t mosi) {
     spi_.begin(sck, miso, mosi);
   }
 
-  DisplayDevice& display() override {
-    return display_;
-  }
+  DisplayDevice& display() override { return display_; }
 
-  TouchDevice* touch() override {
-    return &touch_;
+  TouchDevice* touch() override { return &touch_; }
+
+  TouchCalibration touch_calibration() override {
+    return TouchCalibration(365, 288, 3829, 3819,
+                            roo_display::Orientation::RightDown());
   }
 
  private:

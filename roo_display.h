@@ -112,6 +112,11 @@ class Display {
     display_device_.setBgColorHint(bgcolor);
   }
 
+  void setBackgroundColor(Color bgcolor) {
+    bgcolor_ = bgcolor;
+    display_device_.setBgColorHint(bgcolor);
+  }
+
   Color getBgColor() const { return bgcolor_; }
 
   // Clears the display, respecting the clip box, and background settings.
@@ -217,6 +222,10 @@ class DrawingContext {
 
   void setBackground(Color bgcolor) {
     background_ = nullptr;
+    bgcolor_ = bgcolor;
+  }
+
+  void setBackgroundColor(Color bgcolor) {
     bgcolor_ = bgcolor;
   }
 

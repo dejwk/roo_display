@@ -144,7 +144,7 @@ Display display(device);
 
 void setup() {
   SPI.begin();
-  display.init(color::White);
+  display.init(Graylevel(0xF0));
 }
 
 void loop() {
@@ -259,7 +259,7 @@ void loop() {
 
 ![img4](doc/images/img4.png)
 
-So far, we have been using the default background color, which we had set to `color::White` in the call to `device.init()`. That default background may be overriden in the drawing context:
+So far, we have been using the default background color, which we had set in the call to `device.init()`. That default background may be overriden in the drawing context:
 
 ```cpp
 void loop() {

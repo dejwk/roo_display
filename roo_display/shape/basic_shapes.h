@@ -66,6 +66,9 @@ class RectBase : public BasicShape {
 
 class Rect : public RectBase {
  public:
+  Rect(const Box &box, Color color)
+      : RectBase(box.xMin(), box.yMin(), box.xMax(), box.yMax(), color) {}
+
   Rect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Color color)
       : RectBase(x0, y0, x1, y1, color) {}
 

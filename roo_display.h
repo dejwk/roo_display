@@ -225,9 +225,7 @@ class DrawingContext {
     bgcolor_ = bgcolor;
   }
 
-  void setBackgroundColor(Color bgcolor) {
-    bgcolor_ = bgcolor;
-  }
+  void setBackgroundColor(Color bgcolor) { bgcolor_ = bgcolor; }
 
   FillMode fillMode() const { return fill_mode_; }
   void setFillMode(FillMode fill_mode) { fill_mode_ = fill_mode; }
@@ -289,9 +287,8 @@ class DrawingContext {
     if (transformed_) {
       anchorExtents = transform_.transformBox(anchorExtents);
     }
-    std::pair<int16_t, int16_t> offset =
-        alignment.resolveOffset(bounds(), anchorExtents);
-    drawInternal(object, offset.first, offset.second, bgcolor_);
+    Offset offset = alignment.resolveOffset(bounds(), anchorExtents);
+    drawInternal(object, offset.dx, offset.dy, bgcolor_);
   }
 
   // Analogous to draw(object), but instead of drawing, replaces all the output

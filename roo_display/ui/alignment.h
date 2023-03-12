@@ -41,8 +41,8 @@ class AlignBase {
   constexpr int16_t shift() const { return (int16_t)((rep_ >> 4) - (1 << 11)); }
 
   template <typename Dim>
-  Dim resolveOffset(Dim first_outer, Dim last_outer,
-                    Dim first_inner, Dim last_inner) const {
+  Dim resolveOffset(Dim first_outer, Dim last_outer, Dim first_inner,
+                    Dim last_inner) const {
     return resolveAnchor<Dim>(dst(), first_outer, last_outer) -
            resolveAnchor<Dim>(src(), first_inner, last_inner) + shift();
   }
@@ -146,6 +146,11 @@ static constexpr VAlign kBottom = VAlign(ANCHOR_MAX, ANCHOR_MAX, 0);
 // Baseline-to-baseline with no shift. (I.e., pretty much no alignment).
 static constexpr VAlign kBaseline = VAlign(ANCHOR_ORIGIN, ANCHOR_ORIGIN, 0);
 
+struct Offset {
+  int16_t dx;
+  int16_t dy;
+};
+
 // Combines the horizontal and vertical alignments. Lightweight enough to
 // be passed by value.
 // Can be constructed using the '|' operator, e.g.: kTop.shift(5) | kMiddle.
@@ -163,12 +168,11 @@ class Alignment {
 
   constexpr VAlign v() const { return v_; }
 
-  std::pair<int16_t, int16_t> resolveOffset(const Box& outer,
-                                            const Box& inner) const {
-    return std::make_pair(h().resolveOffset(outer.xMin(), outer.xMax(),
-                                            inner.xMin(), inner.xMax()),
-                          v().resolveOffset(outer.yMin(), outer.yMax(),
-                                            inner.yMin(), inner.yMax()));
+  Offset resolveOffset(const Box& outer, const Box& inner) const {
+    return Offset{.dx = h().resolveOffset(outer.xMin(), outer.xMax(),
+                                          inner.xMin(), inner.xMax()),
+                  .dy = v().resolveOffset(outer.yMin(), outer.yMax(),
+                                          inner.yMin(), inner.yMax())};
   }
 
   Alignment shiftBy(int16_t dx, int16_t dy) {

@@ -15,12 +15,12 @@ class SolidBorder {
   SolidBorder(Box extents, Box interior, Box anchorExtents, Alignment alignment)
       : extents_(std::move(extents)),
         offset_(alignment.resolveOffset(extents_, anchorExtents)),
-        interior_(Box::intersect(interior.translate(offset_.first, offset_.second),
+        interior_(Box::intersect(interior.translate(offset_.dx, offset_.dy),
                                  extents_)) {}
 
   const Box &extents() const { return extents_; }
-  int16_t x_offset() const { return offset_.first; }
-  int16_t y_offset() const { return offset_.second; }
+  int16_t x_offset() const { return offset_.dx; }
+  int16_t y_offset() const { return offset_.dy; }
   const Box &interior() const { return interior_; }
 
  private:
@@ -29,7 +29,7 @@ class SolidBorder {
 
   // Absolute offset by which the interior needs to be shifted in order to
   // comply with requested alignment.
-  std::pair<int16_t, int16_t> offset_;
+  Offset offset_;
 
   // Absolute coordinates of the (aligned) interior, when the border is drawn at
   // (0, 0), truncated to the extents_.

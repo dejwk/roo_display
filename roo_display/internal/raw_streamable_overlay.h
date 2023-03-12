@@ -221,13 +221,11 @@ template <typename Bg, typename Fg>
 internal::Superposition<Bg, Fg> Overlay(Box anchor_extents, Bg bg,
                                         Alignment bg_align, Fg fg,
                                         Alignment fg_align) {
-  std::pair<int16_t, int16_t> bg_offset =
-      bg_align.resolveOffset(anchor_extents, bg.anchorExtents());
-  std::pair<int16_t, int16_t> fg_offset =
-      fg_align.resolveOffset(anchor_extents, fg.anchorExtents());
+  Offset bg_offset = bg_align.resolveOffset(anchor_extents, bg.anchorExtents());
+  Offset fg_offset = fg_align.resolveOffset(anchor_extents, fg.anchorExtents());
   return internal::Superposition<Bg, Fg>(
-      anchor_extents, std::move(bg), bg_offset.first, bg_offset.second,
-      std::move(fg), fg_offset.first, fg_offset.second);
+      anchor_extents, std::move(bg), bg_offset.dx, bg_offset.dy, std::move(fg),
+      fg_offset.dx, fg_offset.dy);
 }
 
 template <typename RawStreamable>

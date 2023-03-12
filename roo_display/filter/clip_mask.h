@@ -5,7 +5,7 @@
 
 namespace roo_display {
 
-// Represents a binary clip mask. Takes a raw data region, where each byte
+// Represents a binary clip mask. Takes a raw data region, where each bit
 // represents a single pixel, and a rectangle that determines the position and
 // size of the mask.
 // The mask is always byte-aligned; i.e., each row always starts on a new byte.

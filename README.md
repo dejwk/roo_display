@@ -235,6 +235,8 @@ void loop() {
   dc.draw(
     TextLabel("21:41", font_NotoSans_Regular_27(), color::Red),
     5, 30);
+
+  delay(10000);
 }
 ```
 
@@ -254,6 +256,8 @@ void loop() {
   dc.draw(
     TextLabel("21:41", font_NotoSans_Regular_27(), color::Red),
     5, 30);
+
+  delay(10000);
 }
 ```
 
@@ -312,7 +316,7 @@ You can adjust the alignment using specific offsets:
 
 ```cpp
 void loop() {
-  auto circle = FilledCircle::ByExtents(0, 0, 60, color::DarkGray);
+  auto circle = FilledCircle::ByExtents(0, 0, 40, color::DarkGray);
   DrawingContext dc(display);
   dc.draw(circle, kLeft.shiftBy(10) | kTop.shiftBy(10));
   dc.draw(circle, kCenter | kTop.shiftBy(10));
@@ -470,7 +474,7 @@ uint8_t mask_data[320 * 60 / 8];
 
 void setup() {
   SPI.begin();
-  display.init(color::White);
+  display.init(Graylevel(0xF0));
   for (int i = 0; i < 30; i++) {
     // Alternate rows: bits set, bits cleared.
     memset(mask_data + 2 * i * 320 / 8, 0xFF, 320 / 8);

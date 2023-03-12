@@ -38,7 +38,8 @@ class Transform {
   bool is_rescaled() const { return x_scale_ != 1 || y_scale_ != 1; }
   bool is_translated() const { return x_offset_ != 0 || y_offset_ != 0; }
 
-  void transformRect(int16_t &x0, int16_t &y0, int16_t &x1, int16_t &y1) const;
+  void transformRectNoSwap(int16_t &x0, int16_t &y0, int16_t &x1,
+                           int16_t &y1) const;
   Box transformBox(Box in) const;
 
   Box smallestEnclosingRect(const Box &rect) const;
@@ -106,7 +107,7 @@ class TransformedDrawable : public Drawable {
     int16_t y0 = base.yMin();
     int16_t x1 = base.xMax();
     int16_t y1 = base.yMax();
-    transform_.transformRect(x0, y0, x1, y1);
+    transform_.transformRectNoSwap(x0, y0, x1, y1);
     return Box(x0, y0, x1, y1);
   }
 
@@ -116,7 +117,7 @@ class TransformedDrawable : public Drawable {
     int16_t y0 = base.yMin();
     int16_t x1 = base.xMax();
     int16_t y1 = base.yMax();
-    transform_.transformRect(x0, y0, x1, y1);
+    transform_.transformRectNoSwap(x0, y0, x1, y1);
     return Box(x0, y0, x1, y1);
   }
 

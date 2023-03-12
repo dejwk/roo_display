@@ -102,8 +102,8 @@ Transform Transform::rotateCounterClockwise(int turns) const {
   }
 }
 
-void Transform::transformRect(int16_t &x0, int16_t &y0, int16_t &x1,
-                              int16_t &y1) const {
+void Transform::transformRectNoSwap(int16_t &x0, int16_t &y0, int16_t &x1,
+                                    int16_t &y1) const {
   x0 = x0 * x_scale_ + x_offset_;
   y0 = y0 * y_scale_ + y_offset_;
   x1 = (x1 + 1) * x_scale_ + x_offset_;
@@ -127,7 +127,11 @@ Box Transform::transformBox(Box in) const {
   int16_t y0 = in.yMin();
   int16_t x1 = in.xMax();
   int16_t y1 = in.yMax();
-  transformRect(x0, y0, x1, y1);
+  if (xy_swap_) {
+    std::swap(x0, y0);
+    std::swap(x1, y1);
+  }
+  transformRectNoSwap(x0, y0, x1, y1);
   return Box(x0, y0, x1, y1);
 }
 
@@ -191,7 +195,7 @@ void TransformedDisplayOutput::write(Color *color, uint32_t pixel_count) {
       }
       int16_t x1 = x0;
       int16_t y1 = y0;
-      transform_.transformRect(x0, y0, x1, y1);
+      transform_.transformRectNoSwap(x0, y0, x1, y1);
       writer.writeRect(x0, y0, x1, y1, *color++);
       if (x_cursor_ < addr_window_.xMax()) {
         ++x_cursor_;
@@ -234,7 +238,7 @@ void TransformedDisplayOutput::writePixels(PaintMode mode, Color *color,
       int16_t y0 = *y++;
       int16_t x1 = x0;
       int16_t y1 = y0;
-      transform_.transformRect(x0, y0, x1, y1);
+      transform_.transformRectNoSwap(x0, y0, x1, y1);
       writer.writeRect(x0, y0, x1, y1, *color++);
     }
   }
@@ -264,7 +268,7 @@ void TransformedDisplayOutput::fillPixels(PaintMode mode, Color color,
       int16_t y0 = *y++;
       int16_t x1 = x0;
       int16_t y1 = y0;
-      transform_.transformRect(x0, y0, x1, y1);
+      transform_.transformRectNoSwap(x0, y0, x1, y1);
       filler.fillRect(x0, y0, x1, y1);
     }
   }
@@ -283,7 +287,7 @@ void TransformedDisplayOutput::writeRects(PaintMode mode, Color *color,
     int16_t yMin = *y0++;
     int16_t xMax = *x1++;
     int16_t yMax = *y1++;
-    transform_.transformRect(xMin, yMin, xMax, yMax);
+    transform_.transformRectNoSwap(xMin, yMin, xMax, yMax);
     writer.writeRect(xMin, yMin, xMax, yMax, *color++);
   }
 }
@@ -301,7 +305,7 @@ void TransformedDisplayOutput::fillRects(PaintMode mode, Color color,
     int16_t yMin = *y0++;
     int16_t xMax = *x1++;
     int16_t yMax = *y1++;
-    transform_.transformRect(xMin, yMin, xMax, yMax);
+    transform_.transformRectNoSwap(xMin, yMin, xMax, yMax);
     filler.fillRect(xMin, yMin, xMax, yMax);
   }
 }

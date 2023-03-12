@@ -35,11 +35,6 @@ class Esp32TftCapacitive35 : public ComboDevice {
 
   TouchCalibration touch_calibration() override {
     return TouchCalibration(0, 20, 309, 454, Orientation::RightDown());
-
-    //9 26 309 461; direction: RightDown
-
-    // 1 25 314 446; direction: RightDown
-    // -9 23 320 444; direction: RightDown
   }
 
  private:

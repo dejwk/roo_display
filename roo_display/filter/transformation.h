@@ -146,45 +146,4 @@ class TransformedDrawable : public Drawable {
   const Drawable *delegate_;
 };
 
-// Similar to TransformedDrawable, but rather than requiring the interior to be
-// defined as a separate object, allows for it to be embedded in this one.
-// Useful e.g. when you need to create and return a transformed drawable, which
-// thus cannot refer to another non-owned object.
-template <typename DrawableType>
-class TransformationOf : public Drawable {
- public:
-  // Creates a transformed drawable.
-  TransformationOf(DrawableType delegate, Transformation transformation)
-      : delegate_(std::move(delegate)), transformation_(transformation) {}
-
-  Box extents() const override {
-    return transformation_.transformBox(delegate_->extents());
-  }
-
-  Box anchorExtents() const override {
-    return transformation_.transformBox(delegate_->anchorExtents());
-  }
-
-  void drawTo(const Surface &s) const override {
-    Transformation adjusted =
-        transformation_.translate(s.dx(), s.dy()).clip(s.clip_box());
-    TransformedDisplayOutput new_output(s.out(), adjusted);
-    Surface news(&new_output, adjusted.smallestBoundingRect(),
-                 s.is_write_once(), s.bgcolor(), s.fill_mode(), s.paint_mode());
-    news.drawObject(*delegate_);
-  }
-
- private:
-  DrawableType delegate_;
-  Transformation transformation_;
-};
-
-// Convenience function that transforms the specified drawable.
-template <typename DrawableType>
-TransformationOf<DrawableType> MakeTransformationOf(
-    DrawableType drawable, Transformation transformation) {
-  return TransformationOf<DrawableType>(std::move(drawable),
-                                        std::move(transformation));
-}
-
 }  // namespace roo_display

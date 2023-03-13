@@ -222,9 +222,6 @@ void TransformedDisplayOutput::writePixels(PaintMode mode, Color *color,
       ClippingBufferedPixelWriter writer(delegate_, clip_box_, mode);
       int16_t dx = transform_.x_offset();
       int16_t dy = transform_.y_offset();
-      if (transform_.xy_swap()) {
-        std::swap(dx, dy);
-      }
       while (pixel_count-- > 0) {
         int16_t ix = *x++ + dx;
         int16_t iy = *y++ + dy;

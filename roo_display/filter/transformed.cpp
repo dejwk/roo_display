@@ -185,6 +185,24 @@ void TransformedDisplayOutput::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
 void TransformedDisplayOutput::write(Color *color, uint32_t pixel_count) {
   if (!transform_.is_rescaled() && !transform_.xy_swap()) {
     delegate_.write(color, pixel_count);
+  } else if (!transform_.is_abs_rescaled()) {
+    ClippingBufferedPixelWriter writer(delegate_, clip_box_, paint_mode_);
+    while (pixel_count-- > 0) {
+      int16_t x = x_cursor_;
+      int16_t y = y_cursor_;
+      if (transform_.xy_swap()) {
+        std::swap(x, y);
+      }
+      writer.writePixel(x * transform_.x_scale() + transform_.x_offset(),
+                        y * transform_.y_scale() + transform_.y_offset(),
+                        *color++);
+      if (x_cursor_ < addr_window_.xMax()) {
+        ++x_cursor_;
+      } else {
+        x_cursor_ = addr_window_.xMin();
+        ++y_cursor_;
+      }
+    }
   } else {
     ClippingBufferedRectWriter writer(delegate_, clip_box_, paint_mode_);
     while (pixel_count-- > 0) {
@@ -228,6 +246,13 @@ void TransformedDisplayOutput::writePixels(PaintMode mode, Color *color,
         writer.writePixel(ix, iy, *color++);
       }
     }
+  } else if (!transform_.is_abs_rescaled()) {
+    ClippingBufferedPixelWriter writer(delegate_, clip_box_, mode);
+    while (pixel_count-- > 0) {
+      int16_t ix = transform_.x_scale() * *x++ + transform_.x_offset();
+      int16_t iy = transform_.y_scale() * *y++ + transform_.y_offset();
+      writer.writePixel(ix, iy, *color++);
+    }
   } else {
     ClippingBufferedRectWriter writer(delegate_, clip_box_, mode);
     while (pixel_count-- > 0) {
@@ -257,6 +282,13 @@ void TransformedDisplayOutput::fillPixels(PaintMode mode, Color color,
         int16_t iy = *y++ + transform_.y_offset();
         filler.fillPixel(ix, iy);
       }
+    }
+  } else if (!transform_.is_abs_rescaled()) {
+    ClippingBufferedPixelFiller filler(delegate_, color, clip_box_, mode);
+    while (pixel_count-- > 0) {
+      int16_t ix = transform_.x_scale() * *x++ + transform_.x_offset();
+      int16_t iy = transform_.y_scale() * *y++ + transform_.y_offset();
+      filler.fillPixel(ix, iy);
     }
   } else {
     ClippingBufferedRectFiller filler(delegate_, color, clip_box_, mode);

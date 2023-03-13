@@ -102,23 +102,11 @@ class TransformedDrawable : public Drawable {
       : transform_(std::move(transform)), delegate_(delegate) {}
 
   Box extents() const override {
-    Box base = delegate_->extents();
-    int16_t x0 = base.xMin();
-    int16_t y0 = base.yMin();
-    int16_t x1 = base.xMax();
-    int16_t y1 = base.yMax();
-    transform_.transformRectNoSwap(x0, y0, x1, y1);
-    return Box(x0, y0, x1, y1);
+    return transform_.transformBox(delegate_->extents());
   }
 
   Box anchorExtents() const override {
-    Box base = delegate_->anchorExtents();
-    int16_t x0 = base.xMin();
-    int16_t y0 = base.yMin();
-    int16_t x1 = base.xMax();
-    int16_t y1 = base.yMax();
-    transform_.transformRectNoSwap(x0, y0, x1, y1);
-    return Box(x0, y0, x1, y1);
+    return transform_.transformBox(delegate_->anchorExtents());
   }
 
  private:

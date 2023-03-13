@@ -164,9 +164,9 @@ void loop() {
 
 ### Color
 
-The roo_display library internally uses 32-bit ARGB color. Most SPI displays only support the RGB565 mode, using 16 bits per pixel. The conversion from the 32-bit ARGB to 16-bit RGB565 (or whatever color mode the device understands) is performed in the driver - that is, if your driver is capable of handling 24- or 32-bit color, you will get it without any loss of quality.
+The `roo_display` library internally uses 32-bit ARGB color. Most SPI displays use RGB565, with 16 bits per pixel. The conversion from the 32-bit ARGB to the device color is performed in the driver - that is, if your driver is capable of handling 24- or 32-bit color, you will get it without any loss of quality, but in most cases, your driver will downgrade to RGB565.
 
-The 'A' in ARGB stands for 'alpha', which means 'translucency'. The library supports translucent color modes with alpha-blending. Most displays do not support transparency directly, so we will explore these color modes more in the section on offscreen drawing and overlays.
+The 'A' in ARGB stands for 'alpha', which means 'translucency'. The `roo_display` library supports translucent color modes with alpha-blending. Most displays do not support transparency directly, so we will explore these color modes more in the section on offscreen drawing and overlays.
 
 The color is represented by the ```Color``` class. It simply encapsulates the uint32_t integer, but provides convenience methods to simplify common operations.
 
@@ -189,10 +189,16 @@ You can also set a color directly from the uint32_t ARGB representation:
 c = Color(0xF0F0F0F0);
 ```
 
-What about the named colors we have seen before? The library defines 140 named [HTML color constants](https://www.w3schools.com/colors/colors_groups.asp):
+Additionally, the library defines 140 named [HTML color constants](https://www.w3schools.com/colors/colors_groups.asp):
 
 ```cpp
 c = color::LightGoldenRodYellow;
+```
+
+as well as a convenience function to specify a shade of gray:
+
+```cpp
+c = Graylevel(0x40);  // Dark gray.
 ```
 
 ### Drawing simple text
@@ -222,7 +228,7 @@ The 'origin' of the text label is at the baseline and to the left of the text. W
 
 ### Backgrounds and overwriting
 
-By default, when you draw something, it will only overwrite the non-background pixels:
+By default, `roo_display` draws the minimum possible number of pixels:
 
 ```cpp
 /// ...
@@ -242,7 +248,7 @@ void loop() {
 
 ![img3](doc/images/img3.png)
 
-To overwrite the previous content without flicker, you can tell the drawing context to always fill the entire bounding rectangle, as returned by `drawable.extents()`. You can do so by setting 'fill mode' to 'rectangle' (rather than the default, 'visible'):
+Often, you need to overwrite previous content. In order to do so without flicker (which would have occured if you simply cleared the background), you can tell the drawing context to fill the entire extents rectangle, returned by `object.extents()`, when drawing an `object`. You can do so by setting `fill mode` to `FILL_MODE_RECTANGLE` (replacing the default, `FILL_MODE_VISIBLE`):
 
 ```cpp
 /// ...
@@ -425,6 +431,91 @@ void loop() {
 
 ![img13](doc/images/img13.png)
 
+### Tiles
+
+Often, you need to draw variable-sized contents over some preallocated space. A simple example is to overwrite some previously drawn text with new text that might possibly be shorter. In this case, even if you set `FILL_MODE_RECTANGLE`, the original contents will not be completely erased, since the new contents has smaller extents.
+
+You can solve this problem using the `Tile` utility class. A tile is a rectangular 'container' of a predefined size, which you can think of as padding of a specified background color around your drawable. The position of your drawable within the tile is given by an alignment.
+
+Tiles redraw their contents without flicker, as long as the contents itself draws without flicker, which is true for `TextLabel` and most other builtin drawables.
+
+Tile takes a pointer to the interior drawable when constructed:
+
+```cpp
+#include "roo_smooth_fonts/NotoSans_Regular/27.h"
+
+// ...
+void loop() {
+  const auto& font = font_NotoSans_Regular_27();
+  TextLabel label1("Hello, hello, world!", font, color::Black);
+  TextLabel label2("Hello, world!", font, color::Black);
+  Box extents(10, 10, 309, 49);
+  Alignment a = kLeft.shiftBy(5) | kMiddle;
+  DrawingContext dc(display);
+  Tile tile1(&label1, extents, a, color::Gainsboro);
+  dc.draw(tile1);
+  delay(2000);
+  Tile tile2(&label2, extents, a, color::Gainsboro);
+  dc.draw(tile2);
+  delay(2000);
+}
+```
+
+You can inline some of the objects as temporaries by using `MakeTileOf`:
+
+```cpp
+void loop() {
+  const auto& font = font_NotoSans_Regular_27();
+  Box extents(10, 10, 309, 49);
+  Alignment a = kLeft.shiftBy(5) | kMiddle;
+  DrawingContext dc(display);
+  dc.draw(MakeTileOf(
+      TextLabel("Hello, hello, world!", font, color::Black),
+      extents, a, color::Gainsboro));
+  delay(2000);
+  dc.draw(MakeTileOf(
+      TextLabel("Hello, world!", font, color::Black),
+      extents, a, color::Gainsboro));
+  delay(2000);
+}
+```
+
+![img16](doc/images/img16.png)
+
+You can omit the tile's background color. It will then default to `color::Background`, inheriting the drawing context's background, but still forcing `FILL_MODE_RECTANGLE`. That is, such a tile will draw its entire extents, regardless of the fill mode settings. It is most likely the the most commonly needed behavior: the background is 'invisible' yet the contents get redrawn when needed without extra hassle.
+
+If you need to, however, you can force the tile to respect the fill mode settings, by explicitly specifying `color::Transparent` as the background.
+
+You can also specify a translucent background color. In this case, the actual background will be the alpha-blend of the tile's background over the drawing context's background:
+
+```cpp
+void setup() {
+  // ...
+  int w = display.width();
+  int h = display.height();
+  DrawingContext dc(display);
+  dc.draw(FilledRect(0, h / 2, w - 1, h - 1, color::Khaki));
+}
+
+void loop() {
+  auto tile = MakeTileOf(
+      TextLabel(
+          "Hello, world!",
+          font_NotoSans_Regular_27(),
+          color::Black),
+      Box(10, 10, 309, 49),
+      kLeft.shiftBy(5) | kMiddle,
+      color::Red.withA(0x30));
+  DrawingContext dc(display);
+  dc.draw(tile);
+  dc.setBackgroundColor(color::Khaki);
+  dc.draw(tile, 0, display.height() / 2);
+  delay(10000);
+}
+```
+
+![img17](doc/images/img17.png)
+
 ### Clipping
 
 You can set a _clip box_ on a drawing context in order to constrain the drawn area to a specific rectangle.
@@ -514,7 +605,82 @@ You will see an easier way to initialize a clip mask in the section on offscreen
 
 ### Transformations
 
+You can apply basic affine transformations (integer scaling, right-angle rotation, translation) to anything you draw. 
+
+A transformation is represented by the `Transformation` object. Calling its default constructor creates an 'identity' transformation, i.e. one that does not change anything. You can then use it as a starting point to compose your transformation, by calling methods that add specific modifications, such as: translation, scaling, rotation, coordinate swapping, and others. You can also use a more specialized constructor to initialize your transformation in one step.
+
+Likely the most important application of transformations is rotated or scaled text:
+
+```cpp
+#include "roo_display/filter/transformation.h"
+
+// ...
+
+void loop() {
+  DrawingContext dc(display);
+  dc.setTransformation(Transformation().scale(10, 3));
+  dc.draw(
+      TextLabel("F", font_NotoSerif_Italic_27(), color::Black),
+      kCenter | kMiddle);
+  dc.setTransformation(Transformation().rotateLeft());
+  dc.draw(
+      TextLabel("Hello, World!", font_NotoSerif_Italic_27(), color::Black),
+      kLeft | kMiddle);
+  dc.setTransformation(Transformation().rotateRight().flipX());
+  dc.draw(
+      TextLabel("Hello, World!", font_NotoSerif_Italic_27(), color::Black),
+      kRight | kMiddle);
+  delay(10000);
+}
+```
+
+![img18](doc/images/img18.png)
+
 ### Drawing individual pixels
+
+There is no 'Pixel' drawable. Drawing pixels as individual drawables would be slow.
+
+Instead, you can draw pixels in batches, using the following idiom:
+
+```cpp
+void loop() {
+  DrawingContext dc(display);
+  dc.drawPixels([](PixelWriter& writer) {
+    for (int i = 0; i < 319; ++i) {
+      writer.writePixel(i, 100 + (int)(20 * sin(i / 20.0)), color::Black);
+    }
+    for (int i = 0; i < 319; ++i) {
+      writer.writePixel(i, 180 + (int)(20 * cos(i / 20.0)), color::Red);
+    }
+  });
+  delay(10000);
+}
+```
+
+![img19](doc/images/img19.png)
+
+Pixel drawing respects settings of the drawing context, such as the clip region, and transformation:
+
+```cpp
+void loop() {
+  DrawingContext dc(display);
+  dc.setClipBox(20, 20, 299, 219);
+  dc.setTransformation(Transformation().scale(3, 3));
+  dc.drawPixels([](PixelWriter& writer) {
+    for (int i = 0; i < 100; ++i) {
+      writer.writePixel(i, 30 + (int)(10 * sin(i / 10.0)), color::Black);
+    }
+    for (int i = 0; i < 100; ++i) {
+      writer.writePixel(i, 50 + (int)(10 * cos(i / 10.0)), color::Red);
+    }
+  });
+  delay(10000);
+}
+```
+
+![img20](doc/images/img20.png)
+
+> Note: `PixelWriter` buffers the pixels and flushes them in batches, in order to optimize the underlying write operations. Therefore, the pixels may not appear until `drawPixels()` returns.
 
 ## Working with text
 

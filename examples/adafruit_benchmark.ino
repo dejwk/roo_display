@@ -17,9 +17,7 @@ struct Emulator {
   FakeSt77xxSpi display;
 
   Emulator()
-      : viewport(),
-        flexViewport(viewport, 1),
-        display(flexViewport, 240, 240) {
+      : viewport(), flexViewport(viewport, 1), display(flexViewport, 240, 240) {
     FakeEsp32().attachSpiDevice(display, 18, 19, 23);
     FakeEsp32().gpio.attachOutput(5, display.cs());
     FakeEsp32().gpio.attachOutput(2, display.dc());
@@ -189,10 +187,10 @@ class ScreenPrinter {
   }
   void println(const std::string& s) {
     DrawingContext dc(display);
-    dc.setTransform(Transform()
-                        .translate(0, font.metrics().glyphYMax())
-                        .scale(scale_, scale_)
-                        .translate(x_, y_));
+    dc.setTransformation(Transformation()
+                             .translate(0, font.metrics().glyphYMax())
+                             .scale(scale_, scale_)
+                             .translate(x_, y_));
     dc.draw(StringViewLabel(s, font, color_));
     y_ += font.metrics().linespace() * scale_;
   }

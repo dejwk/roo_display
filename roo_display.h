@@ -9,7 +9,7 @@
 #include "roo_display/filter/background.h"
 #include "roo_display/filter/clip_mask.h"
 #include "roo_display/filter/front_to_back_writer.h"
-#include "roo_display/filter/transformed.h"
+#include "roo_display/filter/transformation.h"
 #include "roo_display/products/combo_device.h"
 #include "roo_display/ui/alignment.h"
 
@@ -207,7 +207,7 @@ class DrawingContext {
         background_(display.getRasterizableBackground()),
         bgcolor_(display.getBgColor()),
         transformed_(false),
-        transform_() {
+        transformation_() {
     display.nest();
   }
 
@@ -251,16 +251,16 @@ class DrawingContext {
 
   const Box &getClipBox() const { return clip_box_; }
 
-  // void applyTransform(Transform t) {
-  //   transform_ = transform_.transform(t);
+  // void applyTransformation(Transformation t) {
+  //   transformation_ = transformation_.transform(t);
   // }
 
-  void setTransform(Transform t) {
-    transform_ = t;
+  void setTransformation(Transformation t) {
+    transformation_ = t;
     transformed_ = (t.xy_swap() || t.is_rescaled() || t.is_translated());
   }
 
-  const Transform &transform() const { return transform_; }
+  const Transformation &transformation() const { return transformation_; }
 
   void setWriteOnce();
 
@@ -285,7 +285,7 @@ class DrawingContext {
   void draw(const Drawable &object, Alignment alignment) {
     Box anchorExtents = object.anchorExtents();
     if (transformed_) {
-      anchorExtents = transform_.transformBox(anchorExtents);
+      anchorExtents = transformation_.transformBox(anchorExtents);
     }
     Offset offset = alignment.resolveOffset(bounds(), anchorExtents);
     drawInternal(object, offset.dx, offset.dy, bgcolor_);
@@ -316,8 +316,8 @@ class DrawingContext {
 
   DisplayOutput &output_;
 
-  // Offset of the origin in the output coordinates. Empty transform maps (0, 0)
-  // in drawing coordinates onto (dx_, dy_) in device coordinates.
+  // Offset of the origin in the output coordinates. Empty Transformation maps
+  // (0, 0) in drawing coordinates onto (dx_, dy_) in device coordinates.
   int16_t dx_;
   int16_t dy_;
 
@@ -345,7 +345,7 @@ class DrawingContext {
   const Rasterizable *background_;
   Color bgcolor_;
   bool transformed_;
-  Transform transform_;
+  Transformation transformation_;
 };
 
 // Fill is an 'infinite' single-color area. When drawn, it will fill the

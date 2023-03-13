@@ -1,11 +1,11 @@
-#include "transformed.h"
+#include "transformation.h"
 
 #include "roo_display/core/buffered_drawing.h"
 
 namespace roo_display {
 
-Transform::Transform(bool xy_swap, int16_t x_scale, int16_t y_scale,
-                     int16_t x_offset, int16_t y_offset)
+Transformation::Transformation(bool xy_swap, int16_t x_scale, int16_t y_scale,
+                               int16_t x_offset, int16_t y_offset)
     : x_scale_(x_scale),
       y_scale_(y_scale),
       x_offset_(x_offset),
@@ -14,9 +14,9 @@ Transform::Transform(bool xy_swap, int16_t x_scale, int16_t y_scale,
       clipped_(false),
       clip_box_(Box::MaximumBox()) {}
 
-Transform::Transform(bool xy_swap, int16_t x_scale, int16_t y_scale,
-                     int16_t x_offset, int16_t y_offset, bool clipped,
-                     Box clip_box)
+Transformation::Transformation(bool xy_swap, int16_t x_scale, int16_t y_scale,
+                               int16_t x_offset, int16_t y_offset, bool clipped,
+                               Box clip_box)
     : x_scale_(x_scale),
       y_scale_(y_scale),
       x_offset_(x_offset),
@@ -25,56 +25,58 @@ Transform::Transform(bool xy_swap, int16_t x_scale, int16_t y_scale,
       clipped_(clipped),
       clip_box_(std::move(clip_box)) {}
 
-Transform::Transform() : Transform(false, 1, 1, 0, 0) {}
+Transformation::Transformation() : Transformation(false, 1, 1, 0, 0) {}
 
-Transform Transform::swapXY() const {
-  return Transform(!xy_swap_, y_scale_, x_scale_, y_offset_, x_offset_,
-                   clipped_, clip_box_.swapXY());
+Transformation Transformation::swapXY() const {
+  return Transformation(!xy_swap_, y_scale_, x_scale_, y_offset_, x_offset_,
+                        clipped_, clip_box_.swapXY());
 }
 
-Transform Transform::flipX() const {
-  return Transform(xy_swap_, -x_scale_, y_scale_, -x_offset_, y_offset_,
-                   clipped_, clip_box_.flipX());
+Transformation Transformation::flipX() const {
+  return Transformation(xy_swap_, -x_scale_, y_scale_, -x_offset_, y_offset_,
+                        clipped_, clip_box_.flipX());
 }
 
-Transform Transform::flipY() const {
-  return Transform(xy_swap_, x_scale_, -y_scale_, x_offset_, -y_offset_,
-                   clipped_, clip_box_.flipY());
+Transformation Transformation::flipY() const {
+  return Transformation(xy_swap_, x_scale_, -y_scale_, x_offset_, -y_offset_,
+                        clipped_, clip_box_.flipY());
 }
 
-Transform Transform::scale(int16_t x_scale, int16_t y_scale) const {
-  return Transform(xy_swap_, x_scale_ * x_scale, y_scale_ * y_scale,
-                   x_offset_ * x_scale, y_offset_ * y_scale, clipped_,
-                   clip_box_.scale(x_scale, y_scale));
+Transformation Transformation::scale(int16_t x_scale, int16_t y_scale) const {
+  return Transformation(xy_swap_, x_scale_ * x_scale, y_scale_ * y_scale,
+                        x_offset_ * x_scale, y_offset_ * y_scale, clipped_,
+                        clip_box_.scale(x_scale, y_scale));
 }
 
-Transform Transform::translate(int16_t x_offset, int16_t y_offset) const {
-  return Transform(xy_swap_, x_scale_, y_scale_, x_offset_ + x_offset,
-                   y_offset_ + y_offset, clipped_,
-                   clip_box_.translate(x_offset, y_offset));
+Transformation Transformation::translate(int16_t x_offset,
+                                         int16_t y_offset) const {
+  return Transformation(xy_swap_, x_scale_, y_scale_, x_offset_ + x_offset,
+                        y_offset_ + y_offset, clipped_,
+                        clip_box_.translate(x_offset, y_offset));
 }
 
-Transform Transform::clip(Box clip_box) const {
-  return Transform(xy_swap_, x_scale_, y_scale_, x_offset_, y_offset_, true,
-                   clipped_ ? Box::intersect(clip_box_, clip_box) : clip_box);
+Transformation Transformation::clip(Box clip_box) const {
+  return Transformation(
+      xy_swap_, x_scale_, y_scale_, x_offset_, y_offset_, true,
+      clipped_ ? Box::intersect(clip_box_, clip_box) : clip_box);
 }
 
-Transform Transform::rotateUpsideDown() const {
-  return Transform(xy_swap_, -x_scale_, -y_scale_, -x_offset_, -y_offset_,
-                   clipped_, clip_box_.rotateUpsideDown());
+Transformation Transformation::rotateUpsideDown() const {
+  return Transformation(xy_swap_, -x_scale_, -y_scale_, -x_offset_, -y_offset_,
+                        clipped_, clip_box_.rotateUpsideDown());
 }
 
-Transform Transform::rotateRight() const {
-  return Transform(!xy_swap_, -y_scale_, x_scale_, -y_offset_, x_offset_,
-                   clipped_, clip_box_.rotateRight());
+Transformation Transformation::rotateRight() const {
+  return Transformation(!xy_swap_, -y_scale_, x_scale_, -y_offset_, x_offset_,
+                        clipped_, clip_box_.rotateRight());
 }
 
-Transform Transform::rotateLeft() const {
-  return Transform(!xy_swap_, y_scale_, -x_scale_, y_offset_, -x_offset_,
-                   clipped_, clip_box_.rotateLeft());
+Transformation Transformation::rotateLeft() const {
+  return Transformation(!xy_swap_, y_scale_, -x_scale_, y_offset_, -x_offset_,
+                        clipped_, clip_box_.rotateLeft());
 }
 
-Transform Transform::rotateClockwise(int turns) const {
+Transformation Transformation::rotateClockwise(int turns) const {
   switch (turns & 3) {
     case 0:
       return *this;
@@ -88,7 +90,7 @@ Transform Transform::rotateClockwise(int turns) const {
   }
 }
 
-Transform Transform::rotateCounterClockwise(int turns) const {
+Transformation Transformation::rotateCounterClockwise(int turns) const {
   switch (turns & 3) {
     case 0:
       return *this;
@@ -102,8 +104,8 @@ Transform Transform::rotateCounterClockwise(int turns) const {
   }
 }
 
-void Transform::transformRectNoSwap(int16_t &x0, int16_t &y0, int16_t &x1,
-                                    int16_t &y1) const {
+void Transformation::transformRectNoSwap(int16_t &x0, int16_t &y0, int16_t &x1,
+                                         int16_t &y1) const {
   x0 = x0 * x_scale_ + x_offset_;
   y0 = y0 * y_scale_ + y_offset_;
   x1 = (x1 + 1) * x_scale_ + x_offset_;
@@ -122,7 +124,7 @@ void Transform::transformRectNoSwap(int16_t &x0, int16_t &y0, int16_t &x1,
   }
 }
 
-Box Transform::transformBox(Box in) const {
+Box Transformation::transformBox(Box in) const {
   int16_t x0 = in.xMin();
   int16_t y0 = in.yMin();
   int16_t x1 = in.xMax();
@@ -142,7 +144,7 @@ int floor_div(int a, int b) {
   return r ? (d - ((a < 0) ^ (b < 0))) : d;
 }
 
-Box Transform::smallestEnclosingRect(const Box &rect) const {
+Box Transformation::smallestEnclosingRect(const Box &rect) const {
   int16_t x0 = rect.xMin() - x_offset_;
   int16_t y0 = rect.yMin() - y_offset_;
   int16_t x1 = rect.xMax() - x_offset_;
@@ -164,16 +166,16 @@ Box Transform::smallestEnclosingRect(const Box &rect) const {
   return Box(x0, y0, x1, y1);
 }
 
-Box Transform::smallestBoundingRect() const {
+Box Transformation::smallestBoundingRect() const {
   return clipped_ ? smallestEnclosingRect(clip_box_) : Box::MaximumBox();
 }
 
 void TransformedDisplayOutput::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
                                           uint16_t y1, PaintMode mode) {
-  if (!transform_.is_rescaled() && !transform_.xy_swap()) {
-    delegate_.setAddress(x0 + transform_.x_offset(), y0 + transform_.y_offset(),
-                         x1 + transform_.x_offset(), y1 + transform_.y_offset(),
-                         mode);
+  if (!transformation_.is_rescaled() && !transformation_.xy_swap()) {
+    delegate_.setAddress(
+        x0 + transformation_.x_offset(), y0 + transformation_.y_offset(),
+        x1 + transformation_.x_offset(), y1 + transformation_.y_offset(), mode);
   } else {
     addr_window_ = Box(x0, y0, x1, y1);
     paint_mode_ = mode;
@@ -183,19 +185,19 @@ void TransformedDisplayOutput::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
 }
 
 void TransformedDisplayOutput::write(Color *color, uint32_t pixel_count) {
-  if (!transform_.is_rescaled() && !transform_.xy_swap()) {
+  if (!transformation_.is_rescaled() && !transformation_.xy_swap()) {
     delegate_.write(color, pixel_count);
-  } else if (!transform_.is_abs_rescaled()) {
+  } else if (!transformation_.is_abs_rescaled()) {
     ClippingBufferedPixelWriter writer(delegate_, clip_box_, paint_mode_);
     while (pixel_count-- > 0) {
       int16_t x = x_cursor_;
       int16_t y = y_cursor_;
-      if (transform_.xy_swap()) {
+      if (transformation_.xy_swap()) {
         std::swap(x, y);
       }
-      writer.writePixel(x * transform_.x_scale() + transform_.x_offset(),
-                        y * transform_.y_scale() + transform_.y_offset(),
-                        *color++);
+      writer.writePixel(
+          x * transformation_.x_scale() + transformation_.x_offset(),
+          y * transformation_.y_scale() + transformation_.y_offset(), *color++);
       if (x_cursor_ < addr_window_.xMax()) {
         ++x_cursor_;
       } else {
@@ -208,12 +210,12 @@ void TransformedDisplayOutput::write(Color *color, uint32_t pixel_count) {
     while (pixel_count-- > 0) {
       int16_t x0 = x_cursor_;
       int16_t y0 = y_cursor_;
-      if (transform_.xy_swap()) {
+      if (transformation_.xy_swap()) {
         std::swap(x0, y0);
       }
       int16_t x1 = x0;
       int16_t y1 = y0;
-      transform_.transformRectNoSwap(x0, y0, x1, y1);
+      transformation_.transformRectNoSwap(x0, y0, x1, y1);
       writer.writeRect(x0, y0, x1, y1, *color++);
       if (x_cursor_ < addr_window_.xMax()) {
         ++x_cursor_;
@@ -230,27 +232,29 @@ void TransformedDisplayOutput::write(Color *color, uint32_t pixel_count) {
 void TransformedDisplayOutput::writePixels(PaintMode mode, Color *color,
                                            int16_t *x, int16_t *y,
                                            uint16_t pixel_count) {
-  if (transform_.xy_swap()) {
+  if (transformation_.xy_swap()) {
     std::swap(x, y);
   }
-  if (!transform_.is_rescaled()) {
-    if (!transform_.is_translated()) {
+  if (!transformation_.is_rescaled()) {
+    if (!transformation_.is_translated()) {
       delegate_.writePixels(mode, color, x, y, pixel_count);
     } else {
       ClippingBufferedPixelWriter writer(delegate_, clip_box_, mode);
-      int16_t dx = transform_.x_offset();
-      int16_t dy = transform_.y_offset();
+      int16_t dx = transformation_.x_offset();
+      int16_t dy = transformation_.y_offset();
       while (pixel_count-- > 0) {
         int16_t ix = *x++ + dx;
         int16_t iy = *y++ + dy;
         writer.writePixel(ix, iy, *color++);
       }
     }
-  } else if (!transform_.is_abs_rescaled()) {
+  } else if (!transformation_.is_abs_rescaled()) {
     ClippingBufferedPixelWriter writer(delegate_, clip_box_, mode);
     while (pixel_count-- > 0) {
-      int16_t ix = transform_.x_scale() * *x++ + transform_.x_offset();
-      int16_t iy = transform_.y_scale() * *y++ + transform_.y_offset();
+      int16_t ix =
+          transformation_.x_scale() * *x++ + transformation_.x_offset();
+      int16_t iy =
+          transformation_.y_scale() * *y++ + transformation_.y_offset();
       writer.writePixel(ix, iy, *color++);
     }
   } else {
@@ -260,7 +264,7 @@ void TransformedDisplayOutput::writePixels(PaintMode mode, Color *color,
       int16_t y0 = *y++;
       int16_t x1 = x0;
       int16_t y1 = y0;
-      transform_.transformRectNoSwap(x0, y0, x1, y1);
+      transformation_.transformRectNoSwap(x0, y0, x1, y1);
       writer.writeRect(x0, y0, x1, y1, *color++);
     }
   }
@@ -269,25 +273,27 @@ void TransformedDisplayOutput::writePixels(PaintMode mode, Color *color,
 void TransformedDisplayOutput::fillPixels(PaintMode mode, Color color,
                                           int16_t *x, int16_t *y,
                                           uint16_t pixel_count) {
-  if (transform_.xy_swap()) {
+  if (transformation_.xy_swap()) {
     std::swap(x, y);
   }
-  if (!transform_.is_rescaled()) {
-    if (!transform_.is_translated()) {
+  if (!transformation_.is_rescaled()) {
+    if (!transformation_.is_translated()) {
       delegate_.fillPixels(mode, color, x, y, pixel_count);
     } else {
       ClippingBufferedPixelFiller filler(delegate_, color, clip_box_, mode);
       while (pixel_count-- > 0) {
-        int16_t ix = *x++ + transform_.x_offset();
-        int16_t iy = *y++ + transform_.y_offset();
+        int16_t ix = *x++ + transformation_.x_offset();
+        int16_t iy = *y++ + transformation_.y_offset();
         filler.fillPixel(ix, iy);
       }
     }
-  } else if (!transform_.is_abs_rescaled()) {
+  } else if (!transformation_.is_abs_rescaled()) {
     ClippingBufferedPixelFiller filler(delegate_, color, clip_box_, mode);
     while (pixel_count-- > 0) {
-      int16_t ix = transform_.x_scale() * *x++ + transform_.x_offset();
-      int16_t iy = transform_.y_scale() * *y++ + transform_.y_offset();
+      int16_t ix =
+          transformation_.x_scale() * *x++ + transformation_.x_offset();
+      int16_t iy =
+          transformation_.y_scale() * *y++ + transformation_.y_offset();
       filler.fillPixel(ix, iy);
     }
   } else {
@@ -297,7 +303,7 @@ void TransformedDisplayOutput::fillPixels(PaintMode mode, Color color,
       int16_t y0 = *y++;
       int16_t x1 = x0;
       int16_t y1 = y0;
-      transform_.transformRectNoSwap(x0, y0, x1, y1);
+      transformation_.transformRectNoSwap(x0, y0, x1, y1);
       filler.fillRect(x0, y0, x1, y1);
     }
   }
@@ -307,7 +313,7 @@ void TransformedDisplayOutput::writeRects(PaintMode mode, Color *color,
                                           int16_t *x0, int16_t *y0, int16_t *x1,
                                           int16_t *y1, uint16_t count) {
   ClippingBufferedRectWriter writer(delegate_, clip_box_, mode);
-  if (transform_.xy_swap()) {
+  if (transformation_.xy_swap()) {
     std::swap(x0, y0);
     std::swap(x1, y1);
   }
@@ -316,7 +322,7 @@ void TransformedDisplayOutput::writeRects(PaintMode mode, Color *color,
     int16_t yMin = *y0++;
     int16_t xMax = *x1++;
     int16_t yMax = *y1++;
-    transform_.transformRectNoSwap(xMin, yMin, xMax, yMax);
+    transformation_.transformRectNoSwap(xMin, yMin, xMax, yMax);
     writer.writeRect(xMin, yMin, xMax, yMax, *color++);
   }
 }
@@ -325,7 +331,7 @@ void TransformedDisplayOutput::fillRects(PaintMode mode, Color color,
                                          int16_t *x0, int16_t *y0, int16_t *x1,
                                          int16_t *y1, uint16_t count) {
   ClippingBufferedRectFiller filler(delegate_, color, clip_box_, mode);
-  if (transform_.xy_swap()) {
+  if (transformation_.xy_swap()) {
     std::swap(x0, y0);
     std::swap(x1, y1);
   }
@@ -334,7 +340,7 @@ void TransformedDisplayOutput::fillRects(PaintMode mode, Color color,
     int16_t yMin = *y0++;
     int16_t xMax = *x1++;
     int16_t yMax = *y1++;
-    transform_.transformRectNoSwap(xMin, yMin, xMax, yMax);
+    transformation_.transformRectNoSwap(xMin, yMin, xMax, yMax);
     filler.fillRect(xMin, yMin, xMax, yMax);
   }
 }

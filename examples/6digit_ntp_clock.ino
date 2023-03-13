@@ -135,8 +135,8 @@ void loop() {
 
   DrawingContext dc(display);
   // Translate dc to center of display
-  dc.setTransform(
-      Transform().translate(display.width() / 2, display.height() / 2));
+  dc.setTransformation(
+      Transformation().translate(display.width() / 2, display.height() / 2));
   int16_t timeDx = -timeBox.width() / 2;
   dc.draw(t_tile, timeDx, 0);  // draw Time
 

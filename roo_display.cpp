@@ -93,7 +93,7 @@ class Pixels : public Drawable {
       fn_(writer);
     } else {
       TransformedDisplayOutput out(s.out(),
-                                   Transform().translate(s.dx(), s.dy()));
+                                   Transformation().translate(s.dx(), s.dy()));
       ClippingBufferedPixelWriter writer(out, extents_, paint_mode_);
       fn_(writer);
     }
@@ -118,7 +118,8 @@ void DrawingContext::setWriteOnce() {
 void DrawingContext::drawPixels(
     const std::function<void(ClippingBufferedPixelWriter&)>& fn,
     PaintMode paint_mode) {
-  draw(Pixels(fn, transform_.smallestEnclosingRect(clip_box_), paint_mode));
+  draw(
+      Pixels(fn, transformation_.smallestEnclosingRect(clip_box_), paint_mode));
 }
 
 void DrawingContext::drawInternal(const Drawable& object, int16_t dx,
@@ -153,13 +154,13 @@ void DrawingContext::drawInternalTransformed(Surface& s,
                                              const Drawable& object) {
   if (!transformed_) {
     s.drawObject(object);
-  } else if (!transform_.is_rescaled() && !transform_.xy_swap()) {
+  } else if (!transformation_.is_rescaled() && !transformation_.xy_swap()) {
     // Translation only.
-    s.set_dx(s.dx() + transform_.x_offset());
-    s.set_dy(s.dy() + transform_.y_offset());
+    s.set_dx(s.dx() + transformation_.x_offset());
+    s.set_dy(s.dy() + transformation_.y_offset());
     s.drawObject(object);
   } else {
-    s.drawObject(TransformedDrawable(transform_, &object));
+    s.drawObject(TransformedDrawable(transformation_, &object));
   }
 }
 

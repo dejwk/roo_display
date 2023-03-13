@@ -99,11 +99,12 @@ void printText(DrawingContext& dc, const Drawable& widget) {
   int16_t maxHzoom = h / 40 - 1;
   int16_t zoom = maxVzoom < maxHzoom ? maxVzoom : maxHzoom;
   if (zoom < 1) zoom = 1;
-  dc.setTransform(Transform()
-                      .translate(-20, -20)  // Bring the origin to the middle.
-                      .scale(zoom, zoom)    // Rescale about the middle.
-                      .translate(20 + w / 2,
-                                 20 + h / 2));  // Move to the suitable place.
+  dc.setTransformation(
+      Transformation()
+          .translate(-20, -20)  // Bring the origin to the middle.
+          .scale(zoom, zoom)    // Rescale about the middle.
+          .translate(20 + w / 2,
+                     20 + h / 2));  // Move to the suitable place.
   dc.draw(widget);
 }
 
@@ -163,11 +164,11 @@ void printUsingClipping() {
   dc.setBackground(color::IndianRed);
   // Clipped
   Widget widget;
-  printText(dc,
-            TransformedDrawable(Transform().clip(Box(0, 0, 19, 39)), &widget));
+  printText(dc, TransformedDrawable(Transformation().clip(Box(0, 0, 19, 39)),
+                                    &widget));
   dc.setBackground(color::LightGreen);
-  printText(dc,
-            TransformedDrawable(Transform().clip(Box(20, 0, 39, 39)), &widget));
+  printText(dc, TransformedDrawable(Transformation().clip(Box(20, 0, 39, 39)),
+                                    &widget));
 }
 
 void loop() {

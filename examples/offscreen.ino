@@ -179,10 +179,10 @@ void someFunWithAntiAliasedFonts() {
   for (int i = 5; i < 30; ++i) {
     int scale = (int)pow(1.2, i);
     DrawingContext dc(display);
-    dc.setTransform(
+    dc.setTransformation(
         // Rescale the content rectangle by its center, and then move it
         // to the center of the screen.
-        Transform()
+        Transformation()
             .translate(-kBgWidth / 2, -kBgHeight / 2)
             .scale(scale, scale)
             .translate(display.width() / 2, display.height() / 2));

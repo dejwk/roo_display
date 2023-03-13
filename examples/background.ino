@@ -135,14 +135,14 @@ void simpleBackground() {
   {
     DrawingContext dc(display);
     dc.setClipBox(clip_box);
-    dc.setTransform(Transform().scale(5, 5));
+    dc.setTransformation(Transformation().scale(5, 5));
     dc.draw(labelScaled, dx, dy);
   }
   delay(2000);
   {
     DrawingContext dc(display);
     dc.setClipBox(clip_box);
-    dc.setTransform(Transform().scale(7, 7));
+    dc.setTransformation(Transformation().scale(7, 7));
     dc.draw(labelScaledMore, dx, dy);
   }
   delay(2000);
@@ -316,8 +316,8 @@ void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {
       DrawingContext dc(display);
       // Since everything is oriented about the center, let's move the origin
       // there to make it easier.
-      dc.setTransform(
-          Transform().translate(display.width() / 2, display.height() / 2));
+      dc.setTransformation(Transformation().translate(display.width() / 2,
+                                                      display.height() / 2));
       int16_t timerDx = -timerBox.width() / 2;
       if (benchmark->clip) {
         // We restrict the clip box to only include the digits that have
@@ -326,10 +326,10 @@ void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {
         Box clip_box = Box(timerBox.xMax() + 1 - clip_offset, timerBox.yMin(),
                            timerBox.xMax(), timerBox.yMax());
         auto clippedTile =
-            TransformedDrawable(Transform().clip(clip_box), &tile);
+            TransformedDrawable(Transformation().clip(clip_box), &tile);
         if (!benchmark->inplace) {
           // Clear the (clipped) background.
-          dc.draw(TransformedDrawable(Transform().clip(clip_box), &clear),
+          dc.draw(TransformedDrawable(Transformation().clip(clip_box), &clear),
                   timerDx, 0);
         }
         // Draw the glyphs.
@@ -337,7 +337,7 @@ void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {
       } else {
         if (!benchmark->inplace) {
           // Clear the (unclipped) timer background.
-          dc.draw(TransformedDrawable(Transform().clip(timerBox), &clear),
+          dc.draw(TransformedDrawable(Transformation().clip(timerBox), &clear),
                   timerDx, 0);
         }
         // Draw the glyphs.

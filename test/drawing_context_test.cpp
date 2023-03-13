@@ -152,7 +152,7 @@ TEST(DrawingContext, DrawTransformed) {
   Display display(test_screen);
   {
     DrawingContext dc(display);
-    dc.setTransform(Transform().scale(2, 3));
+    dc.setTransformation(Transformation().scale(2, 3));
     dc.draw(SolidRect(1, 2, 3, 4, color::White),
             kLeft.shiftBy(2) | kTop.shiftBy(1));
   }
@@ -202,7 +202,7 @@ TEST(DrawingContext, DrawPixelsWithOffset) {
   Display display(test_screen);
   {
     DrawingContext dc(display);
-    dc.setTransform(Transform().translate(1, 2));
+    dc.setTransformation(Transformation().translate(1, 2));
     dc.setClipBox(3, 3, 7, 5);
     dc.drawPixels([](PixelWriter& w) {
       w.writePixel(4, 1, Color(0xFF222222));
@@ -231,7 +231,7 @@ TEST(DrawingContext, DrawPixelsWithOffsetScaled) {
   Display display(test_screen);
   {
     DrawingContext dc(display);
-    dc.setTransform(Transform().scale(1, 2).translate(1, 2));
+    dc.setTransformation(Transformation().scale(1, 2).translate(1, 2));
     dc.drawPixels([](PixelWriter& w) {
       w.writePixel(4, 1, Color(0xFF222222));
       w.writePixel(3, 2, Color(0xFF222222));
@@ -279,7 +279,7 @@ TEST(DrawingContext, ContextOfSurface) {
       DrawingContext dc(s);
       dc.draw(MyLine());
       dc.draw(MyLine(), 3, 2);
-      dc.setTransform(Transform().scale(1, 3));
+      dc.setTransformation(Transformation().scale(1, 3));
       dc.draw(MyLine(), 3, 4);
     }
   };

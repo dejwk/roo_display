@@ -5,27 +5,28 @@
 
 namespace roo_display {
 
-class Transform {
+class Transformation {
  public:
-  Transform(bool xy_swap, int16_t x_scale, int16_t y_scale, int16_t y_offset,
-            int16_t x_offset);
+  Transformation(bool xy_swap, int16_t x_scale, int16_t y_scale,
+                 int16_t y_offset, int16_t x_offset);
 
-  Transform(bool xy_swap, int16_t x_scale, int16_t y_scale, int16_t y_offset,
-            int16_t x_offset, bool clipped, Box clip_rect);
+  Transformation(bool xy_swap, int16_t x_scale, int16_t y_scale,
+                 int16_t y_offset, int16_t x_offset, bool clipped,
+                 Box clip_rect);
 
-  Transform();
+  Transformation();
 
-  Transform swapXY() const;
-  Transform flipX() const;
-  Transform flipY() const;
-  Transform scale(int16_t x_scale, int16_t y_scale) const;
-  Transform translate(int16_t x_offset, int16_t y_offset) const;
-  Transform clip(Box clip_box) const;
-  Transform rotateRight() const;
-  Transform rotateLeft() const;
-  Transform rotateUpsideDown() const;
-  Transform rotateClockwise(int turns) const;
-  Transform rotateCounterClockwise(int turns) const;
+  Transformation swapXY() const;
+  Transformation flipX() const;
+  Transformation flipY() const;
+  Transformation scale(int16_t x_scale, int16_t y_scale) const;
+  Transformation translate(int16_t x_offset, int16_t y_offset) const;
+  Transformation clip(Box clip_box) const;
+  Transformation rotateRight() const;
+  Transformation rotateLeft() const;
+  Transformation rotateUpsideDown() const;
+  Transformation rotateClockwise(int turns) const;
+  Transformation rotateCounterClockwise(int turns) const;
 
   bool xy_swap() const { return xy_swap_; }
   int16_t x_scale() const { return x_scale_; }
@@ -46,13 +47,13 @@ class Transform {
 
   bool is_translated() const { return x_offset_ != 0 || y_offset_ != 0; }
 
-  // Applies the transform to the specified rectangle, assuming that if the
-  // transform has swapped coordinates, the rectangle comes with coordinates
-  // already swapped.
+  // Applies the transformation to the specified rectangle, assuming that if the
+  // Transformation has swapped coordinates, the rectangle comes with
+  // coordinates already swapped.
   void transformRectNoSwap(int16_t &x0, int16_t &y0, int16_t &x1,
                            int16_t &y1) const;
 
-  // Applies the transform the specified box.
+  // Applies the transformation the specified box.
   Box transformBox(Box in) const;
 
   // Calculates the smallest rectangle in the destination (screen) coordinates
@@ -77,10 +78,11 @@ class Transform {
 
 class TransformedDisplayOutput : public DisplayOutput {
  public:
-  TransformedDisplayOutput(DisplayOutput &delegate, Transform transform)
+  TransformedDisplayOutput(DisplayOutput &delegate,
+                           Transformation transformation)
       : delegate_(delegate),
-        transform_(std::move(transform)),
-        clip_box_(transform_.clip_box()),
+        transformation_(std::move(transformation)),
+        clip_box_(transformation_.clip_box()),
         addr_window_(),
         x_cursor_(0),
         y_cursor_(0) {}
@@ -108,7 +110,7 @@ class TransformedDisplayOutput : public DisplayOutput {
 
  private:
   DisplayOutput &delegate_;
-  Transform transform_;
+  Transformation transformation_;
   Box clip_box_;
   Box addr_window_;
   PaintMode paint_mode_;
@@ -118,21 +120,21 @@ class TransformedDisplayOutput : public DisplayOutput {
 
 class TransformedDrawable : public Drawable {
  public:
-  TransformedDrawable(Transform transform, const Drawable *delegate)
-      : transform_(std::move(transform)), delegate_(delegate) {}
+  TransformedDrawable(Transformation transformation, const Drawable *delegate)
+      : transformation_(std::move(transformation)), delegate_(delegate) {}
 
   Box extents() const override {
-    return transform_.transformBox(delegate_->extents());
+    return transformation_.transformBox(delegate_->extents());
   }
 
   Box anchorExtents() const override {
-    return transform_.transformBox(delegate_->anchorExtents());
+    return transformation_.transformBox(delegate_->anchorExtents());
   }
 
  private:
   void drawTo(const Surface &s) const override {
-    Transform adjusted =
-        transform_.translate(s.dx(), s.dy()).clip(s.clip_box());
+    Transformation adjusted =
+        transformation_.translate(s.dx(), s.dy()).clip(s.clip_box());
     TransformedDisplayOutput new_output(s.out(), adjusted);
     Surface news(&new_output, adjusted.smallestBoundingRect(),
                  s.is_write_once(), s.bgcolor(), s.fill_mode(), s.paint_mode());
@@ -140,8 +142,49 @@ class TransformedDrawable : public Drawable {
   }
 
  private:
-  Transform transform_;
+  Transformation transformation_;
   const Drawable *delegate_;
 };
+
+// Similar to TransformedDrawable, but rather than requiring the interior to be
+// defined as a separate object, allows for it to be embedded in this one.
+// Useful e.g. when you need to create and return a transformed drawable, which
+// thus cannot refer to another non-owned object.
+template <typename DrawableType>
+class TransformationOf : public Drawable {
+ public:
+  // Creates a transformed drawable.
+  TransformationOf(DrawableType delegate, Transformation transformation)
+      : delegate_(std::move(delegate)), transformation_(transformation) {}
+
+  Box extents() const override {
+    return transformation_.transformBox(delegate_->extents());
+  }
+
+  Box anchorExtents() const override {
+    return transformation_.transformBox(delegate_->anchorExtents());
+  }
+
+  void drawTo(const Surface &s) const override {
+    Transformation adjusted =
+        transformation_.translate(s.dx(), s.dy()).clip(s.clip_box());
+    TransformedDisplayOutput new_output(s.out(), adjusted);
+    Surface news(&new_output, adjusted.smallestBoundingRect(),
+                 s.is_write_once(), s.bgcolor(), s.fill_mode(), s.paint_mode());
+    news.drawObject(*delegate_);
+  }
+
+ private:
+  DrawableType delegate_;
+  Transformation transformation_;
+};
+
+// Convenience function that transforms the specified drawable.
+template <typename DrawableType>
+TransformationOf<DrawableType> MakeTransformationOf(
+    DrawableType drawable, Transformation transformation) {
+  return TransformationOf<DrawableType>(std::move(drawable),
+                                        std::move(transformation));
+}
 
 }  // namespace roo_display

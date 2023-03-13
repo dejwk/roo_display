@@ -2,7 +2,7 @@
 
 #include "roo_display/core/device.h"
 #include "roo_display/filter/background.h"
-#include "roo_display/filter/transformed.h"
+#include "roo_display/filter/transformation.h"
 
 namespace roo_display {
 

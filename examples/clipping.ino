@@ -98,7 +98,7 @@ void basicBitPatterns2() {
   ClipMask mask(clipmask, display.extents());
   dc.setClipMask(&mask);
   // This is where the magic happens.
-  dc.setTransform(Transform().rotateRight());
+  dc.setTransformation(Transformation().rotateRight());
   memset(clipmask, 0xCC, clipmask_size);
   dc.draw(
       FilledCircle::ByRadius(0, 0, display.height() / 2 - 10, color::DarkRed),

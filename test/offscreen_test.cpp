@@ -848,8 +848,8 @@ TEST_F(OffscreenTest, OffsetedDrawing) {
                                                  "           "));
 
   DrawingContext dc(offscreen);
-  EXPECT_FALSE(dc.transform().is_rescaled());
-  EXPECT_FALSE(dc.transform().is_translated());
+  EXPECT_FALSE(dc.transformation().is_rescaled());
+  EXPECT_FALSE(dc.transformation().is_translated());
   EXPECT_EQ(dc.bounds(), Box(-6, -5, 4, 3));
   dc.draw(SolidRect(-4, -3, 2, 1, color::White));
   EXPECT_THAT(offscreen.raster(), MatchesContent(WhiteOnBlack(), 11, 9,

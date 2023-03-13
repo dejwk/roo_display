@@ -1,5 +1,6 @@
 
-#include "roo_display/filter/transformed.h"
+#include "roo_display/filter/transformation.h"
+
 #include "roo_display.h"
 #include "roo_display/core/color.h"
 #include "testing_drawable.h"
@@ -13,7 +14,7 @@ TEST(Transformed, PositiveShift) {
   auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
                                 "***"
                                 "*  ");
-  TransformedDrawable transformed(Transform().translate(1, 2), &input);
+  TransformedDrawable transformed(Transformation().translate(1, 2), &input);
   screen.Draw(transformed, 0, 0);
   EXPECT_THAT(screen, MatchesContent(WhiteOnBlack(), 5, 5,
                                      "     "
@@ -29,7 +30,7 @@ TEST(Transformed, NegativeShift) {
                                 "****"
                                 "*** "
                                 "****");
-  TransformedDrawable transformed(Transform().translate(-2, -1), &input);
+  TransformedDrawable transformed(Transformation().translate(-2, -1), &input);
   screen.Draw(transformed, 0, 0);
   EXPECT_THAT(screen, MatchesContent(WhiteOnBlack(), 5, 5,
                                      "*    "
@@ -44,7 +45,8 @@ TEST(Transformed, HorizontalFlip) {
   auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
                                 "***"
                                 "*  ");
-  TransformedDrawable transformed(Transform().flipX().translate(2, 0), &input);
+  TransformedDrawable transformed(Transformation().flipX().translate(2, 0),
+                                  &input);
   screen.Draw(transformed, 1, 2);
   EXPECT_THAT(screen, MatchesContent(WhiteOnBlack(), 5, 5,
                                      "     "
@@ -59,7 +61,8 @@ TEST(Transformed, VerticalFlip) {
   auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
                                 "***"
                                 "*  ");
-  TransformedDrawable transformed(Transform().flipY().translate(0, 1), &input);
+  TransformedDrawable transformed(Transformation().flipY().translate(0, 1),
+                                  &input);
   screen.Draw(transformed, 1, 2);
   EXPECT_THAT(screen, MatchesContent(WhiteOnBlack(), 5, 5,
                                      "     "
@@ -74,7 +77,7 @@ TEST(Transformed, HorizontalScale) {
   auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
                                 "***"
                                 "*  ");
-  TransformedDrawable transformed(Transform().scale(3, 1), &input);
+  TransformedDrawable transformed(Transformation().scale(3, 1), &input);
   screen.Draw(transformed, 1, 2);
   EXPECT_THAT(screen, MatchesContent(WhiteOnBlack(), 11, 5,
                                      "           "
@@ -89,7 +92,7 @@ TEST(Transformed, VerticalScale) {
   auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
                                 "***"
                                 "*  ");
-  TransformedDrawable transformed(Transform().scale(1, 3), &input);
+  TransformedDrawable transformed(Transformation().scale(1, 3), &input);
   screen.Draw(transformed, 1, 2);
   EXPECT_THAT(screen, MatchesContent(WhiteOnBlack(), 5, 9,
                                      "     "
@@ -108,7 +111,7 @@ TEST(Transformed, rotateRight) {
   auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
                                 "***"
                                 "*  ");
-  TransformedDrawable transformed(Transform().rotateRight(), &input);
+  TransformedDrawable transformed(Transformation().rotateRight(), &input);
   screen.Draw(transformed, 2, 2);
   EXPECT_THAT(screen, MatchesContent(WhiteOnBlack(), 5, 5,
                                      "     "
@@ -123,7 +126,7 @@ TEST(Transformed, rotateLeft) {
   auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
                                 "***"
                                 "*  ");
-  TransformedDrawable transformed(Transform().rotateLeft(), &input);
+  TransformedDrawable transformed(Transformation().rotateLeft(), &input);
   screen.Draw(transformed, 1, 3);
   EXPECT_THAT(screen, MatchesContent(WhiteOnBlack(), 5, 5,
                                      "     "
@@ -138,7 +141,7 @@ TEST(Transformed, rotateUpsideDown) {
   auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
                                 "***"
                                 "*  ");
-  TransformedDrawable transformed(Transform().rotateUpsideDown(), &input);
+  TransformedDrawable transformed(Transformation().rotateUpsideDown(), &input);
   screen.Draw(transformed, 3, 2);
   EXPECT_THAT(screen, MatchesContent(WhiteOnBlack(), 5, 5,
                                      "     "
@@ -153,7 +156,7 @@ TEST(Transformed, SwapXY) {
   auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
                                 "***"
                                 "*  ");
-  TransformedDrawable transformed(Transform().swapXY(), &input);
+  TransformedDrawable transformed(Transformation().swapXY(), &input);
   screen.Draw(transformed, 0, 0);
   EXPECT_THAT(screen, MatchesContent(WhiteOnBlack(), 2, 3,
                                      "**"
@@ -166,7 +169,8 @@ TEST(Transformed, Complex) {
   auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
                                 "***"
                                 "*  ");
-  Transform t = Transform().translate(2, 3).scale(-3, -2).rotateRight();
+  Transformation t =
+      Transformation().translate(2, 3).scale(-3, -2).rotateRight();
   TransformedDrawable transformed(t, &input);
   screen.Draw(transformed, -5, 15);
   EXPECT_THAT(screen, MatchesContent(WhiteOnBlack(), 6, 11,
@@ -188,7 +192,8 @@ TEST(Transformed, ComplexTruncated) {
   auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
                                 "***"
                                 "*  ");
-  Transform t = Transform().translate(2, 3).scale(-3, -2).rotateRight();
+  Transformation t =
+      Transformation().translate(2, 3).scale(-3, -2).rotateRight();
   TransformedDrawable transformed(t, &input);
   screen.Draw(transformed, -7, 9);
   EXPECT_THAT(screen, MatchesContent(WhiteOnBlack(), 2, 2,

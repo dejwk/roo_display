@@ -5,7 +5,7 @@
 #include <string>
 
 #include "roo_display/core/drawable.h"
-#include "roo_display/filter/transformed.h"
+#include "roo_display/filter/transformation.h"
 #include "roo_display/font/font.h"
 #include "roo_display/ui/tile.h"
 

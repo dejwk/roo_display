@@ -35,14 +35,34 @@ class Transform {
   bool clipped() const { return clipped_; }
   Box clip_box() const { return clipped_ ? clip_box_ : Box::MaximumBox(); }
 
+  // Returns whether the object has scale different than 1 along any axes.
   bool is_rescaled() const { return x_scale_ != 1 || y_scale_ != 1; }
+
+  // Returns whether the object has scale different than 1 or -1 along any axes.
+  bool is_abs_rescaled() const {
+    return (x_scale_ != 1 && x_scale_ != -1) ||
+           (y_scale_ != 1 && y_scale_ != -1);
+  }
+
   bool is_translated() const { return x_offset_ != 0 || y_offset_ != 0; }
 
+  // Applies the transform to the specified rectangle, assuming that if the
+  // transform has swapped coordinates, the rectangle comes with coordinates
+  // already swapped.
   void transformRectNoSwap(int16_t &x0, int16_t &y0, int16_t &x1,
                            int16_t &y1) const;
+
+  // Applies the transform the specified box.
   Box transformBox(Box in) const;
 
+  // Calculates the smallest rectangle in the destination (screen) coordinates
+  // that will completely enclose the given `rect` expressed in the object
+  // (non-transformed) coordinates.
   Box smallestEnclosingRect(const Box &rect) const;
+
+  // Returns the smallest bounding rectangle in the destination (screen)
+  // coordinates that will cover the clip box of the transformation, which is
+  // expresses in the object (non-translated) coordinates.
   Box smallestBoundingRect() const;
 
  private:

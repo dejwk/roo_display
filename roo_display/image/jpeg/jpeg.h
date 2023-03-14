@@ -44,7 +44,7 @@ std::unique_ptr<ByteStreamFor<RawStream>> CreateStream(RawStream stream) {
 
 class JpegDecoder {
  public:
-  JpegDecoder() {}
+  JpegDecoder();
 
  private:
   template <typename Resource> friend class JpegImage;
@@ -86,8 +86,8 @@ class JpegDecoder {
 
   void close() { input_ = nullptr; }
 
+  std::unique_ptr<uint8_t[]> workspace_;
   JDEC jdec_;
-  uint8_t workspace_[TJPGD_WORKSPACE_SIZE];
 
   std::unique_ptr<internal::ByteStream> input_;
   const Surface* surface_;

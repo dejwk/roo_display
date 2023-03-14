@@ -13,6 +13,7 @@ class FileStream {
   FileStream(File file) : rep_(new Rep(std::move(file))) {}
 
   uint8_t read() { return rep_->read(); }
+  int read(uint8_t* buf, int count) { return rep_->read(buf, count); }
   void advance(uint32_t count) { rep_->advance(count); }
   void skip(uint32_t count) { rep_->skip(count); }
 
@@ -22,6 +23,7 @@ class FileStream {
     Rep(File file);
     ~Rep();
     uint8_t read();
+    int read(uint8_t* buf, int count);
     void advance(uint32_t count);
     void skip(uint32_t count);
 
@@ -71,6 +73,17 @@ inline uint8_t FileStream::Rep::read() {
     offset_ = 0;
   }
   return buffer_[offset_++];
+}
+
+inline int FileStream::Rep::read(uint8_t* buf, int count) {
+  int result = 0;
+  while (offset_ < length_ && count > 0) {
+    *buf++ = buffer_[offset_++];
+    --count;
+    ++result;
+  }
+  int read = file_.read(buf, count);
+  return result + read;
 }
 
 inline void FileStream::Rep::advance(uint32_t count) {

@@ -18,6 +18,12 @@ class MemoryStream {
 
   uint8_t read() { return *current_++; }
 
+  int read(uint8_t* buf, int count) {
+    memcpy(buf, current_, count);
+    current_ += count;
+    return count;
+  }
+
   void advance(int32_t count) { current_ += count; }
 
   void seek(uint32_t offset) { current_ = start_ + offset; }

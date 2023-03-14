@@ -1,6 +1,7 @@
 #pragma once
 
 #include <type_traits>
+
 #include "roo_display/internal/byte_order.h"
 
 namespace roo_display {
@@ -9,10 +10,16 @@ namespace roo_display {
 // (primarily image) data, such as: DRAM, PROGMEM, SPIFFS, or SDFS.
 // A compliant class looks like follows:
 
-// class Stream {
+// class MyStream {
 //  public:
-//   uint8_t Read();
+//   // reads a single byte.
+//   uint8_t read();
+//
+//   // reads up to count bytes. Returns the number of bytes read.
+//   int32_t read(uint8_t buf, uint8_t count);
+//
 //   void advance(int32_t count);
+//
 //   void seek(uint32_t offset);
 // };
 

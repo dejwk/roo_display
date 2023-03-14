@@ -296,6 +296,21 @@ class Raster : public Rasterizable {
   int16_t width_;
 };
 
+template <typename ColorMode,
+          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
+          ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+using DramRaster = Raster<uint8_t*, ColorMode, pixel_order, byte_order>;
+
+template <typename ColorMode,
+          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
+          ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+using ConstDramRaster = Raster<const uint8_t*, ColorMode, pixel_order, byte_order>;
+
+template <typename ColorMode,
+          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
+          ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+using ProgMemRaster = Raster<const uint8_t* PROGMEM, ColorMode, pixel_order, byte_order>;
+
 template <typename PtrType, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
 using RasterArgb8888 =
     Raster<PtrType, Argb8888, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;

@@ -268,6 +268,27 @@ inline static constexpr uint32_t truncTo6bit(uint8_t c) {
   return (c - (c >> 7)) >> 2;
 }
 
+class Rgb888 {
+ public:
+  static const int8_t bits_per_pixel = 24;
+
+  inline constexpr Color toArgbColor(uint32_t in) const {
+    return Color(in | 0xFF000000);
+  }
+
+  inline constexpr uint32_t fromArgbColor(Color color) const {
+    return color.asArgb() & 0x00FFFFFF;
+  }
+
+  inline uint32_t rawAlphaBlend(uint32_t bg, Color color) const {
+    return fromArgbColor(AlphaBlend(toArgbColor(bg), color));
+  }
+
+  constexpr TransparencyMode transparency() const {
+    return TRANSPARENCY_NONE;
+  }
+};
+
 class Argb6666 {
  public:
   static const int8_t bits_per_pixel = 24;

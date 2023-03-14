@@ -698,19 +698,21 @@ Logically, each font is a collection of _glyphs_ (individual symbols), covering 
 
 The primary concrete font implementation in `roo_display` is the `SmoothFont` class. A smooth font stores glyphs in PROGMEM, using a custom internal data format. Smooth fonts are anti-aliased (they use 4-bit alpha), and support kerning. In order to use a smooth font, all you need to do is to include and reference it, as we saw in the examples above.
 
-Most smooth fonts are _proportional_ (e.g. have varying glyph width), but they can also be fixed-size.
+Most smooth fonts are _proportional_ (e.g. have varying glyph width), but they can also be _monotype_ (fixed width).
 
 Only the fonts that you actually reference get linked into your program. Don't worry when you see font files compiling - if you don't use them, your program's binary will not carry them.
 
-The `roo_display` library comes with a collection of free Noto fonts in various sizes and faces. They include Sans, Sans condensed, Mono, and Serif, and they come with bold and italic variants. The default charset includes about 340 glyphs, covering basic Latin, Latin-1 supplement, Latin Extended-A, plus assorted symbols (currency symbols, some commonly used Greek letters, etc.) You can quite easily see what specific glyphs are supported simply by looking at the font's `cpp` file.
+The `roo_display` library comes with a collection of free Noto fonts in various sizes and faces. They include Sans, Sans condensed, Mono, and Serif, and they come with bold and italic variants. The default charset includes about 340 glyphs, covering basic Latin, Latin-1 supplement, Latin Extended-A, as well as some assorted symbols (currency symbols, some commonly used Greek letters, etc.) You can quite easily see what specific glyphs are supported simply by looking at the font's `cpp` file.
 
-The footprint of smooth fonts on PROGMEM is reasonably small - unless you use many large fonts, they should not bloat your binaries. For example, the Noto Sans regular 27, which we have used a lot in the examples, uses 34KB (about 100 bytes per glyph on average). Large, complex fonts need more space: for example, Noto Serif italic 90, which we also used in some examples, uses 177 KB total (about 520 bytes per glyph on average).
+The footprint of smooth fonts in PROGMEM is reasonably small - unless you use many large fonts, they should not bloat your binaries. For example, the Noto Sans regular 27, which we have used a lot in the examples, uses 34KB (about 100 bytes per glyph on average). Large, complex fonts need more space: for example, Noto Serif italic 90 uses 177 KB total (about 520 bytes per glyph on average).
+
+> Note: storing fonts in PROGMEM allows `roo_display` to access and render them much more efficiently than if they were stored e.g. on an external SD card.
 
 In addition to smooth fonts, you will also find a simple fixed-size 5x7 'Adafruit' ASCII font. You will likely not find it very useful, except perhaps as a simple case study of the font implementation.
 
 #### Importing custom fonts
 
-There are many reasons why you might want to import additional fonts. Maybe you want to use a different face; maybe you need a different size, or maybe you need a different set of glyphs. Whatever the reason, importing fonts is easy, with help of [roo_display_font_importer](https://github.com/dejwk/roo_display_font_importer). This Java-based tool will convert any font available in your system, at any size you want, and with any glyph subset you want, into a smooth font that you can use with `roo_display`.
+There are many reasons why you might want to import additional fonts. Maybe you want to use a different face; maybe you need a different size, or maybe you need a different set of glyphs. Whatever the reason, importing fonts is easy, with help of [roo_display_font_importer](https://github.com/dejwk/roo_display_font_importer). This Java-based tool will convert any font available in your system, at any size you want, and with any glyph subset you want, to a smooth font that you can use with `roo_display`.
 
 As an example, let's import all available glyphs from the OpenSymbol font:
 
@@ -746,15 +748,17 @@ void loop() {
 
 You can obtain general font metrics by calling `font.metrics()`. The returned `FontMetrics` object allows you to obtain FreeType properties of the font, such as ascent, descent, linegap, linespace, as well as the maximum glyph extents. You can also find out the minimum left- and right-side bearing, which specify how much can a glyph 'stick out' of its anchor extents. More on that below, in the section on alignment.
 
-Generally, using this metrics can help write your application so that it can work with different font sizes.
+Generally, using font metrics can help write your application so that it can work with different font sizes.
 
 You can also call `font.properties()` to find out basic facts about the font, such as whether it is proportional or monospace, whether it is antialiased, and whether it uses kerning.
 
-Finally, by calling `font.getHorizontalStringGlyphMetrics(StringView)` you can measure the properties of glyphs or entire strings, without drawing them. Specifically, you can obtain a `GlyphMetrics` object, which reveals the string's bounding box, as well as the advance width (which is essentially the width for the purpose of alignment). That said, the same properties are also captured by `TextLabel`'s `extents()` and `anchorExtents()`, which may be simpler to use (see below).
+Finally, by calling `font.getHorizontalStringGlyphMetrics(StringView)` you can measure the properties of glyphs or entire strings, without drawing them. Specifically, you can obtain a `GlyphMetrics` object, which reveals the string's bounding box, as well as the advance width, which is essentially the width for the purpose of alignment.
+
+That said, the same properties are also captured by `TextLabel`'s `extents()` and `anchorExtents()`, which may be simpler to use (see below).
 
 ### Alignment
 
-Text alignment can be a little tricky. Text that is optically left- or right-aligned may actually have tails that stick outside of the alignment boundary (e.g. in case of letters such as 'y'), but it may also leave a gap (e.g. for the numeral '1'). Top and bottom alignment generally depends on the font's metrics, regardless of the glyphs actually used, so that the text doesn't jump up and down when the content changes. Finally, in many cases, you may need to keep text aligned at baseline.
+Text alignment can be a little tricky. When optically left- or right-aligned, a glyph, such as 'y', may actually have a 'tail' that hang outside of the alignment boundary. Another glyph, such as 'i', may have a gap. Top and bottom alignment does not depend on glyphs at all, but only on the overall font's metrics, so that the text doesn't jump up and down when the content changes. Also, in many cases, you may need to keep text aligned at baseline.
 
 Luckily, all these subtleties are captured by the `TextLabel`'s `anchorExtents()`. Let's see what they may look like for some sample text:
 
@@ -785,9 +789,9 @@ void loop() {
 
 Here, the gray box is a minimum bounding rectangle, and the blue frame corresponds to the anchor extents. Red crosshairs indicate the axes, i.e. the cross is at (0, 0).
 
-(These values are derived from the font and glyph metrics: the width of the blue frame is the advance, the 'overhang' of the letter 'y' is equal to the left-side bearing, and so on).
+(These bounding values of the `TextLabel` are derived from the font and glyph metrics: the width of the blue frame is the advance, the 'overhang' of the letter 'y' is equal to the left-side bearing, and so on).
 
-When you draw aligned text using the built-in mechanisms, the library will do the right thing. The only thing to keep in mind is that you may need to add some left and right padding (for left-aligned and right-aligned text, respectively) to leave room for overhangs, as they may otherwise get truncated:
+When you draw aligned text using the built-in mechanisms, the library will do the right thing. You only need to keep in mind that some left or right padding may be needed (for left-aligned and right-aligned text, respectively) to leave room for overhangs, as they may otherwise get truncated:
 
 ```cpp
 #include "roo_smooth_fonts/NotoSerif_Italic/27.h"
@@ -829,6 +833,7 @@ If you want to know exactly how much padding is needed for a given font so that 
 Text baseline always has y-coordinate zero. Therefore, using `kBaseline` will keep the text aligned at baseline:
 
 ```cpp
+#include "roo_smooth_fonts/NotoSerif_Italic/10.h"
 #include "roo_smooth_fonts/NotoSerif_Italic/15.h"
 #include "roo_smooth_fonts/NotoSerif_Italic/18.h"
 #include "roo_smooth_fonts/NotoSerif_Italic/27.h"
@@ -839,12 +844,14 @@ Text baseline always has y-coordinate zero. Therefore, using `kBaseline` will ke
 void loop() {
   int dx = 5;
   auto label1 = TextLabel(
-    "Hello ", font_NotoSerif_Italic_15(), color::Black);
+    "Hello ", font_NotoSerif_Italic_10(), color::Black);
   auto label2 = TextLabel(
-    "Hello ", font_NotoSerif_Italic_18(), color::Black);
+    "Hello ", font_NotoSerif_Italic_15(), color::Black);
   auto label3 = TextLabel(
-    "Hello ", font_NotoSerif_Italic_27(), color::Black);
+    "Hello ", font_NotoSerif_Italic_18(), color::Black);
   auto label4 = TextLabel(
+    "Hello ", font_NotoSerif_Italic_27(), color::Black);
+  auto label5 = TextLabel(
     "Hello ", font_NotoSerif_Italic_40(), color::Black);
   DrawingContext dc(display);
   dc.draw(label1, kLeft.shiftBy(dx) | kBaseline.toMiddle());
@@ -855,12 +862,16 @@ void loop() {
   dx += label3.anchorExtents().width();
   dc.draw(label4, kLeft.shiftBy(dx) | kBaseline.toMiddle());
   dx += label4.anchorExtents().width();
+  dc.draw(label5, kLeft.shiftBy(dx) | kBaseline.toMiddle());
+  dx += label1.anchorExtents().width();
 
   delay(10000);
 }
 ```
 
 ![img12](doc/images/img12.png)
+
+Note that for spacing the words, we relied on the fact that `anchorExtents().width()` is equal to the text advance, and that the 'space' glyph has proper advance for its font size, resulting in naturally-looking spacing.
 
 ### UTF-8
 
@@ -876,7 +887,7 @@ The library provides a few utilities to work with UTF-8, in the `"roo_display/co
 
 The library provides convenience 'sprintf-like' utilities in `"roo_display/ui/string_printer.h"`. You can use them to format text into `std::string`, which is used in other places such as the `TextLabel`.
 
-> Note: do not shy away from using `std::string`. It works well on microcontrollers such as ESP32. For best performance, strings should be passed by value and _moved_ (rather than copied). Classes such as `TextLabel` already provide suitable move constructors, making things 'just work':
+> Note: do not shy away from using `std::string`. It works well on microcontrollers such as ESP32. For best performance, strings should be passed by value and _moved_ (rather than copied). Classes such as `TextLabel` already provide suitable move constructors, making things 'just work'.
 
 ```cpp
 TextLabel label(StringPrintf("%.1f°C", temp), font, color);

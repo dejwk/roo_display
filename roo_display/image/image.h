@@ -4,26 +4,29 @@
 #include "roo_display/image/image_stream.h"
 #include "roo_display/internal/raw_streamable.h"
 
-// Image is a Streamable that renders a rectangular area based on data from some
-// underlying data source. Image classes are templated on Resource, which
-// specifies the source of input data, such as DRAM memory, flash memory, or SD
-// card. Specific Resource classes are included in the io/ subdictory; you could
-// also roll your own based on those.
+// Images are drawables that render a rectangular area based on data from some
+// underlying immutable data source. Image classes are templated on Resource,
+// which specifies the source of input data, such as DRAM memory, flash memory,
+// or SD card. Specific Resource classes are included in the io/ subdictory; you
+// could also roll your own based on those.
 //
 // Each image class recognizes a particular image data format, such as
 // raster bitmap, or RLE-encoded image data.
 //
-// Because Images are Streamables (see core/streamable.h), you can
-// super-impose (and alpha-blend) images over each other, and over other
-// Streamables, without needing to store the entire content in DRAM. A common
-// use case is to super-impose semi-transparent images over solid backgrounds.
-// For example, you can define a button with a single image label, and varying
-// background color depending on button state.
+// Images do not have a common base class. Every image can be used as a
+// Drawable; many are Streamable (see core/streamable.h), and some might be
+// Rasterizable (see core/rasterizable.h).
+
+// Streamable and Rasterizable images can be super-imposed (and alpha-blended)
+// over each other, and over other Streamables, without needing to store the
+// entire content in DRAM. A common use case is to super-impose semi-transparent
+// images over solid backgrounds. For example, you can define a button with a
+// single image label, and varying background color depending on button state.
 //
 // Note: for simple raster (uncompressed) images, stored in native ColorMode
 // formats, use Raster from core/raster.h.
 //
-// How to implement a new image class:
+// How to implement a new Streamable image class:
 // 1. Implement a new 'stream' type, with methods Color next() and skip(int),
 //    that will return pixels of your image from the top-left corner
 // 2. In a typical case when your image is rendering the entire stream
@@ -118,8 +121,7 @@ class XBitmap
                       BYTE_ORDER_NATIVE>> {
  public:
   typedef Clipping<SimpleImage<Resource, Monochrome,
-                               COLOR_PIXEL_ORDER_LSB_FIRST,
-                               BYTE_ORDER_NATIVE>>
+                               COLOR_PIXEL_ORDER_LSB_FIRST, BYTE_ORDER_NATIVE>>
       Base;
 
   XBitmap(int16_t width, int16_t height, const Resource& input, Color fg,

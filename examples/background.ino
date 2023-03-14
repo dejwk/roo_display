@@ -263,13 +263,6 @@ void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {
   double fps;
   const Font& timerFont = font_NotoSans_Regular_60();
   const Font& fpsFont = font_NotoSans_Italic_18();
-  // Rendering of digits is a little tricky. On one hand, even proportional
-  // fonts tend to be 'non-proportional' for digits; i.e. each digit glyph has
-  // the same advance. It allows us to easily anticipate advance width of
-  // arbitrary sequence of digits. Careful, though: the glyphs still have
-  // various bearings; e.g., '1' will be narrower than '0'. As a result,
-  // aligning to left or to right will not work as expected. We need to use
-  // 'absolute' alignment, so that the bearings don't get coalesced.
   GlyphMetrics digitMetrics = timerFont.getHorizontalStringMetrics("0");
   GlyphMetrics timerMetrics = timerFont.getHorizontalStringMetrics("00\"000");
   Box timerBox = timerMetrics.screen_extents();
@@ -295,9 +288,6 @@ void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {
     int first_changed = timerToString(t, time);
     {
       auto label = ClippedStringViewLabel(time, timerFont, color::Black);
-      // See the comment above for explanation why we need to use HAlign::None()
-      // here (i.e., absolute alignment, instead of left- or right- alignment).
-      //
       // In case of the (optimal) inplace drawing, we need to use
       // color::Background (which is actually the default which could
       // generally be omitted), so that the entire bounding box of the glyph

@@ -338,7 +338,7 @@ void loop() {
 
 ![img7](doc/images/img7.png)
 
-What if you want to draw on the portion of the screen, and use that portion for alignment, rathen than the display boundaries? Not a problem - you can specify the desired bounds when creating the drawing context. The following example draws 4 shapes centered in 4 areas the screen is split into: 
+What if you want to draw on the portion of the screen, and use that portion for alignment, rathen than the display boundaries? Not a problem - you can specify the desired bounds when creating the drawing context. The following example draws 4 shapes centered in 4 areas the screen is split into:
 
 ```cpp
 void loop() {
@@ -605,7 +605,7 @@ You will see an easier way to initialize a clip mask in the section on offscreen
 
 ### Transformations
 
-You can apply basic affine transformations (integer scaling, right-angle rotation, translation) to anything you draw. 
+You can apply basic affine transformations (integer scaling, right-angle rotation, translation) to anything you draw.
 
 A transformation is represented by the `Transformation` object. Calling its default constructor creates an 'identity' transformation, i.e. one that does not change anything. You can then use it as a starting point to compose your transformation, by calling methods that add specific modifications, such as: translation, scaling, rotation, coordinate swapping, and others. You can also use a more specialized constructor to initialize your transformation in one step.
 
@@ -682,15 +682,81 @@ void loop() {
 
 > Note: `PixelWriter` buffers the pixels and flushes them in batches, in order to optimize the underlying write operations. Therefore, the pixels may not appear until `drawPixels()` returns.
 
+When possible, try to draw subsequent pixels in horizontal or vertical streaks, i.e., write pixels in a single direction as much as possible. It may help the underlying device driver to reduce communication volume (e.g. SPI transfers), thus improving performance.
+
 ## Working with text
+
+This section digs deeper into the details of handling text output.
 
 ### Fonts
 
-The library comes with a collection of free Noto UTF fonts of various sizes and faces (Sans, Sans condensed, and Serif; with bold and italic variants). They are anti-aliased and support kerning pairs. The default charset is reasonably rich; covering latin-1 and latin-2, and a number of symbols. Later, you 
+As most things in `roo_display`, a font is represented by an abstract class: `Font`. Most of the time, you can treat a font as an opaque object that you pass to `TextLabel`. Nonetheless, we will now look at `Font` in some more detail.
+
+Logically, each font is a collection of _glyphs_ (individual symbols), covering some subset of Unicode.
+
+#### Pre-packaged fonts
+
+The primary concrete font implementation in `roo_display` is the `SmoothFont` class. A smooth font stores glyphs in PROGMEM, using a custom internal data format. Smooth fonts are anti-aliased (they use 4-bit alpha), and support kerning. In order to use a smooth font, all you need to do is to include and reference it, as we saw in the examples above.
+
+Most smooth fonts are _proportional_ (e.g. have varying glyph width), but they can also be fixed-size.
+
+Only the fonts that you actually reference get linked into your program. Don't worry when you see font files compiling - if you don't use them, your program's binary will not carry them.
+
+The `roo_display` library comes with a collection of free Noto fonts in various sizes and faces. They include Sans, Sans condensed, Mono, and Serif, and they come with bold and italic variants. The default charset includes about 340 glyphs, covering basic Latin, Latin-1 supplement, Latin Extended-A, plus assorted symbols (currency symbols, some commonly used Greek letters, etc.) You can quite easily see what specific glyphs are supported simply by looking at the font's `cpp` file.
+
+The footprint of smooth fonts on PROGMEM is reasonably small - unless you use many large fonts, they should not bloat your binaries. For example, the Noto Sans regular 27, which we have used a lot in the examples, uses 34KB (about 100 bytes per glyph on average). Large, complex fonts need more space: for example, Noto Serif italic 90, which we also used in some examples, uses 177 KB total (about 520 bytes per glyph on average).
+
+In addition to smooth fonts, you will also find a simple fixed-size 5x7 'Adafruit' ASCII font. You will likely not find it very useful, except perhaps as a simple case study of the font implementation.
+
+#### Importing custom fonts
+
+There are many reasons why you might want to import additional fonts. Maybe you want to use a different face; maybe you need a different size, or maybe you need a different set of glyphs. Whatever the reason, importing fonts is easy, with help of [roo_display_font_importer](https://github.com/dejwk/roo_display_font_importer). This Java-based tool will convert any font available in your system, at any size you want, and with any glyph subset you want, into a smooth font that you can use with `roo_display`.
+
+As an example, let's import all available glyphs from the OpenSymbol font:
+
+```
+wget https://github.com/dejwk/roo_display_font_importer/releases/download/1.0/roo_display_font_importer.zip
+unzip roo_display_font_importer.zip
+./roo_display_font_importer/bin/roo_display_font_importer -font OpenSymbol -sizes 40 -charset 0-FFFF
+```
+
+The resulting font has 162KB and over 1000 glyphs. Let's look at some of them:
+
+```cpp
+#include "OpenSymbol/40.h"
+
+// ...
+
+void loop() {
+  const Font& font = font_OpenSymbol_40();
+  DrawingContext dc(display);
+  dc.draw(TextLabel("▲△▴▵▶▷▸▹►▻", font, color::Black), 0, 40);
+  dc.draw(TextLabel("▼▽▾▿◀◁◂◃◄◅", font, color::Black), 0, 80);
+  dc.draw(TextLabel("◊○●◗◦☎☑☒☛☞", font, color::Black), 0, 120);
+  dc.draw(TextLabel("☹☺☼♠♣♥♦✂✈✍✎✓✔", font, color::Black), 0, 160);
+  dc.draw(TextLabel("✗✘✙✚✛✜✢✣✤✥✫✬✭✮✯", font, color::Black), 0, 200);
+  dc.draw(TextLabel("✰✳✴✵✶✷✸✹✿❁❄❍❏❐❑❒", font, color::Black), 0, 240);
+  delay(10000);
+}
+```
+
+![img21](doc/images/img21.png)
+
+#### Metrics
+
+You can obtain general font metrics by calling `font.metrics()`. The returned `FontMetrics` object allows you to obtain FreeType properties of the font, such as ascent, descent, linegap, linespace, as well as the maximum glyph extents. You can also find out the minimum left- and right-side bearing, which specify how much can a glyph 'stick out' of its anchor extents. More on that below, in the section on alignment.
+
+Generally, using this metrics can help write your application so that it can work with different font sizes.
+
+You can also call `font.properties()` to find out basic facts about the font, such as whether it is proportional or monospace, whether it is antialiased, and whether it uses kerning.
+
+Finally, by calling `font.getHorizontalStringGlyphMetrics(StringView)` you can measure the properties of glyphs or entire strings, without drawing them. Specifically, you can obtain a `GlyphMetrics` object, which reveals the string's bounding box, as well as the advance width (which is essentially the width for the purpose of alignment). That said, the same properties are also captured by `TextLabel`'s `extents()` and `anchorExtents()`, which may be simpler to use (see below).
 
 ### Alignment
 
-Let's see what these 'anchor extents' look like for a text label:
+Text alignment can be a little tricky. Text that is optically left- or right-aligned may actually have tails that stick outside of the alignment boundary (e.g. in case of letters such as 'y'), but it may also leave a gap (e.g. for the numeral '1'). Top and bottom alignment generally depends on the font's metrics, regardless of the glyphs actually used, so that the text doesn't jump up and down when the content changes. Finally, in many cases, you may need to keep text aligned at baseline.
+
+Luckily, all these subtleties are captured by the `TextLabel`'s `anchorExtents()`. Let's see what they may look like for some sample text:
 
 ```cpp
 #include "roo_smooth_fonts/NotoSerif_Italic/90.h"
@@ -717,9 +783,11 @@ void loop() {
 
 ![img9](doc/images/img9.png)
 
-In this case, anchor extents are dictated by the rules of typography, rather than what the minimum bounding box looks like. In particular, the anchors leave a bit of space after the period and above the ascent of the text. On the left side, the tail of 'y' sticks outside the anchor box.
+Here, the gray box is a minimum bounding rectangle, and the blue frame corresponds to the anchor extents. Red crosshairs indicate the axes, i.e. the cross is at (0, 0).
 
-Let's see how the aligned text looks like:
+(These values are derived from the font and glyph metrics: the width of the blue frame is the advance, the 'overhang' of the letter 'y' is equal to the left-side bearing, and so on).
+
+When you draw aligned text using the built-in mechanisms, the library will do the right thing. The only thing to keep in mind is that you may need to add some left and right padding (for left-aligned and right-aligned text, respectively) to leave room for overhangs, as they may otherwise get truncated:
 
 ```cpp
 #include "roo_smooth_fonts/NotoSerif_Italic/27.h"
@@ -753,6 +821,12 @@ void loop() {
 ```
 
 ![img10](doc/images/img10.png)
+
+If you want to know exactly how much padding is needed for a given font so that it never truncates any glyph, use `font.metrics().minLsb()` and `font.metrics().minRsb()`. Note that 'overhangs' are represented by negative values. That is, if these methods return non-negative values, the text will never overhang for that font.
+
+#### Aligning at baseline
+
+Text baseline always has y-coordinate zero. Therefore, using `kBaseline` will keep the text aligned at baseline:
 
 ```cpp
 #include "roo_smooth_fonts/NotoSerif_Italic/15.h"
@@ -788,10 +862,35 @@ void loop() {
 
 ![img12](doc/images/img12.png)
 
+### UTF-8
 
-## Drawing images and icons
+Text labels, as well as any other routines operating on strings, assume UTF-8 encoding. Most code editors also use UTF-8, which means that you can simply paste Unicode content into your string literals, and things just work (see the OpenSymbol example above).
+
+The library provides a few utilities to work with UTF-8, in the `"roo_display/core/utf8.h"` header:
+
+* `StringView` is a lightweight, immutable pointer to UTF-8 contents, conceptually similar to `std::u8string_view` (introduced in C++20), and used across the library.
+* `EncodeRuneAsUtf8()` is a convenience function that helps converting regular, multi-byte UTF code points to UTF-8.
+* `Utf8Decoder` is a utility class that does the opposite, i.e. it allows to extract subsequent code points out of UTF-8 content.
+
+### Formatted text
+
+The library provides convenience 'sprintf-like' utilities in `"roo_display/ui/string_printer.h"`. You can use them to format text into `std::string`, which is used in other places such as the `TextLabel`.
+
+> Note: do not shy away from using `std::string`. It works well on microcontrollers such as ESP32. For best performance, strings should be passed by value and _moved_ (rather than copied). Classes such as `TextLabel` already provide suitable move constructors, making things 'just work':
+
+```cpp
+TextLabel label(StringPrintf("%.1f°C", temp), font, color);
+```
+
+### Drawing numbers
+
+Digits are often monotype, even in proportional fonts. Sometimes you can use this property to minimize redraws; e.g. use glyph metrics to determine positions of digits, and then update the individual digits.
+
+Be careful, though: even though the _anchor_ extents of all digits may be the same, the regular extents are not. The bounding box of digit '1' is going to be smaller than that of digit '0', even though they have the same advance. For this reason, you may still need to use `Tile` when rendering numeric content.
 
 ## Using off-screen buffers
+
+## Drawing images and icons
 
 ## Overlays, backgrounds, filters
 

@@ -25,6 +25,7 @@ class MemoryStream {
   }
 
   void advance(int32_t count) { current_ += count; }
+  void skip(int32_t count) { current_ += count; }
 
   void seek(uint32_t offset) { current_ = start_ + offset; }
 

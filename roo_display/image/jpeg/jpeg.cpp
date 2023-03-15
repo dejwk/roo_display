@@ -4,9 +4,9 @@
 
 namespace roo_display {
 
-// From TFT_eSPI:
-// Do not change this, it is the minimum size in bytes of the workspace needed
-// by the decoder
+// Per http://elm-chan.org/fsw/tjpgd/en/appnote.html: 3100 is the minimum;
+// 'FASTDECODE = 1' needs extra 320 bytes; 'FASTDECODE = 2' needs extra 6144
+// bytes.
 #if JD_FASTDECODE == 0
 #define TJPGD_WORKSPACE_SIZE 3100
 #elif JD_FASTDECODE == 1

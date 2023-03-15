@@ -251,18 +251,18 @@ class Raster : public Rasterizable {
   const ColorMode& color_mode() const { return color_mode_; }
 
   std::unique_ptr<StreamType> CreateRawStream() const {
-    MemoryStream<PtrType> s(ptr_);
-    return std::unique_ptr<StreamType>(new StreamType(s, color_mode_));
+    return std::unique_ptr<StreamType>(
+        new StreamType(MemoryStream<PtrType>(ptr_), color_mode_));
   }
 
   std::unique_ptr<PixelStream> CreateStream() const override {
-    MemoryStream<PtrType> s(ptr_);
-    return std::unique_ptr<PixelStream>(new StreamType(s, color_mode_));
+    return std::unique_ptr<PixelStream>(
+        new StreamType(MemoryStream<PtrType>(ptr_), color_mode_));
   }
 
   std::unique_ptr<PixelStream> CreateStream(const Box& bounds) const override {
-    MemoryStream<PtrType> s(ptr_);
-    return SubRectangle(StreamType(s, color_mode_), extents(), bounds);
+    return SubRectangle(StreamType(MemoryStream<PtrType>(ptr_), color_mode_),
+                        extents(), bounds);
   }
 
   void ReadColors(const int16_t* x, const int16_t* y, uint32_t count,
@@ -289,6 +289,26 @@ class Raster : public Rasterizable {
   const PtrType buffer() const { return ptr_; }
 
  private:
+  void drawTo(const Surface& s) const override {
+    Box bounds =
+        Box::intersect(s.clip_box().translate(-s.dx(), -s.dy()), extents_);
+    if (bounds.empty()) return;
+    if (extents_.width() == bounds.width() &&
+        extents_.height() == bounds.height()) {
+      StreamType stream(MemoryStream<PtrType>(ptr_), color_mode_);
+      internal::FillRectFromStream(s.out(), bounds.translate(s.dx(), s.dy()),
+                                   &stream, s.bgcolor(), s.fill_mode(),
+                                   s.paint_mode(), GetTransparencyMode());
+    } else {
+      auto stream = internal::MakeSubRectangle(
+          StreamType(MemoryStream<PtrType>(ptr_), color_mode_), extents_,
+          bounds);
+      internal::FillRectFromStream(s.out(), bounds.translate(s.dx(), s.dy()),
+                                   &stream, s.bgcolor(), s.fill_mode(),
+                                   s.paint_mode(), GetTransparencyMode());
+    }
+  }
+
   Box extents_;
   Box anchor_extents_;
   PtrType ptr_;
@@ -304,12 +324,14 @@ using DramRaster = Raster<uint8_t*, ColorMode, pixel_order, byte_order>;
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
-using ConstDramRaster = Raster<const uint8_t*, ColorMode, pixel_order, byte_order>;
+using ConstDramRaster =
+    Raster<const uint8_t*, ColorMode, pixel_order, byte_order>;
 
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
-using ProgMemRaster = Raster<const uint8_t* PROGMEM, ColorMode, pixel_order, byte_order>;
+using ProgMemRaster =
+    Raster<const uint8_t * PROGMEM, ColorMode, pixel_order, byte_order>;
 
 template <typename PtrType, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
 using RasterArgb8888 =

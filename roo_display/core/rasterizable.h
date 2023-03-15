@@ -8,6 +8,16 @@
 
 namespace roo_display {
 
+// Drawable that can provide a color of any point within the extents, given the
+// coordinates. Rasterizables can be used as overlays, backgrounds, and filters.
+//
+// Rasterizable is automatically Drawable and Streamable. All you need to do to
+// implement it is to implement ReadColors(). That is, if your class has a
+// way of generating a stream of pixels or drawing itself that is more efficient
+// than going pixel-by-pixel, you may want to override those methods. Also, if
+// your rasterizable possibly returns the same color for large areas, you may
+// want to override ReadColorRect, as it can improve drawing performance when
+// this rasterizable is used e.g. as an overlay or a background.
 class Rasterizable : public virtual Streamable {
  public:
   // Read colors corresponding to the specified collection of points, and store
@@ -31,11 +41,17 @@ class Rasterizable : public virtual Streamable {
   virtual bool ReadColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
                              int16_t yMax, Color* result) const;
 
+  // Default implementation of CreateStream(), using ReadColors() to determine
+  // colors of subsequent pixels.
   std::unique_ptr<PixelStream> CreateStream() const override;
 
+  // Default implementation of CreateStream(), using ReadColors() to determine
+  // colors of subsequent pixels.
   std::unique_ptr<PixelStream> CreateStream(const Box& bounds) const override;
 
  private:
+  // Default implementation of drawTo(), using ReadColors() to determine
+  // colors of subsequent pixels.
   void drawTo(const Surface& s) const override;
 };
 

@@ -385,6 +385,19 @@ class SubRectangleStream : public PixelStream {
   int idx_;
 };
 
+template <typename Stream>
+inline SubRectangleStream<Stream> MakeSubRectangle(Stream stream,
+                                                   const Box &extents,
+                                                   const Box &bounds) {
+  int line_offset = extents.width() - bounds.width();
+  int xoffset = bounds.xMin() - extents.xMin();
+  int yoffset = bounds.yMin() - extents.yMin();
+  uint32_t skipped = yoffset * extents.width() + xoffset;
+  stream.Skip(skipped);
+  return SubRectangleStream<Stream>(std::move(stream), extents.area() - skipped,
+                                    bounds.width(), line_offset);
+}
+
 }  // namespace internal
 
 template <typename Stream>
@@ -444,15 +457,15 @@ class SimpleStreamable : public Streamable {
  public:
   SimpleStreamable(int16_t width, int16_t height, Resource resource,
                    const ColorMode &color_mode = ColorMode())
-      : SimpleStreamable(Box(0, 0, width - 1, height - 1),
-                         std::move(resource), std::move(color_mode)) {}
+      : SimpleStreamable(Box(0, 0, width - 1, height - 1), std::move(resource),
+                         std::move(color_mode)) {}
 
   SimpleStreamable(Box extents, Resource resource,
                    const ColorMode &color_mode = ColorMode())
       : SimpleStreamable(extents, extents, std::move(resource), color_mode) {}
 
-  SimpleStreamable(Box extents, Box anchor_extents,
-                   Resource resource, const ColorMode &color_mode = ColorMode())
+  SimpleStreamable(Box extents, Box anchor_extents, Resource resource,
+                   const ColorMode &color_mode = ColorMode())
       : extents_(std::move(extents)),
         anchor_extents_(anchor_extents),
         resource_(std::move(resource)),

@@ -34,6 +34,10 @@ size_t jpeg_read(JDEC* jdec, uint8_t* buf, size_t size) {
 int jpeg_draw_rect(JDEC* jdec, void* data, JRECT* rect) {
   JpegDecoder* decoder = (JpegDecoder*)jdec->device;
   const Surface* surface = decoder->surface_;
+  if (rect->top > surface->clip_box().yMax()) {
+    // The rest of the image will be clipped out; we can finish early.
+    return 0;
+  }
   Box box(rect->left, rect->top, rect->right, rect->bottom);
   ConstDramRaster<Rgb888> raster(box, (const uint8_t*)data);
   surface->drawObject(raster, 0, 0);

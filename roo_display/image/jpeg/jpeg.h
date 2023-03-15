@@ -13,6 +13,8 @@ namespace internal {
 // Virtual adapter for a templated resource stream.
 class ByteStream {
  public:
+  virtual ~ByteStream() = default;
+
   // reads up to count bytes. Returns the number of bytes read.
   virtual int read(uint8_t* buf, int count) = 0;
 
@@ -47,7 +49,8 @@ class JpegDecoder {
   JpegDecoder();
 
  private:
-  template <typename Resource> friend class JpegImage;
+  template <typename Resource>
+  friend class JpegImage;
   friend size_t jpeg_read(JDEC*, uint8_t*, size_t);
   friend int jpeg_draw_rect(JDEC* jdec, void* data, JRECT* rect);
 

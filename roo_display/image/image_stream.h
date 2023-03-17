@@ -57,8 +57,8 @@ class RleStreamUniform;
 
 // Run-length-encoded stream for color modes in which the pixel uses at least
 // one byte. The RLE implementation doesn't favor any particular values.
-template <typename Resource, typename ColorMode>
-class RleStreamUniform<Resource, ColorMode, ColorMode::bits_per_pixel, false>
+template <typename Resource, typename ColorMode, int8_t bits_per_pixel>
+class RleStreamUniform<Resource, ColorMode, bits_per_pixel, false>
     : public PixelStream {
  public:
   RleStreamUniform(const Resource& input, const ColorMode& color_mode)
@@ -123,11 +123,11 @@ class RleStreamUniform<Resource, ColorMode, ColorMode::bits_per_pixel, false>
 
 // Run-length-encoded stream for color modes in which the pixel uses less than
 // one byte. The RLE implementation doesn't favor any particular values.
-template <typename Resource, typename ColorMode>
-class RleStreamUniform<Resource, ColorMode, ColorMode::bits_per_pixel, true>
+template <typename Resource, typename ColorMode, int8_t bits_per_pixel>
+class RleStreamUniform<Resource, ColorMode, bits_per_pixel, true>
     : public PixelStream {
  public:
-  static constexpr int pixels_per_byte = 8 / ColorMode::bits_per_pixel;
+  static constexpr int pixels_per_byte = 8 / bits_per_pixel;
 
   RleStreamUniform(const Resource& input, const ColorMode& color_mode)
       : RleStreamUniform(input.Open(), color_mode) {}

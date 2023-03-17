@@ -37,15 +37,24 @@ inline int initialCapacityIdx(uint16_t size_hint) {
   return 12;
 }
 
-struct DefaultHash {
+struct DefaultHashFn {
   template <typename T>
   T operator()(const T& val) const {
     return val;
   }
 };
 
+// For maps, where Key == Entry.
+struct DefaultKeyFn {
+  template <typename Entry>
+  Entry operator()(const Entry& entry) const {
+    return entry;
+  }
+};
+
 // Memory-conscious small flat hashtable. It can hold up to 64000 elements.
-template <typename Entry, typename Key, typename Hash = DefaultHash>
+template <typename Entry, typename Key, typename HashFn = DefaultHashFn,
+          typename KeyFn = DefaultKeyFn>
 class Hashtable {
  public:
   enum State { EMPTY, DELETED, FULL };
@@ -80,17 +89,20 @@ class Hashtable {
    private:
     friend class Hashtable;
 
-    Iterator(const Hashtable<Entry, Key, Hash>* ht, uint16_t pos)
+    Iterator(const Hashtable<Entry, Key, HashFn, KeyFn>* ht, uint16_t pos)
         : ht_(ht), pos_(pos) {}
 
-    const Hashtable<Entry, Key, Hash>* ht_;
+    const Hashtable<Entry, Key, HashFn, KeyFn>* ht_;
     uint16_t pos_;
   };
 
-  Hashtable(Hash hash = Hash()) : Hashtable(8, hash) {}
+  Hashtable(HashFn hash_fn = HashFn(), KeyFn key_fn = KeyFn())
+      : Hashtable(8, hash_fn, key_fn) {}
 
-  Hashtable(uint16_t size_hint, Hash hash = Hash())
-      : hash_(hash),
+  Hashtable(uint16_t size_hint, HashFn hash_fn = HashFn(),
+            KeyFn key_fn = KeyFn())
+      : hash_fn_(hash_fn),
+        key_fn_(key_fn),
         capacity_idx_(initialCapacityIdx(size_hint)),
         size_(0),
         resize_threshold_(
@@ -121,9 +133,9 @@ class Hashtable {
   uint16_t size() const { return size_; }
 
   Iterator find(const Key& key) const {
-    const uint16_t pos = fastmod(hash_(key), capacity_idx_);
+    const uint16_t pos = fastmod(hash_fn_(key), capacity_idx_);
     if (states_[pos] == EMPTY) return end();
-    if (states_[pos] == FULL && buffer_[pos] == key) {
+    if (states_[pos] == FULL && key_fn_(buffer_[pos]) == key) {
       return Iterator(this, pos);
     }
     const uint16_t cap = capacity();
@@ -133,7 +145,7 @@ class Hashtable {
     while (true) {
       if (p >= cap) p -= cap;
       if (states_[p] == EMPTY) return end();
-      if (states_[p] == FULL && buffer_[p] == key) {
+      if (states_[p] == FULL && key_fn_(buffer_[p]) == key) {
         return Iterator(this, p);
       }
       j += 2;
@@ -144,10 +156,14 @@ class Hashtable {
 
   bool contains(const Key& key) const { return find(key).pos_ != capacity(); }
 
-  std::pair<Iterator, bool> insert(const Entry& val) {
-    uint16_t pos = fastmod(hash_(val), capacity_idx_);
+  // Returns {the iterator to the new element, true} if the element was
+  // successfuly inserted; {the iterator to an existing element, false} if an
+  // entry with the same key has already been in the hashmap.
+  std::pair<Iterator, bool> insert(Entry val) {
+    Key key = key_fn_(val);
+    uint16_t pos = fastmod(hash_fn_(key), capacity_idx_);
     // Fast path.
-    if (states_[pos] == FULL && buffer_[pos] == val) {
+    if (states_[pos] == FULL && (pos == val || key_fn_(buffer_[pos]) == key)) {
       return std::make_pair(Iterator(this, pos), false);
     }
     if (size_ >= resize_threshold_) {
@@ -158,21 +174,22 @@ class Hashtable {
       }
       // Need to rehash.
       assert(capacity_idx_ < 12);  // Or, exceeded maximum hashtable size.
-      Hashtable<Entry, Key, Hash> newt(capacity(), hash_);
+      Hashtable<Entry, Key, HashFn, KeyFn> newt(capacity(), hash_fn_, key_fn_);
       for (const auto& e : *this) {
         newt.insert(e);
       }
       *this = std::move(newt);
       // Retry the fast path.
-      uint16_t pos = fastmod(hash_(val), capacity_idx_);
-      if (states_[pos] == FULL && buffer_[pos] == val) {
+      uint16_t pos = fastmod(hash_fn_(key), capacity_idx_);
+      if (states_[pos] == FULL &&
+          (pos == val || key_fn_(buffer_[pos]) == key)) {
         return std::make_pair(Iterator(this, pos), false);
       }
     }
     // Fast path for not found.
     if (states_[pos] == EMPTY) {
       states_[pos] = FULL;
-      buffer_[pos] = val;
+      buffer_[pos] = std::move(val);
       ++size_;
       return std::make_pair(Iterator(this, pos), true);
     }
@@ -185,11 +202,12 @@ class Hashtable {
       if (states_[p] == EMPTY) {
         // We can insert here.
         states_[p] = FULL;
-        buffer_[p] = val;
+        buffer_[p] = std::move(val);
         ++size_;
         return std::make_pair(Iterator(this, p), true);
       }
-      if (states_[p] == FULL && buffer_[p] == val) {
+      if (states_[p] == FULL &&
+          (buffer_[p] == val || key_fn_(buffer_[p]) == key)) {
         return std::make_pair(Iterator(this, p), false);
       }
       j += 2;
@@ -201,7 +219,8 @@ class Hashtable {
  private:
   friend class Iterator;
 
-  Hash hash_;
+  HashFn hash_fn_;
+  KeyFn key_fn_;
   int capacity_idx_;
   uint16_t size_;
   uint16_t resize_threshold_;
@@ -209,8 +228,8 @@ class Hashtable {
   std::unique_ptr<State[]> states_;
 };
 
-template <typename Key, typename Hash = DefaultHash>
-using HashSet = Hashtable<Key, Key, Hash>;
+template <typename Key, typename HashFn = DefaultHashFn>
+using HashSet = Hashtable<Key, Key, HashFn, DefaultKeyFn>;
 
 }  // namespace internal
 }  // namespace roo_display

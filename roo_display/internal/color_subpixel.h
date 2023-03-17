@@ -100,8 +100,7 @@ struct SubPixelColorHelper<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST, 8> {
   }
 };
 
-// Specialization that works for for 2-bit-per-pixel color modes (currently
-// none).
+// Specialization that works for for 4bpp color modes.
 template <typename ColorMode>
 struct SubPixelColorHelper<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST, 2> {
   void applySubPixelColor(uint8_t raw_color, uint8_t *target, int index) {
@@ -135,6 +134,47 @@ struct SubPixelColorHelper<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST, 2> {
                                     Color *result) const {
     result[0] = mode.toArgbColor(in >> 4);
     result[1] = mode.toArgbColor(in & 0x0F);
+  }
+};
+
+// Specialization that works for for 2bpp color modes.
+template <typename ColorMode>
+struct SubPixelColorHelper<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST, 4> {
+  void applySubPixelColor(uint8_t raw_color, uint8_t *target, int index) {
+    uint8_t mask = 0x03 << (index << 1);
+    *target &= ~mask;
+    *target |= (raw_color << (index << 1));
+  }
+  uint8_t ReadSubPixelColor(const uint8_t source, int index) {
+    return (source >> (index << 1)) & 0x03;
+  }
+  uint8_t RawToFullByte(uint8_t raw_color) { return raw_color * 0x55; }
+  inline void ReadSubPixelColorBulk(const ColorMode &mode, uint8_t in,
+                                    Color *result) const {
+    result[0] = mode.toArgbColor((in >> 0) & 0x03);
+    result[1] = mode.toArgbColor((in >> 2) & 0x03);
+    result[2] = mode.toArgbColor((in >> 4) & 0x03);
+    result[3] = mode.toArgbColor(in >> 6);
+  }
+};
+
+template <typename ColorMode>
+struct SubPixelColorHelper<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST, 4> {
+  void applySubPixelColor(uint8_t raw_color, uint8_t *target, int index) {
+    uint8_t mask = (0x03 << ((3 - index) << 1));
+    *target &= ~mask;
+    *target |= (raw_color << ((3 - index) << 1));
+  }
+  uint8_t ReadSubPixelColor(const uint8_t source, int index) {
+    return (source >> ((3 - index) << 1)) & 0x03;
+  }
+  uint8_t RawToFullByte(uint8_t raw_color) { return raw_color * 0x55; }
+  inline void ReadSubPixelColorBulk(const ColorMode &mode, uint8_t in,
+                                    Color *result) const {
+    result[0] = mode.toArgbColor(in >> 6);
+    result[1] = mode.toArgbColor((in >> 4) & 0x03);
+    result[2] = mode.toArgbColor((in >> 2) & 0x03);
+    result[3] = mode.toArgbColor((in >> 0) & 0x03);
   }
 };
 

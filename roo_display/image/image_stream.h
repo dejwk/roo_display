@@ -50,11 +50,16 @@ uint32_t read_varint(StreamType& in, uint32_t result) {
   }
 }
 
+template <typename Resource, typename ColorMode,
+          int8_t bits_per_pixel = ColorMode::bits_per_pixel,
+          bool subpixel = (bits_per_pixel < 8)>
+class RleStreamUniform;
+
 // Run-length-encoded stream for color modes in which the pixel uses at least
 // one byte. The RLE implementation doesn't favor any particular values.
-template <typename Resource, typename ColorMode,
-          int8_t bits_per_pixel = ColorMode::bits_per_pixel>
-class RleStreamUniform : public PixelStream {
+template <typename Resource, typename ColorMode>
+class RleStreamUniform<Resource, ColorMode, ColorMode::bits_per_pixel, false>
+    : public PixelStream {
  public:
   RleStreamUniform(const Resource& input, const ColorMode& color_mode)
       : RleStreamUniform(input.Open(), color_mode) {}
@@ -72,9 +77,7 @@ class RleStreamUniform : public PixelStream {
     }
   }
 
-  void Skip(uint32_t n) override {
-    skip(n);
-  }
+  void Skip(uint32_t n) override { skip(n); }
 
   void skip(uint32_t n) {
     while (n-- > 0) next();
@@ -107,7 +110,7 @@ class RleStreamUniform : public PixelStream {
 
  private:
   Color read_color() {
-    RawColorReader<StreamType<Resource>, bits_per_pixel> read;
+    RawColorReader<StreamType<Resource>, ColorMode::bits_per_pixel> read;
     return color_mode_.toArgbColor(read(input_));
   }
 
@@ -115,6 +118,74 @@ class RleStreamUniform : public PixelStream {
   int remaining_items_;
   bool run_;
   Color run_value_;
+  ColorMode color_mode_;
+};
+
+// Run-length-encoded stream for color modes in which the pixel uses less than
+// one byte. The RLE implementation doesn't favor any particular values.
+template <typename Resource, typename ColorMode>
+class RleStreamUniform<Resource, ColorMode, ColorMode::bits_per_pixel, true>
+    : public PixelStream {
+ public:
+  static constexpr int pixels_per_byte = 8 / ColorMode::bits_per_pixel;
+
+  RleStreamUniform(const Resource& input, const ColorMode& color_mode)
+      : RleStreamUniform(input.Open(), color_mode) {}
+
+  RleStreamUniform(StreamType<Resource> input, const ColorMode& color_mode)
+      : input_(std::move(input)),
+        remaining_items_(0),
+        pos_(0),
+        run_(false),
+        color_mode_(color_mode) {}
+
+  void Read(Color* buf, uint16_t size) override {
+    while (size-- > 0) {
+      *buf++ = next();
+    }
+  }
+
+  void Skip(uint32_t n) override { skip(n); }
+
+  void skip(uint32_t n) {
+    while (n-- > 0) next();
+  }
+
+  Color next() {
+    if (remaining_items_ == 0) {
+      // No remaining items; need to decode the next group.
+      uint8_t data = input_.read();
+      run_ = ((data & 0x80) != 0);
+      if ((data & 0x40) == 0) {
+        remaining_items_ = pixels_per_byte * ((data & 0x3F) + 1);
+      } else {
+        remaining_items_ =
+            pixels_per_byte * (read_varint(input_, data & 0x3F) + 1);
+      }
+      read_colors();
+    }
+
+    --remaining_items_;
+    Color result =
+        value_[pixels_per_byte - 1 - remaining_items_ % pixels_per_byte];
+    if (!run_ && remaining_items_ != 0 &&
+        remaining_items_ % pixels_per_byte == 0) {
+      read_colors();
+    }
+    return result;
+  }
+
+ private:
+  void read_colors() {
+    SubPixelColorHelper<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST> subpixel;
+    subpixel.ReadSubPixelColorBulk(color_mode_, input_.read(), value_);
+  }
+
+  StreamType<Resource> input_;
+  int remaining_items_;
+  int pos_;
+  bool run_;
+  Color value_[pixels_per_byte];
   ColorMode color_mode_;
 };
 
@@ -289,9 +360,7 @@ class RleStream4bppxBiased<Resource, ColorMode, 4> : public PixelStream {
     }
   }
 
-  void Skip(uint32_t n) override {
-    skip(n);
-  }
+  void Skip(uint32_t n) override { skip(n); }
 
   Color next() {
     if (remaining_items_ == 0) {

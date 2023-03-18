@@ -12,7 +12,7 @@ TEST(Image, XBitmap) {
                                0x3e, 0x00, 0x76, 0x00, 0x66, 0x00, 0x06, 0x00,
                                0x06, 0x00, 0x06, 0x00, 0x00, 0x00};
 
-  XBitmap<ConstDramResource> bmp(12, 11, test_bits, color::White, color::Black);
+  XBitmap<ConstDramPtr> bmp(12, 11, test_bits, color::White, color::Black);
   EXPECT_THAT(bmp, MatchesContent(WhiteOnBlack(), 12, 11,
                                   "            "
                                   " *********  "

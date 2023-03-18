@@ -218,7 +218,7 @@ template <typename PtrType, typename ColorMode,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
 class Raster : public Rasterizable {
  public:
-  typedef RasterPixelStream<MemoryResource<PtrType>, ColorMode, pixel_order,
+  typedef RasterPixelStream<MemoryPtr<PtrType>, ColorMode, pixel_order,
                             byte_order>
       StreamType;
 

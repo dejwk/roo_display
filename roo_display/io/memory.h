@@ -45,9 +45,9 @@ typedef MemoryStream<const uint8_t PROGMEM*> PrgMemStream;
 }  // namespace internal
 
 template <typename PtrType>
-class MemoryResource {
+class MemoryPtr {
  public:
-  MemoryResource(PtrType ptr) : ptr_(ptr) {}
+  MemoryPtr(PtrType ptr) : ptr_(ptr) {}
 
   internal::MemoryStream<PtrType> Open() const {
     return internal::MemoryStream<PtrType>(ptr_);
@@ -57,8 +57,11 @@ class MemoryResource {
   PtrType ptr_;
 };
 
-typedef MemoryResource<uint8_t*> DramResource;
-typedef MemoryResource<const uint8_t*> ConstDramResource;
-typedef MemoryResource<const uint8_t PROGMEM*> PrgMemResource;
+using DramPtr = MemoryPtr<uint8_t*>;
+using ConstDramPtr = MemoryPtr<const uint8_t*>;
+using ProgMemPtr = MemoryPtr<const uint8_t PROGMEM*>;
+
+// DEPRECATED; for backwards compatibility.
+using PrgMemResource = ProgMemPtr;
 
 }  // namespace roo_display

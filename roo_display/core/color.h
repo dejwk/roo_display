@@ -256,6 +256,27 @@ class Argb8888 {
   }
 };
 
+class Rgba8888 {
+ public:
+  static const int8_t bits_per_pixel = 32;
+
+  inline constexpr Color toArgbColor(uint32_t in) const {
+    return Color(in >> 8 | (in & 0xFF) << 24);
+  }
+
+  inline constexpr uint32_t fromArgbColor(Color color) const {
+    return color.asArgb() << 8 | color.asArgb() >> 24;
+  }
+
+  inline uint32_t rawAlphaBlend(uint32_t bg, Color color) const {
+    return AlphaBlend(toArgbColor(bg), color).asArgb();
+  }
+
+  constexpr TransparencyMode transparency() const {
+    return TRANSPARENCY_GRADUAL;
+  }
+};
+
 inline static constexpr uint32_t truncTo4bit(uint8_t c) {
   return (c - (c >> 5)) >> 4;
 }
@@ -284,9 +305,7 @@ class Rgb888 {
     return fromArgbColor(AlphaBlend(toArgbColor(bg), color));
   }
 
-  constexpr TransparencyMode transparency() const {
-    return TRANSPARENCY_NONE;
-  }
+  constexpr TransparencyMode transparency() const { return TRANSPARENCY_NONE; }
 };
 
 class Argb6666 {
@@ -461,6 +480,30 @@ class Grayscale8 {
   }
 
   constexpr TransparencyMode transparency() const { return TRANSPARENCY_NONE; }
+};
+
+// 256 shades of gray + 8-bit alpha.
+class GrayAlpha8 {
+ public:
+  static const int8_t bits_per_pixel = 16;
+
+  inline constexpr Color toArgbColor(uint16_t in) const {
+    return Color(in << 24 | (in >> 8) * 0x010101);
+  }
+
+  inline constexpr uint16_t fromArgbColor(Color color) const {
+    // Using fast approximate formula;
+    // See https://stackoverflow.com/questions/596216
+    return color.a() << 24 |
+           (((int16_t)color.r() * 3) + ((int16_t)color.g() * 4) + color.b()) >>
+               3;
+  }
+
+  inline uint8_t rawAlphaBlend(uint16_t bg, Color fg) const {
+    return fromArgbColor(AlphaBlend(toArgbColor(bg), fg));
+  }
+
+  constexpr TransparencyMode transparency() const { return TRANSPARENCY_GRADUAL; }
 };
 
 // 16 shades of gray.

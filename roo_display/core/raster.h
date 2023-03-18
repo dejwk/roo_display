@@ -53,7 +53,7 @@ class RasterPixelStream : public PixelStream {
     uint32_t bytes_to_skip =
         new_pixel_index / ColorTraits<ColorMode>::pixels_per_byte - 1;
     if (bytes_to_skip > 0) {
-      stream_.advance(bytes_to_skip);
+      stream_.skip(bytes_to_skip);
     }
     pixel_index_ = new_pixel_index % ColorTraits<ColorMode>::pixels_per_byte;
     if (pixel_index_ == 0) {
@@ -146,7 +146,7 @@ class RasterPixelStream<Resource, ColorMode, pixel_order, byte_order, 1>
   }
 
   void skip(uint32_t count) {
-    stream_.advance(count * ColorMode::bits_per_pixel / 8);
+    stream_.skip(count * ColorMode::bits_per_pixel / 8);
   }
 
   TransparencyMode transparency() const { return color_mode_.transparency(); }
@@ -252,17 +252,18 @@ class Raster : public Rasterizable {
 
   std::unique_ptr<StreamType> CreateRawStream() const {
     return std::unique_ptr<StreamType>(
-        new StreamType(MemoryStream<PtrType>(ptr_), color_mode_));
+        new StreamType(internal::MemoryStream<PtrType>(ptr_), color_mode_));
   }
 
   std::unique_ptr<PixelStream> CreateStream() const override {
     return std::unique_ptr<PixelStream>(
-        new StreamType(MemoryStream<PtrType>(ptr_), color_mode_));
+        new StreamType(internal::MemoryStream<PtrType>(ptr_), color_mode_));
   }
 
   std::unique_ptr<PixelStream> CreateStream(const Box& bounds) const override {
-    return SubRectangle(StreamType(MemoryStream<PtrType>(ptr_), color_mode_),
-                        extents(), bounds);
+    return SubRectangle(
+        StreamType(internal::MemoryStream<PtrType>(ptr_), color_mode_),
+        extents(), bounds);
   }
 
   void ReadColors(const int16_t* x, const int16_t* y, uint32_t count,
@@ -295,14 +296,14 @@ class Raster : public Rasterizable {
     if (bounds.empty()) return;
     if (extents_.width() == bounds.width() &&
         extents_.height() == bounds.height()) {
-      StreamType stream(MemoryStream<PtrType>(ptr_), color_mode_);
+      StreamType stream(internal::MemoryStream<PtrType>(ptr_), color_mode_);
       internal::FillRectFromStream(s.out(), bounds.translate(s.dx(), s.dy()),
                                    &stream, s.bgcolor(), s.fill_mode(),
                                    s.paint_mode(), GetTransparencyMode());
     } else {
       auto stream = internal::MakeSubRectangle(
-          StreamType(MemoryStream<PtrType>(ptr_), color_mode_), extents_,
-          bounds);
+          StreamType(internal::MemoryStream<PtrType>(ptr_), color_mode_),
+          extents_, bounds);
       internal::FillRectFromStream(s.out(), bounds.translate(s.dx(), s.dy()),
                                    &stream, s.bgcolor(), s.fill_mode(),
                                    s.paint_mode(), GetTransparencyMode());

@@ -8,13 +8,13 @@ namespace roo_display {
 
 static const int kFileBufferSize = 64;
 
+namespace internal {
+
 class FileStream {
  public:
   FileStream(File file) : rep_(new Rep(std::move(file))) {}
 
   uint8_t read() { return rep_->read(); }
-  int read(uint8_t* buf, int count) { return rep_->read(buf, count); }
-  void advance(uint32_t count) { rep_->advance(count); }
   void skip(uint32_t count) { rep_->skip(count); }
 
  private:
@@ -46,13 +46,15 @@ class FileStream {
   std::unique_ptr<Rep> rep_;
 };
 
+}  // namespace internal
+
 class FileResource {
  public:
   FileResource(fs::FS& fs, String path) : fs_(fs), path_(std::move(path)) {}
 
-  FileStream Open() const {
+  internal::FileStream Open() const {
     auto f = fs_.open(path_);
-    return FileStream(std::move(f));
+    return internal::FileStream(std::move(f));
   }
 
  private:
@@ -61,6 +63,8 @@ class FileResource {
 };
 
 // Inline method implementations below.
+
+namespace internal {
 
 inline FileStream::Rep::Rep(File file)
     : file_(std::move(file)), offset_(0), length_(0) {}
@@ -73,17 +77,6 @@ inline uint8_t FileStream::Rep::read() {
     offset_ = 0;
   }
   return buffer_[offset_++];
-}
-
-inline int FileStream::Rep::read(uint8_t* buf, int count) {
-  int result = 0;
-  while (offset_ < length_ && count > 0) {
-    *buf++ = buffer_[offset_++];
-    --count;
-    ++result;
-  }
-  int read = file_.read(buf, count);
-  return result + read;
 }
 
 inline void FileStream::Rep::advance(uint32_t count) {
@@ -99,5 +92,7 @@ inline void FileStream::Rep::advance(uint32_t count) {
 }
 
 inline void FileStream::Rep::skip(uint32_t count) { advance(count); }
+
+}  // namespace internal
 
 }  // namespace roo_display

@@ -252,17 +252,17 @@ class Raster : public Rasterizable {
 
   std::unique_ptr<StreamType> CreateRawStream() const {
     return std::unique_ptr<StreamType>(
-        new StreamType(internal::MemoryStream<PtrType>(ptr_), color_mode_));
+        new StreamType(internal::MemoryPtrStream<PtrType>(ptr_), color_mode_));
   }
 
   std::unique_ptr<PixelStream> CreateStream() const override {
     return std::unique_ptr<PixelStream>(
-        new StreamType(internal::MemoryStream<PtrType>(ptr_), color_mode_));
+        new StreamType(internal::MemoryPtrStream<PtrType>(ptr_), color_mode_));
   }
 
   std::unique_ptr<PixelStream> CreateStream(const Box& bounds) const override {
     return SubRectangle(
-        StreamType(internal::MemoryStream<PtrType>(ptr_), color_mode_),
+        StreamType(internal::MemoryPtrStream<PtrType>(ptr_), color_mode_),
         extents(), bounds);
   }
 
@@ -296,13 +296,13 @@ class Raster : public Rasterizable {
     if (bounds.empty()) return;
     if (extents_.width() == bounds.width() &&
         extents_.height() == bounds.height()) {
-      StreamType stream(internal::MemoryStream<PtrType>(ptr_), color_mode_);
+      StreamType stream(internal::MemoryPtrStream<PtrType>(ptr_), color_mode_);
       internal::FillRectFromStream(s.out(), bounds.translate(s.dx(), s.dy()),
                                    &stream, s.bgcolor(), s.fill_mode(),
                                    s.paint_mode(), GetTransparencyMode());
     } else {
       auto stream = internal::MakeSubRectangle(
-          StreamType(internal::MemoryStream<PtrType>(ptr_), color_mode_),
+          StreamType(internal::MemoryPtrStream<PtrType>(ptr_), color_mode_),
           extents_, bounds);
       internal::FillRectFromStream(s.out(), bounds.translate(s.dx(), s.dy()),
                                    &stream, s.bgcolor(), s.fill_mode(),

@@ -52,7 +52,7 @@ class FileResource {
  public:
   FileResource(fs::FS& fs, String path) : fs_(fs), path_(std::move(path)) {}
 
-  internal::FileStream Open() const {
+  internal::FileStream createRawStream() const {
     auto f = fs_.open(path_);
     return internal::FileStream(std::move(f));
   }

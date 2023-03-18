@@ -17,9 +17,9 @@ using IsPtrWritable =
 namespace internal {
 
 template <typename PtrType>
-class MemoryStream {
+class MemoryPtrStream {
  public:
-  MemoryStream(PtrType ptr) : ptr_(ptr) {}
+  MemoryPtrStream(PtrType ptr) : ptr_(ptr) {}
 
   // The caller must ensure that the pointer won't overflow.
   uint8_t read() { return *ptr_++; }
@@ -38,9 +38,9 @@ class MemoryStream {
   PtrType ptr_;
 };
 
-typedef MemoryStream<uint8_t*> DramStream;
-typedef MemoryStream<const uint8_t*> ConstDramStream;
-typedef MemoryStream<const uint8_t PROGMEM*> PrgMemStream;
+typedef MemoryPtrStream<uint8_t*> DramPtrStream;
+typedef MemoryPtrStream<const uint8_t*> ConstDramPtrStream;
+typedef MemoryPtrStream<const uint8_t PROGMEM*> ProgMemPtrStream;
 
 }  // namespace internal
 
@@ -49,8 +49,8 @@ class MemoryPtr {
  public:
   MemoryPtr(PtrType ptr) : ptr_(ptr) {}
 
-  internal::MemoryStream<PtrType> Open() const {
-    return internal::MemoryStream<PtrType>(ptr_);
+  internal::MemoryPtrStream<PtrType> createRawStream() const {
+    return internal::MemoryPtrStream<PtrType>(ptr_);
   }
 
  private:

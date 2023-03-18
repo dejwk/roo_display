@@ -483,17 +483,17 @@ class SimpleStreamable : public Streamable {
 
   std::unique_ptr<PixelStream> CreateStream() const override {
     return std::unique_ptr<PixelStream>(
-        new StreamType(resource_.Open(), color_mode_));
+        new StreamType(resource_.createRawStream(), color_mode_));
   }
 
   std::unique_ptr<PixelStream> CreateStream(const Box &bounds) const override {
-    return SubRectangle(StreamType(resource_.Open(), color_mode_), extents(),
-                        bounds);
+    return SubRectangle(StreamType(resource_.createRawStream(), color_mode_),
+                        extents(), bounds);
   }
 
   std::unique_ptr<StreamType> CreateRawStream() const {
     return std::unique_ptr<StreamType>(
-        new StreamType(resource_.Open(), color_mode_));
+        new StreamType(resource_.createRawStream(), color_mode_));
   }
 
   TransparencyMode GetTransparencyMode() const override {

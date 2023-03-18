@@ -28,7 +28,7 @@ using IsByteStreamWritable = std::enable_if<
     !std::is_const<decltype(std::declval<ByteStreamType>().write(0))>::value>;
 
 template <typename Resource>
-using StreamType = decltype(std::declval<Resource>().Open());
+using StreamType = decltype(std::declval<Resource>().createRawStream());
 
 // Helper to read uint16_t from two consecutive bytes, assuming a specified
 // byte order.

@@ -14,7 +14,7 @@ void fatalError(const String &string);
 
 class FontMetricReader {
  public:
-  FontMetricReader(internal::PrgMemStream *reader, int font_metric_bytes)
+  FontMetricReader(internal::ProgMemPtrStream *reader, int font_metric_bytes)
       : reader_(reader), font_metric_bytes_(font_metric_bytes) {}
 
   int read() {
@@ -23,7 +23,7 @@ class FontMetricReader {
   }
 
  private:
-  internal::PrgMemStream *reader_;
+  internal::ProgMemPtrStream *reader_;
   int font_metric_bytes_;
 };
 
@@ -80,7 +80,7 @@ class GlyphMetadataReader {
 
 SmoothFont::SmoothFont(const uint8_t *font_data PROGMEM)
     : glyph_count_(0), default_glyph_(0), default_space_width_(0) {
-  internal::PrgMemStream reader(font_data);
+  internal::ProgMemPtrStream reader(font_data);
   uint16_t version = read_uint16_be(&reader);
 
   if (version != 0x0101) {

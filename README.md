@@ -899,9 +899,42 @@ Digits are often monotype, even in proportional fonts. Sometimes you can use thi
 
 Be careful, though: even though the _anchor_ extents of all digits may be the same, the regular extents are not. The bounding box of digit '1' is going to be smaller than that of digit '0', even though they have the same advance. For this reason, you may still need to use `Tile` when rendering numeric content.
 
-## Using off-screen buffers
-
 ## Drawing images and icons
+
+The `roo_display` library supports drawing JPEG and PNG images out of the box.
+
+For low-footprint artwork such as icons and small images, the library provides an alternative, highly efficient image format, supporting a wide range of color modes, and featuring a lightweight lossless compression. A companion `roo_display_image_importer` tool allows you to convert your image files to this internal format. In most cases, small images are icons can be embedded directly into your program. You also have an option to store them on SPIFFS or some external file system.
+
+If you just want to use some simple icons, there is a companion library of `roo_material_icons`, containing over 34000 Google 'Material Design' icons in various styles and 4 predefined sizes.
+
+### JPEG and PNG
+
+You can easily draw JPEG and PNG images stored on an SD card, SPIFFS, or some other file system:
+
+```cpp
+#include "roo_display/image/jpeg/jpeg.h"
+#include "SD.h"
+
+// ...
+
+void setup() {
+  // ...
+  SD.begin(sdCsPin);
+}
+
+void main() {
+  JpegDecoder decoder;
+  JpegFile jpg(decoder, SD, "/wallaby.jpg");
+  DrawingContext dc(display);
+  dc.draw(jpg, kCenter | kMiddle);
+}
+```
+
+### Importing images into the native format
+
+### Using the Material Icons collection
+
+## Using off-screen buffers
 
 ## Overlays, backgrounds, filters
 

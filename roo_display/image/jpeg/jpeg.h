@@ -3,46 +3,10 @@
 #include "roo_display/core/drawable.h"
 #include "roo_display/image/jpeg/lib/tjpgd.h"
 #include "roo_display/image/jpeg/lib/tjpgdcnf.h"
-#include "roo_display/io/memory.h"
-#include "roo_display/io/stream.h"
+#include "roo_display/io/file.h"
+#include "roo_display/io/resource.h"
 
 namespace roo_display {
-
-namespace internal {
-
-// Virtual adapter for a templated resource stream.
-class ByteStream {
- public:
-  virtual ~ByteStream() = default;
-
-  // reads up to count bytes. Returns the number of bytes read.
-  virtual int read(uint8_t* buf, int count) = 0;
-
-  virtual void skip(uint32_t count) = 0;
-};
-
-template <typename RawStream>
-class ByteStreamFor : public ByteStream {
- public:
-  ByteStreamFor(RawStream stream) : raw_stream_(std::move(stream)) {}
-
-  int read(uint8_t* buf, int count) override {
-    return raw_stream_.read(buf, count);
-  }
-
-  void skip(uint32_t count) override { raw_stream_.skip(count); }
-
- private:
-  RawStream raw_stream_;
-};
-
-template <typename RawStream>
-std::unique_ptr<ByteStreamFor<RawStream>> CreateStream(RawStream stream) {
-  return std::unique_ptr<ByteStreamFor<RawStream>>(
-      new ByteStreamFor<RawStream>(std::move(stream)));
-}
-
-}  // namespace internal
 
 class JpegDecoder {
  public:
@@ -76,7 +40,7 @@ class JpegDecoder {
 
   template <typename Resource>
   bool open(Resource& resource, int16_t& width, int16_t& height) {
-    input_ = internal::CreateStream(resource.Open());
+    input_ = resource.open();
     if (openInternal(width, height)) {
       return true;
     }
@@ -92,11 +56,11 @@ class JpegDecoder {
   std::unique_ptr<uint8_t[]> workspace_;
   JDEC jdec_;
 
-  std::unique_ptr<internal::ByteStream> input_;
+  std::unique_ptr<ResourceStream> input_;
   const Surface* surface_;
 };
 
-template <typename Resource = PrgMemResource>
+template <typename Resource>
 class JpegImage : public Drawable {
  public:
   template <typename... Args>
@@ -129,5 +93,7 @@ class JpegImage : public Drawable {
   mutable int16_t width_;
   mutable int16_t height_;
 };
+
+using JpegFile = JpegImage<FileResource>;
 
 }  // namespace roo_display

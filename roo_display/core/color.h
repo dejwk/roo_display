@@ -494,9 +494,9 @@ class GrayAlpha8 {
   inline constexpr uint16_t fromArgbColor(Color color) const {
     // Using fast approximate formula;
     // See https://stackoverflow.com/questions/596216
-    return color.a() << 24 |
-           (((int16_t)color.r() * 3) + ((int16_t)color.g() * 4) + color.b()) >>
-               3;
+    return color.a() >> 24 |
+           ((((int16_t)color.r() * 3) + ((int16_t)color.g() * 4) + color.b()) >>
+               3) << 8;
   }
 
   inline uint8_t rawAlphaBlend(uint16_t bg, Color fg) const {

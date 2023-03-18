@@ -62,9 +62,6 @@ using DramPtr = MemoryPtr<uint8_t*>;
 using ConstDramPtr = MemoryPtr<const uint8_t*>;
 using ProgMemPtr = MemoryPtr<const uint8_t PROGMEM*>;
 
-// DEPRECATED; for backwards compatibility.
-using PrgMemResource = ProgMemPtr;
-
 namespace internal {
 
 template <typename PtrType>

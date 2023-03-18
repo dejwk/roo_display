@@ -40,7 +40,7 @@
 namespace roo_display {
 
 // Run-length-encoded image, for color modes with >= 8 bits_per_pixel.
-template <typename ColorMode, typename Resource = PrgMemResource>
+template <typename ColorMode, typename Resource = ProgMemPtr>
 using RleImage =
     SimpleStreamable<Resource, ColorMode,
                      internal::RleStreamUniform<Resource, ColorMode>>;
@@ -48,14 +48,8 @@ using RleImage =
 // Run-length-encoded 4-bit image, for color modes with 4 bits_per_pixel, with
 // preferrential RLE encoding for extreme values (0x0 and 0xF). Particularly
 // useful with Alpha4, e.g. for font glyphs.
-template <typename ColorMode, typename Resource = PrgMemResource>
+template <typename ColorMode, typename Resource = ProgMemPtr>
 using RleImage4bppxBiased =
-    SimpleStreamable<Resource, ColorMode,
-                     internal::RleStream4bppxBiased<Resource, ColorMode>>;
-
-// DEPRECATED old type name, for backwrds compatibility.
-template <typename ColorMode, typename Resource = PrgMemResource>
-using RleImage4bppxPolarized =
     SimpleStreamable<Resource, ColorMode,
                      internal::RleStream4bppxBiased<Resource, ColorMode>>;
 
@@ -114,7 +108,7 @@ using SimpleImageMonochrome =
     SimpleImage<Resource, Monochrome, pixel_order, BYTE_ORDER_BIG_ENDIAN>;
 
 // A simple monochrome bit raster. Lines rounded to 8 pixel width.
-template <typename Resource = PrgMemResource>
+template <typename Resource = ProgMemPtr>
 class XBitmap
     : public Clipping<
           SimpleImage<Resource, Monochrome, COLOR_PIXEL_ORDER_LSB_FIRST,

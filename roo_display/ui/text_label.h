@@ -44,21 +44,6 @@ class TextLabel : public Drawable {
         fill_mode_(fill_mode),
         metrics_(font.getHorizontalStringMetrics(label_)) {}
 
-  // Deprecated. Use the format with label-first.
-  template <typename String>
-  TextLabel(const Font& font, const String& label, Color color,
-            FillMode fill_mode = FILL_MODE_VISIBLE)
-      : TextLabel(font, std::string(std::move(label)), color, fill_mode) {}
-
-  // Deprecated. Use the format with label-first.
-  TextLabel(const Font& font, std::string label, Color color,
-            FillMode fill_mode = FILL_MODE_VISIBLE)
-      : font_(&font),
-        label_(std::move(label)),
-        color_(color),
-        fill_mode_(fill_mode),
-        metrics_(font.getHorizontalStringMetrics(label_)) {}
-
   void drawTo(const Surface& s) const override {
     Surface news = s;
     if (fill_mode() == FILL_MODE_RECTANGLE) {

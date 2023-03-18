@@ -27,15 +27,6 @@ class StringPrinter : public Print {
     return size;
   }
 
-  // Deprecated; use StringPrintf.
-  static std::string sprintf(const char* format, ...) {
-    va_list arg;
-    va_start(arg, format);
-    std::string result = StringVPrintf(format, arg);
-    va_end(arg);
-    return result;
-  }
-
  private:
   std::string s_;
 };

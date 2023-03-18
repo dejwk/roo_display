@@ -1,7 +1,9 @@
 #pragma once
 
 #include <memory>
+
 #include "FS.h"
+#include "roo_display/io/resource.h"
 #include "roo_display/io/stream.h"
 
 namespace roo_display {
@@ -10,9 +12,9 @@ static const int kFileBufferSize = 64;
 
 namespace internal {
 
-class FileStream {
+class RawFileStream {
  public:
-  FileStream(File file) : rep_(new Rep(std::move(file))) {}
+  RawFileStream(File file) : rep_(new Rep(std::move(file))) {}
 
   uint8_t read() { return rep_->read(); }
   void skip(uint32_t count) { rep_->skip(count); }
@@ -46,32 +48,12 @@ class FileStream {
   std::unique_ptr<Rep> rep_;
 };
 
-}  // namespace internal
-
-class FileResource {
- public:
-  FileResource(fs::FS& fs, String path) : fs_(fs), path_(std::move(path)) {}
-
-  internal::FileStream createRawStream() const {
-    auto f = fs_.open(path_);
-    return internal::FileStream(std::move(f));
-  }
-
- private:
-  FS& fs_;
-  String path_;
-};
-
-// Inline method implementations below.
-
-namespace internal {
-
-inline FileStream::Rep::Rep(File file)
+inline RawFileStream::Rep::Rep(File file)
     : file_(std::move(file)), offset_(0), length_(0) {}
 
-inline FileStream::Rep::~Rep() { file_.close(); }
+inline RawFileStream::Rep::~Rep() { file_.close(); }
 
-inline uint8_t FileStream::Rep::read() {
+inline uint8_t RawFileStream::Rep::read() {
   if (offset_ >= length_) {
     length_ = file_.read(buffer_, kFileBufferSize);
     offset_ = 0;
@@ -79,7 +61,7 @@ inline uint8_t FileStream::Rep::read() {
   return buffer_[offset_++];
 }
 
-inline void FileStream::Rep::advance(uint32_t count) {
+inline void RawFileStream::Rep::advance(uint32_t count) {
   uint32_t remaining = (length_ - offset_);
   if (count < remaining) {
     offset_ += count;
@@ -91,8 +73,44 @@ inline void FileStream::Rep::advance(uint32_t count) {
   }
 }
 
-inline void FileStream::Rep::skip(uint32_t count) { advance(count); }
+inline void RawFileStream::Rep::skip(uint32_t count) { advance(count); }
+
+class FileStream : public ResourceStream {
+ public:
+  FileStream(File file) : file_(std::move(file)) {}
+
+  int read(uint8_t* buf, int count) override { return file_.read(buf, count); }
+
+  bool skip(uint32_t count) override { return file_.seek(count, SeekCur); }
+
+  // Returns true on success.
+  bool seek(uint32_t offset) override { return file_.seek(offset); }
+
+  int size() override { return file_.size(); }
+
+ private:
+  File file_;
+};
 
 }  // namespace internal
+
+class FileResource {
+ public:
+  FileResource(fs::FS& fs, String path) : fs_(fs), path_(std::move(path)) {}
+
+  internal::RawFileStream createRawStream() const {
+    auto f = fs_.open(path_);
+    return internal::RawFileStream(std::move(f));
+  }
+
+  std::unique_ptr<internal::FileStream> open() const {
+    return std::unique_ptr<internal::FileStream>(
+        new internal::FileStream(fs_.open(path_)));
+  }
+
+ private:
+  FS& fs_;
+  String path_;
+};
 
 }  // namespace roo_display

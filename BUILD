@@ -23,6 +23,7 @@ cc_library(
     srcs = glob(
         [
             "**/*.cpp",
+            "**/*.c",
             "**/*.h",
         ],
         exclude = ["test/**"],

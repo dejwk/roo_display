@@ -258,6 +258,7 @@ class RawStreamableFilledRect {
       : extents_(0, 0, width - 1, height - 1), color_(color) {}
 
   const Box &extents() const { return extents_; }
+  const Box &anchorExtents() const { return extents_; }
   std::unique_ptr<RawStream> CreateRawStream() const {
     return std::unique_ptr<RawStream>(new RawStream(color_));
   }

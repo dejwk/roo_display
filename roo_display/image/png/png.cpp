@@ -5,8 +5,6 @@
 
 PNG_STATIC int PNGInit(PNGIMAGE *pPNG);
 PNG_STATIC int DecodePNG(PNGIMAGE *pImage, void *pUser, int iOptions);
-PNG_STATIC uint8_t PNGMakeMask(PNGDRAW *pDraw, uint8_t *pMask,
-                               uint8_t ucThreshold);
 // Include the C code which does the actual work
 // #include "png.inl"
 

@@ -12,22 +12,6 @@ struct PaletteElementKey {
   const Color* palette_;
 };
 
-TransparencyMode DeterminePaletteTransparencyMode(const Color* palette,
-                                                  int palette_size) {
-  TransparencyMode mode = TRANSPARENCY_NONE;
-  for (int i = 0; i < palette_size; ++i) {
-    uint8_t a = palette[i].a();
-    if (a < 255) {
-      if (a == 0) {
-        mode = TRANSPARENCY_BINARY;
-      } else {
-        return TRANSPARENCY_GRADUAL;
-      }
-    }
-  }
-  return mode;
-}
-
 }  // namespace internal
 
 class PaletteIndex
@@ -48,15 +32,15 @@ class PaletteIndex
 // Used with IndexedN color modes to store the color palette.
 class Palette {
  public:
+  // Creates a palette with a single transparent color.
+  Palette();
+
   // Initializes the palette using the specified color array. Auto-determines
   // transparency mode of the palette.
   //
   // The colors array is not copied, and it must remain unchanged for as long as
   // this palette is in use.
-  Palette(const Color* colors, int colors_count)
-      : Palette(
-            colors, colors_count,
-            internal::DeterminePaletteTransparencyMode(colors, colors_count)) {}
+  Palette(const Color* colors, int colors_count);
 
   // Initializes the palette using the specified color array. Uses the specified
   // transparency mode.

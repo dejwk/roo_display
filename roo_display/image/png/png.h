@@ -63,7 +63,7 @@ class PngDecoder {
   Palette palette_;
 };
 
-template <typename Resource = PrgMemResource>
+template <typename Resource>
 class PngImage : public Drawable {
  public:
   template <typename... Args>

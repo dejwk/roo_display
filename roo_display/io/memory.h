@@ -19,24 +19,23 @@ namespace internal {
 template <typename PtrType>
 class MemoryStream {
  public:
-  MemoryStream(PtrType address) : start_(address), current_(address) {}
+  MemoryStream(PtrType ptr) : ptr_(ptr) {}
 
   // The caller must ensure that the pointer won't overflow.
-  uint8_t read() { return *current_++; }
+  uint8_t read() { return *ptr_++; }
 
   // The caller must ensure that the pointer won't overflow.
-  void skip(int32_t count) { current_ += count; }
+  void skip(int32_t count) { ptr_ += count; }
 
   template <typename = typename IsPtrWritable<PtrType>::type>
   void write(uint8_t datum) {
-    *current_++ = datum;
+    *ptr_++ = datum;
   }
 
-  const PtrType ptr() const { return current_; }
+  const PtrType ptr() const { return ptr_; }
 
  private:
-  PtrType start_;
-  PtrType current_;
+  PtrType ptr_;
 };
 
 typedef MemoryStream<uint8_t*> DramStream;

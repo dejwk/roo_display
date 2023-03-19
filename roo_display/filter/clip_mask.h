@@ -17,10 +17,12 @@ class ClipMask {
   ClipMask(const uint8_t* data, Box bounds)
       : data_(data),
         bounds_(std::move(bounds)),
+        inverted_(false),
         line_width_bytes_((bounds.width() + 7) / 8) {}
 
   const uint8_t* data() const { return data_; }
   const Box& bounds() const { return bounds_; }
+  bool inverted() const { return inverted_; }
 
   inline bool isMasked(int16_t x, int16_t y) const {
     if (!bounds_.contains(x, y)) return false;
@@ -29,11 +31,24 @@ class ClipMask {
     uint32_t byte_offset = x / 8 + y * line_width_bytes_;
     uint32_t pixel_index = x % 8;
     uint8_t byte = data_[byte_offset];
-    return byte & (0x80 >> pixel_index);
+    return (bool)(byte & (0x80 >> pixel_index)) ^ inverted_;
   }
 
   inline bool isAllMasked(int16_t x, int16_t y, uint8_t mask,
                           uint8_t lines) const {
+    return inverted_ ? isAllUnset(x, y, ~mask, lines) : isAllSet(x, y, mask, lines);
+  }
+
+  inline bool isAllUnmasked(int16_t x, int16_t y, uint8_t mask,
+                            uint8_t lines) const {
+    return inverted_ ? isAllSet(x, y, ~mask, lines) : isAllUnset(x, y, mask, lines);
+  }
+
+  void setInverted(bool inverted) { inverted_ = inverted; }
+
+ private:
+  inline bool isAllSet(int16_t x, int16_t y, uint8_t mask,
+                       uint8_t lines) const {
     const uint8_t* ptr = data_ + (x - bounds_.xMin()) / 8 +
                          (y - bounds_.yMin()) * line_width_bytes_;
     while (lines-- > 0) {
@@ -43,8 +58,8 @@ class ClipMask {
     return true;
   }
 
-  inline bool isAllUnmasked(int16_t x, int16_t y, uint8_t mask,
-                            uint8_t lines) const {
+  inline bool isAllUnset(int16_t x, int16_t y, uint8_t mask,
+                         uint8_t lines) const {
     const uint8_t* ptr = data_ + (x - bounds_.xMin()) / 8 +
                          (y - bounds_.yMin()) * line_width_bytes_;
     while (lines-- > 0) {
@@ -54,9 +69,14 @@ class ClipMask {
     return true;
   }
 
- private:
   const uint8_t* data_;
+
   Box bounds_;
+
+  // If true, the meaning of 'set' and 'unset' is inverted.
+  // Normally, 'set' = 'masked out'. If inverted, 'set' = 'unmasked'.
+  bool inverted_;
+
   uint32_t line_width_bytes_;
 };
 

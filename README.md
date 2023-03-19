@@ -936,7 +936,7 @@ void loop() {
 
 ![img22](doc/images/img22.png)
 
-You can also print JPEG images stored inline in PROGMEM:
+You can also draw JPEG images stored inline in PROGMEM:
 
 ```cpp
 static const uint8_t roo[] PROGMEM = { /* bytes */ };
@@ -1047,7 +1047,7 @@ Your application may need to draw icons and simple static images. Storing them i
 
 * The PNG decoder requires non-trivial amount of RAM (~40 KB), which you may not have to spare. It is also somewhat CPU-internsive.
 * Using a filesystem is not cheap. Serving images from SD or even SPIFFS is slow compared to serving directly from PROGMEM.
-* The PNG format is not ideal for really tiny images due to various overheads.
+* The PNG format may not be best for really tiny images due to various overheads. PNGs have plenty of optional metadata that you may need to strip to improve performance.
 
 The `roo_display` library is able to serve raw, uncompressed raster formats, using a wide variety of color encodings, from 32 bit-per-pixel ARGB down to 1 bit-per-pixel bitmask. Attitionally, it supports a custom, lightweight run-length compression, which can further reduce the image footprint, often significantly. Most of the time, the data will be small enough to be stored directly in PROGMEM.
 
@@ -1125,7 +1125,7 @@ static const Color penguin_palette[] PROGMEM = {
 };
 
 // Image file penguin 60x45, Indexed, 4-bit (16-color) palette,  RLE, 547 bytes.
-static const uint8_t penguin[] PROGMEM = {
+static const uint8_t penguin_data[] PROGMEM = {
   0x88, 0x00, 0x83, 0x22, 0x8F, 0x00, 0x02, 0x02, 0x26, 0x6A, 0x83, 0x22, 0x00, 0x20, 0x8D, 0x00,
   0x07, 0x2A, 0x51, 0x11, 0xB2, 0x22, 0x28, 0xA2, 0x22, 0x8C, 0x00, 0x01, 0x22, 0x85, 0x81, 0x11,
   0x05, 0x1B, 0x26, 0x51, 0x11, 0x56, 0x22, 0x8A, 0x00, 0x02, 0x02, 0x22, 0x61, 0x81, 0x11, 0x01,
@@ -1213,9 +1213,272 @@ In addition to the general-purpose `RleImage`, the library supports an alternati
 
 #### Importing images
 
+You can use a companion utility [roo_display_image_importer](https://github.com/dejwk/roo_display_image_importer) to convert arbitrary images to the `roo_display`'s built-in image format:
+
+```
+wget https://github.com/dejwk/roo_display_image_importer/releases/download/1.1/roo_display_image_importer.zip
+unzip roo_display_image_importer.zip
+./roo_display_image_importer/bin/roo_display_image_importer -c RLE -e ARGB8888 penguin.png
+```
+
+See the importer's [documentation](https://github.com/dejwk/roo_display_image_importer) for details.
+
 ### Using the Material Icons collection
 
+If you want to use modern high-quality icons, try the companion library [roo_material_icons](https://github.com/dejwk/roo_material_icons). It contains over 34000 'Material Design' icons, divided into 4 styles, 18 categories, and 4 sizes (18x18, 24x24, 36x36, and 48x48). These free icons are well known from Google products and Android. You can browse them [here](https://fonts.google.com/icons?icon.set=Material+Icons).
+
+The icons are monochrome, anti-aliased, and represented in the Alpha4 color mode. You can draw them in any color, using any background. Here is a small example:
+
+```cpp
+#include "roo_material_icons.h"
+#include "roo_material_icons/round/18/device.h"
+#include "roo_material_icons/round/24/device.h"
+#include "roo_material_icons/round/36/device.h"
+#include "roo_material_icons/round/48/device.h"
+
+// ...
+
+void drawIcon(DrawingContext& dc, const MaterialIcon& icon, int x, int y, Color color) {
+  MaterialIcon my_icon = icon;
+  my_icon.color_mode().setColor(color);
+  dc.draw(Tile(&my_icon, my_icon.anchorExtents(), kNoAlign), x, y);
+}
+
+void loop() {
+  DrawingContext dc(display);
+  dc.setBackgroundColor(color::Wheat);
+  drawIcon(dc, ic_round_18_device_1x_mobiledata(), 0, 0, color::Black);
+  drawIcon(dc, ic_round_18_device_30fps(), 18, 0, color::Black);
+  drawIcon(dc, ic_round_18_device_4g_mobiledata(), 36, 0, color::Black);
+  drawIcon(dc, ic_round_18_device_4g_plus_mobiledata(), 54, 0, color::Black);
+  drawIcon(dc, ic_round_18_device_60fps(), 72, 0, color::Black);
+  drawIcon(dc, ic_round_18_device_access_alarm(), 90, 0, color::Black);
+  drawIcon(dc, ic_round_18_device_access_alarms(), 108, 0, color::Black);
+  drawIcon(dc, ic_round_18_device_access_time_filled(), 126, 0, color::Black);
+  drawIcon(dc, ic_round_18_device_access_time(), 144, 0, color::Black);
+  drawIcon(dc, ic_round_18_device_add_alarm(), 162, 0, color::Black);
+  drawIcon(dc, ic_round_18_device_add_to_home_screen(), 180, 0, color::Black);
+  drawIcon(dc, ic_round_18_device_ad_units(), 198, 0, color::Black);
+  drawIcon(dc, ic_round_18_device_airplanemode_active(), 216, 0, color::Black);
+  drawIcon(dc, ic_round_18_device_airplanemode_inactive(), 234, 0, color::Black);
+  drawIcon(dc, ic_round_18_device_airplane_ticket(), 252, 0, color::Black);
+  drawIcon(dc, ic_round_18_device_air(), 270, 0, color::Black);
+  drawIcon(dc, ic_round_18_device_aod(), 288, 0, color::Black);
+  drawIcon(dc, ic_round_18_device_battery_0_bar(), 306, 0, color::Black);
+  dc.setBackgroundColor(color::BlueViolet);
+  drawIcon(dc, ic_round_18_device_battery_std(), 0, 18, color::Bisque);
+  drawIcon(dc, ic_round_18_device_battery_unknown(), 18, 18, color::Bisque);
+  drawIcon(dc, ic_round_18_device_bloodtype(), 36, 18, color::Bisque);
+  drawIcon(dc, ic_round_18_device_bluetooth_connected(), 54, 18, color::Bisque);
+  drawIcon(dc, ic_round_18_device_bluetooth_disabled(), 72, 18, color::Bisque);
+  drawIcon(dc, ic_round_18_device_bluetooth_drive(), 90, 18, color::Bisque);
+  drawIcon(dc, ic_round_18_device_bluetooth(), 108, 18, color::Bisque);
+  drawIcon(dc, ic_round_18_device_bluetooth_searching(), 126, 18, color::Bisque);
+  drawIcon(dc, ic_round_18_device_brightness_auto(), 144, 18, color::Bisque);
+  drawIcon(dc, ic_round_18_device_brightness_high(), 162, 18, color::Bisque);
+  drawIcon(dc, ic_round_18_device_brightness_low(), 180, 18, color::Bisque);
+  drawIcon(dc, ic_round_18_device_brightness_medium(), 198, 18, color::Bisque);
+  drawIcon(dc, ic_round_18_device_cable(), 216, 18, color::Bisque);
+  drawIcon(dc, ic_round_18_device_cameraswitch(), 234, 18, color::Bisque);
+  drawIcon(dc, ic_round_18_device_credit_score(), 252, 18, color::Bisque);
+  drawIcon(dc, ic_round_18_device_dark_mode(), 270, 18, color::Bisque);
+  drawIcon(dc, ic_round_18_device_data_saver_off(), 288, 18, color::Bisque);
+  drawIcon(dc, ic_round_18_device_data_saver_on(), 306, 18, color::Bisque);
+  dc.setBackgroundColor(color::Seashell);
+  drawIcon(dc, ic_round_24_device_dvr(), 0, 36, color::Crimson);
+  drawIcon(dc, ic_round_24_device_edgesensor_high(), 24, 36, color::Crimson);
+  drawIcon(dc, ic_round_24_device_edgesensor_low(), 48, 36, color::Crimson);
+  drawIcon(dc, ic_round_24_device_e_mobiledata(), 72, 36, color::Crimson);
+  drawIcon(dc, ic_round_24_device_flashlight_off(), 96, 36, color::Crimson);
+  drawIcon(dc, ic_round_24_device_flashlight_on(), 120, 36, color::Crimson);
+  drawIcon(dc, ic_round_24_device_flourescent(), 144, 36, color::Crimson);
+  drawIcon(dc, ic_round_24_device_fluorescent(), 168, 36, color::Crimson);
+  drawIcon(dc, ic_round_24_device_fmd_bad(), 192, 36, color::Crimson);
+  drawIcon(dc, ic_round_24_device_fmd_good(), 216, 36, color::Crimson);
+  drawIcon(dc, ic_round_24_device_g_mobiledata(), 240, 36, color::Crimson);
+  drawIcon(dc, ic_round_24_device_gpp_bad(), 264, 36, color::Crimson);
+  drawIcon(dc, ic_round_24_device_gpp_good(), 288, 36, color::Crimson);
+  drawIcon(dc, ic_round_24_device_gpp_maybe(), 312, 36, color::Crimson);
+  dc.setBackgroundColor(color::DarkSlateGray);
+  drawIcon(dc, ic_round_24_device_grid_goldenratio(), 0, 60, color::LavenderBlush);
+  drawIcon(dc, ic_round_24_device_hdr_auto(), 24, 60, color::LavenderBlush);
+  drawIcon(dc, ic_round_24_device_hdr_auto_select(), 48, 60, color::LavenderBlush);
+  drawIcon(dc, ic_round_24_device_hdr_off_select(), 72, 60, color::LavenderBlush);
+  drawIcon(dc, ic_round_24_device_hdr_on_select(), 96, 60, color::LavenderBlush);
+  drawIcon(dc, ic_round_24_device_h_mobiledata(), 120, 60, color::LavenderBlush);
+  drawIcon(dc, ic_round_24_device_h_plus_mobiledata(), 144, 60, color::LavenderBlush);
+  drawIcon(dc, ic_round_24_device_lan(), 168, 60, color::LavenderBlush);
+  drawIcon(dc, ic_round_24_device_lens_blur(), 192, 60, color::LavenderBlush);
+  drawIcon(dc, ic_round_24_device_light_mode(), 216, 60, color::LavenderBlush);
+  drawIcon(dc, ic_round_24_device_location_disabled(), 240, 60, color::LavenderBlush);
+  drawIcon(dc, ic_round_24_device_location_searching(), 264, 60, color::LavenderBlush);
+  drawIcon(dc, ic_round_24_device_lte_mobiledata(), 288, 60, color::LavenderBlush);
+  drawIcon(dc, ic_round_24_device_lte_plus_mobiledata(), 312, 60, color::LavenderBlush);
+  dc.setBackgroundColor(color::LightPink);
+  drawIcon(dc, ic_round_36_device_mobile_friendly(), 0, 84, color::Navy);
+  drawIcon(dc, ic_round_36_device_mobile_off(), 36, 84, color::Navy);
+  drawIcon(dc, ic_round_36_device_mode_night(), 72, 84, color::Navy);
+  drawIcon(dc, ic_round_36_device_mode_standby(), 108, 84, color::Navy);
+  drawIcon(dc, ic_round_36_device_monitor_heart(), 144, 84, color::Navy);
+  drawIcon(dc, ic_round_36_device_monitor_weight(), 180, 84, color::Navy);
+  drawIcon(dc, ic_round_36_device_nearby_error(), 216, 84, color::Navy);
+  drawIcon(dc, ic_round_36_device_nearby_off(), 252, 84, color::Navy);
+  drawIcon(dc, ic_round_36_device_network_cell(), 288, 84, color::Navy);
+  dc.setBackgroundColor(color::Maroon);
+  drawIcon(dc, ic_round_36_device_nightlight(), 0, 120, color::PapayaWhip);
+  drawIcon(dc, ic_round_36_device_note_alt(), 36, 120, color::PapayaWhip);
+  drawIcon(dc, ic_round_36_device_password(), 72, 120, color::PapayaWhip);
+  drawIcon(dc, ic_round_36_device_phishing(), 108, 120, color::PapayaWhip);
+  drawIcon(dc, ic_round_36_device_pin(), 144, 120, color::PapayaWhip);
+  drawIcon(dc, ic_round_36_device_play_lesson(), 180, 120, color::PapayaWhip);
+  drawIcon(dc, ic_round_36_device_price_change(), 216, 120, color::PapayaWhip);
+  drawIcon(dc, ic_round_36_device_price_check(), 252, 120, color::PapayaWhip);
+  drawIcon(dc, ic_round_36_device_punch_clock(), 288, 120, color::PapayaWhip);
+  dc.setBackgroundColor(color::LightSteelBlue);
+  drawIcon(dc, ic_round_48_device_reviews(), 0, 156, color::DarkBlue);
+  drawIcon(dc, ic_round_48_device_r_mobiledata(), 48, 156, color::DarkBlue);
+  drawIcon(dc, ic_round_48_device_rsvp(), 96, 156, color::DarkBlue);
+  drawIcon(dc, ic_round_48_device_screen_lock_landscape(), 144, 156, color::DarkBlue);
+  drawIcon(dc, ic_round_48_device_screen_lock_portrait(), 192, 156, color::DarkBlue);
+  drawIcon(dc, ic_round_48_device_screen_lock_rotation(), 240, 156, color::DarkBlue);
+  drawIcon(dc, ic_round_48_device_screen_rotation(), 288, 156, color::DarkBlue);
+  dc.setBackgroundColor(color::DarkSlateBlue);
+  drawIcon(dc, ic_round_48_device_sd_storage(), 0, 204, color::LightCoral);
+  drawIcon(dc, ic_round_48_device_security_update_good(), 48, 204, color::LightCoral);
+  drawIcon(dc, ic_round_48_device_security_update(), 96, 204, color::LightCoral);
+  drawIcon(dc, ic_round_48_device_security_update_warning(), 144, 204, color::LightCoral);
+  drawIcon(dc, ic_round_48_device_sell(), 192, 204, color::LightCoral);
+  drawIcon(dc, ic_round_48_device_send_to_mobile(), 240, 204, color::LightCoral);
+  drawIcon(dc, ic_round_48_device_settings_suggest(), 288, 204, color::LightCoral);
+}
+```
+
+![img29](doc/images/img29.png)
+
+Note that the icons usually need to be drawn tiled, because their extents may be smaller than their anchor extents. (You can rely on the anchor extents to be matching the 'nominal' icon size, e.g. `Box(0, 0, 17, 17)` for 18x18 icons, and so on).
+
+> Note: due to the sheer volume, full compilation of icon files may take a few minutes. (No worries, though: only the icons that you _actually use_ get linked into your binary). If the compilation times bother you, delete icon files that you are not going to use.
+
 ## Using off-screen buffers
+
+The `Offscreen` class allows you to draw to a memory buffer, instead of directly to the screen. It can be particularly useful in a couple of scenarios:
+
+* You draw overlapping primitives, and you want to avoid flicker and SPI overheads resulting from overwriting the pixels.
+* You want to perform real alpha-blending (which is generally not supported by display device drivers).
+
+As a rule of thumb, drawing to an offscreen buffer is about an order of magnitude faster than drawing to a hardware device. In fact, using offscreens may improve the overall performance. But they can be memory hungry.
+
+Let's see a simple example:
+
+```cpp
+#include "roo_display/core/offscreen.h"
+#include "roo_smooth_fonts/NotoSerif_Italic/27.h"
+#include "roo_display/ui/text_label.h"
+#include "roo_display/shape/basic_shapes.h"
+
+// ...
+
+void loop() {
+  Offscreen<Rgb565> offscreen(200, 140, color::White);
+  {
+    DrawingContext dc(offscreen);
+    dc.draw(FilledCircle::ByRadius(150, 50, 40, color::Navy));
+    dc.draw(FilledCircle::ByRadius(80, 80, 70, color::Red.withA(0x90)));
+    dc.draw(TextLabel("Oh, my!", font_NotoSerif_Italic_27(),
+                      color::Yellow),
+            70, 86);
+  }
+  DrawingContext dc(display);
+  dc.setTransformation(Transformation().scale(2, 2));
+  dc.draw(offscreen, kCenter | kMiddle);
+}
+```
+
+![img30](doc/images/img30.png)
+
+Note how the circles blend over each other, and how the text is correctly anti-aliased over this varying background. (We used magnification to make the anti-aliasing effect more easily visible). This effect is difficult to achieve without offscreens (although clip masks can help; see below.)
+
+There is a number of important observations to make based on this example. First, you can specify the offscreen's color mode. Second, you can obtain a drawing context for the Offscreen, and draw anything to it, just as it if was a real device. Third, the offscreen is itself drawable, so you can easily draw it on the screen (or even to another offscreen) when you need to.
+
+### Buffer allocation
+
+When created, the offscreen tries to allocate a memory buffer on the heap. The amount of memory needed is implied by the offscreen dimensions and the color mode. In our example, the buffer needs 200 * 140 * 2 = 56000 bytes. If you specify the background color in the constructor, that buffer will be initialized (the offscreen will be cleared using that background color). Otherwise, the buffer will remain un-initialized; you will need to update all the offscreen's pixels manually.
+
+You can also use an offscreen with a preallocated external buffer:
+
+```cpp
+uint8_t buffer[56000];
+
+// ...
+
+void loop() {
+  Offscreen<Rgb565>(200, 140, buffer);
+}
+```
+
+Note that in this case, the buffer is _not_ cleared in the constructor.
+
+### Pixel formats
+
+You can parameterize the offscreen in exactly the same way as you can parameterize a raster. That is, you can specify the color mode, as well as byte order (for multi-byte color modes) or pixel order (for sub-byte color modes). Essentially, you can think of an offscreen as a DRAM raster that you can draw to. In fact, you can retrieve that raster, by calling `offscreen.raster()`.
+
+Usually, you will want to use the Rgb565 color mode, as it is what most displays natively support, and it only uses two bytes per pixel. In some special situations, however, different color modes can be extremely useful. For example, if you know you only draw grayscale, you may as well use Grayscale8 (or even Grayscale4), significantly reducing the offscreen's footprint. On the other hand, if you want to preserve the transparency information in the result, you will want to use one of the 'A' color modes, e.g. Argb8888, Argb6666, or Argb4444.
+
+Byte order and pixel order are rarely relevant (so, stick to the defaults). They may matter if you plan to export the resulting raster outside of the library and you need to adhere to a specific pixel format.
+
+### Clip masks
+
+In an earlier section, we saw how to use clip masks to restrict drawing to non-rectangular, complex areas. A clip mask, however, is essentially a 1-bit-per-pixel raster. It means that we can use Offscreen to construct bit masks!
+
+In fact, the library provides a convenience subclass `BigMaskOffscreen` to make it even simpler:
+
+```cpp
+// ...
+
+// 320x60 pixels.
+uint8_t mask_data[320 * 60 / 8];
+
+void setup() {
+  // ...
+
+  // We initialize the clip mask here.
+  BitMaskOffscreen offscreen(320, 60, mask_data);
+  {
+    DrawingContext dc(offscreen);
+    dc.clear();
+    for (int i = 0; i < 320; ++i) {
+      int y = (int)(10 * sin(i / 10.0)) + 30;
+      // Anything but color::Transparent is interpreted as 'bit set'.
+      dc.draw(Line(i, 0, i, y, color::Black));
+    }
+  }
+}
+
+void loop() {
+  const auto& font = font_NotoSerif_Italic_60();
+  auto label = TextLabel("Hello!", font, color::Black);
+  int w = display.width();
+  int h = display.height();
+  DrawingContext dc(display);
+  dc.setClipBox(0, 0, w - 1, 179);
+  dc.draw(FilledCircle::ByRadius(w / 2, 179, w / 2 - 20, color::Gold));
+  dc.setBackgroundColor(color::Gold);
+  ClipMask mask(mask_data, Box(0, 90, 319, 149));
+  dc.setClipMask(&mask);
+  label.setColor(color::Crimson);
+  dc.draw(label, kCenter | kMiddle);
+  mask.setInverted(true);
+  label.setColor(color::MidnightBlue);
+  dc.draw(label, kCenter | kMiddle);
+  dc.setClipMask(nullptr);  // To be on the safe side.
+
+  delay(10000);
+}
+```
+
+![img31](doc/images/img31.png)
+
+As you can see, clip masks can be useful for drawing complex geometry with minimum RAM footprint. We just need to draw the primitives multiple times, applying different masks. It will be slower than preparing everything in a 'real' Rgb565 offscreen and drawing it out, but it only needs 9600 bytes for the entire 320x200 screen, as opposed to over 153 KB for Rgb565 (that we unlikely to be able to allocate).
 
 ## Overlays, backgrounds, filters
 

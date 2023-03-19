@@ -907,9 +907,9 @@ For low-footprint artwork such as icons and small images, the library provides a
 
 If you just want to use some simple icons, there is a companion library of `roo_material_icons`, containing over 34000 Google 'Material Design' icons in various styles and 4 predefined sizes.
 
-### JPEG and PNG
+### JPEG
 
-You can easily draw JPEG and PNG images stored on an SD card, SPIFFS, or some other file system:
+You can easily draw JPEG images stored on an SD card, SPIFFS, or some other file system:
 
 ```cpp
 #include "roo_display/image/jpeg/jpeg.h"
@@ -917,20 +917,301 @@ You can easily draw JPEG and PNG images stored on an SD card, SPIFFS, or some ot
 
 // ...
 
+static const int pinSdCs = 4;  // Or whatever yours is.
+
 void setup() {
   // ...
-  SD.begin(sdCsPin);
+  pinMode(pinSdCs, OUTPUT);
+  digitalWrite(pinSdCs, HIGH);
+  SD.begin(pinSdCs);
 }
 
-void main() {
+void loop() {
   JpegDecoder decoder;
-  JpegFile jpg(decoder, SD, "/wallaby.jpg");
+  JpegFile roo(decoder, SD, "/roo.jpg");
   DrawingContext dc(display);
-  dc.draw(jpg, kCenter | kMiddle);
+  dc.draw(roo, kCenter | kMiddle);
 }
 ```
 
-### Importing images into the native format
+![img22](doc/images/img22.png)
+
+You can also print JPEG images stored inline in PROGMEM:
+
+```cpp
+static const uint8_t roo[] PROGMEM = { /* bytes */ };
+
+void loop() {
+  JpegDecoder decoder;
+  JpegImage<ProgMemResource> roo(decoder, roo, roo + sizeof(roo));
+  // ...
+}
+```
+
+If the image data comes from yet another source, you can still draw it - you just need to implement your own resource class. See `roo_display/io/resource.h` for details.
+
+`JpegDecoder` is based on the [TJpgDec](http://elm-chan.org/fsw/tjpgd/00index.html) library by ChaN.
+
+The `JpegDecoder` instance uses about 7 KB of heap RAM. You probably want to use it as a local variable with short lifetime so that it does not keep that RAM used when not needed.
+
+> The decoder supports baseline JPEGs only. In particular, it does _not_ support progressive JPEGs.
+
+Image drawables behave like any other drawables, i.e. they can be transformed, clipped, etc.:
+
+```cpp
+void loop() {
+  JpegDecoder decoder;
+  JpegFile roo(decoder, SD, "/roo.jpg");
+  DrawingContext dc(display);
+  dc.setTransformation(
+      Transformation().translate(-100, -100).scale(3, 3).rotateRight());
+  dc.setClipBox(120, 80, 359, 239);
+  dc.draw(roo, 240, 160);
+}
+```
+
+![img24](doc/images/img24.png)
+
+### PNG
+
+Drawing PNG files is very similar to drawing JPEGs:
+
+```cpp
+#include "roo_display/image/png/png.h"
+#include "SD.h"
+
+// ...
+
+static const int pinSdCs = 4;  // Or whatever yours is.
+
+void setup() {
+  // ...
+  pinMode(pinSdCs, OUTPUT);
+  digitalWrite(pinSdCs, HIGH);
+  SD.begin(pinSdCs);
+}
+
+void loop() {
+  PngDecoder decoder;
+  PngFile penguin(decoder, SD, "/penguin.png");
+  DrawingContext dc(display);
+  dc.draw(penguin, kCenter | kMiddle);
+}
+```
+
+![img23](doc/images/img23.png)
+
+Similarly to JPEGs, you can draw PNGs from arbitrary sources, not only filesystems - by using the templated PngImage class.
+
+`PngDecoder` is based on the [PNGdec](https://github.com/bitbank2/PNGdec) library by Larry Bank, covered by Apache License 2.0.
+
+The `PngDecoder` instance uses about 40 KB of heap RAM. You may want to unallocate the decoder when not in use (e.g. by keeping it as a local variable during drawing).
+
+The decoder supports the most popular PNG formats, namely: RGBA8, RGB8, Grayscale8, GrayAlpha8, as well as the indexed formats with 8, 4, 2, and 1 bits per pixel.
+
+PNG supports transparency, and if your files have it, `roo_display` will render it properly. You can use standard drawing context options, namely, the fill mode and the background color, to control the rendering:
+
+```cpp
+void loop() {
+  {
+    // Draw the checker pattern.
+    DrawingContext dc(display);
+    for (int i = 0; i < 60; ++i) {
+      for (int j = 0; j < 40; ++j) {
+        dc.draw(FilledRect(i * 8, j * 8, i * 8 + 7, j * 8 + 7,
+                          (i + j) % 2 == 1 ? color::White : color::MistyRose));
+      }
+    }
+  }
+  PngDecoder decoder;
+  PngFile penguin(decoder, SD, "/penguin-small.png");
+  {
+    DrawingContext dc(display, Box(20, 0, 239, 319));
+    // Drawing with the default fill mode (FILL_MODE_VISIBLE).
+    dc.draw(penguin, kCenter | kMiddle);
+  }
+  {
+    DrawingContext dc(display, Box(240, 0, 459, 319));
+    dc.setFillMode(FILL_MODE_RECTANGLE);
+    dc.setBackgroundColor(color::MistyRose);
+    dc.draw(penguin, kCenter | kMiddle);
+  }
+}
+```
+
+![img25](doc/images/img25.png)
+
+### Built-in image format
+
+Your application may need to draw icons and simple static images. Storing them in PNG files has a number of disadvantages:
+
+* The PNG decoder requires non-trivial amount of RAM (~40 KB), which you may not have to spare. It is also somewhat CPU-internsive.
+* Using a filesystem is not cheap. Serving images from SD or even SPIFFS is slow compared to serving directly from PROGMEM.
+* The PNG format is not ideal for really tiny images due to various overheads.
+
+The `roo_display` library is able to serve raw, uncompressed raster formats, using a wide variety of color encodings, from 32 bit-per-pixel ARGB down to 1 bit-per-pixel bitmask. Attitionally, it supports a custom, lightweight run-length compression, which can further reduce the image footprint, often significantly. Most of the time, the data will be small enough to be stored directly in PROGMEM.
+
+The following example draws a 16-point grayscale gradient:
+
+```cpp
+#include "roo_display/core/raster.h"
+
+// ...
+
+void loop() {
+  static const uint8_t gradient[] PROGMEM = {
+    0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF
+  };
+
+  DrawingContext dc(display);
+  dc.setTransformation(Transformation().scale(20, 200));
+  dc.draw(ProgMemRaster<Grayscale4>(16, 1, gradient), kCenter | kMiddle);
+}
+```
+
+![img26](doc/images/img26.png)
+
+And here is how to draw a 1-bit-per-pixel bitmask:
+
+```cpp
+#include "roo_display/core/raster.h"
+#include "roo_display/core/color_indexed.h"
+
+// ...
+
+void setup() {
+  // ...
+  dc.init(color::Black);
+}
+
+void loop() {
+  static const uint8_t invader[] PROGMEM = {
+    0b00001000, 0b00100000,
+    0b00000100, 0b01000000,
+    0b00001111, 0b11100000,
+    0b00011011, 0b10110000,
+    0b00111111, 0b11111000,
+    0b00101111, 0b11101000,
+    0b00101000, 0b00101000,
+    0b00000110, 0b11000000,
+  };
+
+  static Color colors[] PROGMEM = { color::Transparent, color::Green };
+
+  static Palette palette(colors, 2);
+
+  DrawingContext dc(display);
+  dc.setTransformation(Transformation().scale(20, 20));
+  dc.draw(ProgMemRaster<Indexed1>(16, 8, invader, &palette), kCenter | kMiddle);
+}
+```
+
+![img27](doc/images/img27.png)
+
+You can also use `ConstDramRaster` to draw from DRAM rather than PROGMEM.
+
+Now, let's draw something cooler: a real picture using 16-color palette and the run-length encoding:
+
+```cpp
+#include "roo_display/image/image.h"
+
+// ...
+
+static const Color penguin_palette[] PROGMEM = {
+  Color(0x00000000),   Color(0xfffcfefb),   Color(0xff000000),   Color(0xfff8c200),
+  Color(0xffdcdfdb),   Color(0xffcfd1ce),   Color(0xff595a57),   Color(0xffa8aaa7),
+  Color(0xff1e1a16),   Color(0xffeaca5f),   Color(0xff2f2f29),   Color(0xff888a86),
+  Color(0xffe9ba14),   Color(0xfff6e6a4),   Color(0xffeed994),   Color(0xffffface),
+};
+
+// Image file penguin 60x45, Indexed, 4-bit (16-color) palette,  RLE, 547 bytes.
+static const uint8_t penguin[] PROGMEM = {
+  0x88, 0x00, 0x83, 0x22, 0x8F, 0x00, 0x02, 0x02, 0x26, 0x6A, 0x83, 0x22, 0x00, 0x20, 0x8D, 0x00,
+  0x07, 0x2A, 0x51, 0x11, 0xB2, 0x22, 0x28, 0xA2, 0x22, 0x8C, 0x00, 0x01, 0x22, 0x85, 0x81, 0x11,
+  0x05, 0x1B, 0x26, 0x51, 0x11, 0x56, 0x22, 0x8A, 0x00, 0x02, 0x02, 0x22, 0x61, 0x81, 0x11, 0x01,
+  0x15, 0xB1, 0x81, 0x11, 0x02, 0x14, 0x62, 0x20, 0x89, 0x00, 0x81, 0x22, 0x00, 0x71, 0x81, 0x11,
+  0x01, 0x44, 0x41, 0x82, 0x11, 0x01, 0x58, 0x22, 0x88, 0x00, 0x07, 0x02, 0x22, 0x28, 0x51, 0x11,
+  0x14, 0xA5, 0x57, 0x82, 0x11, 0x02, 0x58, 0x22, 0x20, 0x87, 0x00, 0x00, 0x02, 0x81, 0x22, 0x04,
+  0x71, 0x11, 0x14, 0x65, 0x75, 0x82, 0x11, 0x02, 0x72, 0x22, 0x20, 0x87, 0x00, 0x82, 0x22, 0x00,
+  0xB1, 0x81, 0x11, 0x01, 0x14, 0x64, 0x81, 0x11, 0x01, 0x14, 0x62, 0x81, 0x22, 0x87, 0x00, 0x82,
+  0x22, 0x00, 0xA4, 0x81, 0x11, 0x04, 0x1B, 0x2A, 0x74, 0x44, 0x7A, 0x82, 0x22, 0x86, 0x00, 0x00,
+  0x02, 0x82, 0x22, 0x05, 0x26, 0x41, 0x1F, 0x9C, 0xCC, 0x00, 0x84, 0x22, 0x00, 0x20, 0x85, 0x00,
+  0x00, 0x02, 0x83, 0x22, 0x01, 0x8B, 0x79, 0x81, 0x33, 0x01, 0xC7, 0x6A, 0x83, 0x22, 0x00, 0x20,
+  0x85, 0x00, 0x00, 0x02, 0x82, 0x22, 0x07, 0x26, 0x74, 0x11, 0x93, 0x33, 0xD1, 0x14, 0x76, 0x82,
+  0x22, 0x00, 0x20, 0x85, 0x00, 0x82, 0x22, 0x01, 0x2A, 0x74, 0x81, 0x11, 0x01, 0xDC, 0x39, 0x81,
+  0x11, 0x01, 0x14, 0x76, 0x82, 0x22, 0x85, 0x00, 0x82, 0x22, 0x01, 0x65, 0x41, 0x81, 0x11, 0x01,
+  0x1E, 0xCF, 0x82, 0x11, 0x01, 0x45, 0xB8, 0x81, 0x22, 0x85, 0x00, 0x81, 0x22, 0x01, 0x2B, 0x54,
+  0x82, 0x11, 0x01, 0x1F, 0xD1, 0x82, 0x11, 0x04, 0x14, 0x4B, 0x82, 0x22, 0x20, 0x83, 0x00, 0x82,
+  0x22, 0x01, 0x65, 0x41, 0x87, 0x11, 0x02, 0x14, 0x44, 0xB2, 0x81, 0x22, 0x82, 0x00, 0x00, 0x02,
+  0x81, 0x22, 0x02, 0x2A, 0x54, 0x41, 0x88, 0x11, 0x01, 0x44, 0x56, 0x82, 0x22, 0x81, 0x00, 0x82,
+  0x22, 0x01, 0x27, 0x44, 0x89, 0x11, 0x02, 0x44, 0x47, 0x82, 0x81, 0x22, 0x00, 0x20, 0x83, 0x22,
+  0x01, 0xA5, 0x44, 0x89, 0x11, 0x02, 0x14, 0x44, 0x62, 0x82, 0x22, 0x81, 0x00, 0x81, 0x22, 0x01,
+  0xB4, 0x41, 0x89, 0x11, 0x03, 0x14, 0x44, 0x78, 0x20, 0x84, 0x00, 0x02, 0x28, 0x74, 0x41, 0x8A,
+  0x11, 0x01, 0x44, 0x58, 0x85, 0x00, 0x02, 0x28, 0x54, 0x41, 0x8A, 0x11, 0x01, 0x44, 0x5A, 0x85,
+  0x00, 0x02, 0x2A, 0x54, 0x41, 0x8A, 0x11, 0x01, 0x44, 0x5A, 0x85, 0x00, 0x02, 0x08, 0x54, 0x41,
+  0x8A, 0x11, 0x01, 0x44, 0x50, 0x85, 0x00, 0x02, 0x08, 0x74, 0x41, 0x8A, 0x11, 0x01, 0x44, 0x50,
+  0x85, 0x00, 0x02, 0x02, 0x74, 0x41, 0x89, 0x11, 0x02, 0x14, 0x44, 0x50, 0x86, 0x00, 0x01, 0x64,
+  0x41, 0x89, 0x11, 0x01, 0x14, 0x44, 0x87, 0x00, 0x01, 0x85, 0x44, 0x89, 0x11, 0x01, 0x14, 0x44,
+  0x87, 0x00, 0x01, 0x0B, 0x44, 0x89, 0x11, 0x01, 0x44, 0x40, 0x87, 0x00, 0x02, 0x08, 0x74, 0x41,
+  0x88, 0x11, 0x01, 0x44, 0x40, 0x88, 0x00, 0x03, 0xC9, 0x99, 0xED, 0xF1, 0x83, 0x11, 0x03, 0x1F,
+  0xDE, 0x99, 0x9E, 0x87, 0x00, 0x00, 0x03, 0x83, 0x33, 0x01, 0x39, 0xD1, 0x81, 0x11, 0x01, 0x1D,
+  0x93, 0x83, 0x33, 0x00, 0x30, 0x85, 0x00, 0x85, 0x33, 0x03, 0x39, 0xF1, 0x11, 0x93, 0x85, 0x33,
+  0x00, 0xC0, 0x83, 0x00, 0x00, 0x03, 0x86, 0x33, 0x01, 0xE1, 0x1E, 0x86, 0x33, 0x00, 0x30, 0x83,
+  0x00, 0x00, 0x03, 0x86, 0x33, 0x01, 0x91, 0x1E, 0x87, 0x33, 0x83, 0x00, 0x00, 0x03, 0x86, 0x33,
+  0x01, 0xC6, 0x6B, 0x86, 0x33, 0x00, 0x30, 0x84, 0x00, 0x85, 0x33, 0x00, 0x30, 0x81, 0x00, 0x00,
+  0x03, 0x85, 0x33, 0x86, 0x00, 0x00, 0x03, 0x82, 0x33, 0x00, 0x30, 0x84, 0x00, 0x82, 0x33, 0x00,
+  0x30, 0x83, 0x00,
+};
+
+const RleImage<Indexed4, ProgMemPtr>& penguin() {
+  static Palette palette(penguin_palette, 16);
+  static RleImage<Indexed4, ProgMemPtr> value(
+      Box(8, 3, 51, 41), Box(0, 0, 59, 44),
+      penguin_data, Indexed4(&palette));
+  return value;
+}
+
+void loop() {
+  DrawingContext dc(display);
+  dc.draw(penguin(), kCenter | kMiddle);
+}
+```
+
+![img28](doc/images/img28.png)
+
+We made the image small so that the example fits on one page, but this technique works also for regular-size images.
+
+The image size, in pixels, is 60x45, which would mean 1350 bytes without compression (note that we're using 4bpp, i.e. 2 pixels per byte). The RLE compression reduced it to 547 bytes, i.e. by almost 60%.
+
+#### Pixel formats
+
+Both the Raster class and the RleImage class support a wide range of color modes, namely:
+
+* ARGB 8888
+* RGBA 8888
+* RGB 888
+* ARGB 6666
+* ARGB 4444
+* RGB 565
+* RGB 565 with 1-color transparency
+* Gray8 (8-bit grayscale)
+* Gray4 (4-bit grayscale)
+* GrayAlpha8 (8-bit grayscale with 8-bit alpha channel)
+* Alpha8 (monochrome, 8-bit alpha)
+* Alpha4 (monochrome, 4-bit alpha)
+* Indexed8 (8bpp, 256-color palette)
+* Indexed4 (4bpp, 16-color palette)
+* Indexed2 (2pp, 4-color palette)
+* Indexed1 (1bpp, 2-color palette)
+* Monochrome (similar to Indexed1)
+
+Additionally, for multiple-bytes-per-pixel modes, you can parameterize the `Raster` template class by specifying the byte order (big endian or little endian), and for sub-byte pixel modes (e.g. Gray4, Alpha4, Indexed4, Indexed2, Indexed1), you can specify the pixel order within byte (most-significant-first or least-significant-first). See the documentation of the `Raster` template.
+
+This flexibility means that if you happen to have some existing uncompressed image data, you should be able to render it with `roo_display`. Moreover, if your color mode is unsupported, you can easily write your own. (For example, the implementation of RGBA 8888 fits in 20 lines.) As long as your color mode uses 1, 2, 4, 8, 16, 24, or 32 bits per pixel, the `Raster` and the `RleImage` template classes will automatically support it.
+
+In addition to the general-purpose `RleImage`, the library supports an alternative RLE encoding format, `RleImage4bppxBiased`, designed specifically for 4bpp color modes. This format is intended for cases when the colors encoded as 0x0 and 0xF occur significantly more frequently than the colors 0x1 - 0xE. The main application is to compress monochrome, antialiased content, such as font glyphs and icons, using the Alpha4 color mode. In these cases, 0x0 represents the 'background' and 0xF represents the 'foreground', while the other colors are used for antialiased 'edges'.
+
+#### Importing images
 
 ### Using the Material Icons collection
 

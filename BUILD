@@ -27,6 +27,7 @@ cc_library(
             "**/*.cpp",
             "**/*.c",
             "**/*.h",
+            "**/*.inl",
         ],
         exclude = ["test/**"],
     ),

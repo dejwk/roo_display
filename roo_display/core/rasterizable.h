@@ -88,8 +88,9 @@ class SimpleRasterizable : public Rasterizable {
 };
 
 template <typename Getter>
-SimpleRasterizable<Getter> MakeRasterizable(Box extents, Getter getter,
-                                            TransparencyMode transparency) {
+SimpleRasterizable<Getter> MakeRasterizable(
+    Box extents, Getter getter,
+    TransparencyMode transparency = TRANSPARENCY_GRADUAL) {
   return SimpleRasterizable<Getter>(extents, getter, transparency);
 }
 

@@ -183,13 +183,13 @@ class BufferedColorWriter {
   void writeColorN(Color color, uint16_t count) {
     uint16_t batch = kPixelWritingBufferSize - buffer_size_;
     if (count < batch) {
-      Color::Fill(color_buffer_ + buffer_size_, count, color);
+      FillColor(color_buffer_ + buffer_size_, count, color);
       buffer_size_ += count;
       return;
     }
-    Color::Fill(color_buffer_ + buffer_size_, batch, color);
+    FillColor(color_buffer_ + buffer_size_, batch, color);
     device_.write(color_buffer_, kPixelWritingBufferSize);
-    Color::Fill(color_buffer_, buffer_size_, color);
+    FillColor(color_buffer_, buffer_size_, color);
     count -= batch;
     while (true) {
       if (count < kPixelWritingBufferSize) {

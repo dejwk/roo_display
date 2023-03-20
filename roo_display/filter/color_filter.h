@@ -1,6 +1,6 @@
 #pragma once
 
-#include "roo_display/core/color.h"
+#include "roo_display/color/color.h"
 #include "roo_display/core/device.h"
 
 namespace roo_display {

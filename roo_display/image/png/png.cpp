@@ -1,7 +1,7 @@
 #include "roo_display/image/png/png.h"
 
+#include "roo_display/color/color_mode_indexed.h"
 #include "roo_display/image/png/lib/png.inl"
-#include "roo_display/core/color_indexed.h"
 
 PNG_STATIC int PNGInit(PNGIMAGE *pPNG);
 PNG_STATIC int DecodePNG(PNGIMAGE *pImage, void *pUser, int iOptions);

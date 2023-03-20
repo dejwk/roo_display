@@ -1,5 +1,9 @@
 #pragma once
 
+#include "roo_display/color/color.h"
+#include "roo_display/color/color_mode_indexed.h"
+#include "roo_display/color/color_modes.h"
+#include "roo_display/color/named.h"
 #include "roo_display/core/streamable.h"
 #include "roo_display/image/image_stream.h"
 #include "roo_display/internal/raw_streamable.h"

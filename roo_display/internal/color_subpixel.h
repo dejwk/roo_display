@@ -2,6 +2,9 @@
 
 #include <inttypes.h>
 
+#include "roo_display/color/color.h"
+#include "roo_display/color/traits.h"
+
 namespace roo_display {
 
 // In case of color modes that store multiple pixels in a single byte,

@@ -2,7 +2,7 @@
 
 // Support for drawing to in-memory buffers, using various color modes.
 
-#include "roo_display/core/color.h"
+#include "roo_display/color/color.h"
 #include "roo_display/core/raster.h"
 #include "roo_display/internal/byte_order.h"
 #include "roo_display/internal/memfill.h"
@@ -1069,7 +1069,7 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
   } else if (x0 == x1) {
     fillVlinesAbsolute(mode, color, x0, y0, y1, count);
   } else {
-    if (color.opaque()) mode = PAINT_MODE_REPLACE;
+    if (color.isOpaque()) mode = PAINT_MODE_REPLACE;
     switch (mode) {
       case PAINT_MODE_REPLACE: {
         internal::ReplaceFiller<ColorMode, pixel_order, byte_order> fill(
@@ -1097,7 +1097,7 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                                                        Color color, int16_t *x0,
                                                        int16_t *y0, int16_t *x1,
                                                        uint16_t count) {
-  if (color.opaque()) mode = PAINT_MODE_REPLACE;
+  if (color.isOpaque()) mode = PAINT_MODE_REPLACE;
   switch (mode) {
     case PAINT_MODE_REPLACE: {
       internal::ReplaceFiller<ColorMode, pixel_order, byte_order> fill(
@@ -1123,7 +1123,7 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                                                        Color color, int16_t *x0,
                                                        int16_t *y0, int16_t *y1,
                                                        uint16_t count) {
-  if (color.opaque()) mode = PAINT_MODE_REPLACE;
+  if (color.isOpaque()) mode = PAINT_MODE_REPLACE;
   switch (mode) {
     case PAINT_MODE_REPLACE: {
       internal::ReplaceFiller<ColorMode, pixel_order, byte_order> fill(

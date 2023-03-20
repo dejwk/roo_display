@@ -1,8 +1,8 @@
 #pragma once
 
+#include "roo_display/color/color.h"
 #include "roo_display/core/box.h"
 #include "roo_display/core/buffered_drawing.h"
-#include "roo_display/core/color.h"
 #include "roo_display/core/drawable.h"
 #include "roo_display/core/streamable.h"
 

@@ -167,7 +167,7 @@ class FilledRectStream : public PixelStream {
   FilledRectStream(Color color) : color_(color) {}
 
   void Read(Color *buf, uint16_t count) override {
-    Color::Fill(buf, count, color_);
+    FillColor(buf, count, color_);
   }
 
   void Skip(uint32_t count) override {}

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "roo_display/color/color.h"
+#include "roo_display/color/named.h"
 #include "roo_display/core/device.h"
 #include "roo_display/core/offscreen.h"
 #include "roo_display/filter/clip_mask.h"
@@ -27,7 +29,7 @@ class FrontToBackWriter : public DisplayOutput {
 
   void write(Color* color, uint32_t pixel_count) override {
     mask_filter_.write(color, pixel_count);
-    Color::Fill(color, pixel_count, color::Black);
+    FillColor(color, pixel_count, color::Black);
     offscreen_.output().write(color, pixel_count);
   }
 

@@ -1,7 +1,9 @@
 #pragma once
 
 #include "roo_display.h"
-#include "roo_display/core/color_indexed.h"
+#include "roo_display/color/color.h"
+#include "roo_display/color/color_mode_indexed.h"
+#include "roo_display/color/color_modes.h"
 #include "roo_display/io/resource.h"
 #include "roo_display/io/file.h"
 #include "roo_display/io/resource.h"

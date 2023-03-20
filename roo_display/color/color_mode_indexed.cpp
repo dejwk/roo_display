@@ -1,4 +1,4 @@
-#include "roo_display/core/color_indexed.h"
+#include "roo_display/color/color_mode_indexed.h"
 
 namespace roo_display {
 

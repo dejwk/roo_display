@@ -364,7 +364,7 @@ void writeRect(internal::Engine* engine, const Box& bounds,
           if (s.bgcolor() == color::Transparent) {
             streams[input].read(buf, batch);
           } else {
-            Color::Fill(buf, batch, s.bgcolor());
+            FillColor(buf, batch, s.bgcolor());
             streams[input].blend(buf, batch);
           }
           writer.advance_buffer_ptr(batch);

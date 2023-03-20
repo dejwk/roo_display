@@ -1,7 +1,7 @@
 #pragma once
 
 #include "roo_display.h"
-#include "roo_display/core/color.h"
+#include "roo_display/color/color.h"
 #include "roo_display/core/drawable.h"
 
 namespace roo_display {
@@ -129,7 +129,7 @@ class FilledRect : public RectBase, public Rasterizable {
   Box extents() const override { return RectBase::extents(); }
 
   TransparencyMode getTransparencyMode() const override {
-    return color().opaque() ? TRANSPARENCY_NONE : TRANSPARENCY_GRADUAL;
+    return color().isOpaque() ? TRANSPARENCY_NONE : TRANSPARENCY_GRADUAL;
   }
 
   std::unique_ptr<PixelStream> createStream() const override;
@@ -137,7 +137,7 @@ class FilledRect : public RectBase, public Rasterizable {
 
   void readColors(const int16_t *x, const int16_t *y, uint32_t count,
                   Color *result) const override {
-    Color::Fill(result, count, color());
+    FillColor(result, count, color());
   }
 
  private:

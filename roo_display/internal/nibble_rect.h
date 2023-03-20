@@ -2,9 +2,9 @@
 
 #include <inttypes.h>
 
+#include "roo_display/color/color.h"
 #include "roo_display/core/box.h"
 #include "roo_display/core/buffered_drawing.h"
-#include "roo_display/core/color.h"
 #include "roo_display/internal/memfill.h"
 
 namespace roo_display {

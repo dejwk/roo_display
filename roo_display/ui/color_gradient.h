@@ -4,7 +4,7 @@
 #include <utility>
 #include <vector>
 
-#include "roo_display/core/color.h"
+#include "roo_display/color/color.h"
 
 namespace roo_display {
 

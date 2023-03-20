@@ -1,7 +1,9 @@
 #pragma once
 
+#include "roo_display/color/color.h"
+#include "roo_display/color/paint_mode.h"
+#include "roo_display/color/transparency_mode.h"
 #include "roo_display/core/box.h"
-#include "roo_display/core/color.h"
 
 namespace roo_display {
 

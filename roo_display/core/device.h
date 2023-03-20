@@ -2,8 +2,9 @@
 
 #include <inttypes.h>
 
+#include "roo_display/color/color.h"
+#include "roo_display/color/paint_mode.h"
 #include "roo_display/core/box.h"
-#include "roo_display/core/color.h"
 #include "roo_display/core/orientation.h"
 
 namespace roo_display {

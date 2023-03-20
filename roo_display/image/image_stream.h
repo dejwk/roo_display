@@ -1,6 +1,6 @@
 #pragma once
 
-#include "roo_display/core/color.h"
+#include "roo_display/color/color.h"
 #include "roo_display/core/drawable.h"
 #include "roo_display/core/raster.h"
 #include "roo_display/core/streamable.h"

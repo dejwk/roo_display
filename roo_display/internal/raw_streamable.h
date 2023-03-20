@@ -242,7 +242,7 @@ class RawStreamableFilledRect {
     void skip(uint32_t count) {}
 
     TransparencyMode transparency() const {
-      return color_.opaque()   ? TRANSPARENCY_NONE
+      return color_.isOpaque() ? TRANSPARENCY_NONE
              : color_.a() == 0 ? TRANSPARENCY_BINARY
                                : TRANSPARENCY_GRADUAL;
     }

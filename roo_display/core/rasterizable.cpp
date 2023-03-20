@@ -50,7 +50,8 @@ static const int kMaxBufSize = 32;
 
 void Rasterizable::readColorsMaybeOutOfBounds(const int16_t* x,
                                               const int16_t* y, uint32_t count,
-                                              Color* result) const {
+                                              Color* result,
+                                              Color out_of_bounds_color) const {
   Box bounds = extents();
   // First process as much as we can without copying and extra memory.
   uint32_t offset = 0;
@@ -90,7 +91,7 @@ void Rasterizable::readColorsMaybeOutOfBounds(const int16_t* x,
     readColors(newx, newy, buf_size, newresult);
     int buf_idx = 0;
     for (uint32_t i = start_offset; i < offset; ++i) {
-      Color c = color::Transparent;
+      Color c = out_of_bounds_color;
       if (buf_idx < buf_size && offsets[buf_idx] == i) {
         // Found point in the bounds for which we have the color.
         c = newresult[buf_idx];

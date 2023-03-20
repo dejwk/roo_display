@@ -143,9 +143,17 @@ void DrawingContext::drawInternalWithBackground(Surface& s,
                                                 const Drawable& object) {
   if (background_ == nullptr) {
     drawInternalTransformed(s, object);
-  } else {
+  } else if (s.bgcolor().a() == 0) {
     BackgroundFilter filter(s.out(), background_);
     s.set_out(&filter);
+    drawInternalTransformed(s, object);
+  } else {
+    // Also apply the background color.
+    BackgroundFilterWithColor filter(
+        s.out(), internal::BgBlendKernelWithColor{.bg = s.bgcolor()},
+        background_);
+    s.set_out(&filter);
+    s.set_bgcolor(color::Transparent);
     drawInternalTransformed(s, object);
   }
 }

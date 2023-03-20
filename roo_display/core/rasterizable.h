@@ -29,9 +29,11 @@ class Rasterizable : public virtual Streamable {
   // Read colors corresponding to the specified collection of points, and store
   // the results in the result array. The points may be outside of this
   // rasterizable's bounds. This function calls readColors after isolating the
-  // points that are within the bounds.
-  void readColorsMaybeOutOfBounds(const int16_t* x, const int16_t* y,
-                                  uint32_t count, Color* result) const;
+  // points that are within the bounds. For the pixels that are indeed out of
+  // bounds, the function returns out_of_bounds_color.
+  void readColorsMaybeOutOfBounds(
+      const int16_t* x, const int16_t* y, uint32_t count, Color* result,
+      Color out_of_bounds_color = color::Transparent) const;
 
   // Read colors corresponding to the specified rectangle. Returns true if all
   // colors are known to be the same. In this case, only the result[0] is
@@ -135,7 +137,8 @@ class SimpleTiledRasterizable : public Rasterizable {
 
 template <typename Getter>
 SimpleTiledRasterizable<Getter> MakeTiledRasterizable(
-    Box extents, Getter getter, TransparencyMode transparency) {
+    Box extents, Getter getter,
+    TransparencyMode transparency = TRANSPARENCY_GRADUAL) {
   return SimpleTiledRasterizable<Getter>(extents, getter, transparency);
 }
 

@@ -217,12 +217,6 @@ class DrawingContext {
 
   void setBackground(const Rasterizable *bg) {
     background_ = bg;
-    bgcolor_ = color::Transparent;
-  }
-
-  void setBackground(Color bgcolor) {
-    background_ = nullptr;
-    bgcolor_ = bgcolor;
   }
 
   void setBackgroundColor(Color bgcolor) { bgcolor_ = bgcolor; }

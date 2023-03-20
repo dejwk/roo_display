@@ -120,7 +120,8 @@ class BlendingFilter : public DisplayOutput {
  private:
   void read(int16_t* x, int16_t* y, uint16_t pixel_count, Color* result) {
     if (dx_ == 0 && dy_ == 0) {
-      raster_->readColorsMaybeOutOfBounds(x, y, pixel_count, result);
+      raster_->readColorsMaybeOutOfBounds(x, y, pixel_count, result,
+                                          blender_.bgcolor());
     } else {
       // NOTE(dawidk): to conserve stack, this could be done in-place and then
       // undone, although it would take 2x longer.
@@ -130,37 +131,41 @@ class BlendingFilter : public DisplayOutput {
         xp[i] = x[i] - dx_;
         yp[i] = y[i] - dy_;
       }
-      raster_->readColorsMaybeOutOfBounds(xp, yp, pixel_count, result);
+      raster_->readColorsMaybeOutOfBounds(xp, yp, pixel_count, result,
+                                          blender_.bgcolor());
     }
   }
 
   void fillRect(PaintMode mode, int16_t xMin, int16_t yMin, int16_t xMax,
                 int16_t yMax, Color color) {
+    Color out_of_bounds_color = AlphaBlend(blender_.bgcolor(), color);
     Box trimmed =
         Box::intersect(Box(xMin, yMin, xMax, yMax), raster_->extents());
     if (trimmed.empty()) {
-      output_->fillRect(mode, xMin, yMin, xMax, yMax, color);
+      output_->fillRect(mode, xMin, yMin, xMax, yMax, out_of_bounds_color);
       return;
     }
     if (yMin < trimmed.yMin()) {
       // Draw top bar of the border.
-      output_->fillRect(mode, xMin, yMin, xMax, trimmed.yMin() - 1, color);
+      output_->fillRect(mode, xMin, yMin, xMax, trimmed.yMin() - 1,
+                        out_of_bounds_color);
     }
     if (xMin < trimmed.xMin()) {
       // Draw left bar of the border.
       output_->fillRect(mode, xMin, trimmed.yMin(), trimmed.xMin() - 1,
-                        trimmed.yMax(), color);
+                        trimmed.yMax(), out_of_bounds_color);
     }
     fillRectIntersectingRaster(mode, trimmed.xMin(), trimmed.yMin(),
                                trimmed.xMax(), trimmed.yMax(), color);
     if (xMax > trimmed.xMax()) {
       // Draw right bar of the border.
       output_->fillRect(mode, trimmed.xMax() + 1, trimmed.yMin(), xMax,
-                        trimmed.yMax(), color);
+                        trimmed.yMax(), out_of_bounds_color);
     }
     if (yMax > trimmed.yMax()) {
       // Draw bottom bar of the border.
-      output_->fillRect(mode, xMin, trimmed.yMax() + 1, xMax, yMax, color);
+      output_->fillRect(mode, xMin, trimmed.yMax() + 1, xMax, yMax,
+                        out_of_bounds_color);
     }
   }
 

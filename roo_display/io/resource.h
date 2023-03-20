@@ -4,7 +4,8 @@
 
 namespace roo_display {
 
-// In order to implement a custom resource, write a class that has the following template contract:
+// In order to implement a custom resource, write a class that has the following
+// template contract:
 //
 // class MyResource {
 //  public:

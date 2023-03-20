@@ -1402,7 +1402,7 @@ There is a number of important observations to make based on this example. First
 
 ### Buffer allocation
 
-When created, the offscreen tries to allocate a memory buffer on the heap. The amount of memory needed is implied by the offscreen dimensions and the color mode. In our example, the buffer needs 200 * 140 * 2 = 56000 bytes. If you specify the background color in the constructor, that buffer will be initialized (the offscreen will be cleared using that background color). Otherwise, the buffer will remain un-initialized; you will need to update all the offscreen's pixels manually.
+When created, the offscreen tries to allocate a memory buffer on the heap. The amount of memory needed is implied by the offscreen dimensions and the color mode. In our example, the buffer needs 200 _140_ 2 = 56000 bytes. If you specify the background color in the constructor, that buffer will be initialized (the offscreen will be cleared using that background color). Otherwise, the buffer will remain un-initialized; you will need to update all the offscreen's pixels manually.
 
 You can also use an offscreen with a preallocated external buffer:
 
@@ -1480,7 +1480,161 @@ void loop() {
 
 As you can see, clip masks can be useful for drawing complex geometry with minimum RAM footprint. We just need to draw the primitives multiple times, applying different masks. It will be slower than preparing everything in a 'real' Rgb565 offscreen and drawing it out, but it only needs 9600 bytes for the entire 320x200 screen, as opposed to over 153 KB for Rgb565 (that we unlikely to be able to allocate).
 
-## Overlays, backgrounds, filters
+### Offscreens with transparency
+
+## Backgrounds and overlays
+
+Not all drawables are created equal.
+
+The minimum bar for a `Drawable` is to be able to draw itself to a `Surface` provided by the `DrawingContext`. But some drawables offer more flexibility, captured by two further virtual classes: `Streamable` (which extends `Drawable`), and `Rasterizable` (which extents `Streamable`):
+
+* a `Streamable` is able to generate a sequential stream of its pixels, possibly given a clip box rectangle;
+* a `Rasterizable` is able to report a color of any pixel within its bounding rectangle, given the coordinates.
+
+Out of the drawable classes that we encountered so far, `Raster` and `Offscreen` are rasterizable, and `RleImage` and `RleImage4bppBiased` are streamable.
+
+In this section, we will focus on rasterizables, leaving streamables for the later section on flicker-less composition.
+
+### Backgrounds
+
+So why are rasterizables useful? The most immediate benefit is that you can use them as backgrounds. Anything you draw on top of them will be anti-aliased and alpha-blended correctly.
+
+Let's look at a simple example of using a stretched raster as a gradient:
+
+```cpp
+#include "roo_display/color/hsv.h"
+#include "roo_display/core/raster.h"
+#include "roo_display/core/rasterizable.h"
+#include "roo_display/ui/text_label.h"
+#include "roo_smooth_fonts/NotoSerif_Italic/90.h"
+
+/// ...
+
+// 1x240 Rgb565 pixels.
+uint8_t background_data[240 * 2];
+
+void setup() {
+  // ...
+
+  // Since we're filling full screen, we can use the 'non-clearning'
+  // init here.
+  display.init();
+  display.setBackgroundColor(Graylevel(0xF0));
+
+  // ...
+
+  // We initialize the raster here.
+  Offscreen<Rgb565> offscreen(1, 240, background_data);
+  {
+    DrawingContext dc(offscreen);
+    dc.drawPixels([](PixelWriter& writer) {
+      for (int i = 0; i < 240; ++i) {
+        writer.writePixel(0, i, HsvToRgb(360.0 / 240 * i, 0.5, 0.9));
+      }
+    });
+  }
+}
+
+void loop() {
+  DrawingContext dc(display);
+  // Creates a single vertical line raster.
+  ConstDramRaster<Rgb565> raster(1, 240, background_data);
+  // Repeats the raster pattern infinitely.
+  auto bg = MakeTiledRaster(&raster);
+  dc.setBackground(&bg);
+  // Actually fill the screen with the background.
+  // (Alternatively, experiment with FILL_MODE_RECTANGLE).
+  dc.clear();
+  // Magnify to emphasize anti-aliasing.
+  dc.setTransformation(Transformation().scale(3, 3));
+  dc.draw(TextLabel("&", font_NotoSerif_Italic_90(), color::Black),
+          kCenter | kMiddle);
+
+  delay(10000);
+}
+```
+
+![img32](doc/images/img32.png)
+
+We used a little trick here to keep memory overhead small: the raster consists of a single vertical line, and then we use a utility method to expand it by repeating the pattern infinitely.
+
+If you can generate a color for a point given its (x, y) coordinates with a function (or a function-like object), a rasterizable can be created really easily from it by using another utility function:
+
+```cpp
+void loop() {
+  DrawingContext dc(display);
+  auto bg = MakeRasterizable(Box(60, 60, 259, 179), [](int16_t x, int16_t y) {
+    return ((x / 40) - (y / 40)) % 2 ? color::White : color::MistyRose;
+  }, TRANSPARENCY_NONE);
+  dc.setBackground(&bg);
+  dc.clear();
+
+  dc.setTransformation(Transformation().scale(3, 3));
+  dc.draw(TextLabel("&", font_NotoSerif_Italic_90(), color::Black),
+          kCenter | kMiddle);
+
+  delay(10000);
+}
+```
+
+![img33](doc/images/img33.png)
+
+Note `TRANSPARENCY_NONE`, the third argument to `MakeRasterizable()`. It is an optional hint: we are telling the library that the colors of the background rasterizable will always be fully opaque. Providing this hint speeds up rendering.
+
+We specified the bounds of our background. We did it primarily to show that it is actually possible, and that the combination of the rasterizable background and the background color works as you might have expected (the rasterizable is drawn 'in front of' the background color). If your rasterizable is unbounded, you can specify `Box::MaximumBox()` as the extents.
+
+In fact, your rasterizable can be semi-transparent, and it will then blend over the background color. In the example below, we create a background that will gradually tint the underlying color towards blue:
+
+```cpp
+void loop() {
+  DrawingContext dc(display);
+  auto bg = MakeRasterizable(display.extents(), [](int16_t x, int16_t y) {
+    return color::RoyalBlue.withA(y);
+  });
+  dc.setBackground(&bg);
+  dc.setBackgroundColor(color::Violet);
+  dc.clear();
+
+  dc.setTransformation(Transformation().scale(5, 5));
+  dc.draw(TextLabel("&", font_NotoSerif_Italic_90(), color::Black),
+          kCenter | kMiddle);
+
+  delay(10000);
+}
+```
+
+![img34](doc/images/img34.png)
+
+Finally, note that you can set a background, just like a background color, to be the default for the display:
+
+```cpp
+
+auto bg = MakeRasterizable(Box::MaximumBox(), [](int16_t x, int16_t y) {
+  return ((x / 20) - (y / 20)) % 2 ? color::White : color::MistyRose;
+}, TRANSPARENCY_NONE);
+
+void setup() {
+  // ...
+  display.setBackground(&bg);
+  display.clear();
+}
+
+void loop() {
+  DrawingContext dc(display);
+  dc.draw(TextLabel("Hello!", font_NotoSerif_Italic_90(), color::Black),
+          kCenter | kMiddle);
+  for (int i = 0; i < 255; i++) {
+    dc.draw(Line(i + 40, 190, i+40, 229, color::Blue.withA(i)));
+  }
+  delay(10000);
+}
+```
+
+![img35](doc/images/img35.png)
+
+Now you can practically forget that the background is there - it will be painted no matter what you draw.
+
+### Overlays (sprites)
 
 ## Touch
 
@@ -1490,10 +1644,8 @@ As you can see, clip masks can be useful for drawing complex geometry with minim
 
 ### Implementing custom drawables
 
+### Implementing custom filters
+
 ### Adding new device drivers
 
 ### Supporting non-SPI transports
-
-## UI utilities
-
-### Tile

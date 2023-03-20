@@ -30,6 +30,7 @@ struct Emulator {
 #include <string>
 
 #include "roo_display.h"
+#include "roo_display/color/hsv.h"
 #include "roo_display/core/raster.h"
 #include "roo_display/font/font.h"
 #include "roo_display/ui/string_printer.h"
@@ -464,41 +465,11 @@ void loop() {
   timerBenchmark(&b, 5);
 }
 
-Color hsvToRgb(double h, double s, double v) {
-  // See https://en.wikipedia.org/wiki/HSL_and_HSV.
-  double c = v * s;
-  double hp = h / 60.0;
-  int ihp = (int)hp;
-  double x = c * (1 - abs((hp - 2 * (ihp / 2)) - 1));
-  double m = v - c;
-  int ix = (int)(255 * x);
-  int ic = (int)(255 * c);
-  int im = (int)(255 * m);
-  int ixm = ix + im;
-  int icm = ic + im;
-  switch (ihp % 6) {
-    case 0:
-      return Color(icm, ixm, im);
-    case 1:
-      return Color(ixm, icm, im);
-    case 2:
-      return Color(im, icm, ixm);
-    case 3:
-      return Color(im, ixm, icm);
-    case 4:
-      return Color(ixm, im, icm);
-    case 5:
-      return Color(icm, im, ixm);
-    default:
-      return Color(0);
-  }
-}
-
 void initGradient() {
   double dh = 360.0 / kGradientSize;
   double h = 0;
   for (int i = 0; i < kGradientSize; ++i) {
-    hsvGradient[i] = hsvToRgb(h, 0.5, 0.9);
+    hsvGradient[i] = HsvToRgb(h, 0.5, 0.9);
     h += dh;
   }
 }

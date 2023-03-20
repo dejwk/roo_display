@@ -277,21 +277,21 @@ class ParserStreamable : public Streamable {
   Box extents() const override { return Box(0, 0, width() - 1, height() - 1); }
   const ColorMode& color_mode() const { return mode_; }
 
-  TransparencyMode GetTransparencyMode() const override {
+  TransparencyMode getTransparencyMode() const override {
     return color_mode().transparency();
   }
 
-  std::unique_ptr<ParserStream<ColorMode>> CreateRawStream() const {
+  std::unique_ptr<ParserStream<ColorMode>> createRawStream() const {
     return std::unique_ptr<ParserStream<ColorMode>>(
         new ParserStream<ColorMode>(mode_, data_, extents(), extents()));
   }
 
-  std::unique_ptr<PixelStream> CreateStream() const override {
+  std::unique_ptr<PixelStream> createStream() const override {
     return std::unique_ptr<PixelStream>(
         new ParserStream<ColorMode>(mode_, data_, extents(), extents()));
   }
 
-  std::unique_ptr<PixelStream> CreateStream(const Box& bounds) const override {
+  std::unique_ptr<PixelStream> createStream(const Box& bounds) const override {
     return std::unique_ptr<PixelStream>(
         new ParserStream<ColorMode>(mode_, data_, extents(), bounds));
   }
@@ -316,7 +316,7 @@ class StreamablePrinter<RawStreamable, Monochrome> {
 
   template <typename RawStream>
   void PrintContent(const RawStreamable& streamable, RawStream& os) {
-    auto stream = streamable.CreateRawStream();
+    auto stream = streamable.createRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -352,7 +352,7 @@ class StreamablePrinter<RawStreamable, Argb8888> {
 
   template <typename RawStream>
   void PrintContent(const RawStreamable& streamable, RawStream& os) {
-    auto stream = streamable.CreateRawStream();
+    auto stream = streamable.createRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -375,7 +375,7 @@ class StreamablePrinter<RawStreamable, Argb4444> {
 
   template <typename RawStream>
   void PrintContent(const RawStreamable& streamable, RawStream& os) {
-    auto stream = streamable.CreateRawStream();
+    auto stream = streamable.createRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -398,7 +398,7 @@ class StreamablePrinter<RawStreamable, Alpha4> {
 
   template <typename RawStream>
   void PrintContent(const RawStreamable& streamable, RawStream& os) {
-    auto stream = streamable.CreateRawStream();
+    auto stream = streamable.createRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -422,7 +422,7 @@ class StreamablePrinter<RawStreamable, Grayscale4> {
 
   template <typename RawStream>
   void PrintContent(const RawStreamable& streamable, RawStream& os) {
-    auto stream = streamable.CreateRawStream();
+    auto stream = streamable.createRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -446,7 +446,7 @@ class StreamablePrinter<RawStreamable, Alpha8> {
 
   template <typename RawStream>
   void PrintContent(const RawStreamable& streamable, RawStream& os) {
-    auto stream = streamable.CreateRawStream();
+    auto stream = streamable.createRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -466,7 +466,7 @@ class StreamablePrinter<RawStreamable, Grayscale8> {
 
   template <typename RawStream>
   void PrintContent(const RawStreamable& streamable, RawStream& os) {
-    auto stream = streamable.CreateRawStream();
+    auto stream = streamable.createRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -511,7 +511,7 @@ class StreamablePrinter<RawStreamable, Rgb565> {
 
   template <typename RawStream>
   void PrintContent(const RawStreamable& streamable, RawStream& os) {
-    auto stream = streamable.CreateRawStream();
+    auto stream = streamable.createRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -543,7 +543,7 @@ class StreamablePrinter<RawStreamable, Argb6666> {
 
   template <typename RawStream>
   void PrintContent(const RawStreamable& streamable, RawStream& os) {
-    auto stream = streamable.CreateRawStream();
+    auto stream = streamable.createRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -585,7 +585,7 @@ class StreamablePrinter<RawStreamable, Rgb565WithTransparency> {
 
   template <typename RawStream>
   void PrintContent(const RawStreamable& streamable, RawStream& os) {
-    auto stream = streamable.CreateRawStream();
+    auto stream = streamable.createRawStream();
     for (int16_t j = 0; j < streamable.extents().height(); ++j) {
       os << "\n          \"";
       for (int16_t i = 0; i < streamable.extents().width(); ++i) {
@@ -775,8 +775,8 @@ class ColorMatcher {
       //   return false;
       // }
       int32_t count = actual.extents().width() * actual.extents().height();
-      auto actual_stream = actual.CreateRawStream();
-      auto expected_stream = expected_.CreateRawStream();
+      auto actual_stream = actual.createRawStream();
+      auto expected_stream = expected_.createRawStream();
       for (int i = 0; i < count; ++i) {
         Color expected_color = expected_stream->next();
         Color actual_color = actual_stream->next();
@@ -850,7 +850,7 @@ class TestColorStreamable {
 
   const ColorMode& color_mode() const { return color_mode_; }
 
-  std::unique_ptr<TestColorStream> CreateRawStream() const {
+  std::unique_ptr<TestColorStream> createRawStream() const {
     return std::unique_ptr<TestColorStream>(new TestColorStream(data_));
   }
 
@@ -928,7 +928,7 @@ class FakeOffscreen : public DisplayDevice {
   const ColorMode& color_mode() const { return color_mode_; }
 
   // Required to implement 'Streamable'.
-  std::unique_ptr<TestColorStream> CreateRawStream() const {
+  std::unique_ptr<TestColorStream> createRawStream() const {
     return std::unique_ptr<TestColorStream>(new TestColorStream(buffer_.get()));
   }
 
@@ -1198,43 +1198,43 @@ TestColorStreamable<ColorMode> RasterOf(
   return RasterOf(filtering.offscreen());
 }
 
-// Ensures that drawTo uses CreateStream().
+// Ensures that drawTo uses createStream().
 class ForcedStreamable : public Streamable {
  public:
   ForcedStreamable(const Streamable* delegate) : delegate_(delegate) {}
 
   Box extents() const override { return delegate_->extents(); }
 
-  std::unique_ptr<PixelStream> CreateStream() const override {
-    return delegate_->CreateStream();
+  std::unique_ptr<PixelStream> createStream() const override {
+    return delegate_->createStream();
   }
 
-  std::unique_ptr<PixelStream> CreateStream(const Box& bounds) const override {
-    return delegate_->CreateStream(bounds);
+  std::unique_ptr<PixelStream> createStream(const Box& bounds) const override {
+    return delegate_->createStream(bounds);
   }
 
-  TransparencyMode GetTransparencyMode() const override {
-    return delegate_->GetTransparencyMode();
+  TransparencyMode getTransparencyMode() const override {
+    return delegate_->getTransparencyMode();
   }
 
  private:
   const Streamable* delegate_;
 };
 
-// Ensures that drawTo and CreateStream() use ReadPixels().
+// Ensures that drawTo and createStream() use ReadPixels().
 class ForcedRasterizable : public Rasterizable {
  public:
   ForcedRasterizable(const Rasterizable* delegate) : delegate_(delegate) {}
 
   Box extents() const override { return delegate_->extents(); }
 
-  void ReadColors(const int16_t* x, const int16_t* y, uint32_t count,
+  void readColors(const int16_t* x, const int16_t* y, uint32_t count,
                   Color* result) const override {
-    delegate_->ReadColors(x, y, count, result);
+    delegate_->readColors(x, y, count, result);
   }
 
-  TransparencyMode GetTransparencyMode() const override {
-    return delegate_->GetTransparencyMode();
+  TransparencyMode getTransparencyMode() const override {
+    return delegate_->getTransparencyMode();
   }
 
  private:

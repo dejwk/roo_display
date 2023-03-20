@@ -188,17 +188,17 @@ class OffscreenDevice : public DisplayDevice {
         color_mode_);
   }
 
-  // std::unique_ptr<PixelStream> CreateStream() const override {
-  //   return raster().CreateStream();
+  // std::unique_ptr<PixelStream> createStream() const override {
+  //   return raster().createStream();
   // }
 
-  // TransparencyMode GetTransparencyMode() const override {
+  // TransparencyMode getTransparencyMode() const override {
   //   return color_mode().transparency();
   // }
 
-  // virtual void ReadColors(const int16_t *x, const int16_t *y, uint32_t count,
+  // virtual void readColors(const int16_t *x, const int16_t *y, uint32_t count,
   //                         Color *result) const override {
-  //   raster().ReadColors(x, y, count, result);
+  //   raster().readColors(x, y, count, result);
   // }
 
   // Allows direct access to the underlying buffer.
@@ -318,13 +318,13 @@ class Offscreen : public Rasterizable {
 
   Box extents() const override { return clip_box_; }
 
-  TransparencyMode GetTransparencyMode() const override {
-    return raster().GetTransparencyMode();
+  TransparencyMode getTransparencyMode() const override {
+    return raster().getTransparencyMode();
   }
 
-  void ReadColors(const int16_t *x, const int16_t *y, uint32_t count,
+  void readColors(const int16_t *x, const int16_t *y, uint32_t count,
                   Color *result) const override {
-    return raster().ReadColors(x, y, count, result);
+    return raster().readColors(x, y, count, result);
   }
 
   const OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,

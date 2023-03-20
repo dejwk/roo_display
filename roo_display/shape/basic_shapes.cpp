@@ -176,11 +176,11 @@ class FilledRectStream : public PixelStream {
   Color color_;
 };
 
-std::unique_ptr<PixelStream> FilledRect::CreateStream() const {
+std::unique_ptr<PixelStream> FilledRect::createStream() const {
   return std::unique_ptr<PixelStream>(new FilledRectStream(color()));
 }
 
-std::unique_ptr<PixelStream> FilledRect::CreateStream(const Box& bounds) const {
+std::unique_ptr<PixelStream> FilledRect::createStream(const Box& bounds) const {
   return std::unique_ptr<PixelStream>(new FilledRectStream(color()));
 }
 

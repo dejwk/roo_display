@@ -5,7 +5,7 @@
 #include "testing.h"
 
 // Tests drawing and clipping rasterizables via their default drawTo method, and
-// via CreateStream.
+// via createStream.
 
 using namespace testing;
 

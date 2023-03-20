@@ -120,7 +120,7 @@ class BlendingFilter : public DisplayOutput {
  private:
   void read(int16_t* x, int16_t* y, uint16_t pixel_count, Color* result) {
     if (dx_ == 0 && dy_ == 0) {
-      raster_->ReadColorsMaybeOutOfBounds(x, y, pixel_count, result);
+      raster_->readColorsMaybeOutOfBounds(x, y, pixel_count, result);
     } else {
       // NOTE(dawidk): to conserve stack, this could be done in-place and then
       // undone, although it would take 2x longer.
@@ -130,7 +130,7 @@ class BlendingFilter : public DisplayOutput {
         xp[i] = x[i] - dx_;
         yp[i] = y[i] - dy_;
       }
-      raster_->ReadColorsMaybeOutOfBounds(xp, yp, pixel_count, result);
+      raster_->readColorsMaybeOutOfBounds(xp, yp, pixel_count, result);
     }
   }
 
@@ -191,7 +191,7 @@ class BlendingFilter : public DisplayOutput {
                         int16_t xMax, int16_t yMax, Color color) {
     uint16_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
     Color newcolor[pixel_count];
-    bool same = raster_->ReadColorRect(xMin - dx_, yMin - dy_, xMax - dx_,
+    bool same = raster_->readColorRect(xMin - dx_, yMin - dy_, xMax - dx_,
                                        yMax - dy_, newcolor);
     if (same) {
       output_->fillRect(mode, Box(xMin, yMin, xMax, yMax),

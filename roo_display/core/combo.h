@@ -19,8 +19,8 @@ class Input {
 
   const Box& extents() const { return extents_; }
 
-  std::unique_ptr<PixelStream> CreateStream() const {
-    return obj_->CreateStream();
+  std::unique_ptr<PixelStream> createStream() const {
+    return obj_->createStream();
   }
 
  private:

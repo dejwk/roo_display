@@ -128,14 +128,14 @@ class FilledRect : public RectBase, public Rasterizable {
 
   Box extents() const override { return RectBase::extents(); }
 
-  TransparencyMode GetTransparencyMode() const override {
+  TransparencyMode getTransparencyMode() const override {
     return color().opaque() ? TRANSPARENCY_NONE : TRANSPARENCY_GRADUAL;
   }
 
-  std::unique_ptr<PixelStream> CreateStream() const override;
-  std::unique_ptr<PixelStream> CreateStream(const Box &bounds) const override;
+  std::unique_ptr<PixelStream> createStream() const override;
+  std::unique_ptr<PixelStream> createStream(const Box &bounds) const override;
 
-  void ReadColors(const int16_t *x, const int16_t *y, uint32_t count,
+  void readColors(const int16_t *x, const int16_t *y, uint32_t count,
                   Color *result) const override {
     Color::Fill(result, count, color());
   }

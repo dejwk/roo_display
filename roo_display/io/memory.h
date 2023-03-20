@@ -3,6 +3,7 @@
 // For use with low-level, high-performance image drawing (fonts, progmem
 // images).
 
+#include <memory>
 #include <type_traits>
 
 #include "pgmspace.h"

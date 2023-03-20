@@ -111,7 +111,7 @@ class NibbleRectWindowStreamable {
       : rect_(rect), window_(window) {}
 
   const Box& extents() const { return window_; }
-  std::unique_ptr<NibbleRectWindowIteratorRawStream> CreateRawStream() const {
+  std::unique_ptr<NibbleRectWindowIteratorRawStream> createRawStream() const {
     return std::unique_ptr<NibbleRectWindowIteratorRawStream>(
         new NibbleRectWindowIteratorRawStream(rect_, window_));
   }

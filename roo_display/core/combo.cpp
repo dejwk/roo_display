@@ -546,7 +546,7 @@ void Combo::drawTo(const Surface& s) const {
   for (const auto& input : inputs_) {
     const Box& iextents = input.extents();
     if (composition.Add(iextents.translate(s.dx(), s.dy()))) {
-      streams.emplace_back(input.CreateStream(), iextents.area());
+      streams.emplace_back(input.createStream(), iextents.area());
     }
   }
 

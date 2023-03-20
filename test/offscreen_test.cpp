@@ -166,17 +166,17 @@ class RawColorRect : public Streamable {
         data_(data),
         color_mode_(color_mode) {}
 
-  std::unique_ptr<PixelStream> CreateStream() const override {
+  std::unique_ptr<PixelStream> createStream() const override {
     return std::unique_ptr<PixelStream>(
         new ColorStream<Reader>(extents_, data_, extents_, color_mode_));
   }
 
-  std::unique_ptr<PixelStream> CreateStream(const Box& bounds) const override {
+  std::unique_ptr<PixelStream> createStream(const Box& bounds) const override {
     return std::unique_ptr<PixelStream>(
         new ColorStream<Reader>(bounds, data_, extents_, color_mode_));
   }
 
-  std::unique_ptr<ColorStream<Reader>> CreateRawStream() const {
+  std::unique_ptr<ColorStream<Reader>> createRawStream() const {
     return std::unique_ptr<ColorStream<Reader>>(
         new ColorStream<Reader>(extents_, data_, extents_, color_mode_));
   }
@@ -200,17 +200,17 @@ class TrivialColorRect : public Streamable {
         colors_(colors),
         color_mode_(color_mode) {}
 
-  std::unique_ptr<PixelStream> CreateStream() const override {
+  std::unique_ptr<PixelStream> createStream() const override {
     return std::unique_ptr<PixelStream>(new ColorStream<TrivialColorReader>(
         extents_, colors_, extents_, color_mode_));
   }
 
-  std::unique_ptr<PixelStream> CreateStream(const Box& bounds) const override {
+  std::unique_ptr<PixelStream> createStream(const Box& bounds) const override {
     return std::unique_ptr<PixelStream>(new ColorStream<TrivialColorReader>(
         bounds, colors_, extents_, color_mode_));
   }
 
-  std::unique_ptr<ColorStream<TrivialColorReader>> CreateRawStream() const {
+  std::unique_ptr<ColorStream<TrivialColorReader>> createRawStream() const {
     return std::unique_ptr<ColorStream<TrivialColorReader>>(
         new ColorStream<TrivialColorReader>(extents_, colors_, extents_,
                                             color_mode_));

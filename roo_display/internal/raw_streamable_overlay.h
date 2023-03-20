@@ -151,12 +151,12 @@ class Superposition {
 
   Superposition(Superposition &&) = default;
 
-  auto CreateRawStream() const -> std::unique_ptr<
+  auto createRawStream() const -> std::unique_ptr<
       internal::UnionStream<SuperRectangleStream<RawStreamTypeOf<Bg>>,
                             SuperRectangleStream<RawStreamTypeOf<Fg>>>> {
     return MakeUnionStream(
-        Realign(extents_, bg_extents(), bg_.CreateRawStream()),
-        Realign(extents_, fg_extents(), fg_.CreateRawStream()));
+        Realign(extents_, bg_extents(), bg_.createRawStream()),
+        Realign(extents_, fg_extents(), fg_.createRawStream()));
   }
 
   auto CreateClippedStream(const Box &clip_box) const
@@ -199,9 +199,9 @@ class RawStreamableRef {
  public:
   RawStreamableRef(const RawStreamable &ref) : ref_(ref) {}
   const Box extents() const { return ref_.extents(); }
-  decltype(std::declval<const RawStreamable &>().CreateRawStream())
-  CreateRawStream() const {
-    return ref_.CreateRawStream();
+  decltype(std::declval<const RawStreamable &>().createRawStream())
+  createRawStream() const {
+    return ref_.createRawStream();
   }
 
  private:

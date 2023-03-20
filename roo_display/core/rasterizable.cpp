@@ -25,7 +25,7 @@ class Stream : public PixelStream {
         ++y_;
       }
     }
-    data_->ReadColors(x, y, size, buf);
+    data_->readColors(x, y, size, buf);
   }
 
   void Skip(uint32_t count) override {
@@ -48,7 +48,7 @@ static const int kMaxBufSize = 32;
 
 }  // namespace
 
-void Rasterizable::ReadColorsMaybeOutOfBounds(const int16_t* x,
+void Rasterizable::readColorsMaybeOutOfBounds(const int16_t* x,
                                               const int16_t* y, uint32_t count,
                                               Color* result) const {
   Box bounds = extents();
@@ -62,7 +62,7 @@ void Rasterizable::ReadColorsMaybeOutOfBounds(const int16_t* x,
       fastpath &= bounds.contains(x[i], y[i]);
     }
     if (!fastpath) break;
-    ReadColors(x, y, buf_size, result);
+    readColors(x, y, buf_size, result);
     count -= buf_size;
     if (count == 0) return;
     x += buf_size;
@@ -87,7 +87,7 @@ void Rasterizable::ReadColorsMaybeOutOfBounds(const int16_t* x,
       }
       offset++;
     } while (offset < count && buf_size < kMaxBufSize);
-    ReadColors(newx, newy, buf_size, newresult);
+    readColors(newx, newy, buf_size, newresult);
     int buf_idx = 0;
     for (uint32_t i = start_offset; i < offset; ++i) {
       Color c = color::Transparent;
@@ -101,7 +101,7 @@ void Rasterizable::ReadColorsMaybeOutOfBounds(const int16_t* x,
   }
 }
 
-bool Rasterizable::ReadColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
+bool Rasterizable::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
                                  int16_t yMax, Color* result) const {
   uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
   int16_t x[pixel_count];
@@ -114,7 +114,7 @@ bool Rasterizable::ReadColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
       *cy++ = y_cursor;
     }
   }
-  ReadColors(x, y, pixel_count, result);
+  readColors(x, y, pixel_count, result);
   Color c = result[0];
   for (uint32_t i = 1; i < pixel_count; i++) {
     if (result[i] != c) return false;
@@ -122,11 +122,11 @@ bool Rasterizable::ReadColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
   return true;
 }
 
-std::unique_ptr<PixelStream> Rasterizable::CreateStream() const {
+std::unique_ptr<PixelStream> Rasterizable::createStream() const {
   return std::unique_ptr<PixelStream>(new Stream(this, this->extents()));
 }
 
-std::unique_ptr<PixelStream> Rasterizable::CreateStream(
+std::unique_ptr<PixelStream> Rasterizable::createStream(
     const Box& bounds) const {
   return std::unique_ptr<PixelStream>(new Stream(this, bounds));
 }
@@ -138,7 +138,7 @@ void Rasterizable::drawTo(const Surface& s) const {
   Stream stream(this, bounds.translate(-s.dx(), -s.dy()));
   internal::FillRectFromStream(s.out(), bounds, &stream, s.bgcolor(),
                                s.fill_mode(), s.paint_mode(),
-                               GetTransparencyMode());
+                               getTransparencyMode());
 }
 
 }  // namespace roo_display

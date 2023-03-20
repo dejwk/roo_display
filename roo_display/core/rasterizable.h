@@ -12,25 +12,25 @@ namespace roo_display {
 // coordinates. Rasterizables can be used as overlays, backgrounds, and filters.
 //
 // Rasterizable is automatically Drawable and Streamable. All you need to do to
-// implement it is to implement ReadColors(). That is, if your class has a
+// implement it is to implement readColors(). That is, if your class has a
 // way of generating a stream of pixels or drawing itself that is more efficient
 // than going pixel-by-pixel, you may want to override those methods. Also, if
 // your rasterizable possibly returns the same color for large areas, you may
-// want to override ReadColorRect, as it can improve drawing performance when
+// want to override readColorRect, as it can improve drawing performance when
 // this rasterizable is used e.g. as an overlay or a background.
 class Rasterizable : public virtual Streamable {
  public:
   // Read colors corresponding to the specified collection of points, and store
   // the results in the result array. The caller must ensure that the points are
   // within this rasterizable's bounds.
-  virtual void ReadColors(const int16_t* x, const int16_t* y, uint32_t count,
+  virtual void readColors(const int16_t* x, const int16_t* y, uint32_t count,
                           Color* result) const = 0;
 
   // Read colors corresponding to the specified collection of points, and store
   // the results in the result array. The points may be outside of this
-  // rasterizable's bounds. This function calls ReadColors after isolating the
+  // rasterizable's bounds. This function calls readColors after isolating the
   // points that are within the bounds.
-  void ReadColorsMaybeOutOfBounds(const int16_t* x, const int16_t* y,
+  void readColorsMaybeOutOfBounds(const int16_t* x, const int16_t* y,
                                   uint32_t count, Color* result) const;
 
   // Read colors corresponding to the specified rectangle. Returns true if all
@@ -38,19 +38,19 @@ class Rasterizable : public virtual Streamable {
   // supposed to be read. Otherwise, the result array is filled with colors
   // corresponding to all the pixels corresponding to the rectangle. The caller
   // must ensure that the points are within this rasterizable's bounds.
-  virtual bool ReadColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
+  virtual bool readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
                              int16_t yMax, Color* result) const;
 
-  // Default implementation of CreateStream(), using ReadColors() to determine
+  // Default implementation of createStream(), using readColors() to determine
   // colors of subsequent pixels.
-  std::unique_ptr<PixelStream> CreateStream() const override;
+  std::unique_ptr<PixelStream> createStream() const override;
 
-  // Default implementation of CreateStream(), using ReadColors() to determine
+  // Default implementation of createStream(), using readColors() to determine
   // colors of subsequent pixels.
-  std::unique_ptr<PixelStream> CreateStream(const Box& bounds) const override;
+  std::unique_ptr<PixelStream> createStream(const Box& bounds) const override;
 
  private:
-  // Default implementation of drawTo(), using ReadColors() to determine
+  // Default implementation of drawTo(), using readColors() to determine
   // colors of subsequent pixels.
   void drawTo(const Surface& s) const override;
 };
@@ -68,14 +68,14 @@ class SimpleRasterizable : public Rasterizable {
 
   Box extents() const override { return extents_; }
 
-  void ReadColors(const int16_t* x, const int16_t* y, uint32_t count,
+  void readColors(const int16_t* x, const int16_t* y, uint32_t count,
                   Color* result) const override {
     while (count-- > 0) {
       *result++ = getter_(*x++, *y++);
     }
   }
 
-  TransparencyMode GetTransparencyMode() const override {
+  TransparencyMode getTransparencyMode() const override {
     return transparency_;
   }
 
@@ -111,7 +111,7 @@ class SimpleTiledRasterizable : public Rasterizable {
 
   Box extents() const override { return Box::MaximumBox(); }
 
-  void ReadColors(const int16_t* x, const int16_t* y, uint32_t count,
+  void readColors(const int16_t* x, const int16_t* y, uint32_t count,
                   Color* result) const override {
     for (uint32_t i = 0; i < count; ++i) {
       int16_t xs = (x[i] - extents_.xMin() - x_offset_) % extents_.width() +
@@ -122,7 +122,7 @@ class SimpleTiledRasterizable : public Rasterizable {
     }
   }
 
-  TransparencyMode GetTransparencyMode() const override {
+  TransparencyMode getTransparencyMode() const override {
     return transparency_;
   }
 

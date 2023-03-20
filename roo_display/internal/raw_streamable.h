@@ -20,12 +20,12 @@ namespace roo_display {
 // RawPixelStreamable template contract:
 // class RawPixelStreamable {
 //   const Box& extents() const;
-//   std::unique_ptr<any> CreateRawStream() const;
+//   std::unique_ptr<any> createRawStream() const;
 // }
 
 template <typename RawStreamable>
 using RawStreamTypeOf = typename decltype(std::declval<const RawStreamable>()
-                                              .CreateRawStream())::element_type;
+                                              .createRawStream())::element_type;
 
 template <typename RawStreamable>
 using NativelyClippedRawStreamTypeOf =
@@ -190,7 +190,7 @@ struct Clipper {
       const RawStreamable &streamable, const Box &clip_box) const {
     if (clip_box.contains(streamable.extents())) {
       // Optimized case: nothing has been clipped; rendering full stream.
-      return internal::SubRectangle(streamable.CreateRawStream(),
+      return internal::SubRectangle(streamable.createRawStream(),
                                     streamable.extents().area(), 0);
     } else {
       // Non-optimized case: rendering sub-rectangle. Need to go line-by-line.
@@ -198,7 +198,7 @@ struct Clipper {
       int line_offset = streamable.extents().width() - bounds.width();
       int xoffset = bounds.xMin() - streamable.extents().xMin();
       int yoffset = bounds.yMin() - streamable.extents().yMin();
-      std::unique_ptr<RawStream> stream = streamable.CreateRawStream();
+      std::unique_ptr<RawStream> stream = streamable.createRawStream();
       stream->skip(yoffset * streamable.extents().width() + xoffset);
       return internal::SubRectangle(std::move(stream), bounds.width(),
                                     line_offset);
@@ -259,7 +259,7 @@ class RawStreamableFilledRect {
 
   const Box &extents() const { return extents_; }
   const Box &anchorExtents() const { return extents_; }
-  std::unique_ptr<RawStream> CreateRawStream() const {
+  std::unique_ptr<RawStream> createRawStream() const {
     return std::unique_ptr<RawStream>(new RawStream(color_));
   }
   std::unique_ptr<RawStream> CreateClippedRawStream(const Box &clip_box) const {
@@ -287,21 +287,21 @@ class DrawableRawStreamable : public Streamable {
 
   const RawStreamable &contents() const { return streamable_; }
 
-  std::unique_ptr<PixelStream> CreateStream() const override {
+  std::unique_ptr<PixelStream> createStream() const override {
     return std::unique_ptr<PixelStream>(
         new Stream<RawStreamTypeOf<RawStreamable>>(
-            streamable_.CreateRawStream()));
+            streamable_.createRawStream()));
   }
 
-  std::unique_ptr<PixelStream> CreateStream(const Box &bounds) const override {
+  std::unique_ptr<PixelStream> createStream(const Box &bounds) const override {
     return std::unique_ptr<PixelStream>(
         new Stream<ClipperedRawStreamTypeOf<RawStreamable>>(
             CreateClippedRawStreamFor(streamable_, bounds)));
   }
 
-  decltype(std::declval<RawStreamable>().CreateRawStream()) CreateRawStream()
+  decltype(std::declval<RawStreamable>().createRawStream()) createRawStream()
       const {
-    return streamable_.CreateRawStream();
+    return streamable_.createRawStream();
   }
 
  private:
@@ -325,7 +325,7 @@ class DrawableRawStreamable : public Streamable {
     if (streamable_.extents().width() == bounds.width() &&
         streamable_.extents().height() == bounds.height()) {
       // Optimized case: rendering full stream.
-      auto stream = streamable_.CreateRawStream();
+      auto stream = streamable_.createRawStream();
       internal::FillRectFromRawStream(s.out(), bounds, stream.get(),
                                       s.bgcolor(), s.fill_mode(),
                                       s.paint_mode());
@@ -383,7 +383,7 @@ class SimpleRawStreamable {
   const Resource &resource() const { return resource_; }
   const ColorMode &color_mode() const { return color_mode_; }
 
-  std::unique_ptr<RawStreamType> CreateRawStream() const {
+  std::unique_ptr<RawStreamType> createRawStream() const {
     return std::unique_ptr<RawStreamType>(
         new RawStreamType(resource_, color_mode_));
   }
@@ -400,7 +400,7 @@ class SimpleRawStreamable {
 // alignment to full byte or word boundaries.
 template <typename RawStreamable,
           typename RawStream =
-              decltype(std::declval<RawStreamable>().CreateRawStream())>
+              decltype(std::declval<RawStreamable>().createRawStream())>
 class Clipping {
  public:
   template <typename... Args>
@@ -419,7 +419,7 @@ class Clipping {
     return streamable_.color_mode();
   }
 
-  std::unique_ptr<ClipperedRawStreamTypeOf<RawStreamable>> CreateRawStream()
+  std::unique_ptr<ClipperedRawStreamTypeOf<RawStreamable>> createRawStream()
       const {
     return CreateClippedRawStreamFor(streamable_, extents_);
   }

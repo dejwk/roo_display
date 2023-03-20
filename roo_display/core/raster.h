@@ -250,23 +250,23 @@ class Raster : public Rasterizable {
   ColorMode& color_mode() { return color_mode_; }
   const ColorMode& color_mode() const { return color_mode_; }
 
-  std::unique_ptr<StreamType> CreateRawStream() const {
+  std::unique_ptr<StreamType> createRawStream() const {
     return std::unique_ptr<StreamType>(
         new StreamType(internal::MemoryPtrStream<PtrType>(ptr_), color_mode_));
   }
 
-  std::unique_ptr<PixelStream> CreateStream() const override {
+  std::unique_ptr<PixelStream> createStream() const override {
     return std::unique_ptr<PixelStream>(
         new StreamType(internal::MemoryPtrStream<PtrType>(ptr_), color_mode_));
   }
 
-  std::unique_ptr<PixelStream> CreateStream(const Box& bounds) const override {
+  std::unique_ptr<PixelStream> createStream(const Box& bounds) const override {
     return SubRectangle(
         StreamType(internal::MemoryPtrStream<PtrType>(ptr_), color_mode_),
         extents(), bounds);
   }
 
-  void ReadColors(const int16_t* x, const int16_t* y, uint32_t count,
+  void readColors(const int16_t* x, const int16_t* y, uint32_t count,
                   Color* result) const override {
     internal::Reader<ColorMode, pixel_order, byte_order> read;
     while (count-- > 0) {
@@ -275,7 +275,7 @@ class Raster : public Rasterizable {
     }
   }
 
-  TransparencyMode GetTransparencyMode() const override {
+  TransparencyMode getTransparencyMode() const override {
     return transparency();
   }
 
@@ -299,14 +299,14 @@ class Raster : public Rasterizable {
       StreamType stream(internal::MemoryPtrStream<PtrType>(ptr_), color_mode_);
       internal::FillRectFromStream(s.out(), bounds.translate(s.dx(), s.dy()),
                                    &stream, s.bgcolor(), s.fill_mode(),
-                                   s.paint_mode(), GetTransparencyMode());
+                                   s.paint_mode(), getTransparencyMode());
     } else {
       auto stream = internal::MakeSubRectangle(
           StreamType(internal::MemoryPtrStream<PtrType>(ptr_), color_mode_),
           extents_, bounds);
       internal::FillRectFromStream(s.out(), bounds.translate(s.dx(), s.dy()),
                                    &stream, s.bgcolor(), s.fill_mode(),
-                                   s.paint_mode(), GetTransparencyMode());
+                                   s.paint_mode(), getTransparencyMode());
     }
   }
 

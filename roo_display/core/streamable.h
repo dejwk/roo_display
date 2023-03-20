@@ -416,20 +416,20 @@ inline std::unique_ptr<PixelStream> SubRectangle(Stream stream,
 
 class Streamable : public virtual Drawable {
  public:
-  // CreateStream creates the stream of pixels that should be drawn to
+  // createStream creates the stream of pixels that should be drawn to
   // the extents box.
-  virtual std::unique_ptr<PixelStream> CreateStream() const = 0;
+  virtual std::unique_ptr<PixelStream> createStream() const = 0;
 
-  virtual std::unique_ptr<PixelStream> CreateStream(
+  virtual std::unique_ptr<PixelStream> createStream(
       const Box &clip_box) const = 0;
 
-  // GetTransparencyMode is an optimization hint that a streamable can
+  // getTransparencyMode is an optimization hint that a streamable can
   // give to the renderer. The default, safe to use, is TRANSPARENCY_GRADUAL,
   // putting no restrictions on the pixels generated. But if this streamable
   // knows that all pixels in the stream will be fully opaque
   // (TRANSPARENCY_NONE) or have 1-bit alpha (TRANSPARENCY_BINARY), by saying
   // so, it may allow the renderer to use more efficient blending algorithm.
-  virtual TransparencyMode GetTransparencyMode() const {
+  virtual TransparencyMode getTransparencyMode() const {
     return TRANSPARENCY_GRADUAL;
   }
 
@@ -440,13 +440,13 @@ class Streamable : public virtual Drawable {
     if (bounds.empty()) return;
     std::unique_ptr<PixelStream> stream;
     if (ext.width() == bounds.width() && ext.height() == bounds.height()) {
-      stream = CreateStream();
+      stream = createStream();
     } else {
-      stream = CreateStream(bounds);
+      stream = createStream(bounds);
     }
     internal::FillRectFromStream(s.out(), bounds.translate(s.dx(), s.dy()),
                                  stream.get(), s.bgcolor(), s.fill_mode(),
-                                 s.paint_mode(), GetTransparencyMode());
+                                 s.paint_mode(), getTransparencyMode());
   }
 };
 
@@ -481,22 +481,22 @@ class SimpleStreamable : public Streamable {
   const ColorMode &color_mode() const { return color_mode_; }
   ColorMode &color_mode() { return color_mode_; }
 
-  std::unique_ptr<PixelStream> CreateStream() const override {
+  std::unique_ptr<PixelStream> createStream() const override {
     return std::unique_ptr<PixelStream>(
         new StreamType(resource_.createRawStream(), color_mode_));
   }
 
-  std::unique_ptr<PixelStream> CreateStream(const Box &bounds) const override {
+  std::unique_ptr<PixelStream> createStream(const Box &bounds) const override {
     return SubRectangle(StreamType(resource_.createRawStream(), color_mode_),
                         extents(), bounds);
   }
 
-  std::unique_ptr<StreamType> CreateRawStream() const {
+  std::unique_ptr<StreamType> createRawStream() const {
     return std::unique_ptr<StreamType>(
         new StreamType(resource_.createRawStream(), color_mode_));
   }
 
-  TransparencyMode GetTransparencyMode() const override {
+  TransparencyMode getTransparencyMode() const override {
     return color_mode_.transparency();
   }
 

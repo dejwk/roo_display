@@ -46,8 +46,8 @@ class FakeScreen {
 
   const ColorMode& color_mode() const { return device_.color_mode(); }
 
-  std::unique_ptr<TestColorStream> CreateRawStream() const {
-    return device_.CreateRawStream();
+  std::unique_ptr<TestColorStream> createRawStream() const {
+    return device_.createRawStream();
   }
 
  private:

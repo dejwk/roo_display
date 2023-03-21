@@ -8,6 +8,10 @@
 namespace roo_display {
 namespace internal {
 
+// Slightly higher than conventional 0.7, mostly so that the smallest hashtable
+// (with capacity 11) can still hold 8 elements.
+static constexpr float kMaxFillRatio = 0.73;
+
 // Sequence of the largest primes of the format 4n+3, less than 2^k,
 // for k = 4 ... 16. When used as hash map capacities, they are known to
 // enable quadratic residue search to visit the entire array.
@@ -30,7 +34,7 @@ inline uint16_t fastmod(uint32_t n, int idx) {
 }
 
 inline int initialCapacityIdx(uint16_t size_hint) {
-  uint32_t capacity = (uint32_t)(((float)size_hint) / 0.7);
+  uint32_t capacity = (uint32_t)(((float)size_hint) / kMaxFillRatio) + 1;
   for (int radkeIdx = 0; radkeIdx < 12; ++radkeIdx) {
     if (kRadkePrimes[radkeIdx] >= capacity) return radkeIdx;
   }
@@ -108,7 +112,8 @@ class Hashtable {
         resize_threshold_(
             capacity_idx_ == 12
                 ? 64000
-                : (uint16_t)(((float)kRadkePrimes[capacity_idx_]) * 0.7)),
+                : (uint16_t)(((float)kRadkePrimes[capacity_idx_]) *
+                             kMaxFillRatio)),
         buffer_(new Entry[kRadkePrimes[capacity_idx_]]),
         states_(new State[kRadkePrimes[capacity_idx_]]) {
     std::fill(&states_[0], &states_[kRadkePrimes[capacity_idx_]], EMPTY);

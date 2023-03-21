@@ -180,7 +180,7 @@ class Hashtable {
       }
       *this = std::move(newt);
       // Retry the fast path.
-      uint16_t pos = fastmod(hash_fn_(key), capacity_idx_);
+      pos = fastmod(hash_fn_(key), capacity_idx_);
       if (states_[pos] == FULL &&
           (pos == val || key_fn_(buffer_[pos]) == key)) {
         return std::make_pair(Iterator(this, pos), false);

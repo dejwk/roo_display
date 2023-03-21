@@ -51,34 +51,26 @@ class Color {
 
   // Returns a new color, which is identical to this color except it has
   // the specified alpha component.
-  Color withA(uint8_t a) const {
-    Color c = *this;
-    c.set_a(a);
-    return c;
+  constexpr Color withA(uint8_t a) const {
+    return Color(a << 24 | argb_ & 0x00FFFFFF);
   }
 
   // Returns a new color, which is identical to this color except it has
   // the specified red component.
-  Color withR(uint8_t r) const {
-    Color c = *this;
-    c.set_r(r);
-    return c;
+  constexpr Color withR(uint8_t r) const {
+    return Color(r << 16 | argb_ & 0xFF00FFFF);
   }
 
   // Returns a new color, which is identical to this color except it has
   // the specified green component.
-  Color withG(uint8_t g) const {
-    Color c = *this;
-    c.set_g(g);
-    return c;
+  constexpr Color withG(uint8_t g) const {
+    return Color(g << 8 | argb_ & 0xFFFF00FF);
   }
 
   // Returns a new color, which is identical to this color except it has
   // the specified blue component.
-  Color withB(uint8_t b) const {
-    Color c = *this;
-    c.set_b(b);
-    return c;
+  constexpr Color withB(uint8_t b) const {
+    return Color(b << 0 | argb_ & 0xFFFFFF00);
   }
 
   // Returns true if the color is fully opaque; i.e. if the alpha value = 255.

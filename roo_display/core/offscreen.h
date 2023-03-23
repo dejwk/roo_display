@@ -169,6 +169,7 @@ class OffscreenDevice : public DisplayDevice {
   void fillRects(PaintMode mode, Color color, int16_t *x0, int16_t *y0,
                  int16_t *x1, int16_t *y1, uint16_t count) override;
 
+  ColorMode &color_mode() { return color_mode_; }
   const ColorMode &color_mode() const { return color_mode_; }
 
   // const Raster<const uint8_t *, ColorMode, pixel_order, byte_order> &raster()
@@ -508,7 +509,7 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           typename storage_type = ColorStorageType<ColorMode>>
 class ReplaceWriter {
  public:
-  ReplaceWriter(const ColorMode &color_mode, const Color *color)
+  ReplaceWriter(ColorMode &color_mode, const Color *color)
       : color_mode_(color_mode), color_(color) {}
 
   void operator()(uint8_t *p, uint32_t offset) {
@@ -534,7 +535,7 @@ class ReplaceWriter {
   }
 
  private:
-  const ColorMode &color_mode_;
+  ColorMode &color_mode_;
   const Color *color_;
 };
 
@@ -573,7 +574,7 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           typename storage_type = ColorStorageType<ColorMode>>
 class BlendWriter {
  public:
-  BlendWriter(const ColorMode &color_mode, const Color *color)
+  BlendWriter(ColorMode &color_mode, const Color *color)
       : color_mode_(color_mode), color_(color) {}
 
   void operator()(uint8_t *p, uint32_t offset) {
@@ -601,7 +602,7 @@ class BlendWriter {
   }
 
  private:
-  const ColorMode &color_mode_;
+  ColorMode &color_mode_;
   const Color *color_;
 };
 
@@ -643,7 +644,7 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           typename storage_type = ColorStorageType<ColorMode>>
 class ReplaceFiller {
  public:
-  ReplaceFiller(const ColorMode &color_mode, Color color)
+  ReplaceFiller(ColorMode &color_mode, Color color)
       : color_mode_(color_mode),
         raw_color_(color_mode_.fromArgbColor(color)),
         raw_color_full_byte_(
@@ -678,7 +679,7 @@ class ReplaceFiller {
   }
 
  private:
-  const ColorMode &color_mode_;
+  ColorMode &color_mode_;
   uint8_t raw_color_;
   uint8_t raw_color_full_byte_;
 };
@@ -784,7 +785,7 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           typename storage_type = ColorStorageType<ColorMode>>
 class BlendFiller {
  public:
-  BlendFiller(const ColorMode &color_mode, Color color)
+  BlendFiller(ColorMode &color_mode, Color color)
       : color_mode_(color_mode), color_(color) {}
 
   void operator()(uint8_t *p, uint32_t offset) {
@@ -812,7 +813,7 @@ class BlendFiller {
   }
 
  private:
-  const ColorMode &color_mode_;
+  ColorMode &color_mode_;
   Color color_;
 };
 

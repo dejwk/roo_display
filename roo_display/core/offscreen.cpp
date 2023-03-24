@@ -64,19 +64,19 @@ Box alignExtents(Box extents) {
 BitMaskOffscreen::BitMaskOffscreen(Box extents, uint8_t *buffer)
     : Offscreen(alignExtents(extents), buffer,
                 Monochrome(color::Black, color::Transparent)) {
-  set_clip_box(extents);
+  set_extents(extents);
 }
 
 BitMaskOffscreen::BitMaskOffscreen(Box extents)
     : Offscreen(alignExtents(extents),
                 Monochrome(color::Black, color::Transparent)) {
-  set_clip_box(extents);
+  set_extents(extents);
 }
 
 BitMaskOffscreen::BitMaskOffscreen(Box extents, Color fillColor)
     : Offscreen(alignExtents(extents), fillColor,
                 Monochrome(color::Black, color::Transparent)) {
-  set_clip_box(extents);
+  set_extents(extents);
 }
 
 }  // namespace roo_display

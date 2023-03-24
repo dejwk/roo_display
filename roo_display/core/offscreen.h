@@ -261,7 +261,7 @@ class Offscreen : public Rasterizable {
   Offscreen(Box extents, uint8_t *buffer, ColorMode color_mode = ColorMode())
       : device_(extents.width(), extents.height(), buffer, color_mode),
         raster_(device_.raster(extents.xMin(), extents.yMin())),
-        clip_box_(0, 0, extents.width() - 1, extents.height() - 1),
+        extents_(extents),
         owns_buffer_(false) {}
 
   // Creates an offscreen with specified geometry, using an internally
@@ -278,7 +278,7 @@ class Offscreen : public Rasterizable {
             new uint8_t[(ColorMode::bits_per_pixel * extents.area() + 7) / 8],
             color_mode),
         raster_(device_.raster(extents.xMin(), extents.yMin())),
-        clip_box_(extents),
+        extents_(extents),
         owns_buffer_(true) {}
 
   // Creates an offscreen with specified geometry, using an internally allocated
@@ -317,7 +317,7 @@ class Offscreen : public Rasterizable {
     return raster_;
   }
 
-  Box extents() const override { return clip_box_; }
+  Box extents() const override { return extents_; }
 
   TransparencyMode getTransparencyMode() const override {
     return raster().getTransparencyMode();
@@ -344,8 +344,10 @@ class Offscreen : public Rasterizable {
   const uint8_t *buffer() const { return output().buffer(); }
 
  protected:
-  // Sets the default (maximum) clip box, in device coordinates.
-  void set_clip_box(const Box &clip_box) { clip_box_ = clip_box; }
+  // Sets the default (maximum) clip box. Usually the same as raster extents,
+  // but may be smaller, e.g. if the underlying raster is byte-aligned and the
+  // extents aren't.
+  void set_extents(const Box& extents) { extents_ = extents; }
 
  private:
   friend class DrawingContext;
@@ -356,7 +358,6 @@ class Offscreen : public Rasterizable {
   // For DrawingContext.
   void nest() const {}
   void unnest() const {}
-  // Box getClipBox() const { return clip_box_; }
   Color getBackgroundColor() const { return color::Transparent; }
   const Rasterizable *getRasterizableBackground() const { return nullptr; }
   int16_t dx() const { return -raster_.extents().xMin(); }
@@ -369,8 +370,8 @@ class Offscreen : public Rasterizable {
 
   const Raster<const uint8_t *, ColorMode, pixel_order, byte_order> raster_;
 
-  // Default clip box, in device coordinates (i.e. zero-based).
-  Box clip_box_;
+  // Extents = default clip box.
+  Box extents_;
 
   bool owns_buffer_;
 };

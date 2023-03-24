@@ -147,7 +147,7 @@ class Superposition {
         fg_y_(fg_y),
         // bg_bounds_(bg_.bounds().translate(bg_x, bg_y)),
         // fg_bounds_(fg_.bounds().translate(fg_x, fg_y)),
-        extents_(Box::extent(bg_extents(), fg_extents())) {}
+        extents_(Box::Extent(bg_extents(), fg_extents())) {}
 
   Superposition(Superposition &&) = default;
 
@@ -163,11 +163,11 @@ class Superposition {
       -> std::unique_ptr<internal::UnionStream<
           SuperRectangleStream<ClipperedRawStreamTypeOf<Bg>>,
           SuperRectangleStream<ClipperedRawStreamTypeOf<Fg>>>> {
-    Box bounds = Box::intersect(extents_, clip_box);
+    Box bounds = Box::Intersect(extents_, clip_box);
     return MakeUnionStream(
-        Realign(bounds, Box::intersect(bounds, bg_extents()),
+        Realign(bounds, Box::Intersect(bounds, bg_extents()),
                 CreateClippedStreamFor(bg_, bounds.translate(-bg_x_, -bg_y_))),
-        Realign(bounds, Box::intersect(bounds, fg_extents()),
+        Realign(bounds, Box::Intersect(bounds, fg_extents()),
                 CreateClippedStreamFor(fg_, bounds.translate(-fg_x_, -fg_y_))));
   }
 

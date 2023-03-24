@@ -58,7 +58,7 @@ Transformation Transformation::translate(int16_t x_offset,
 Transformation Transformation::clip(Box clip_box) const {
   return Transformation(
       xy_swap_, x_scale_, y_scale_, x_offset_, y_offset_, true,
-      clipped_ ? Box::intersect(clip_box_, clip_box) : clip_box);
+      clipped_ ? Box::Intersect(clip_box_, clip_box) : clip_box);
 }
 
 Transformation Transformation::rotateUpsideDown() const {

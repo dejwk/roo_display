@@ -194,7 +194,7 @@ struct Clipper {
                                     streamable.extents().area(), 0);
     } else {
       // Non-optimized case: rendering sub-rectangle. Need to go line-by-line.
-      Box bounds = Box::intersect(streamable.extents(), clip_box);
+      Box bounds = Box::Intersect(streamable.extents(), clip_box);
       int line_offset = streamable.extents().width() - bounds.width();
       int xoffset = bounds.xMin() - streamable.extents().xMin();
       int yoffset = bounds.yMin() - streamable.extents().yMin();
@@ -319,7 +319,7 @@ class DrawableRawStreamable : public Streamable {
   };
 
   void drawTo(const Surface &s) const override {
-    Box bounds = Box::intersect(
+    Box bounds = Box::Intersect(
         s.clip_box(), streamable_.extents().translate(s.dx(), s.dy()));
     if (bounds.empty()) return;
     if (streamable_.extents().width() == bounds.width() &&
@@ -406,11 +406,11 @@ class Clipping {
   template <typename... Args>
   Clipping(const Box &clip_box, Args &&...args)
       : streamable_(std::forward<Args>(args)...),
-        extents_(Box::intersect(streamable_.extents(), clip_box)) {}
+        extents_(Box::Intersect(streamable_.extents(), clip_box)) {}
 
   Clipping(const Box &clip_box, RawStreamable streamable)
       : streamable_(std::move(streamable)),
-        extents_(Box::intersect(streamable_.extents(), clip_box)) {}
+        extents_(Box::Intersect(streamable_.extents(), clip_box)) {}
 
   const Box &extents() const { return extents_; }
   const Box &anchorExtents() const { return streamable_.anchorExtents(); }
@@ -427,7 +427,7 @@ class Clipping {
   std::unique_ptr<ClipperedRawStreamTypeOf<RawStreamable>>
   CreateClippedRawStream(const Box &clip_box) const {
     return CreateClippedRawStreamFor(streamable_,
-                                     Box::intersect(clip_box, extents_));
+                                     Box::Intersect(clip_box, extents_));
   }
 
  private:

@@ -38,20 +38,20 @@ class Rasterizable;
 // Additionally, make sure that the above box is constrained to the clip_box;
 // e.g:
 //
-//   Box::intersect(s.clip_box(), extents.translate(s.dx(), s.dy()))
+//   Box::Intersect(s.clip_box(), extents.translate(s.dx(), s.dy()))
 //
 // It is often useful to quickly reject objects that are entirely outside the
 // clip box:
 //
 //   Box bounds =
-//     Box::intersect(s.clip_box(), extents.translate(s.dx(), s.dy()));
+//     Box::Intersect(s.clip_box(), extents.translate(s.dx(), s.dy()));
 //   if (bounds.empty()) return;
 //
 // In order to compute the clipped bounding box in the object's coordinates,
 // the transformation can be applied in the other direction:
 //
 //   Box clipped =
-//     Box::intersect(s.clip_box().translace(-s.dx(), -s.dy()), extents);
+//     Box::Intersect(s.clip_box().translace(-s.dx(), -s.dy()), extents);
 //
 class Surface {
  public:
@@ -170,7 +170,7 @@ class Surface {
   void nest() const {}
   void unnest() const {}
   const Rasterizable *getRasterizableBackground() const { return nullptr; }
-  Color getBgColor() const { return bgcolor_; }
+  Color getBackgroundColor() const { return bgcolor_; }
 
   DisplayOutput *out_;
   int16_t dx_;
@@ -212,28 +212,24 @@ class Drawable {
  private:
   friend void Surface::drawObject(const Drawable &object) const;
 
-  // Draws this object's content, filling the entire (clipped) extents()
-  // rectangle. The default implementation fills the clipped extents() rectangle
-  // with bgcolor (if it is not transparent), and then calls drawInteriorTo. If
-  // you override this method, rather than drawInteriorTo, you're responsible
-  // for filling up the entire extents() rectangle, using bgcolor for
-  // transparent parts, unless bgcolor is itself fully transparent.
+  // Draws this object's content, respecting the fill mode. That is, if
+  // s.fill_mode() == FILL_MODE_RECTANGLE, the method must fill the entire
+  // (clipped) extents() rectangle (using s.bgcolor() for transparent parts).
   //
-  // The implementation MUST respect the surface's parameters, particularly
-  // the clip_box - i.e. it is not allowed to draw to output outside of the
-  // clip_box.
+  // The default implementation fills the clipped extents() rectangle
+  // with bgcolor, and then calls drawInteriorTo. That causes flicker, so you
+  // should try to override this method if a better implementation is possible.
+  //
+  // The implementation must also respect the other surface's parameters,
+  // particularly the clip_box - i.e. it is not allowed to draw to output
+  // outside of the clip_box.
   virtual void drawTo(const Surface &s) const;
 
-  // Draws this object's content without necessarily filling up the entire
-  // extents() rectangle.
-  // If you override this method, the default implementation of drawTo will
-  // first fill the extents() rectangle with a background color if provided. It
-  // will work, but it will generally cause flicker. To avoid it, override
-  // drawTo() method instead.
+  // Draws this object's content, ignoring s.fill_mode(). See drawTo().
   //
-  // The implementation MUST respect the surface's parameters, particularly
-  // the clip_box - i.e. it is not allowed to draw to output outside of the
-  // clip_box.
+  // The implementation most respect the other surface's parameters,
+  // particularly the clip_box - i.e. it is not allowed to draw to output
+  // outside of the clip_box.
   virtual void drawInteriorTo(const Surface &s) const {}
 };
 

@@ -37,7 +37,7 @@ class FrontToBackWriter : public DisplayOutput {
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     for (int i = 0; i < count; i++) {
       Box clipped =
-          Box::intersect(offscreen_.extents(), Box(x0[i], y0[i], x1[i], y1[i]));
+          Box::Intersect(offscreen_.extents(), Box(x0[i], y0[i], x1[i], y1[i]));
       mask_filter_.fillRect(mode, x0[i], y0[i], x1[i], y1[i], color[i]);
       if (!clipped.empty()) {
         offscreen_.output().fillRect(
@@ -53,7 +53,7 @@ class FrontToBackWriter : public DisplayOutput {
                  int16_t* x1, int16_t* y1, uint16_t count) override {
     for (int i = 0; i < count; i++) {
       Box clipped =
-          Box::intersect(offscreen_.extents(), Box(x0[i], y0[i], x1[i], y1[i]));
+          Box::Intersect(offscreen_.extents(), Box(x0[i], y0[i], x1[i], y1[i]));
       mask_filter_.fillRect(mode, x0[i], y0[i], x1[i], y1[i], color);
       if (!clipped.empty()) {
         offscreen_.output().fillRect(

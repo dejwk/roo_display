@@ -12,7 +12,7 @@ class Box {
     CLIP_RESULT_UNCHANGED
   };
 
-  inline static Box intersect(const Box& a, const Box& b) {
+  inline static Box Intersect(const Box& a, const Box& b) {
     int16_t xMin = std::max(a.xMin(), b.xMin());
     int16_t yMin = std::max(a.yMin(), b.yMin());
     int16_t xMax = std::min(a.xMax(), b.xMax());
@@ -20,7 +20,7 @@ class Box {
     return Box(xMin, yMin, xMax, yMax);
   }
 
-  inline static Box extent(const Box& a, const Box& b) {
+  inline static Box Extent(const Box& a, const Box& b) {
     int16_t xMin = std::min(a.xMin(), b.xMin());
     int16_t yMin = std::min(a.yMin(), b.yMin());
     int16_t xMax = std::max(a.xMax(), b.xMax());

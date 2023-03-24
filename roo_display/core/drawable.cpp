@@ -6,7 +6,7 @@ namespace roo_display {
 
 void Drawable::drawTo(const Surface& s) const {
   if (s.fill_mode() == FILL_MODE_RECTANGLE) {
-    Box box = Box::intersect(s.clip_box(), extents().translate(s.dx(), s.dy()));
+    Box box = Box::Intersect(s.clip_box(), extents().translate(s.dx(), s.dy()));
     if (!box.empty()) {
       s.out().fillRect(box, s.bgcolor());
     }

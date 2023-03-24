@@ -294,7 +294,7 @@ class Raster : public Rasterizable {
  private:
   void drawTo(const Surface& s) const override {
     Box bounds =
-        Box::intersect(s.clip_box().translate(-s.dx(), -s.dy()), extents_);
+        Box::Intersect(s.clip_box().translate(-s.dx(), -s.dy()), extents_);
     if (bounds.empty()) return;
     if (extents_.width() == bounds.width() &&
         extents_.height() == bounds.height()) {

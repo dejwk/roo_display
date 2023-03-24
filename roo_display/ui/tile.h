@@ -15,7 +15,7 @@ class SolidBorder {
   SolidBorder(Box extents, Box interior, Box anchorExtents, Alignment alignment)
       : extents_(std::move(extents)),
         offset_(alignment.resolveOffset(extents_, anchorExtents)),
-        interior_(Box::intersect(interior.translate(offset_.dx, offset_.dy),
+        interior_(Box::Intersect(interior.translate(offset_.dx, offset_.dy),
                                  extents_)) {}
 
   const Box &extents() const { return extents_; }

@@ -483,7 +483,7 @@ void SmoothFont::drawHorizontalString(const Surface &s,
             output, x, y, total_rect_width, glyphs.left_metrics(),
             glyphs.left_data(), -preadvanced, glyphs.right_metrics(),
             glyphs.right_data(), advance - preadvanced,
-            Box::intersect(s.clip_box(), Box(x, y - metrics().glyphYMax(),
+            Box::Intersect(s.clip_box(), Box(x, y - metrics().glyphYMax(),
                                              x + total_rect_width - 1,
                                              y - metrics().glyphYMin())),
             color, s.bgcolor(), s.paint_mode());
@@ -501,7 +501,7 @@ void SmoothFont::drawHorizontalString(const Surface &s,
         drawGlyphModeFill(
             output, x, y, total_rect_width, glyphs.left_metrics(),
             glyphs.left_data(), -preadvanced,
-            Box::intersect(s.clip_box(), Box(x, y - metrics().glyphYMax(),
+            Box::Intersect(s.clip_box(), Box(x, y - metrics().glyphYMax(),
                                              x + total_rect_width - 1,
                                              y - metrics().glyphYMin())),
             color, s.bgcolor(), s.paint_mode());

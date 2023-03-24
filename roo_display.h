@@ -78,6 +78,8 @@ class Display {
   DisplayOutput &output() { return display_device_; }
   const DisplayOutput &output() const { return display_device_; }
 
+  // If touched, returns true and sets the touch (x, y) coordinates (in device
+  // coordinates). If not touched, returns false and does not modify (x, y).
   bool getTouch(int16_t &x, int16_t &y) { return touch_.getTouch(x, y); }
 
   // Resets the clip box to the maximum device-allowed values.
@@ -89,7 +91,7 @@ class Display {
   // Sets a default clip box, inherited by all derived contexts.
   void setExtents(const Box &extents) {
     resetExtents();
-    extents_ = Box::intersect(extents_, extents);
+    extents_ = Box::Intersect(extents_, extents);
   }
 
   // Sets a rasterizable background to be used by all derived contexts.
@@ -117,7 +119,7 @@ class Display {
     display_device_.setBgColorHint(bgcolor);
   }
 
-  Color getBgColor() const { return bgcolor_; }
+  Color getBackgroundColor() const { return bgcolor_; }
 
   // Clears the display, respecting the clip box, and background settings.
   void clear();
@@ -197,7 +199,7 @@ class DrawingContext {
         dx_(display.dx()),
         dy_(display.dy()),
         bounds_(bounds),
-        max_clip_box_(Box::intersect(bounds, display.extents())),
+        max_clip_box_(Box::Intersect(bounds, display.extents())),
         clip_box_(max_clip_box_),
         unnest_([&display]() { display.unnest(); }),
         write_once_(display.is_write_once()),
@@ -205,7 +207,7 @@ class DrawingContext {
         paint_mode_(PAINT_MODE_BLEND),
         clip_mask_(nullptr),
         background_(display.getRasterizableBackground()),
-        bgcolor_(display.getBgColor()),
+        bgcolor_(display.getBackgroundColor()),
         transformed_(false),
         transformation_() {
     display.nest();
@@ -215,9 +217,7 @@ class DrawingContext {
 
   const Box &bounds() const { return bounds_; }
 
-  void setBackground(const Rasterizable *bg) {
-    background_ = bg;
-  }
+  void setBackground(const Rasterizable *bg) { background_ = bg; }
 
   void setBackgroundColor(Color bgcolor) { bgcolor_ = bgcolor; }
 
@@ -234,7 +234,7 @@ class DrawingContext {
   void fill(Color color);
 
   void setClipBox(const Box &clip_box) {
-    clip_box_ = Box::intersect(clip_box, max_clip_box_);
+    clip_box_ = Box::Intersect(clip_box, max_clip_box_);
   }
 
   void setClipBox(int16_t x0, int16_t y0, int16_t x1, int16_t y1) {

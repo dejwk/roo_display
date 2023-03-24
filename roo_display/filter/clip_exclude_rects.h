@@ -160,7 +160,7 @@ class RectUnionFilter : public DisplayOutput {
       writer->writeRect(x0, y0, x1, y1, color);
       return;
     }
-    Box intruder = Box::intersect(exclusion_->at(mask_idx), rect);
+    Box intruder = Box::Intersect(exclusion_->at(mask_idx), rect);
     if (intruder.yMin() > y0) {
       writeRect(color, x0, y0, x1, intruder.yMin() - 1, mask_idx + 1, writer);
       y0 = intruder.yMin();
@@ -191,7 +191,7 @@ class RectUnionFilter : public DisplayOutput {
       filler->fillRect(x0, y0, x1, y1);
       return;
     }
-    Box intruder = Box::intersect(exclusion_->at(mask_idx), Box(x0, y0, x1, y1));
+    Box intruder = Box::Intersect(exclusion_->at(mask_idx), Box(x0, y0, x1, y1));
     if (intruder.yMin() > y0) {
       fillRect(x0, y0, x1, intruder.yMin() - 1, mask_idx + 1, filler);
       y0 = intruder.yMin();

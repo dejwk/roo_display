@@ -134,7 +134,7 @@ std::unique_ptr<PixelStream> Rasterizable::createStream(
 
 void Rasterizable::drawTo(const Surface& s) const {
   Box ext = extents();
-  Box bounds = Box::intersect(s.clip_box(), ext.translate(s.dx(), s.dy()));
+  Box bounds = Box::Intersect(s.clip_box(), ext.translate(s.dx(), s.dy()));
   if (bounds.empty()) return;
   Stream stream(this, bounds.translate(-s.dx(), -s.dy()));
   internal::FillRectFromStream(s.out(), bounds, &stream, s.bgcolor(),

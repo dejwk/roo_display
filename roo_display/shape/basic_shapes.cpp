@@ -292,7 +292,7 @@ void fillRoundRectOutsideCorners(HlineFiller *filler, int16_t x0, int16_t y0,
 // length.
 void drawRoundRect(DisplayOutput &output, const Box &bbox, int16_t radius,
                    const Box &clip_box, Color color, PaintMode mode) {
-  if (Box::intersect(clip_box, bbox).empty()) return;
+  if (Box::Intersect(clip_box, bbox).empty()) return;
   int16_t x0 = bbox.xMin() + radius;
   int16_t y0 = bbox.yMin() + radius;
   int16_t x1 = bbox.xMax() - radius;
@@ -345,7 +345,7 @@ void Circle::drawInteriorTo(const Surface &s) const {
 // length.
 void fillRoundRect(DisplayOutput &output, const Box &bbox, int16_t radius,
                    const Box &clip_box, Color color, PaintMode mode) {
-  if (Box::intersect(clip_box, bbox).empty()) return;
+  if (Box::Intersect(clip_box, bbox).empty()) return;
   int16_t x0 = bbox.xMin() + radius;
   int16_t y0 = bbox.yMin() + radius;
   int16_t x1 = bbox.xMax() - radius;
@@ -363,7 +363,7 @@ void fillRoundRect(DisplayOutput &output, const Box &bbox, int16_t radius,
 
 void fillRoundRectBg(DisplayOutput &output, const Box &bbox, int16_t radius,
                      const Box &clip_box, Color bgcolor, PaintMode mode) {
-  if (Box::intersect(clip_box, bbox).empty()) return;
+  if (Box::Intersect(clip_box, bbox).empty()) return;
   int16_t x0 = bbox.xMin() + radius;
   int16_t y0 = bbox.yMin() + radius;
   int16_t x1 = bbox.xMax() - radius;

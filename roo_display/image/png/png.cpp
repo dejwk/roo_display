@@ -103,7 +103,7 @@ bool PngDecoder::openInternal(int16_t &width, int16_t &height) {
 
 void PngDecoder::drawInternal(const Surface &s, uint8_t scale) {
   Box extents(0, 0, pngdec_->iWidth - 1, pngdec_->iHeight - 1);
-  if (Box::intersect(s.clip_box(), extents.translate(s.dx(), s.dy())).empty()) return;
+  if (Box::Intersect(s.clip_box(), extents.translate(s.dx(), s.dy())).empty()) return;
   if (pngdec_->ucPixelType == PNG_PIXEL_INDEXED) {
     palette_ = Palette::ReadOnly((Color*)pngdec_->ucPalette, 1 << pngdec_->ucBpp);
   }

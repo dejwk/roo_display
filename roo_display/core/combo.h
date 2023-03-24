@@ -52,7 +52,7 @@ class Combo : public Drawable {
     if (inputs_.empty()) return Box(0, 0, -1, -1);
     Box result = inputs_[0].extents();
     for (int i = 1; i < inputs_.size(); i++) {
-      result = Box::extent(result, inputs_[i].extents());
+      result = Box::Extent(result, inputs_[i].extents());
     }
     return result;
   }

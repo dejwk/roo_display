@@ -140,7 +140,7 @@ class BlendingFilter : public DisplayOutput {
                 int16_t yMax, Color color) {
     Color out_of_bounds_color = AlphaBlend(blender_.bgcolor(), color);
     Box trimmed =
-        Box::intersect(Box(xMin, yMin, xMax, yMax), raster_->extents());
+        Box::Intersect(Box(xMin, yMin, xMax, yMax), raster_->extents());
     if (trimmed.empty()) {
       output_->fillRect(mode, xMin, yMin, xMax, yMax, out_of_bounds_color);
       return;

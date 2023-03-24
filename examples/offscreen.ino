@@ -157,7 +157,7 @@ void someFunWithAntiAliasedFonts() {
                                 oqa.raster(), xCenter + p2.x, yCenter + p2.y),
                         0, 0);
     auto result = MakeDrawableRawStreamable(Overlay(
-        Clipped(Box::extent(bounds, text.extents()), background.raster()), 0, 0,
+        Clipped(Box::Extent(bounds, text.extents()), background.raster()), 0, 0,
         std::move(text), 0, 0));
     bounds = text.extents();
     {

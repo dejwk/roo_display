@@ -438,7 +438,7 @@ class Streamable : public virtual Drawable {
  private:
   void drawTo(const Surface &s) const override {
     Box ext = extents();
-    Box bounds = Box::intersect(s.clip_box().translate(-s.dx(), -s.dy()), ext);
+    Box bounds = Box::Intersect(s.clip_box().translate(-s.dx(), -s.dy()), ext);
     if (bounds.empty()) return;
     std::unique_ptr<PixelStream> stream;
     if (ext.width() == bounds.width() && ext.height() == bounds.height()) {

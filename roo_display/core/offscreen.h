@@ -357,7 +357,7 @@ class Offscreen : public Rasterizable {
   void nest() const {}
   void unnest() const {}
   // Box getClipBox() const { return clip_box_; }
-  Color getBgColor() const { return color::Transparent; }
+  Color getBackgroundColor() const { return color::Transparent; }
   const Rasterizable *getRasterizableBackground() const { return nullptr; }
   int16_t dx() const { return -raster_.extents().xMin(); }
   int16_t dy() const { return -raster_.extents().yMin(); }

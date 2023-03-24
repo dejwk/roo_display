@@ -274,7 +274,7 @@ class Engine {
 };
 
 inline bool Composition::Add(const Box& full_extents) {
-  Box extents = Box::intersect(bounds_, full_extents);
+  Box extents = Box::Intersect(bounds_, full_extents);
   if (extents.empty()) return false;
   input_extents_.push_back(full_extents);
   int input_idx = input_count_;
@@ -539,7 +539,7 @@ void writeVisible(internal::Engine* engine, const Box& bounds,
 }  // namespace internal
 
 void Combo::drawTo(const Surface& s) const {
-  Box bounds = Box::intersect(s.clip_box(), extents_.translate(s.dx(), s.dy()));
+  Box bounds = Box::Intersect(s.clip_box(), extents_.translate(s.dx(), s.dy()));
   if (bounds.empty()) return;
   std::vector<internal::BufferingStream> streams;
   internal::Composition composition(bounds);

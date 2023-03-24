@@ -2,9 +2,9 @@
 
 This is work in progress. Please come back soon for updated content!
 
-# Fundamentals
+## Fundamentals
 
-## Connecting your display
+### Connecting your display
 
 This step is necessary if your display and your microcontroller are separate devices. In this case, you need to connect them together.
 
@@ -12,7 +12,7 @@ SPI displays are common. For these, you need to connect at least 4 signals: SPI 
 
 For modern microcontrollers such as ESP32, you can use pretty much any digital I/O pins to connect these signals. If you can, use default SPI pins; it will make configuration a bit simpler.
 
-## Basic setup
+### Basic setup
 
 The minimalistic GUI application consists of the following basic steps:
 
@@ -49,7 +49,7 @@ This application configures an ILI 9341 display, using the default SPI interface
 
 We will now look at the steps in more detail.
 
-### Device drivers
+#### Device drivers
 
 All builtin drivers can be found in the ```roo_display/driver``` subdirectory. Look near the end of the header file to find the class name to use.
 
@@ -76,13 +76,13 @@ void setup() {
 }
 ```
 
-### Transport
+#### Transport
 
 As the examples above illustrate, you need to manually initialize the transport before doing anything else with the display. In this case, since we are using SPI, we need to explicitly call ```SPI.init()```.
 
 By separating SPI initialization from display initialization, ```roo_display``` naturally supports complex configurations, e.g. connecting multiple displays, along with other SPI devices, to the same shared SPI bus.
 
-### Screen orientation
+#### Screen orientation
 
 Display devices tend to support 8 different orientations. These result from a combination of 3 boolean flags: flipping along the horizontal axis, flipping along the vertical axis, and swapping the axes. Equivalently, the same 8 orientations can be considered to be a combination of 4 rotations (0, 90, 180, and 270 degrees) with a possible mirror flip along the X direction.
 
@@ -90,11 +90,11 @@ The ```Orientation``` class allows you to construct the desired orientation intu
 
 Internally, the orientation object is represented by just a single byte, and it should be passed by value.
 
-### The display object
+#### The display object
 
 The display object encapsulates the driver, and it is the 'root' of your future interactions with the library. Post-initialization, you use it primarily to create drawing contexts, as described below. You may also use it to change the display orientation, and global settings such as the main clipping rectangle, a global background, or touch calibration settings. It is also used for retrieving touch input. These features will be described in later sections.
 
-## DrawingContext and drawables
+### DrawingContext and drawables
 
 To draw an object, it must implement the ```Drawable``` interface:
 
@@ -126,7 +126,7 @@ dc.draw(drawable);
 
 Drawing contexts further 'virtualize' the display, and allow tweaks that we will soon dive into. Drawing contexts keep SPI transactions alive, so they should be transient, i.e. destroyed quickly after you are done with the drawing.
 
-## Drawing basic geometry
+### Drawing basic geometry
 
 Let us put all of this together do draw some basic shapes:
 
@@ -162,7 +162,7 @@ void loop() {
 
 ![img1](doc/images/img1.png)
 
-## Color
+### Color
 
 The `roo_display` library internally uses 32-bit ARGB color. Most SPI displays use RGB565, with 16 bits per pixel. The conversion from the 32-bit ARGB to the device color is performed in the driver - that is, if your driver is capable of handling 24- or 32-bit color, you will get it without any loss of quality, but in most cases, your driver will downgrade to RGB565.
 
@@ -201,7 +201,7 @@ as well as a convenience function to specify a shade of gray:
 c = Graylevel(0x40);  // Dark gray.
 ```
 
-## Drawing simple text
+### Drawing simple text
 
 To draw text, you need to pick a font, and use a ```TextLabel```:
 
@@ -226,7 +226,7 @@ The 'origin' of the text label is at the baseline and to the left of the text. W
 
 ![img2](doc/images/img2.png)
 
-## Backgrounds and overwriting
+### Backgrounds and overwriting
 
 By default, `roo_display` draws the minimum possible number of pixels:
 
@@ -296,7 +296,7 @@ void loop() {
 
 Note that since the font is anti-aliased, setting the correct background color matters even with `FILL_MODE_VISIBLE`. Using background that does not match the underlying background results in 'colored' text edges, as seen in the example above.
 
-## Alignment
+### Alignment
 
 The library allows drawing with specified horizontal and vertical alignment, so that you don't need to calculate and specify exact pixel offsets, ad we have been doing so far. Let's look at a simple example:
 
@@ -431,7 +431,7 @@ void loop() {
 
 ![img13](doc/images/img13.png)
 
-## Tiles
+### Tiles
 
 Often, you need to draw variable-sized contents over some preallocated space. A simple example is to overwrite some previously drawn text with new text that might possibly be shorter. In this case, even if you set `FILL_MODE_RECTANGLE`, the original contents will not be completely erased, since the new contents has smaller extents.
 
@@ -516,7 +516,7 @@ void loop() {
 
 ![img17](doc/images/img17.png)
 
-## Clipping
+### Clipping
 
 You can set a _clip box_ on a drawing context in order to constrain the drawn area to a specific rectangle.
 
@@ -603,7 +603,7 @@ You will see an easier way to initialize a clip mask in the section on offscreen
 
 > Note: drawing with a clip mask is noticeably slower. Use wisely.
 
-## Transformations
+### Transformations
 
 You can apply basic affine transformations (integer scaling, right-angle rotation, translation) to anything you draw.
 
@@ -684,17 +684,17 @@ void loop() {
 
 When possible, try to draw subsequent pixels in horizontal or vertical streaks, i.e., write pixels in a single direction as much as possible. It may help the underlying device driver to reduce communication volume (e.g. SPI transfers), thus improving performance.
 
-# Working with text
+## Working with text
 
 This section digs deeper into the details of handling text output.
 
-## Fonts
+### Fonts
 
 As most things in `roo_display`, a font is represented by an abstract class: `Font`. Most of the time, you can treat a font as an opaque object that you pass to `TextLabel`. Nonetheless, we will now look at `Font` in some more detail.
 
 Logically, each font is a collection of _glyphs_ (individual symbols), covering some subset of Unicode.
 
-### Pre-packaged fonts
+#### Pre-packaged fonts
 
 The primary concrete font implementation in `roo_display` is the `SmoothFont` class. A smooth font stores glyphs in PROGMEM, using a custom internal data format. Smooth fonts are anti-aliased (they use 4-bit alpha), and support kerning. In order to use a smooth font, all you need to do is to include and reference it, as we saw in the examples above.
 
@@ -710,7 +710,7 @@ The footprint of smooth fonts in PROGMEM is reasonably small - unless you use ma
 
 In addition to smooth fonts, you will also find a simple fixed-size 5x7 'Adafruit' ASCII font. You will likely not find it very useful, except perhaps as a simple case study of the font implementation.
 
-### Importing custom fonts
+#### Importing custom fonts
 
 There are many reasons why you might want to import additional fonts. Maybe you want to use a different face; maybe you need a different size, or maybe you need a different set of glyphs. Whatever the reason, importing fonts is easy, with help of [roo_display_font_importer](https://github.com/dejwk/roo_display_font_importer). This Java-based tool will convert any font available in your system, at any size you want, and with any glyph subset you want, to a smooth font that you can use with `roo_display`.
 
@@ -744,7 +744,7 @@ void loop() {
 
 ![img21](doc/images/img21.png)
 
-### Metrics
+#### Metrics
 
 You can obtain general font metrics by calling `font.metrics()`. The returned `FontMetrics` object allows you to obtain FreeType properties of the font, such as ascent, descent, linegap, linespace, as well as the maximum glyph extents. You can also find out the minimum left- and right-side bearing, which specify how much can a glyph 'stick out' of its anchor extents. More on that below, in the section on alignment.
 
@@ -756,7 +756,7 @@ Finally, by calling `font.getHorizontalStringGlyphMetrics(StringView)` you can m
 
 That said, the same properties are also captured by `TextLabel`'s `extents()` and `anchorExtents()`, which may be simpler to use (see below).
 
-## Alignment
+### Alignment
 
 Text alignment can be a little tricky. When optically left- or right-aligned, a glyph, such as 'y', may actually have a 'tail' that hang outside of the alignment boundary. Another glyph, such as 'i', may have a gap. Top and bottom alignment does not depend on glyphs at all, but only on the overall font's metrics, so that the text doesn't jump up and down when the content changes. Also, in many cases, you may need to keep text aligned at baseline.
 
@@ -873,7 +873,7 @@ void loop() {
 
 Note that for spacing the words, we relied on the fact that `anchorExtents().width()` is equal to the text advance, and that the 'space' glyph has proper advance for its font size, resulting in naturally-looking spacing.
 
-## UTF-8
+### UTF-8
 
 Text labels, as well as any other routines operating on strings, assume UTF-8 encoding. Most code editors also use UTF-8, which means that you can simply paste Unicode content into your string literals, and things just work (see the OpenSymbol example above).
 
@@ -883,7 +883,7 @@ The library provides a few utilities to work with UTF-8, in the `"roo_display/co
 * `EncodeRuneAsUtf8()` is a convenience function that helps converting regular, multi-byte UTF code points to UTF-8.
 * `Utf8Decoder` is a utility class that does the opposite, i.e. it allows to extract subsequent code points out of UTF-8 content.
 
-## Formatted text
+### Formatted text
 
 The library provides convenience 'sprintf-like' utilities in `"roo_display/ui/string_printer.h"`. You can use them to format text into `std::string`, which is used in other places such as the `TextLabel`.
 
@@ -893,13 +893,13 @@ The library provides convenience 'sprintf-like' utilities in `"roo_display/ui/st
 TextLabel label(StringPrintf("%.1f°C", temp), font, color);
 ```
 
-## Drawing numbers
+### Drawing numbers
 
 Digits are often monotype, even in proportional fonts. Sometimes you can use this property to minimize redraws; e.g. use glyph metrics to determine positions of digits, and then update the individual digits.
 
 Be careful, though: even though the _anchor_ extents of all digits may be the same, the regular extents are not. The bounding box of digit '1' is going to be smaller than that of digit '0', even though they have the same advance. For this reason, you may still need to use `Tile` when rendering numeric content.
 
-# Drawing images and icons
+## Drawing images and icons
 
 The `roo_display` library supports drawing JPEG and PNG images out of the box.
 
@@ -907,7 +907,7 @@ For low-footprint artwork such as icons and small images, the library provides a
 
 If you just want to use some simple icons, there is a companion library of `roo_material_icons`, containing over 34000 Google 'Material Design' icons in various styles and 4 predefined sizes.
 
-## JPEG
+### JPEG
 
 You can easily draw JPEG images stored on an SD card, SPIFFS, or some other file system:
 
@@ -972,7 +972,7 @@ void loop() {
 
 ![img24](doc/images/img24.png)
 
-## PNG
+### PNG
 
 Drawing PNG files is very similar to drawing JPEGs:
 
@@ -1041,7 +1041,7 @@ void loop() {
 
 ![img25](doc/images/img25.png)
 
-## Built-in image format
+### Built-in image format
 
 Your application may need to draw icons and simple static images. Storing them in PNG files has a number of disadvantages:
 
@@ -1183,7 +1183,7 @@ We made the image small so that the example fits on one page, but this technique
 
 The image size, in pixels, is 60x45, which would mean 1350 bytes without compression (note that we're using 4bpp, i.e. 2 pixels per byte). The RLE compression reduced it to 547 bytes, i.e. by almost 60%.
 
-### Pixel formats
+#### Pixel formats
 
 Both the Raster class and the RleImage class support a wide range of color modes, namely:
 
@@ -1220,7 +1220,7 @@ This flexibility means that if you happen to have some existing uncompressed ima
 
 In addition to the general-purpose `RleImage`, the library supports an alternative RLE encoding format, `RleImage4bppxBiased`, designed specifically for 4bpp color modes. This format is intended for cases when the colors encoded as 0x0 and 0xF occur significantly more frequently than the colors 0x1 - 0xE. The main application is to compress monochrome, antialiased content, such as font glyphs and icons, using the Alpha4 color mode. In these cases, 0x0 represents the 'background' and 0xF represents the 'foreground', while the other colors are used for antialiased 'edges'.
 
-### Importing images
+#### Importing images
 
 You can use a companion utility [roo_display_image_importer](https://github.com/dejwk/roo_display_image_importer) to convert arbitrary images to the `roo_display`'s built-in image format:
 
@@ -1232,7 +1232,7 @@ unzip roo_display_image_importer.zip
 
 See the importer's [documentation](https://github.com/dejwk/roo_display_image_importer) for details.
 
-## Using the Material Icons collection
+### Using the Material Icons collection
 
 If you want to use modern high-quality icons, try the companion library [roo_material_icons](https://github.com/dejwk/roo_material_icons). It contains over 34000 'Material Design' icons, divided into 4 styles, 18 categories, and 4 sizes (18x18, 24x24, 36x36, and 48x48). These free icons are well known from Google products and Android. You can browse them [here](https://fonts.google.com/icons?icon.set=Material+Icons).
 
@@ -1368,7 +1368,7 @@ Note that the icons usually need to be drawn tiled, because their extents may be
 
 > Note: due to the sheer volume, full compilation of icon files may take a few minutes. (No worries, though: only the icons that you _actually use_ get linked into your binary). If the compilation times bother you, delete icon files that you are not going to use.
 
-# Using off-screen buffers
+## Using off-screen buffers
 
 The `Offscreen` class allows you to draw to a memory buffer, instead of directly to the screen. It can be particularly useful in a couple of scenarios:
 
@@ -1409,7 +1409,7 @@ Note how the circles blend over each other, and how the text is correctly anti-a
 
 There is a number of important observations to make based on this example. First, you can specify the offscreen's color mode. Second, you can obtain a drawing context for the Offscreen, and draw anything to it, just as it if was a real device. Third, the offscreen is itself drawable, so you can easily draw it on the screen (or even to another offscreen) when you need to.
 
-## Buffer allocation
+### Buffer allocation
 
 When created, the offscreen tries to allocate a memory buffer on the heap. The amount of memory needed is implied by the offscreen dimensions and the color mode. In our example, the buffer needs 200 _140_ 2 = 56000 bytes. If you specify the background color in the constructor, that buffer will be initialized (the offscreen will be cleared using that background color). Otherwise, the buffer will remain un-initialized; you will need to update all the offscreen's pixels manually.
 
@@ -1427,7 +1427,7 @@ void loop() {
 
 Note that in this case, the buffer is _not_ cleared in the constructor.
 
-## Pixel formats
+### Pixel formats
 
 You can parameterize the offscreen in exactly the same way as you can parameterize a raster. That is, you can specify the color mode, as well as byte order (for multi-byte color modes) or pixel order (for sub-byte color modes). Essentially, you can think of an offscreen as a DRAM raster that you can draw to. In fact, you can retrieve that raster, by calling `offscreen.raster()`.
 
@@ -1435,14 +1435,14 @@ Usually, you will want to use the Rgb565 color mode, as it is what most displays
 
 Byte order and pixel order are rarely relevant (so, stick to the defaults). They may matter if you plan to export the resulting raster outside of the library and you need to adhere to a specific pixel format.
 
-### Indexed color modes
+#### Indexed color modes
 
 When using offscreens with indexed color modes, you need to specify the color palette. You have two options:
 
 * provide the specific list of palette colors up front, or
 * allow the library to dynamically build the palette as you draw the content.
 
-#### Using a specific palette
+##### Using a specific palette
 
 Using an explicit palette with an offscreen is similar to using it with a raster, except for one important difference: the palette must be created as `ReadWrite`:
 
@@ -1492,7 +1492,7 @@ Note that even though we only drew three colors explicitly (cyan, magenta, and y
 
 If you do try to draw a color that is not in the palette, the first color of the palette is used as a replacement.
 
-#### Using a dynamic palette
+##### Using a dynamic palette
 
 Anticipating all the colors you'll use can be a little tedious. A simpler way is to let `roo_display` build the palette for you automatically, using the colors that you actually use when drawing:
 
@@ -1523,7 +1523,7 @@ The colors are added to the palette in the order you use them. When you try to d
 
 > Note: the implication is that drawing to an offscreen mutates your palette.
 
-## Clip masks
+### Clip masks
 
 In an earlier section, we saw how to use clip masks to restrict drawing to non-rectangular, complex areas. A clip mask, however, is essentially a 1-bit-per-pixel raster. It means that we can use Offscreen to construct bit masks!
 
@@ -1577,9 +1577,9 @@ void loop() {
 
 As you can see, clip masks can be useful for drawing complex geometry with minimum RAM footprint. We just need to draw the primitives multiple times, applying different masks. It will be slower than preparing everything in a 'real' Rgb565 offscreen and drawing it out, but it only needs 9600 bytes for the entire 320x200 screen, as opposed to over 153 KB for Rgb565 (that we unlikely to be able to allocate).
 
-## Offscreens with transparency
+### Offscreens with transparency
 
-# Backgrounds
+## Backgrounds
 
 Not all drawables are created equal.
 
@@ -1591,8 +1591,6 @@ The minimum bar for a `Drawable` is to be able to draw itself to a `Surface` pro
 Out of the drawable classes that we encountered so far, `Raster` and `Offscreen` are rasterizable, and `RleImage` and `RleImage4bppBiased` are streamable.
 
 In this section, we will focus on rasterizables, leaving streamables for the later section on flicker-less composition.
-
-## Backgrounds
 
 So why are rasterizables useful? The most immediate benefit is that you can use them as backgrounds. Anything you draw on top of them will be anti-aliased and alpha-blended correctly.
 
@@ -1731,20 +1729,294 @@ void loop() {
 
 Now you can practically forget that the background is there - it will be painted no matter what you draw.
 
-## Overlays (sprites)
+## Touch
 
-Backgrounds, discussed in the previous section, work by intercepting and amending calls made by the drawing context to your device driver. You can
+Once configured and calibrated, touch is simple to use. Specifically, the `Display` class provides the following method:
 
-# Touch
+```cpp
+class Display {
 
-# Flicker-less composition
+  // ...
 
-# Extending the library
+  // If touched, returns true and sets the touch (x, y) coordinates (in device
+  // coordinates). If not touched, returns false and does not modify (x, y).
+  bool getTouch(int16_t &x, int16_t &y);
 
-## Implementing custom drawables
+  // ...
+}
+```
 
-## Implementing custom filters
+The following example draw a draggable cross-hairs at the touch point, for as long as the display is touched:
 
-## Adding new device drivers
+```cpp
+int16_t x = -1;
+int16_t y = -1;
+bool was_touched = false;
 
-## Supporting non-SPI transports
+void loop(void) {
+  int16_t old_x = x;
+  int16_t old_y = y;
+  bool touched = display.getTouch(x, y);
+  if (touched) {
+    was_touched = true;
+    DrawingContext dc(display);
+    dc.draw(Line(0, y, display.width() - 1, y, color::Red));
+    dc.draw(Line(x, 0, x, display.height() - 1, color::Red));
+    if (x != old_x) {
+      dc.draw(Line(old_x, 0, old_x, display.height() - 1, dc.getBackgroundColor()));
+    }
+    if (y != old_y) {
+      dc.draw(Line(0, old_y, display.width() - 1, old_y, dc.getBackgroundColor()));
+    }
+    dc.draw(Line(0, y, display.width() - 1, y, color::Red));
+    dc.draw(Line(x, 0, x, display.height() - 1, color::Red));
+  } else {
+    if (was_touched) {
+      was_touched = false;
+      DrawingContext dc(display);
+      dc.draw(Line(0, old_y, display.width() - 1, old_y, dc.getBackgroundColor()));
+      dc.draw(Line(old_x, 0, old_x, display.height() - 1, dc.getBackgroundColor()));
+    }
+  }
+}
+```
+
+Touch coordinates always correspond to the display coordinates, which is to say, they respond to the display orientation settings. Basically, if you draw a point at (x, y) and touch it, the touch coordinates are (x, y) as well.
+
+## Implementing your own drawables
+
+In the earlier section, we had a quick peek at the `Drawable` interface. Let's not look at it in more detail:
+
+```cpp
+class Drawable {
+ public:
+  virtual ~Drawable() {}
+
+  // Returns the bounding box encompassing all pixels that need to be drawn.
+  virtual Box extents() const = 0;
+
+  // Returns the boundaries to be used when aligning this drawable. By default,
+  // equivalent to extents(). Some drawables, notably text labels, may want to
+  // use different bounds for alignment.
+  virtual Box anchorExtents() const { return extents(); }
+
+ private:
+  friend void Surface::drawObject(const Drawable &object) const;
+
+  // Draws this object's content, respecting the fill mode. That is, if
+  // s.fill_mode() == FILL_MODE_RECTANGLE, the method must fill the entire
+  // (clipped) extents() rectangle (using s.bgcolor() for transparent parts).
+  //
+  // The default implementation fills the clipped extents() rectangle
+  // with bgcolor, and then calls drawInteriorTo. That causes flicker, so you
+  // should try to override this method if a better implementation is possible.
+  //
+  // The implementation must also respect the other surface's parameters,
+  // particularly the clip_box - i.e. it is not allowed to draw to output
+  // outside of the clip_box.
+  virtual void drawTo(const Surface &s) const;
+
+  // Draws this object's content, ignoring s.fill_mode(). See drawTo().
+  //
+  // The implementation most respect the other surface's parameters,
+  // particularly the clip_box - i.e. it is not allowed to draw to output
+  // outside of the clip_box.
+  virtual void drawInteriorTo(const Surface &s) const {}
+};
+```
+
+We already discussed `extents()` and `anchorExtents()` before. The former specifies the minimum bounding box for any pixels drawn, and the latter defines bounds for the purpose of alignment.
+
+## Using DrawingContext
+
+In order to implement the actual drawing, you override either `drawTo()` or `drawInteriorTo()`. Implementing the latter is a little easier, so we will start with that.
+
+The method takes a `Surface` argument that your drawable is supposed to draw itself to. Before we delve into the details of the surface, let's discuss a powerful method that lets you define complex drawables without even caring about those details. Specifically, you can grab a `DrawingContext` for the surface, and just draw to it as you would draw to a screen:
+
+```cpp
+struct Point {
+  int16_t x;
+  int16_t y;
+};
+
+class Polygon : public Drawable {
+ public:
+  Polygon(std::vector<Point> corners, Color color)
+      : corners_(std::move(corners)), color_(color) {
+    assert(corners_.size() >= 3);
+    extents_ = FilledTriangle(corners_[0].x, corners_[0].y, corners_[1].x,
+                              corners_[1].y, corners_[2].x, corners_[2].y,
+                              color::Black)
+                   .extents();
+    for (int i = 3; i < corners_.size(); ++i) {
+      extents_ = Box::Extent(
+          extents_, FilledTriangle(corners_[0].x, corners_[0].y,
+                                   corners_[i - 1].x, corners_[i - 1].y,
+                                   corners_[i].x, corners_[i].y, color::Black)
+                        .extents());
+    }
+  }
+
+  Box extents() const override { return extents_; }
+
+ private:
+  void drawInteriorTo(const Surface& s) const override {
+    DrawingContext dc(s);
+    for (int i = 2; i < corners_.size(); ++i) {
+      dc.draw(FilledTriangle(corners_[0].x, corners_[0].y, corners_[i - 1].x,
+                             corners_[i - 1].y, corners_[i].x, corners_[i].y,
+                             color_));
+    }
+  }
+
+  std::vector<Point> corners_;
+  Color color_;
+  Box extents_;
+};
+
+void loop() {
+  DrawingContext dc(display);
+  dc.draw(
+      Polygon({{40, 70}, {60, 88}, {69, 140}, {14, 140}}, color::OrangeRed));
+  dc.draw(Polygon({{150, 70}, {170, 88}, {170, 140}, {134, 140}, {120, 100}},
+                  color::Navy), kCenter | kBottom.shiftBy(-20));
+  dc.draw(Polygon(
+      {{250, 70}, {278, 88}, {285, 110}, {270, 140}, {234, 140}, {220, 100}},
+      color::SeaGreen));
+
+  delay(10000);
+}
+```
+
+![img37](doc/images/img37.png)
+
+Note that the drawing context will take care of any offsets due to alignment, so you don't need to worry about that - just draw using your drawables 'native' coordinates, corresponding to its extents. (It is emphasized in the example above by drawing the second polygon as aligned at the bottom-center). Background colors are handled automatically as well.
+
+Also, you can apply any paremeterization supported by the drawing context. For example, you can add backgrounds or transformations, apply clip masks, and set background colors.
+
+#### Handling FILL_MODE_RECTANGLE
+
+If you looked carefully at the definition of the `Drawable` class before, you may have noticed that the difference between `drawTo()` and `drawInteriorTo` is that the former needs to respect the drawing context's fill mode. That is, in case of FILL_MODE_RECTANGLE, `drawTo()` needs to draw all pixels of the `extents()` rectangle - even those that are fully transparent. In some cases it is simple or even trivial (e.g. for objects that are naturally rectangular, such as images). In other cases it is difficult - which is why the default implementation is provided in the first place. The rule of thumb: if it is simple enough, override `drawTo()`; otherwise, override `drawInteriorTo()`.
+
+### Drawing to the surface
+
+Using `DrawingContext` is simple and powerful, but it adds some CPU and memory overhead. In particular, the `DrawingContext` object is over 0.5KB in size, so it may add some pressure on your call stack usage.
+
+If all you need is draw some existing objects without applying any transformations, additional clipping, backgrounds, or any other goodies provided by the drawing context, you can use  `surface.drawObject()` instead:
+
+```cpp
+  void drawInteriorTo(const Surface& s) const override {
+    for (int i = 2; i < corners_.size(); ++i) {
+      s.drawObject(FilledTriangle(corners_[0].x, corners_[0].y,
+                                  corners_[i - 1].x, corners_[i - 1].y,
+                                  corners_[i].x, corners_[i].y, color_));
+    }
+  }
+```
+
+This method will still correctly handle any translations, clipping, and the inherited background color, so you don't need to worry about any of that.
+
+### Drawing directly to the driver
+
+If your drawable is drawn frequently and if it consists of many small parts, the techniques described above may add too much overhead.  In this case, you need to go to a lower level, and write more directly to `s.out()`, which generally is your display's driver. You will then need to manually handle some aspects of the drawable contract. Specifically:
+
+* any logical coordinates must be adjusted by `(s.dx(), s.dy())`;
+* you must not draw outside of the `s.clip_box()` rectangle, expressed in the device coordinates (i.e. clipping needs to be applied _after_ the coordinate adjustment);
+* if the content contains any transparency, it needs to be alpha-blended over `s.bgcolor()` before drawing;
+* you need to pass `s.paint_mode()` to the underlying device.
+
+With these in mind, you can call the methods on `s.out()` to output rectangles or pixels via the driver API.
+
+#### Driver API
+
+The driver API, represented by the `DisplayOutput` class, is quite small; it consists of just 6 'core' methods:
+
+* `writePixels`: writes a batch of pixels with specified coordinates and colors;
+* `fillPixels`: writes a batch of pixels with specified coordinates and the same color;
+* `writeRects`: writes a batch of rectangles with specified coordinates and colors;
+* `fillRects`: writes a batch of rectangles with specified coordinates and the same color;
+* `setAddress`/`write`: fill a single rectangle (or a part of it) with subsequent colors, going top-to-bottom and left-to-right. 
+
+As you can see, the API operates on _batches_ of items. It is key to achieving good performance. Batches do not need to be very large; 32 to 64 items is good enough - but calling these APIs to draw individual pixels or rectangles will add plenty of overhead.
+
+In most cases, optimal use of the batch API does not come naturally, so you may want to use buffered drawing utilities.
+
+#### Buffered drawing utilities
+
+Helper classes defined in `roo_display/core/buffered_drawing.h` are adapters that allow drawing individual primitives such as pixels, lines, or rectangles, grouping them in batches before sending them to the driver. When you instantiate such an adapter, it allocates a small buffer on the stack, and uses that buffer to build up batches that are then flushed to the driver.
+
+Basic shapes, such as lines or circles, use buffered drawing utilities a lot, so they are a good case study. See `basic_shapes.cpp`.
+
+The names of those classes follow a convention, so it is easy to understand what they do - you just need to remember that 'write' means using distinct colors, and 'fill' means using the same color:
+
+* `BufferedPixelWriter` buffers calls to `writePixels`,
+* `BufferedPixelFiller` buffers calls to `fillPixels`,
+* `BufferedRectWriter` buffers calls to `writeRects`,
+* `BufferedRectFiller` buffers calls to `fillRects`.
+
+Then, there are 'Clipping' variants of the above, which do the same, but respect a specified clip rectangle. That is, pixels or rectangles that are outside of the clip rectangle are ignored, and rectangles that intersect the clip rectangle are clipped.
+
+Next, we have:
+
+* `BufferedHLineFiller` - for drawing horizontal lines of the same color,
+* `BufferedVLineFiller` - for drawing vertical lines of the same color.
+
+Again, there are also 'Clipping' variants of the above.
+
+Finally, there is `BufferedColorWriter` that buffers calls to `write`.
+
+Checking for clipping at every item adds some overhead, so it is better to optimize it out if possible. For example, the built-in implementation of `Line::drawTo()` will first check if the line fits entirely in the clip rectangle, and if so, it uses the 'non-clipping' variant of the HLineFiller or the VLineFiller (depending on slope).
+
+## Flicker-less composition
+
+## Extending the library
+
+### Adding new device drivers
+
+TL;DR: there are a lot of really similar devices around. Try the age-old technique first: if you see a device similar to yours that is already supported, try tweaking its existing driver.
+
+#### DisplayDevice
+
+A display driver is represented by the abstract `DisplayDevice` class. To implement a driver, means to implement the pure virtual methods in this class:
+
+* `setAddress()`: set a rectangular window that will be filled by subsequent calls to `write`;
+* `write()`: writes to the subsequent pixels in the address window;
+* `writePixels()`: draws the specifed batch of pixels;
+* `fillPixels()`: draws the specified batch of pixels of the same color;
+* `writeRects()`: draws the specified batch of rectangles;
+* `fillRects()`: draws the specified batch of rectangles of the same color.
+
+Additionally, it is usually necessary to override these virtual methods as well:
+
+* `init()`: initializes the display;
+* `begin()`: starts a write transaction;
+* `end()`: ends a write transaction;
+* `orientationUpdated()`: applies the specified screen orientation;
+* `setBgColorHint()`: set the specified color as the default background.
+
+All colors are expressed in the 32-bit ARGB. The driver needs to perform the conversion to the hardware color mode.
+
+The `setAddress()` and `{write/fill}x{Pixels/Rects}` methods accept a `PaintMode` argument. In case of PAINT_MODE_BLEND, the driver is expected to alpha-blend any non-opaque colors over the pre-existing content, or, if it is not supported (which is the common case), over the color specified by `setBgColorHint()`. In case of PAINT_MODE_REPLACE, all colors should be written without changes.
+
+If a destination color is non-opaque and the driver does not support the 'alpha' channel, the driver should simply ignore the alpha and treat the color as opaque.
+
+#### The AddrWindowDevice template class
+
+Many display devices are internally implemented using the same underlying paradigm, in which all drawing is essentially reduced to `setAddress()` and `write()`. The AddrWindowDevice helper base class provides a common implementation that implements this paradigm. The class is parameterized using a `Target` class. Essentially, instead of implementing the `DisplayDevice`, you now need to implement a `Target`. The number of methods to implement there is actually larger, but they are simpler. You no longer need to worry about rectangles, pixels, and ARGB conversion; instead, you need to implement basic primitives to set the address window in the X/Y direction, and to write raw pixel data in the native format (often RGB565). Additionally, the base class implements a useful implementation for `writePixels` and `fillPixels`, namely: it detects neighboring pixels in a batch, and tries to minimize the number of calls to 'set window' methods. This implementation can considerably reduce communication volume and thus significantly improve pixel drawing performance.
+
+The implementation of most of the existing drivers, e.g. ILI9486, ILI9488, ILI9431, ST7789, and ST7735, use `AddWindowDevice` as the base class. They include an implementation of the appropriate `Target`, plus some typedefs to put it together with the `AddWindowDevice`. The `Target` implements the core device-specific part, e.g. the init sequence, the window and data output commands, etc.
+
+> Note that template parameterization is used rather than inheritance, to facilitate code inlining and avoid the cost of (virtual) method calls. It allows these drivers to be as fast as they would have been if implemented from scratch.
+
+#### Transport abstraction
+
+In order to support hardware-optimized, microcontroller-specific SPI and GPIO implementations, and to provide extensibility towards non-SPI transports, the drivers are generally templated on `Transport` and `Gpio` classes. The `Transport` provides the following methods:
+
+* `beginTransaction()` / `endTransaction()`,
+* `write()`, `write16()`, `write16be()`, `write32()`, `write32be()`, `writeBytes()`, `fill16()`, `fill24be()`.
+
+SPI drivers are specializations that use the `DefaultSpi` transport by default, which resolves to the platform-optimized implementation if it exists, and falls back to the default Arduino SPI interface otherwise.
+
+> Again, templates are used to maximize inlining and bring the performance close to 'bare metal'.
+
+### Supporting non-SPI transports

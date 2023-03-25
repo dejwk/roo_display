@@ -1,5 +1,5 @@
 
-#include "roo_display/shape/basic_shapes.h"
+#include "roo_display/shape/basic.h"
 
 namespace roo_display {
 

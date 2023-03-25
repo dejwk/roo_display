@@ -50,7 +50,7 @@ struct Emulator {
 #include "roo_display/font/font_adafruit_fixed_5x7.h"
 #include "roo_display/ui/string_printer.h"
 #include "roo_display/ui/text_label.h"
-#include "roo_display/shape/basic_shapes.h"
+#include "roo_display/shape/basic.h"
 
 using namespace roo_display;
 

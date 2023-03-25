@@ -33,7 +33,7 @@ struct Emulator {
 #include "roo_display/core/offscreen.h"
 #include "roo_display/internal/raw_streamable_overlay.h"
 #include "roo_display/font/font.h"
-#include "roo_display/shape/basic_shapes.h"
+#include "roo_display/shape/basic.h"
 #include "roo_display/ui/text_label.h"
 #include "roo_smooth_fonts/NotoSerif_Italic/60.h"
 

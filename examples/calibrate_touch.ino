@@ -40,7 +40,7 @@ struct Emulator {
 #include "roo_display.h"
 #include "roo_display/driver/ili9486.h"
 #include "roo_display/driver/touch_xpt2046.h"
-#include "roo_display/shape/basic_shapes.h"
+#include "roo_display/shape/basic.h"
 
 using namespace roo_display;
 

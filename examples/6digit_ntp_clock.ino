@@ -48,7 +48,7 @@ struct Emulator {
 
 #include "roo_display.h"
 #include "roo_display/font/font.h"
-#include "roo_display/shape/basic_shapes.h"
+#include "roo_display/shape/basic.h"
 #include "roo_display/ui/text_label.h"
 #include "roo_smooth_fonts/NotoSans_Bold/60.h"
 #include "roo_smooth_fonts/NotoSans_Regular/40.h"

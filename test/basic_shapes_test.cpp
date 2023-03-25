@@ -1,5 +1,5 @@
 
-#include "roo_display/shape/basic_shapes.h"
+#include "roo_display/shape/basic.h"
 
 #include "roo_display/color/color.h"
 #include "testing.h"

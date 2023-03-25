@@ -44,7 +44,7 @@ using namespace roo_display;
 //
 // If you want to use non-trivial backgrounds (color gradients, or backgorund
 // images), the story is much more complicated. Anti-aliasing requires alpha-
-// blending, which mixes up background colors with the foreground. It
+// blending, which mixes up foreground colors with the background. It
 // requires being able to read from the device's framebuffer, which is often
 // not supported by the hardware, or buffering in RAM, which is often too
 // expensive (480x320 image with a typical RGB565 color mode needs 300KB,

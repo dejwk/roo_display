@@ -15,8 +15,9 @@
 
 #ifdef ARDUINO
 // PlatformIO depdendency scanning gets confused if this is not included in the
-// main file, causing compilation errors of Wire-dependent drivers.
+// main file, causing compilation errors (header not found).
 #include <Wire.h>
+#include <FS.h>
 #endif
 
 namespace roo_display {

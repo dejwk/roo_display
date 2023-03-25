@@ -1,6 +1,6 @@
-# Introduction
+# User guide
 
-This is work in progress. Please come back soon for updated content!
+This guide is work in progress. Please come back soon for updated content!
 
 ## Fundamentals
 

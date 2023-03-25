@@ -189,7 +189,7 @@ TEST(BasicShapes, FillSmallCircleBgRectangle) {
   Display display(test_screen);
   {
     DrawingContext dc(display);
-    dc.setBackground(Color(0xFF707070));
+    dc.setBackgroundColor(Color(0xFF707070));
     dc.draw(ForceFillRect(FilledCircle::ByRadius(3, 4, 3, color::White)));
   }
   EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 7, 9,
@@ -209,7 +209,7 @@ TEST(BasicShapes, FillSmallRoundRectBgRectangle) {
   Display display(test_screen);
   {
     DrawingContext dc(display);
-    dc.setBackground(Color(0xFF707070));
+    dc.setBackgroundColor(Color(0xFF707070));
     dc.draw(ForceFillRect(FilledRoundRect(0, 1, 5, 7, 3, color::White)));
   }
   EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 7, 9,

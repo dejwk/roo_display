@@ -1,4 +1,8 @@
 #include "roo_display/color/color.h"
+#include "roo_display/color/color_modes.h"
+#include "roo_display/color/named.h"
+#include "roo_display/color/traits.h"
+
 #include "gtest/gtest.h"
 
 namespace roo_display {

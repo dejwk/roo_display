@@ -34,7 +34,7 @@ TEST(DrawingContext, DrawSimpleWithBackgroundColor) {
   {
     DrawingContext dc(display);
     // Opaque gray background.
-    dc.setBackground(Color(0xFF777777));
+    dc.setBackgroundColor(Color(0xFF777777));
     // Draw rectangle that is white but 50% transparent.
     dc.draw(SolidRect(1, 2, 3, 4, Color(0x77FFFFFF)));
   }

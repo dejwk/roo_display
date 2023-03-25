@@ -4,6 +4,8 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "roo_display/color/color.h"
+#include "roo_display/color/color_modes.h"
+#include "roo_display/color/named.h"
 #include "roo_display/core/device.h"
 #include "roo_display/core/rasterizable.h"
 #include "roo_display/core/streamable.h"

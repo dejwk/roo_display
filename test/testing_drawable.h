@@ -21,7 +21,7 @@ class FakeScreen {
             FillMode fill_mode = FILL_MODE_VISIBLE,
             PaintMode paint_mode = PAINT_MODE_BLEND) {
     DrawingContext dc(display_);
-    dc.setBackground(bgcolor);
+    dc.setBackgroundColor(bgcolor);
     dc.setFillMode(fill_mode);
     dc.setPaintMode(paint_mode);
     dc.draw(drawable, dx, dy);
@@ -33,7 +33,7 @@ class FakeScreen {
             PaintMode paint_mode = PAINT_MODE_BLEND) {
     DrawingContext dc(display_);
     dc.setClipBox(clip_box);
-    dc.setBackground(bgcolor);
+    dc.setBackgroundColor(bgcolor);
     dc.setFillMode(fill_mode);
     dc.setPaintMode(paint_mode);
     dc.draw(drawable, x, y);

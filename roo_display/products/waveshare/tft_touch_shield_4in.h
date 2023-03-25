@@ -25,9 +25,9 @@ class TftTouchShield4in : public ComboDevice {
     display_.setOrientation(orientation);
   }
 
-  void begin() { spi_.begin(); }
+  void initTransport() { spi_.begin(); }
 
-  void begin(uint8_t sck, uint8_t miso, uint8_t mosi) {
+  void initTransport(uint8_t sck, uint8_t miso, uint8_t mosi) {
     spi_.begin(sck, miso, mosi);
   }
 

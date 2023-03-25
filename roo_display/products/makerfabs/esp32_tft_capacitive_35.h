@@ -24,7 +24,7 @@ class Esp32TftCapacitive35 : public ComboDevice {
     display_.setOrientation(orientation);
   }
 
-  void begin() {
+  void initTransport() {
     spi_.begin(14, 12, 13);
     wire_.begin(26, 27);
   }

@@ -112,39 +112,37 @@ void simpleBackground() {
   // see that the colors of translucent (anti-aliased) pixels indeed inherit
   // from the background; i.e. it is green-ish when the text falls over green,
   // blue-ish if it falls over blue, etc.
-  auto labelOrig = StringViewLabel("Afy", font_NotoSans_Italic_60(),
+  //
+  // We use leading and trailing spaces, because the rescaled labels have slightly different
+  // dimensions, and the spaces add some clear padding.
+  auto labelOrig = StringViewLabel(" Afy ", font_NotoSans_Italic_60(),
                                    color::Black, FILL_MODE_RECTANGLE);
-  auto labelScaled = StringViewLabel("Afy", font_NotoSans_Italic_12(),
+  auto labelScaled = StringViewLabel(" Afy ", font_NotoSans_Italic_12(),
                                      color::Black, FILL_MODE_RECTANGLE);
-  auto labelScaledMore = StringViewLabel("Afy", font_NotoSans_Italic_8(),
+  auto labelScaledMore = StringViewLabel(" Afy ", font_NotoSans_Italic_8(),
                                          color::Black, FILL_MODE_RECTANGLE);
   int16_t dx = (display.width() - labelOrig.extents().width()) / 2;
   int16_t dy = labelOrig.metrics().glyphYMax() +
                (display.height() - labelOrig.metrics().height()) / 2;
-  // The 2nd 'rescaled' label is slightly larger, so we truncate to avoid
-  // artifacts at the edges. (We could also do the opposite, but we would need
-  // to use Tile).
-  auto clip_box = labelOrig.extents().translate(dx, dy);
   {
     display.setBackground(&slantedGradient);
     DrawingContext dc(display);
     dc.clear();
-    dc.setClipBox(clip_box);
-    dc.draw(labelOrig, dx, dy);
+    dc.draw(labelOrig, kCenter | kMiddle);
   }
   delay(2000);
   {
     DrawingContext dc(display);
-    dc.setClipBox(clip_box);
+    dc.setFillMode(FILL_MODE_RECTANGLE);
     dc.setTransformation(Transformation().scale(5, 5));
-    dc.draw(labelScaled, dx, dy);
+    dc.draw(labelScaled, kCenter | kMiddle);
   }
   delay(2000);
   {
     DrawingContext dc(display);
-    dc.setClipBox(clip_box);
+    dc.setFillMode(FILL_MODE_RECTANGLE);
     dc.setTransformation(Transformation().scale(7, 7));
-    dc.draw(labelScaledMore, dx, dy);
+    dc.draw(labelScaledMore, kCenter | kMiddle);
   }
   delay(2000);
 }
@@ -166,11 +164,9 @@ void tileWithSemiTransparentBackground() {
         StringViewLabel("Ostendo", font_NotoSans_Italic_27(), color::Black);
     auto tile = MakeTileOf(label, Box(0, 0, 103, 27), kCenter | kMiddle);
     tile.setBackground(&hashGrid);
-    int16_t dx = (display.width() - tile.extents().width()) / 2;
-    int16_t dy = (display.height() - tile.extents().height()) / 2;
     {
       DrawingContext dc(display);
-      dc.draw(tile, dx, dy);
+      dc.draw(tile, kCenter | kMiddle);
     }
     uint8_t a1 = hashColor1.a();
     if (sc1) {
@@ -347,7 +343,7 @@ void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {
   }
 }
 
-// 20x20 raster, 4-bit grayscale, 200 bytes
+// 20x20 raster, 4-bit grayscale, 200 bytes.
 static const uint8_t diamond_plate_data[] PROGMEM = {
     0xCB, 0x96, 0x67, 0x77, 0x60, 0x00, 0x27, 0x87, 0x77, 0x78, 0xAF, 0xFB,
     0x76, 0x77, 0x85, 0x35, 0x88, 0x78, 0x77, 0x75, 0x19, 0xAE, 0xD8, 0x67,
@@ -409,11 +405,10 @@ void scrollingText() {
       "Check out this awesome text banner. Note anti-aliased "
       "glyphs, with overlapping bounding boxes: 'Afy', 'fff'.  ",
       font_NotoSans_Italic_40(), color::DarkRed, FILL_MODE_RECTANGLE);
-  int16_t dy = (label.font().metrics().ascent() + display.height()) / 2;
   for (int i = 0; i < label.extents().width(); i += 8) {
     {
       DrawingContext dc(display);
-      dc.draw(label, display.width() - i, dy);
+      dc.draw(label, kLeft.shiftBy(-i) | kMiddle);
     }
     delay(40);
   }

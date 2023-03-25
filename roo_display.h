@@ -218,7 +218,9 @@ class DrawingContext {
   const Box &bounds() const { return bounds_; }
 
   void setBackground(const Rasterizable *bg) { background_ = bg; }
+  const Rasterizable *getBackground() const { return background_; }
 
+  Color getBackgroundColor() const { return bgcolor_; }
   void setBackgroundColor(Color bgcolor) { bgcolor_ = bgcolor; }
 
   FillMode fillMode() const { return fill_mode_; }

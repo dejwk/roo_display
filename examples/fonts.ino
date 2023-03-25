@@ -40,6 +40,7 @@ struct Emulator {
 
 #include "roo_display.h"
 #include "roo_display/font/font.h"
+#include "roo_display/shape/basic_shapes.h"
 #include "roo_display/ui/text_label.h"
 #include "roo_smooth_fonts/NotoSansMono_Bold/12.h"
 #include "roo_smooth_fonts/NotoSansMono_Bold/18.h"
@@ -284,19 +285,19 @@ void printText(const FontFamily& fonts) {
   int16_t y = 1;
   const char* text = "Zażółć gęślą jaźń 12345.67890 !@#$%^&*()";
   Color color = color::Black;
-  dc.setBackground(color::BlanchedAlmond);
+  dc.setBackgroundColor(color::BlanchedAlmond);
   y += printLn(dc, fonts.f8, 10, y, text, color);
-  dc.setBackground(color::LemonChiffon);
+  dc.setBackgroundColor(color::LemonChiffon);
   y += printLn(dc, fonts.f12, 10, y, text, color);
-  dc.setBackground(color::Beige);
+  dc.setBackgroundColor(color::Beige);
   y += printLn(dc, fonts.f18, 10, y, text, color);
-  dc.setBackground(color::PapayaWhip);
+  dc.setBackgroundColor(color::PapayaWhip);
   y += printLn(dc, fonts.f27, 10, y, text, color);
-  dc.setBackground(color::PowderBlue);
+  dc.setBackgroundColor(color::PowderBlue);
   y += printLn(dc, fonts.f40, 10, y, text, color);
-  dc.setBackground(color::LightGreen);
+  dc.setBackgroundColor(color::LightGreen);
   y += printLn(dc, fonts.f60, 10, y, text, color);
-  dc.setBackground(color::MistyRose);
+  dc.setBackgroundColor(color::MistyRose);
   y += printLn(dc, fonts.f90, 10, y, text, color);
   delay(1000);
 }

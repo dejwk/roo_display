@@ -32,6 +32,7 @@ struct Emulator {
 #include "roo_display.h"
 #include "roo_display/core/offscreen.h"
 #include "roo_display/font/font.h"
+#include "roo_display/shape/basic_shapes.h"
 #include "roo_display/ui/text_label.h"
 #include "roo_smooth_fonts/NotoSerif_Italic/12.h"
 #include "roo_smooth_fonts/NotoSerif_Italic/27.h"
@@ -120,7 +121,7 @@ void printTransparentlyUsingDeviceBackground() {
 void printUsingSolidBackground(Color bgcolor) {
   Serial.println("Drawing with solid background.");
   DrawingContext dc(display);
-  dc.setBackground(bgcolor);
+  dc.setBackgroundColor(bgcolor);
   printText(dc, Widget());
 }
 
@@ -130,7 +131,7 @@ void printUsingSolidBackground(Color bgcolor) {
 void printTransparentUsingBackground(Color bgcolor) {
   Serial.println("Drawing with a background, but as a transparent tile.");
   DrawingContext dc(display);
-  dc.setBackground(bgcolor);
+  dc.setBackgroundColor(bgcolor);
   printText(dc, Widget(color::Transparent));
 }
 
@@ -161,12 +162,12 @@ void printUsingClipping() {
       "great overall. Might be tad slower than via RAM buffer.");
   DrawingContext dc(display);
   // Print the left half.
-  dc.setBackground(color::IndianRed);
+  dc.setBackgroundColor(color::IndianRed);
   // Clipped
   Widget widget;
   printText(dc, TransformedDrawable(Transformation().clip(Box(0, 0, 19, 39)),
                                     &widget));
-  dc.setBackground(color::LightGreen);
+  dc.setBackgroundColor(color::LightGreen);
   printText(dc, TransformedDrawable(Transformation().clip(Box(20, 0, 39, 39)),
                                     &widget));
 }

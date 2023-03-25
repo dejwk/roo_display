@@ -95,7 +95,7 @@ void loop(void) {
   StringViewLabel label((const char*)utf8, font_NotoSerif_BoldItalic_27(), fg,
                         FILL_MODE_RECTANGLE);
   DrawingContext dc(display);
-  dc.setBackground(bg);
+  dc.setBackgroundColor(bg);
   dc.setTransformation(Transformation()
                            .rotateClockwise(rotations)
                            .scale(x_scale, y_scale)

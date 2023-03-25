@@ -32,6 +32,7 @@ struct Emulator {
 #include "roo_display.h"
 #include "roo_display/font/font.h"
 #include "roo_display/ui/text_label.h"
+#include "roo_display/shape/basic_shapes.h"
 #include "roo_smooth_fonts/NotoSerif_BoldItalic/15.h"
 #include "roo_smooth_fonts/NotoSerif_BoldItalic/27.h"
 #include "roo_smooth_fonts/NotoSerif_BoldItalic/40.h"

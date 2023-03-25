@@ -21,7 +21,7 @@
 
 #include "roo_display/color/color.h"
 #include "roo_display/core/device.h"
-#include "roo_display/driver/TFT_eSPI_adapter.h"
+#include "roo_display/driver/common/addr_window_device.h"
 
 namespace roo_display {
 

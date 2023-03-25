@@ -413,7 +413,7 @@ class Clipping {
         extents_(Box::Intersect(streamable_.extents(), clip_box)) {}
 
   const Box &extents() const { return extents_; }
-  const Box &anchorExtents() const { return streamable_.anchorExtents(); }
+  Box anchorExtents() const { return streamable_.anchorExtents(); }
 
   const ColorModeOf<RawStreamable> &color_mode() const {
     return streamable_.color_mode();

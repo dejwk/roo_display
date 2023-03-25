@@ -94,6 +94,26 @@ Internally, the orientation object is represented by just a single byte, and it 
 
 The display object encapsulates the driver, and it is the 'root' of your future interactions with the library. Post-initialization, you use it primarily to create drawing contexts, as described below. You may also use it to change the display orientation, and global settings such as the main clipping rectangle, a global background, or touch calibration settings. It is also used for retrieving touch input. These features will be described in later sections.
 
+#### Backlit
+
+Some displays provide a dedicated pin for backlit (brightness) control. You can connect it to VCC for full brightness. You can also connect it to a GPIO pin to control backlit programmatically (by sending a pulse-wave-modulated signal to the GPIO pin).
+
+Backlit is independent from the display driver. `roo_display` provides some utility classes to help manage backlit. Specifically, for Espressif-based controllers, you can use the `LedcBacklit` class:
+
+```cpp
+#include "roo_display/backlit/esp32_ledc.h"
+
+LedcBacklit backlit(/* pin */ 16, /* ledc channel */ 0);
+
+// ...
+
+void loop() {
+  // ...
+  backlit.setIntensity(n);  // in the [0-255] range.
+}
+
+```
+
 ### DrawingContext and drawables
 
 To draw an object, it must implement the ```Drawable``` interface:
@@ -225,6 +245,8 @@ void loop() {
 The 'origin' of the text label is at the baseline and to the left of the text. We need to shift it a little (applying the 5,30 offset) so that it fits on the screen with some margins.
 
 ![img2](doc/images/img2.png)
+
+> Note: `TextLabel` makes a copy of the string argument. If that argument is known to remain valid throughout the lifetime of the label, you can use `StringViewLabel` instead, which avoids the copy. In particular, `StringViewLabel` is always safe to use if the argument is a compile-time C string constant, and it is usually safe when the label is transient, as in most examples in this guide.
 
 ### Backgrounds and overwriting
 
@@ -2045,7 +2067,7 @@ The driver API, represented by the `DisplayOutput` class, is quite small; it con
 * `fillPixels`: writes a batch of pixels with specified coordinates and the same color;
 * `writeRects`: writes a batch of rectangles with specified coordinates and colors;
 * `fillRects`: writes a batch of rectangles with specified coordinates and the same color;
-* `setAddress`/`write`: fill a single rectangle (or a part of it) with subsequent colors, going top-to-bottom and left-to-right. 
+* `setAddress`/`write`: fill a single rectangle (or a part of it) with subsequent colors, going top-to-bottom and left-to-right.
 
 As you can see, the API operates on _batches_ of items. It is key to achieving good performance. Batches do not need to be very large; 32 to 64 items is good enough - but calling these APIs to draw individual pixels or rectangles will add plenty of overhead.
 

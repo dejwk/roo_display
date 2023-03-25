@@ -1577,7 +1577,49 @@ void loop() {
 
 As you can see, clip masks can be useful for drawing complex geometry with minimum RAM footprint. We just need to draw the primitives multiple times, applying different masks. It will be slower than preparing everything in a 'real' Rgb565 offscreen and drawing it out, but it only needs 9600 bytes for the entire 320x200 screen, as opposed to over 153 KB for Rgb565 (that we unlikely to be able to allocate).
 
-### Offscreens with transparency
+### Offscreens with transparency: PAINT_MODE_REPLACE
+
+Ocassionally, you may want to use an Offscreen with an alpha channel, that is, using one of the color modes that support transparency, such as ARGB8888, ARGB6666, ARGB4444, Alpha4, etc. This way you can prepare translucent contents in the offscreen buffer, and later alpha-blend it over something else. It poses an interesting challenge: how do you actually draw translucent contents to such an offscreen? Whatever you draw, will, by default, be alpha-blended over the existing content. The issue is similar to painting on glass: the more paint you put on the glass, the more opaque it becomes, no matter how tranlucent the paint is. How do you _replace_ the underlying color with translucency, effectively 'erasing' the glass before you put the new paint on?
+
+The solution it to call so call `setPaintMode(PAINT_MODE_REPLACE)` on the DrawingContext. When you do so, the default behavior for translucent colors is changed from alpha-blending to simple replacement.
+
+> Note: when drawing an opaque color, PAINT_MODE_REPLACE is effectively identical to PAINT_MODE_BLEND - the new color will replace the previous one.
+
+> Note: you don't need to use alpha channel just to draw translucent content to an offscreen, as long as the result itself can be opaque.
+
+Paint mode can be adjusted for any drawing context, not just for the offscreens. It is rarely relevant for physical devices, though, because they operate in RGB (e.g. RGB565), without alpha, so there is rarely any need to output translucent colors to them and expect anything else than alpha-blending over the background bolor (or existing contents if they support that).
+
+### Extents and alignment
+
+So far, for the offscreens we created, the only geometry we specified was width and height. Such an offscreen has both extents and anchor extents equal to `(0, 0, width - 1, height - 1)`.
+
+An offscreen can have an arbitrary extents rectangle, however. You can specify these extents in the constructor:
+
+```cpp
+void loop() {
+  Offscreen<Rgb565> offscreen(Box(50, 50, 269, 189));
+  {
+    DrawingContext dc(offscreen);
+    dc.fill(color::SkyBlue);
+    dc.setClipBox(70, 70, 249, 169);
+    dc.fill(color::DarkBlue);
+  }
+  DrawingContext dc(display);
+  dc.draw(offscreen);
+}
+```
+
+![img38](doc/images/img38.png)
+
+Furthermore, you can set the anchor extents (effective when the offscreen itself is drawn) by calling `offscreen.setAnchorExtents()`.
+
+Finally, there is a convenience offscreen constructor that accepts an arbitrary drawable, and effectively makes a copy of it in memory:
+
+```cpp
+  Offscreen<Rgb565> copy(drawable);
+```
+
+In the next section, we will see why it may be sometimes useful (if you can afford the memory).
 
 ## Backgrounds
 
@@ -1731,6 +1773,53 @@ Now you can practically forget that the background is there - it will be painted
 
 ## Touch
 
+In this section, we will look at support for touch-screen devices.
+
+### Configuration
+
+Touch configuration tends to be quite independent from the display. Some devices may use the same SPI bus for both (with common SCK, MOSI used for the display, and MISO used for touch). Some others may have completely separate SPI pins for touch. (That gives more flexibility, but you can still attach these to the same SPI bus if you want to). Yet others may use different bus types for display and touch whatsoever; e.g. parallel interface for display, and a 2-Wire for touch.
+
+Drivers for touch are independent from display, too. If you have a resistive touch panel, there is a good chance that it uses XPT 2046. Capacitive screens may need different drivers.
+
+In case of an SPI-based driver, like XPT 2046, you need to connect at least 3 signals: SPI SCK, SPI MISO, and touch CS (chip select). The SCK and MISO can be usually be shared with other devices on the same SPI bus.
+
+A simple setup with an ILI 9431 display and a XPT 2046 touch may look as follows:
+
+```cpp
+#include "Arduino.h"
+#include "SPI.h"
+#include "roo_display.h"
+#include "roo_display/core/touch_calibration.h"
+#include "roo_display/driver/ili9341.h"
+#include "roo_display/driver/touch_xpt2046.h"
+
+using namespace roo_display;
+
+Ili9341spi<5, 17, 27> display_device;
+TouchXpt2046<2> touch_device;
+
+Display display(display_device, touch_device,
+                TouchCalibration(269, 249, 3829, 3684,
+                                 Orientation::LeftDown()));
+
+void setup() {
+  // ...
+  SPI.begin();
+}
+```
+
+The 'touch CS' pin is specified as a template argument to the touch driver. `SPI.begin()` handles both the display and touch, since they are connected to the same bus (using default pins) in this case.
+
+### Calibration
+
+The native coordinate system used by your touch device can be completely different than your display. For example, you may have a 320x240 screen, but the XPT 2046 will report coordinates in the range [0..4095], and they may even be flipped with respect to the screen.
+
+`TouchCalibration` brings these coordinate systems together. It specifies a bounding box of touch coordinates that correspond to screen extents, plus the information about relative orientation of touch vs the display.
+
+How do you figure out the right values? Use the script `examples/calibrate_touch.ino` which guides you through the steps.
+
+### Usage
+
 Once configured and calibrated, touch is simple to use. Specifically, the `Display` class provides the following method:
 
 ```cpp
@@ -1746,9 +1835,30 @@ class Display {
 }
 ```
 
-The following example draw a draggable cross-hairs at the touch point, for as long as the display is touched:
+Putting it all together, the following example draw a draggable cross-hairs at the touch point, for as long as the display is touched:
 
 ```cpp
+#include "SPI.h"
+#include "roo_display.h"
+#include "roo_display/driver/ili9341.h"
+#include "roo_display/driver/touch_xpt2046.h"
+
+#include "roo_display/shape/basic_shapes.h"
+
+using namespace roo_display;
+
+Ili9341spi<5, 17, 27> display_device;
+TouchXpt2046<2> touch_device;
+
+Display display(display_device, touch_device,
+                TouchCalibration(269, 249, 3829, 3684,
+                                 Orientation::LeftDown()));
+
+void setup() {
+  SPI.begin();
+  display.init(color::DarkGray);
+}
+
 int16_t x = -1;
 int16_t y = -1;
 bool was_touched = false;

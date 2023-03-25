@@ -262,6 +262,7 @@ class Offscreen : public Rasterizable {
       : device_(extents.width(), extents.height(), buffer, color_mode),
         raster_(device_.raster(extents.xMin(), extents.yMin())),
         extents_(extents),
+        anchor_extents_(extents),
         owns_buffer_(false) {}
 
   // Creates an offscreen with specified geometry, using an internally
@@ -279,6 +280,7 @@ class Offscreen : public Rasterizable {
             color_mode),
         raster_(device_.raster(extents.xMin(), extents.yMin())),
         extents_(extents),
+        anchor_extents_(extents),
         owns_buffer_(true) {}
 
   // Creates an offscreen with specified geometry, using an internally allocated
@@ -298,6 +300,7 @@ class Offscreen : public Rasterizable {
   // Convenience constructor that makes a RAM copy of the specified drawable.
   Offscreen(const Drawable &d, ColorMode color_mode = ColorMode())
       : Offscreen(d.extents(), color_mode) {
+    setAnchorExtents(d.anchorExtents());
     Box extents = d.extents();
     if (color_mode.transparency() != TRANSPARENCY_NONE) {
       device_.fillRect(0, 0, extents.width() - 1, extents.height() - 1,
@@ -318,6 +321,11 @@ class Offscreen : public Rasterizable {
   }
 
   Box extents() const override { return extents_; }
+  Box anchorExtents() const override { return anchor_extents_; }
+
+  void setAnchorExtents(Box anchor_extents) {
+    anchor_extents_ = anchor_extents;
+  }
 
   TransparencyMode getTransparencyMode() const override {
     return raster().getTransparencyMode();
@@ -347,7 +355,7 @@ class Offscreen : public Rasterizable {
   // Sets the default (maximum) clip box. Usually the same as raster extents,
   // but may be smaller, e.g. if the underlying raster is byte-aligned and the
   // extents aren't.
-  void set_extents(const Box& extents) { extents_ = extents; }
+  void set_extents(const Box &extents) { extents_ = extents; }
 
  private:
   friend class DrawingContext;
@@ -370,8 +378,8 @@ class Offscreen : public Rasterizable {
 
   const Raster<const uint8_t *, ColorMode, pixel_order, byte_order> raster_;
 
-  // Extents = default clip box.
   Box extents_;
+  Box anchor_extents_;
 
   bool owns_buffer_;
 };

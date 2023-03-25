@@ -3,6 +3,7 @@
 #include "roo_display.h"
 #include "roo_display/color/color.h"
 #include "roo_display/core/drawable.h"
+#include "roo_display/shape/point.h"
 
 namespace roo_display {
 
@@ -19,6 +20,8 @@ class BasicShape : virtual public Drawable {
 
 class Line : public BasicShape {
  public:
+  Line(Point a, Point b, Color color) : Line(a.x, a.y, b.x, b.y, color) {}
+
   Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Color color)
       : BasicShape(color), x0_(x0), y0_(y0), x1_(x1), y1_(y1), diag_(TL_BR) {
     if (x1 < x0) {
@@ -204,10 +207,18 @@ class CircleBase : public BasicShape {
 
 class Circle : public CircleBase {
  public:
+  static Circle ByRadius(Point center, int16_t radius, Color color) {
+    return ByRadius(center.x, center.y, radius, color);
+  }
+
   static Circle ByRadius(int16_t x_center, int16_t y_center, int16_t radius,
                          Color color) {
     return Circle(x_center - radius, y_center - radius, (radius << 1) + 1,
                   color);
+  }
+
+  static Circle ByExtents(Point top_left, int16_t diameter, Color color) {
+    return ByExtents(top_left.x, top_left.y, diameter, color);
   }
 
   static Circle ByExtents(int16_t x0, int16_t y0, int16_t diameter,
@@ -224,10 +235,18 @@ class Circle : public CircleBase {
 
 class FilledCircle : public CircleBase {
  public:
+  static FilledCircle ByRadius(Point center, int16_t radius, Color color) {
+    return ByRadius(center.x, center.y, radius, color);
+  }
+
   static FilledCircle ByRadius(int16_t x_center, int16_t y_center,
                                int16_t radius, Color color) {
     return FilledCircle(x_center - radius, y_center - radius, (radius << 1) + 1,
                         color);
+  }
+
+  static FilledCircle ByExtents(Point top_left, int16_t diameter, Color color) {
+    return ByExtents(top_left.x, top_left.y, diameter, color);
   }
 
   static FilledCircle ByExtents(int16_t x0, int16_t y0, int16_t diameter,
@@ -284,6 +303,9 @@ class TriangleBase : public BasicShape {
 
 class Triangle : public TriangleBase {
  public:
+  Triangle(Point a, Point b, Point c, Color color)
+      : Triangle(a.x, a.y, b.x, b.y, c.x, c.y, color) {}
+
   Triangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2,
            int16_t y2, Color color)
       : TriangleBase(x0, y0, x1, y1, x2, y2, color) {}
@@ -294,6 +316,9 @@ class Triangle : public TriangleBase {
 
 class FilledTriangle : public TriangleBase {
  public:
+  FilledTriangle(Point a, Point b, Point c, Color color)
+      : FilledTriangle(a.x, a.y, b.x, b.y, c.x, c.y, color) {}
+
   FilledTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2,
                  int16_t y2, Color color)
       : TriangleBase(x0, y0, x1, y1, x2, y2, color) {}

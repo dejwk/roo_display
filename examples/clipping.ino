@@ -73,12 +73,13 @@ void basicBitPatterns1() {
   // ClipMask can be narrowed by a box rectangle. Here, we're just using full
   // screen.
   ClipMask mask(clipmask, display.extents());
+  // ClipMask mask(clipmask, display.extents());
   dc.setClipMask(&mask);
   memset(clipmask, 0xCC, clipmask_size);
   dc.draw(
       FilledCircle::ByRadius(0, 0, display.height() / 2 - 10, color::DarkRed),
       display.width() / 2, display.height() / 2 + 5);
-  memset(clipmask, 0x33, clipmask_size);
+  mask.setInverted(true);
   dc.draw(
       FilledCircle::ByRadius(0, 0, display.height() / 2 - 10, color::Yellow),
       display.width() / 2, display.height() / 2 - 5);
@@ -104,7 +105,7 @@ void basicBitPatterns2() {
   dc.draw(
       FilledCircle::ByRadius(0, 0, display.height() / 2 - 10, color::DarkRed),
       display.width() / 2, display.height() / 2 + 5);
-  memset(clipmask, 0x33, clipmask_size);
+  mask.setInverted(true);
   dc.draw(
       FilledCircle::ByRadius(0, 0, display.height() / 2 - 10, color::Yellow),
       display.width() / 2, display.height() / 2 - 5);

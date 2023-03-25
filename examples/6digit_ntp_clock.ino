@@ -35,7 +35,7 @@ struct Emulator {
     ap->setPasswd("**********");
     wifi.addAccessPoint(std::move(ap));
 
-    FakeEsp32().wifi.setEnvironment(wifi);
+    FakeEsp32().setWifiEnvironment(wifi);
   }
 } emulator;
 
@@ -48,6 +48,7 @@ struct Emulator {
 
 #include "roo_display.h"
 #include "roo_display/font/font.h"
+#include "roo_display/shape/basic_shapes.h"
 #include "roo_display/ui/text_label.h"
 #include "roo_smooth_fonts/NotoSans_Bold/60.h"
 #include "roo_smooth_fonts/NotoSans_Regular/40.h"
@@ -105,9 +106,9 @@ void setup() {
   display.clear();
 
   // split screen background color vertically
-  dc.draw(FilledRect(0, display.height() / 2 + 15, display.width(),
-                     display.height(), color::BlueViolet));
-  dc.draw(Line(0, display.height() / 2 + 15, display.width(),
+  dc.draw(FilledRect(0, display.height() / 2 + 16, display.width() - 1,
+                     display.height() - 1, color::BlueViolet));
+  dc.draw(Line(0, display.height() / 2 + 15, display.width() - 1,
                display.height() / 2 + 15, color::Black));
 }
 
@@ -119,30 +120,24 @@ void loop() {
   const Font& timeFont = font_NotoSans_Bold_60();
   const Font& dateFont = font_NotoSans_Regular_40();
 
-  GlyphMetrics timeMetrics = timeFont.getHorizontalStringMetrics("00:00:00");
-  Box timeBox = timeMetrics.screen_extents();
-  GlyphMetrics dateMetrics = dateFont.getHorizontalStringMetrics("00/00/0000");
-  Box dateBox = dateMetrics.screen_extents();
-
   getNTPtime(10);
   stringifyTime(timeinfo, time, date);
 
-  auto t_label = ClippedStringViewLabel(time, timeFont, color::BlueViolet);
-  auto t_tile = MakeTileOf(t_label, timeBox);
-
-  auto d_label = ClippedStringViewLabel(date, dateFont, color::BlanchedAlmond);
-  auto d_tile = MakeTileOf(d_label, dateBox);
-
-  DrawingContext dc(display);
-  // Translate dc to center of display
-  dc.setTransformation(
-      Transformation().translate(display.width() / 2, display.height() / 2));
-  int16_t timeDx = -timeBox.width() / 2;
-  dc.draw(t_tile, timeDx, 0);  // draw Time
-
-  dc.setBackground(color::BlueViolet);
-  int16_t dateDx = -dateBox.width() / 2;
-  dc.draw(d_tile, dateDx, timeBox.height() * 3 / 2);  // draw Date
+  {
+    DrawingContext dc(
+        display, Box(0, 0, display.width() - 1, display.height() / 2 + 14));
+    dc.setFillMode(FILL_MODE_RECTANGLE);
+    dc.draw(StringViewLabel(time, timeFont, color::BlueViolet),
+            kCenter | kMiddle);  // draw Time
+  }
+  {
+    DrawingContext dc(display, Box(0, display.height() / 2 + 16,
+                                   display.width() - 1, display.height() - 1));
+    dc.setBackgroundColor(color::BlueViolet);
+    dc.setFillMode(FILL_MODE_RECTANGLE);
+    dc.draw(StringViewLabel(date, dateFont, color::BlanchedAlmond),
+            kCenter | kMiddle);  // draw Date
+  }
   delay(100);
 }
 

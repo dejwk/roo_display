@@ -1,7 +1,7 @@
 
 #include "roo_display/core/rasterizable.h"
 
-#include "roo_display/core/color.h"
+#include "roo_display/color/color.h"
 #include "testing.h"
 
 // Tests drawing and clipping rasterizables via their default drawTo method, and

@@ -2,7 +2,7 @@
 #include "roo_display/core/combo.h"
 
 #include "roo_display.h"
-#include "roo_display/core/color.h"
+#include "roo_display/color/color.h"
 #include "testing.h"
 // #include "offscreen.h"
 

@@ -4,7 +4,7 @@
 #include <memory>
 #include <random>
 
-#include "roo_display/core/color.h"
+#include "roo_display/color/color.h"
 #include "roo_display/io/memory.h"
 #include "testing.h"
 

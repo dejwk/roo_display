@@ -5,7 +5,7 @@
 
 #include "roo_display/driver/common/compactor.h"
 // #include "gtest/gtest.h"
-// #include "roo_display/core/color.h"
+// #include "roo_display/color/color.h"
 // #include "roo_display/core/color_subpixel.h"
 // #include "roo_display/core/offscreen.h"
 #include "testing.h"

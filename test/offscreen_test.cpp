@@ -6,7 +6,7 @@
 
 #include "gtest/gtest-param-test.h"
 #include "roo_display.h"
-#include "roo_display/core/color.h"
+#include "roo_display/color/color.h"
 #include "roo_display/core/streamable.h"
 #include "roo_display/internal/color_subpixel.h"
 #include "testing_display_device.h"

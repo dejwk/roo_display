@@ -3,7 +3,7 @@
 #include <random>
 
 #include "gtest/gtest-param-test.h"
-#include "roo_display/core/color.h"
+#include "roo_display/color/color.h"
 #include "roo_display/core/offscreen.h"
 #include "roo_display/internal/color_subpixel.h"
 #include "testing.h"

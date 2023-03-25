@@ -1,7 +1,7 @@
 
 #include "roo_display/core/streamable.h"
 
-#include "roo_display/core/color.h"
+#include "roo_display/color/color.h"
 #include "testing.h"
 
 // Tests drawing and clipping streamables via their drawTo method, which

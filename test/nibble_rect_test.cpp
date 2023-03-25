@@ -2,7 +2,7 @@
 #include "roo_display/internal/nibble_rect.h"
 
 #include "roo_display.h"
-#include "roo_display/core/color.h"
+#include "roo_display/color/color.h"
 #include "roo_display/core/offscreen.h"
 #include "testing.h"
 #include "testing_display_device.h"

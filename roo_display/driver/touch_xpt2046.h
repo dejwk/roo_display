@@ -58,7 +58,12 @@ static const int kTouchSensitivityLagMs = 250;
 
 // If there is no touch detected for up to this many ms, we will still report
 // that the pad is touched, with previously reported coordinates.
-static const int kTouchIntertiaMs = 60;
+// Unfortunately, noise makes this algorithm generate fake 'swipes'.
+static const int kTouchIntertiaMs = 0;
+
+// Controls exponential smoothing. In (0, 1]. Lower values = more smoothing;
+// more inertia.
+static const float kSmoothingFactor = 0.7;
 
 // Implementation follows.
 
@@ -113,6 +118,7 @@ ConversionResult single_conversion(Spi& spi, uint16_t z_threshold, uint16_t* x,
     z2 = z1;
     z1 = get_raw_touch_z(spi);
   }
+
   if (z1 <= z_threshold) {
     return UNTOUCHED;
   }
@@ -182,21 +188,31 @@ bool TouchXpt2046<pinCS, Spi, Gpio>::getTouch(int16_t& x, int16_t& y,
         x = 4095 - (x_sum / count);
         y = 4095 - (y_sum / count);
         z = z_max;
+        float alpha = pow(kSmoothingFactor, dt);
         if (!pressed_) {
           // First touch.
           press_vx_ = 0;
           press_vy_ = 0;
+          press_x_ = x;
+          press_y_ = y;
+          press_z_ = z;
         } else {
+          x = (int32_t)(press_x_ * (1 - alpha) + x * alpha);
+          y = (int32_t)(press_y_ * (1 - alpha) + y * alpha);
+          z = (int32_t)(press_z_ * (1 - alpha) + z * alpha);
           if (dt != 0) {
             // Note: the velocity unit is fairly arbitrary, chosen
             // so that the velocity fits in int16_t.
             press_vx_ = 8 * (x - (int16_t)press_x_) / (long)dt;
             press_vy_ = 8 * (y - (int16_t)press_y_) / (long)dt;
+          } else {
+            press_vx_ = 0;
+            press_vy_ = 0;
           }
+          press_x_ = x;
+          press_y_ = y;
+          press_z_ = z;
         }
-        press_x_ = x;
-        press_y_ = y;
-        press_z_ = z;
         if (z >= kInitialTouchZThreshold) {
           // We got a definite press.
           latest_confirmed_pressed_timestamp_ = now;
@@ -207,8 +223,6 @@ bool TouchXpt2046<pinCS, Spi, Gpio>::getTouch(int16_t& x, int16_t& y,
         // bounds.
         int16_t maybe_x = press_x_ + (press_vx_ * (long)dt) / 8;
         int16_t maybe_y = press_y_ + (press_vy_ * (long)dt) / 8;
-        // TODO: this extrapolation should probably be based on smoothed
-        // values...
         if (maybe_x >= 0 && maybe_x <= 4095 && maybe_y >= 0 &&
             maybe_y <= 4095) {
           touched = true;

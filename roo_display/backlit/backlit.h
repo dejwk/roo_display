@@ -1,5 +1,7 @@
 #pragma once
 
+#include "roo_display.h"
+
 namespace roo_display {
 
 class Backlit {

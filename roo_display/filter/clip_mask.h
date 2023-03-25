@@ -25,7 +25,7 @@ class ClipMask {
   bool inverted() const { return inverted_; }
 
   inline bool isMasked(int16_t x, int16_t y) const {
-    if (!bounds_.contains(x, y)) return false;
+    if (!bounds_.contains(x, y)) return inverted_;
     x -= bounds_.xMin();
     y -= bounds_.yMin();
     uint32_t byte_offset = x / 8 + y * line_width_bytes_;
@@ -36,12 +36,14 @@ class ClipMask {
 
   inline bool isAllMasked(int16_t x, int16_t y, uint8_t mask,
                           uint8_t lines) const {
-    return inverted_ ? isAllUnset(x, y, ~mask, lines) : isAllSet(x, y, mask, lines);
+    return inverted_ ? isAllUnset(x, y, mask, ~lines)
+                     : isAllSet(x, y, mask, lines);
   }
 
   inline bool isAllUnmasked(int16_t x, int16_t y, uint8_t mask,
                             uint8_t lines) const {
-    return inverted_ ? isAllSet(x, y, ~mask, lines) : isAllUnset(x, y, mask, lines);
+    return inverted_ ? isAllSet(x, y, mask, ~lines)
+                     : isAllUnset(x, y, mask, lines);
   }
 
   void setInverted(bool inverted) { inverted_ = inverted; }
@@ -179,34 +181,50 @@ class ClipMaskFilter : public DisplayOutput {
     const Box& bounds = clip_mask_->bounds();
     if (y0 < bounds.yMin()) {
       if (y1 < bounds.yMin()) {
-        rfiller.fillRect(x0, y0, x1, y1);
+        if (!clip_mask_->inverted()) {
+          rfiller.fillRect(x0, y0, x1, y1);
+        }
         return;
       }
-      rfiller.fillRect(x0, y0, x1, bounds.yMin() - 1);
+      if (!clip_mask_->inverted()) {
+        rfiller.fillRect(x0, y0, x1, bounds.yMin() - 1);
+      }
       y0 = bounds.yMin();
     }
     if (x0 < bounds.xMin()) {
       if (x1 < bounds.xMin()) {
-        rfiller.fillRect(x0, y0, x1, y1);
+        if (!clip_mask_->inverted()) {
+          rfiller.fillRect(x0, y0, x1, y1);
+        }
         return;
       }
-      rfiller.fillRect(x0, y0, bounds.xMin() - 1, y1);
+      if (!clip_mask_->inverted()) {
+        rfiller.fillRect(x0, y0, bounds.xMin() - 1, y1);
+      }
       x0 = bounds.xMin();
     }
     if (x1 > bounds.xMax()) {
       if (x0 > bounds.xMax()) {
-        rfiller.fillRect(x0, y0, x1, y1);
+        if (!clip_mask_->inverted()) {
+          rfiller.fillRect(x0, y0, x1, y1);
+        }
         return;
       }
-      rfiller.fillRect(bounds.xMax() + 1, y0, x1, y1);
+      if (!clip_mask_->inverted()) {
+        rfiller.fillRect(bounds.xMax() + 1, y0, x1, y1);
+      }
       x1 = bounds.xMax();
     }
     if (y1 > bounds.yMax()) {
       if (y0 > bounds.yMax()) {
-        rfiller.fillRect(x0, y0, x1, y1);
+        if (!clip_mask_->inverted()) {
+          rfiller.fillRect(x0, y0, x1, y1);
+        }
         return;
       }
-      rfiller.fillRect(x0, bounds.yMax() + 1, x1, y1);
+      if (!clip_mask_->inverted()) {
+        rfiller.fillRect(x0, bounds.yMax() + 1, x1, y1);
+      }
       y1 = bounds.yMax();
     }
     // Now, [x0, y0, x1, y1] is entirely within bounds.

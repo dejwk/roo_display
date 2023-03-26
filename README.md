@@ -155,7 +155,7 @@ Let us put all of this together do draw some basic shapes:
 
 #include "roo_display.h"
 #include "roo_display/driver/ili9341.h"
-#include "roo_display/shape/basic_shapes.h"
+#include "roo_display/shape/basic.h"
 
 using namespace roo_display;
 
@@ -324,7 +324,7 @@ The library allows drawing with specified horizontal and vertical alignment, so 
 
 ```cpp
 void loop() {
-  auto circle = FilledCircle::ByExtents(0, 0, 40, color::DarkGray);
+  auto circle = FilledCircle::ByExtents({0, 0}, 40, color::DarkGray);
   DrawingContext dc(display);
   dc.draw(circle, kLeft | kTop);
   dc.draw(circle, kCenter | kTop);
@@ -344,7 +344,7 @@ You can adjust the alignment using specific offsets:
 
 ```cpp
 void loop() {
-  auto circle = FilledCircle::ByExtents(0, 0, 40, color::DarkGray);
+  auto circle = FilledCircle::ByExtents({0, 0}, 40, color::DarkGray);
   DrawingContext dc(display);
   dc.draw(circle, kLeft.shiftBy(10) | kTop.shiftBy(10));
   dc.draw(circle, kCenter | kTop.shiftBy(10));
@@ -370,13 +370,13 @@ void loop() {
   {
     DrawingContext dc(display, Box(0, 0, w / 2 - 1, h / 2 - 1));
     dc.draw(
-      FilledCircle::ByExtents(0, 0, 40, color::Purple),
+      FilledCircle::ByExtents({0, 0}, 40, color::Purple),
       centered);
   }
   {
     DrawingContext dc(display, Box(w / 2, 0, w - 1, h / 2 - 1));
     dc.draw(
-      FilledTriangle(0, 0, 10, 50, 80, 5, color::Crimson),
+      FilledTriangle({0, 0}, {10, 50}, {80, 5}, color::Crimson),
       centered);
   }
   {
@@ -572,7 +572,7 @@ You can also set a _clip mask_, which is a bit mask allowing to define arbitrary
 
 #include "roo_display.h"
 #include "roo_display/driver/ili9341.h"
-#include "roo_display/shape/basic_shapes.h"
+#include "roo_display/shape/basic.h"
 
 #include "roo_display/ui/text_label.h"
 #include "roo_smooth_fonts/NotoSerif_Italic/60.h"
@@ -1405,7 +1405,7 @@ Let's see a simple example:
 #include "roo_display/core/offscreen.h"
 #include "roo_smooth_fonts/NotoSerif_Italic/27.h"
 #include "roo_display/ui/text_label.h"
-#include "roo_display/shape/basic_shapes.h"
+#include "roo_display/shape/basic.h"
 
 // ...
 
@@ -1811,7 +1811,7 @@ A simple setup with an ILI 9431 display and a XPT 2046 touch may look as follows
 #include "Arduino.h"
 #include "SPI.h"
 #include "roo_display.h"
-#include "roo_display/core/touch_calibration.h"
+#include "roo_display/touch/calibration.h"
 #include "roo_display/driver/ili9341.h"
 #include "roo_display/driver/touch_xpt2046.h"
 
@@ -1865,7 +1865,7 @@ Putting it all together, the following example draw a draggable cross-hairs at t
 #include "roo_display/driver/ili9341.h"
 #include "roo_display/driver/touch_xpt2046.h"
 
-#include "roo_display/shape/basic_shapes.h"
+#include "roo_display/shape/basic.h"
 
 using namespace roo_display;
 
@@ -2077,7 +2077,7 @@ In most cases, optimal use of the batch API does not come naturally, so you may 
 
 Helper classes defined in `roo_display/core/buffered_drawing.h` are adapters that allow drawing individual primitives such as pixels, lines, or rectangles, grouping them in batches before sending them to the driver. When you instantiate such an adapter, it allocates a small buffer on the stack, and uses that buffer to build up batches that are then flushed to the driver.
 
-Basic shapes, such as lines or circles, use buffered drawing utilities a lot, so they are a good case study. See `basic_shapes.cpp`.
+Basic shapes, such as lines or circles, use buffered drawing utilities a lot, so they are a good case study. See `basic.cpp`.
 
 The names of those classes follow a convention, so it is easy to understand what they do - you just need to remember that 'write' means using distinct colors, and 'fill' means using the same color:
 

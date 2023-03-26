@@ -1,3 +1,5 @@
+#pragma once
+
 #include "esp32-hal.h"
 #include "roo_display/backlit/backlit.h"
 

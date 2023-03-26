@@ -5,7 +5,7 @@
 #include "roo_display/core/device.h"
 #include "roo_display/core/drawable.h"
 #include "roo_display/core/streamable.h"
-#include "roo_display/core/touch_calibration.h"
+#include "roo_display/touch/calibration.h"
 #include "roo_display/filter/background.h"
 #include "roo_display/filter/clip_mask.h"
 #include "roo_display/filter/front_to_back_writer.h"

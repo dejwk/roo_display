@@ -1,4 +1,4 @@
-#include "roo_display/core/touch_calibration.h"
+#include "roo_display/touch/calibration.h"
 
 #include "roo_display/core/box.h"
 

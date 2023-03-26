@@ -1,7 +1,7 @@
 #pragma once
 
 #include "roo_display/core/device.h"
-#include "roo_display/core/touch_calibration.h"
+#include "roo_display/touch/calibration.h"
 
 namespace roo_display {
 

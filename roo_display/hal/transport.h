@@ -137,7 +137,7 @@ class BoundSpiTransaction {
   BoundSpi& spi_;
 };
 
-#if (defined(ESP32) && !defined(ROO_TESTING))
+#if (defined(ESP32) && (CONFIG_IDF_TARGET_ESP32) && !defined(ROO_TESTING))
 
 }  // namespace roo_display
 

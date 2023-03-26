@@ -141,15 +141,6 @@ class OffscreenDevice : public DisplayDevice {
 
   OffscreenDevice(OffscreenDevice &&other) = delete;
 
-  // ~Offscreen() override {
-  //   if (owns_buffer_) delete[] buffer_;
-  // }
-
-  // void drawTo(const Surface &s) const override { s.drawObject(raster_); }
-
-  // // This is to implement the Drawable interface.
-  // Box extents() const override { return raster_.extents(); }
-
   void orientationUpdated();
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,

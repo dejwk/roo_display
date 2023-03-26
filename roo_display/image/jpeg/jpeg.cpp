@@ -40,7 +40,9 @@ int jpeg_draw_rect(JDEC* jdec, void* data, JRECT* rect) {
   }
   Box box(rect->left, rect->top, rect->right, rect->bottom);
   ConstDramRaster<Rgb888> raster(box, (const uint8_t*)data);
+  surface->out().begin();
   surface->drawObject(raster, 0, 0);
+  surface->out().end();
   return 1;
 }
 
@@ -56,8 +58,10 @@ bool JpegDecoder::openInternal(int16_t& width, int16_t& height) {
 
 void JpegDecoder::drawInternal(const Surface& s, uint8_t scale) {
   surface_ = &s;
+  s.out().end();
   jd_decomp(&jdec_, &jpeg_draw_rect, scale);
   surface_ = nullptr;
+  s.out().begin();
 }
 
 }  // namespace roo_display

@@ -35,6 +35,7 @@ void png_draw(PNGDRAW *pDraw) {
   int16_t y = pDraw->y;
   if (y < surface->clip_box().yMin() || y > surface->clip_box().yMax()) return;
   Box box(0, y, pDraw->iWidth - 1, y);
+  surface->out().begin();
   switch (pDraw->iPixelType) {
     case PNG_PIXEL_TRUECOLOR_ALPHA: {
       ConstDramRaster<Rgba8888> raster(box, pDraw->pPixels);
@@ -81,6 +82,7 @@ void png_draw(PNGDRAW *pDraw) {
       }
     }
   }
+  surface->out().end();
 }
 
 PngDecoder::PngDecoder() : pngdec_(new PNGIMAGE()), input_(nullptr) {}
@@ -108,7 +110,9 @@ void PngDecoder::drawInternal(const Surface &s, uint8_t scale) {
     palette_ = Palette::ReadOnly((Color*)pngdec_->ucPalette, 1 << pngdec_->ucBpp);
   }
   User user{.surface = &s, .palette = &palette_};
+  s.out().end();
   DecodePNG(pngdec_.get(), (void *)&user, 0);
+  s.out().begin();
 }
 
 }  // namespace roo_display

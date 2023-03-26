@@ -14,6 +14,19 @@ class DisplayOutput {
  public:
   virtual ~DisplayOutput() {}
 
+  // Enter a 'write transaction'.
+  //
+  // Normally called by the DrawingContext constructor, and does not need to be
+  // called explicitly.
+  virtual void begin() {}
+
+  // Finalize the previously entered 'write transaction', flushing
+  // all potentially pending writes.
+  //
+  // Normally called by the DrawingContext destructor, and does not need to be
+  // called explicitly.
+  virtual void end() {}
+
   // Convenience shortcut.
   void setAddress(const Box &bounds, PaintMode mode) {
     setAddress(bounds.xMin(), bounds.yMin(), bounds.xMax(), bounds.yMax(),
@@ -103,13 +116,6 @@ class DisplayDevice : public DisplayOutput {
   // are called. Can be called at any time, subsequently, to re-initialize
   // the display to the default settings. Must be called outside transaction.
   virtual void init() {}
-
-  // Enter a 'write transaction'.
-  virtual void begin() {}
-
-  // Finalize the previously entered 'write transaction', flushing
-  // all potentially pending writes.
-  virtual void end() {}
 
   // Sets the orientation of the display.
   void setOrientation(Orientation orientation) {

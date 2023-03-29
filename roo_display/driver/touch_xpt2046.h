@@ -1,6 +1,7 @@
 #pragma once
 
 #include "roo_display/core/device.h"
+#include "roo_display/driver/common/basic_touch.h"
 #include "roo_display/hal/gpio.h"
 #include "roo_display/hal/transport.h"
 
@@ -10,25 +11,6 @@ static const int kSpiTouchFrequency = 2500000;
 
 typedef SpiSettings<kSpiTouchFrequency, MSBFIRST, SPI_MODE0>
     TouchXpt2046SpiSettings;
-
-template <int pinCS, typename Spi = DefaultSpi, typename Gpio = DefaultGpio>
-class TouchXpt2046 : public TouchDevice {
- public:
-  explicit TouchXpt2046(Spi spi = Spi());
-
-  bool getTouch(int16_t& x, int16_t& y, int16_t& z) override;
-
- private:
-  BoundSpi<Spi, TouchXpt2046SpiSettings> spi_transport_;
-
-  bool pressed_;
-  unsigned long latest_confirmed_pressed_timestamp_;
-  int16_t press_x_;
-  int16_t press_y_;
-  int16_t press_z_;
-  int16_t press_vx_;
-  int16_t press_vy_;
-};
 
 // If two subsequent reads are further apart than this parameter, in either
 // X or Y direction, their conversion is rejected as UNSETTLED.
@@ -47,36 +29,41 @@ static const int kMinSettledConversions = 8;
 // How hard the press needs to be to count as touch.
 static const int kInitialTouchZThreshold = 400;
 
-// How hard the press needs to be to count as continued touch (i.e., once
-// the display has been touched). See kTouchSensitivityLagMs.
-static const int kSustainedTouchZThreshold = 300;
+// // How hard the press needs to be to count as continued touch (i.e., once
+// // the display has been touched). See kTouchSensitivityLagMs.
+// static const int kSustainedTouchZThreshold = 300;
 
-// To avoid spurious drops in drag touch, the driver is more sensitive to touch
-// (and thus more prone to picking up noise) for this many ms since last
-// definitive touch.
-static const int kTouchSensitivityLagMs = 250;
+// // To avoid spurious drops in drag touch, the driver is more sensitive to
+// touch
+// // (and thus more prone to picking up noise) for this many ms since last
+// // definitive touch.
+// static const int kTouchSensitivityLagMs = 250;
 
-// If there is no touch detected for up to this many ms, we will still report
-// that the pad is touched, with previously reported coordinates.
-// Unfortunately, noise makes this algorithm generate fake 'swipes'.
-static const int kTouchIntertiaMs = 0;
+template <int pinCS, typename Spi = DefaultSpi, typename Gpio = DefaultGpio>
+class TouchXpt2046 : public BasicTouchDevice<1> {
+ public:
+  explicit TouchXpt2046(Spi spi = Spi());
 
-// Controls exponential smoothing. In (0, 1]. Lower values = more smoothing;
-// more inertia.
-static const float kSmoothingFactor = 0.7;
+ protected:
+  int readTouch(TouchPoint* points) override;
+
+ private:
+  BoundSpi<Spi, TouchXpt2046SpiSettings> spi_transport_;
+
+  bool pressed_;
+  unsigned long latest_confirmed_pressed_timestamp_;
+};
 
 // Implementation follows.
 
 template <int pinCS, typename Spi, typename Gpio>
 TouchXpt2046<pinCS, Spi, Gpio>::TouchXpt2046(Spi spi)
-    : spi_transport_(std::move(spi)),
+    : BasicTouchDevice(Config{.min_sampling_interval_ms = 5,
+                              .touch_intertia_ms = 30,
+                              .smoothing_factor = 0.8}),
+      spi_transport_(std::move(spi)),
       pressed_(false),
-      latest_confirmed_pressed_timestamp_(0),
-      press_x_(0),
-      press_y_(0),
-      press_z_(0),
-      press_vx_(0),
-      press_vy_(0) {
+      latest_confirmed_pressed_timestamp_(0) {
   Gpio::setOutput(pinCS);
   Gpio::template setHigh<pinCS>();
 }
@@ -142,15 +129,15 @@ ConversionResult single_conversion(Spi& spi, uint16_t z_threshold, uint16_t* x,
 }
 
 template <int pinCS, typename Spi, typename Gpio>
-bool TouchXpt2046<pinCS, Spi, Gpio>::getTouch(int16_t& x, int16_t& y,
-                                              int16_t& z) {
-  unsigned long now = millis();
+int TouchXpt2046<pinCS, Spi, Gpio>::readTouch(TouchPoint* touch_point) {
+  // long now = micros();
   int z_threshold = kInitialTouchZThreshold;
-  if (pressed_ &&
-      (now - latest_confirmed_pressed_timestamp_ < kTouchSensitivityLagMs) &&
-      z_threshold > kSustainedTouchZThreshold) {
-    z_threshold = kSustainedTouchZThreshold;
-  }
+  // if (pressed_ &&
+  //     (now - latest_confirmed_pressed_timestamp_ < kTouchSensitivityLagMs) &&
+  //     z_threshold > kSustainedTouchZThreshold) {
+  //   z_threshold = kSustainedTouchZThreshold;
+  // }
+
   BoundSpiTransaction<pinCS, decltype(spi_transport_), Gpio> transaction(
       spi_transport_);
 
@@ -181,63 +168,26 @@ bool TouchXpt2046<pinCS, Spi, Gpio>::getTouch(int16_t& x, int16_t& y,
       if (z_max < z_tmp) z_max = z_tmp;
       count++;
     }
-    unsigned long dt = now - latest_confirmed_pressed_timestamp_;
+    int16_t x, y, z;
     if (settled_conversions >= kMinSettledConversions) {
       // We got enough settled conversions to return a result.
       if (touched) {
-        x = 4095 - (x_sum / count);
-        y = 4095 - (y_sum / count);
-        z = z_max;
-        float alpha = pow(kSmoothingFactor, dt);
-        if (!pressed_) {
-          // First touch.
-          press_vx_ = 0;
-          press_vy_ = 0;
-          press_x_ = x;
-          press_y_ = y;
-          press_z_ = z;
-        } else {
-          x = (int32_t)(press_x_ * (1 - alpha) + x * alpha);
-          y = (int32_t)(press_y_ * (1 - alpha) + y * alpha);
-          z = (int32_t)(press_z_ * (1 - alpha) + z * alpha);
-          if (dt != 0) {
-            // Note: the velocity unit is fairly arbitrary, chosen
-            // so that the velocity fits in int16_t.
-            press_vx_ = 8 * (x - (int16_t)press_x_) / (long)dt;
-            press_vy_ = 8 * (y - (int16_t)press_y_) / (long)dt;
-          } else {
-            press_vx_ = 0;
-            press_vy_ = 0;
-          }
-          press_x_ = x;
-          press_y_ = y;
-          press_z_ = z;
-        }
-        if (z >= kInitialTouchZThreshold) {
-          // We got a definite press.
-          latest_confirmed_pressed_timestamp_ = now;
-        }
-      } else if (pressed_ && dt < kTouchIntertiaMs) {
-        // We did not detect touch, but the latest confirmed touch was not long
-        // ago so we extrapolate as touched anyway, unless it would go out of
-        // bounds.
-        int16_t maybe_x = press_x_ + (press_vx_ * (long)dt) / 8;
-        int16_t maybe_y = press_y_ + (press_vy_ * (long)dt) / 8;
-        if (maybe_x >= 0 && maybe_x <= 4095 && maybe_y >= 0 &&
-            maybe_y <= 4095) {
-          touched = true;
-          x = maybe_x;
-          y = maybe_y;
-          z = press_z_;
-        }
+        touch_point->id = 0;
+        touch_point->x = 4095 - (x_sum / count);
+        touch_point->y = 4095 - (y_sum / count);
+        touch_point->z = z_max;
+        // if (z >= kInitialTouchZThreshold) {
+        //   // We got a definite press.
+        //   latest_confirmed_pressed_timestamp_ = now;
+        // }
       }
       pressed_ = touched;
-      return touched;
+      return pressed_ ? 1 : 0;
     }
   }
   // No reliable readout despite numerous attempts - aborting.
   pressed_ = false;
-  return false;
-}
+  return 0;
+};
 
 }  // namespace roo_display

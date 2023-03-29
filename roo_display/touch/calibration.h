@@ -1,6 +1,7 @@
 #pragma once
 
 #include "roo_display/core/box.h"
+#include "roo_display/core/device.h"
 #include "roo_display/core/orientation.h"
 
 namespace roo_display {
@@ -20,9 +21,8 @@ class TouchCalibration {
   TouchCalibration(Box bounds, Orientation orientation = Orientation::Default())
       : bounds_(std::move(bounds)), orientation_(orientation) {}
 
-  // Augments x and y so that they are within range [0, 4095], and
-  // correspond to the logical {x, y} direction of the calibrated device.
-  void Calibrate(int16_t& x, int16_t& y, int16_t& z);
+  // Augments the touch point according to the calibration spec.
+  void Calibrate(TouchPoint& point);
 
  private:
   Box bounds_;

@@ -177,15 +177,54 @@ class DisplayDevice : public DisplayOutput {
   int16_t raw_height_;
 };
 
+struct TouchPoint {
+  TouchPoint() : id(0), x(-1), y(-1), z(-1), vx(0), vy(0) {}
+
+  // ID assigned by the driver, for tracking. For non-multitouch devices, should
+  // be left at zero.
+  uint16_t id;
+
+  // X-coordinate of the touch.
+  int16_t x;
+
+  // Y-coordinate of the touch.
+  int16_t y;
+
+  // Z-coordinate of the touch (how hard is it pressed). [0-4095]. Drivers that
+  // don't support it should report 1024.
+  int16_t z;
+
+  // X-axis velocity at touch point, in pixels / sec.
+  int32_t vx;
+
+  // Y-axis velocity at touch point, in pixels / sec.
+  int32_t vy;
+};
+
+struct TouchResult {
+  TouchResult() : timestamp_us(0), touch_points(0) {}
+
+  TouchResult(unsigned long timestamp_us, int touch_points)
+      : timestamp_us(timestamp_us), touch_points(touch_points) {}
+
+  // micros() at detection.
+  unsigned long timestamp_us;
+
+  int touch_points;
+};
+
 class TouchDevice {
  public:
-  virtual ~TouchDevice() {}
+  virtual ~TouchDevice() = default;
 
-  // If touch has been registered, returns true, and sets (x, y, z) to touch
-  // coordinates, where (x, y) are in the range of 0 to 4095, and z is 'press
-  // intensity' in the range of 0-255. If the touch has not been registered,
-  // returns false without modifying x, y, or z.
-  virtual bool getTouch(int16_t &x, int16_t &y, int16_t &z) = 0;
+  virtual void initTouch() {}
+
+  // If touch has not been registered, returns {.touch_points = 0 } and does not
+  // modify `points'. If k touch points have been registered, sets max(k,
+  // max_points) `points`, and returns {.touch_points = k}. In both cases,
+  // returned timestamp_us specifies the micros() corresponding to the
+  // detection time.
+  virtual TouchResult getTouch(TouchPoint *points, int max_points) = 0;
 };
 
 }  // namespace roo_display

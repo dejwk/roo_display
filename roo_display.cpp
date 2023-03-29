@@ -8,32 +8,52 @@
 
 namespace roo_display {
 
-bool TouchDisplay::getTouch(int16_t& x, int16_t& y) {
-  int16_t raw_x, raw_y, raw_z;
-  bool touched = touch_device_.getTouch(raw_x, raw_y, raw_z);
-  if (!touched) {
+TouchResult TouchDisplay::getTouch(TouchPoint* points, int max_points) {
+  TouchResult result = touch_device_.getTouch(points, max_points);
+  if (result.touch_points > 0) {
+    Orientation orientation = display_device_.orientation();
+    for (int i = 0; i < result.touch_points && i < max_points; ++i) {
+      TouchPoint& p = points[i];
+      touch_calibration_.Calibrate(p);
+      if (orientation.isRightToLeft()) {
+        p.x = 4095 - p.x;
+        p.vx = -p.vx;
+      }
+      if (orientation.isBottomToTop()) {
+        p.y = 4095 - p.y;
+        p.vy = -p.vy;
+      }
+      if (orientation.isXYswapped()) {
+        std::swap(p.x, p.y);
+        std::swap(p.vx, p.vy);
+      }
+      p.x = ((int32_t)p.x * (display_device_.effective_width() - 1)) / 4095;
+      p.y = ((int32_t)p.y * (display_device_.effective_height() - 1)) / 4095;
+      p.vx = ((int32_t)p.vx * (display_device_.effective_width() - 1)) / 4095;
+      p.vy = ((int32_t)p.vy * (display_device_.effective_height() - 1)) / 4095;
+    }
+  }
+  return result;
+}
+
+bool Display::getTouch(int16_t& x, int16_t& y) {
+  TouchPoint point;
+  TouchResult result = touch_.getTouch(&point, 1);
+  if (result.touch_points == 0) {
     return false;
   }
-  touch_calibration_.Calibrate(raw_x, raw_y, raw_z);
-  Orientation orientation = display_device_.orientation();
-  if (orientation.isRightToLeft()) {
-    raw_x = 4095 - raw_x;
-  }
-  if (orientation.isBottomToTop()) {
-    raw_y = 4095 - raw_y;
-  }
-  if (orientation.isXYswapped()) {
-    std::swap(raw_x, raw_y);
-  }
-
-  x = ((int32_t)raw_x * (display_device_.effective_width() - 1)) / 4095;
-  y = ((int32_t)raw_y * (display_device_.effective_height() - 1)) / 4095;
+  x = point.x;
+  y = point.y;
   return true;
 }
 
 class DummyTouch : public TouchDevice {
  public:
-  bool getTouch(int16_t& x, int16_t& y, int16_t& z) override { return false; }
+  void initTouch() override {}
+
+  TouchResult getTouch(TouchPoint* points, int max_points) override {
+    return TouchResult(micros(), 0);
+  }
 };
 
 static DummyTouch dummy_touch;
@@ -63,8 +83,8 @@ void Display::setOrientation(Orientation orientation) {
 }
 
 void Display::init(Color bgcolor) {
-  display_device_.init();
-  setBackground(bgcolor);
+  init();
+  setBackgroundColor(bgcolor);
   clear();
 }
 

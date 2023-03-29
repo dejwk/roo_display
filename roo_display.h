@@ -5,19 +5,19 @@
 #include "roo_display/core/device.h"
 #include "roo_display/core/drawable.h"
 #include "roo_display/core/streamable.h"
-#include "roo_display/touch/calibration.h"
 #include "roo_display/filter/background.h"
 #include "roo_display/filter/clip_mask.h"
 #include "roo_display/filter/front_to_back_writer.h"
 #include "roo_display/filter/transformation.h"
 #include "roo_display/products/combo_device.h"
+#include "roo_display/touch/calibration.h"
 #include "roo_display/ui/alignment.h"
 
 #ifdef ARDUINO
 // PlatformIO depdendency scanning gets confused if this is not included in the
 // main file, causing compilation errors (header not found).
-#include <Wire.h>
 #include <FS.h>
+#include <Wire.h>
 #endif
 
 namespace roo_display {
@@ -32,7 +32,9 @@ class TouchDisplay {
         touch_device_(touch_device),
         touch_calibration_(touch_calibration) {}
 
-  bool getTouch(int16_t &x, int16_t &y);
+  void init() { touch_device_.initTouch(); }
+
+  TouchResult getTouch(TouchPoint *points, int max_points);
 
   void setCalibration(TouchCalibration touch_calibration) {
     touch_calibration_ = touch_calibration;
@@ -70,7 +72,10 @@ class Display {
   int16_t height() const { return extents_.height(); }
 
   // Initializes the device.
-  void init() { display_device_.init(); }
+  void init() {
+    display_device_.init();
+    touch_.init();
+  }
 
   // Initializes the device, fills screen with the specified color, and sets
   // that color as the defaul background hint.
@@ -85,9 +90,16 @@ class Display {
   DisplayOutput &output() { return display_device_; }
   const DisplayOutput &output() const { return display_device_; }
 
+  // If touch has not been registered, returns zero and does not modify
+  // `points'. If k touch points have been registered, sets max(k, max_points)
+  // `points`, and returns k. The points are set using the display's coordinates.
+  TouchResult getTouch(TouchPoint *points, int max_points) {
+    return touch_.getTouch(points, max_points);
+  }
+
   // If touched, returns true and sets the touch (x, y) coordinates (in device
   // coordinates). If not touched, returns false and does not modify (x, y).
-  bool getTouch(int16_t &x, int16_t &y) { return touch_.getTouch(x, y); }
+  bool getTouch(int16_t &x, int16_t &y);
 
   // Resets the clip box to the maximum device-allowed values.
   void resetExtents() {
@@ -115,12 +127,6 @@ class Display {
 
   // Sets a background color to be used by all derived contexts.
   // Initially set to color::Transparent.
-  void setBackground(Color bgcolor) {
-    background_ = nullptr;
-    bgcolor_ = bgcolor;
-    display_device_.setBgColorHint(bgcolor);
-  }
-
   void setBackgroundColor(Color bgcolor) {
     bgcolor_ = bgcolor;
     display_device_.setBgColorHint(bgcolor);

@@ -1,5 +1,7 @@
 #include "roo_display/shape/smooth.h"
 
+#include <math.h>
+
 #include "roo_display/core/buffered_drawing.h"
 
 namespace roo_display {

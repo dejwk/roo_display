@@ -58,6 +58,9 @@ class AddressWindow {
                   int16_t raw_width, int16_t raw_height,
                   Orientation orientation);
 
+  int16_t x() const { return cursor_x_; }
+  int16_t y() const { return cursor_y_; }
+
   const uint32_t offset() const { return offset_; }
   Orientation orientation() const { return orientation_; }
   int16_t advance_x() const { return advance_x_; }
@@ -196,6 +199,9 @@ class OffscreenDevice : public DisplayDevice {
   // Allows direct access to the underlying buffer.
   uint8_t *buffer() { return buffer_; }
   const uint8_t *buffer() const { return buffer_; }
+
+  int16_t window_x() const { return window_.x(); }
+  int16_t window_y() const { return window_.y(); }
 
  private:
   template <typename Writer>

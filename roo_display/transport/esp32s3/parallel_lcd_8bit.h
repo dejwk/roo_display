@@ -7,6 +7,8 @@
 #include <inttypes.h>
 
 #include "esp_lcd_panel_io.h"
+#include "soc/lcd_cam_struct.h"
+#include "soc/lcd_cam_reg.h"
 #include "roo_display/hal/esp32s3/gpio.h"
 #include "roo_display/internal/byte_order.h"
 

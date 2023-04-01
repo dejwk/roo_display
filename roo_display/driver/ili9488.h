@@ -4,9 +4,7 @@
 #include <SPI.h>
 
 #include "roo_display/driver/common/addr_window_device.h"
-#include "roo_display/hal/gpio.h"
-#include "roo_display/hal/transport.h"
-#include "roo_display/hal/transport_bus.h"
+#include "roo_display/transport/spi.h"
 
 namespace roo_display {
 
@@ -80,7 +78,7 @@ enum MadCtl {
   MH = 0x04
 };
 
-template <int pinCS, int pinDC, int pinRST, typename Transport, typename Gpio>
+template <typename Transport>
 class Ili9488Target {
  public:
   typedef Rgb666h ColorMode;
@@ -88,25 +86,22 @@ class Ili9488Target {
 
   Ili9488Target(uint16_t width = kDefaultWidth,
                 uint16_t height = kDefaultHeight)
-      : bus_(), transport_(), width_(width), height_(height) {}
+      : transport_(), width_(width), height_(height) {}
 
   Ili9488Target(Transport transport, uint16_t width = kDefaultWidth,
                 uint16_t height = kDefaultHeight)
-      : bus_(),
-        transport_(std::move(transport)),
-        width_(width),
-        height_(height) {}
+      : transport_(std::move(transport)), width_(width), height_(height) {}
 
   int16_t width() const { return width_; }
   int16_t height() const { return height_; }
 
   void begin() {
     transport_.beginTransaction();
-    bus_.begin();
+    transport_.begin();
   }
 
   void end() {
-    bus_.end();
+    transport_.end();
     transport_.endTransaction();
   }
 
@@ -139,10 +134,10 @@ class Ili9488Target {
 
     writeCommand(PIXSET, {0x66});
 
-     // Interface Mode Control.
+    // Interface Mode Control.
     writeCommand(0xB0, {0x00});
 
-     // Frame Rate Control.
+    // Frame Rate Control.
     writeCommand(0xB1, {0xA0});
 
     // Display Inversion Control.
@@ -151,10 +146,10 @@ class Ili9488Target {
     // Display Function Control.
     writeCommand(0xB6, {0x02, 0x02, 0x3B});
 
-     // Entry Mode Set.
+    // Entry Mode Set.
     writeCommand(0xB7, {0xC6});
 
-     // Adjust Control 3.
+    // Adjust Control 3.
     writeCommand(0xF7, {0xA9, 0x51, 0x2C, 0x82});
 
     writeCommand(SLPOUT);
@@ -199,9 +194,9 @@ class Ili9488Target {
 
  private:
   void writeCommand(uint8_t c) {
-    bus_.cmdBegin();
+    transport_.cmdBegin();
     transport_.write(c);
-    bus_.cmdEnd();
+    transport_.cmdEnd();
   }
 
   void writeCommand(uint8_t c, const std::initializer_list<uint8_t>& d) {
@@ -209,22 +204,19 @@ class Ili9488Target {
     for (uint8_t i : d) transport_.write(i);
   }
 
-  TransportBus<pinCS, pinDC, pinRST, Gpio> bus_;
   Transport transport_;
-  int16_t width_, height_;
+  int16_t width_;
+  int16_t height_;
 };
 
 }  // namespace ili9488
 
-template <typename Transport, int pinCS, int pinDC, int pinRST,
-          typename Gpio = DefaultGpio>
-using Ili9488 = AddrWindowDevice<
-    ili9488::Ili9488Target<pinCS, pinDC, pinRST, Transport, Gpio>>;
+template <typename Transport>
+using Ili9488 = AddrWindowDevice<ili9488::Ili9488Target<Transport>>;
 
 template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
-          typename SpiSettings = ili9488::DefaultSpiSettings,
-          typename Gpio = DefaultGpio>
+          typename SpiSettings = ili9488::DefaultSpiSettings>
 using Ili9488spi =
-    Ili9488<BoundSpi<Spi, SpiSettings>, pinCS, pinDC, pinRST, Gpio>;
+    Ili9488<SpiTransport<pinCS, pinDC, pinRST, SpiSettings, Spi, DefaultGpio>>;
 
 }  // namespace roo_display

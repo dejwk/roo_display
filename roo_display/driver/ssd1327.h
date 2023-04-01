@@ -4,10 +4,9 @@
 #include <SPI.h>
 
 #include "roo_display/core/orientation.h"
+#include "roo_display/core/raster.h"
 #include "roo_display/driver/common/buffered_addr_window_device.h"
-#include "roo_display/hal/gpio.h"
-#include "roo_display/hal/transport.h"
-#include "roo_display/hal/transport_bus.h"
+#include "roo_display/transport/spi.h"
 
 namespace roo_display {
 namespace ssd1327 {
@@ -19,13 +18,12 @@ static const int16_t kHeight = 128;
 
 typedef SpiSettings<16000000, MSBFIRST, SPI_MODE0> DefaultSpiSettings;
 
-template <typename Transport, int pinCS, int pinDC, int pinRST,
-          typename Gpio = DefaultGpio>
+template <typename Transport>
 class Ssd1327Target {
  public:
   typedef Grayscale4 ColorMode;
 
-  Ssd1327Target() : bus_(), transport_(), xy_swap_(false) {}
+  Ssd1327Target() : transport_(), xy_swap_(false) {}
 
   void init() {
     delay(200);
@@ -47,22 +45,22 @@ class Ssd1327Target {
 
   void begin() {
     transport_.beginTransaction();
-    bus_.begin();
+    transport_.begin();
   }
 
   void end() {
-    bus_.end();
+    transport_.end();
     transport_.endTransaction();
   }
 
-  void flushRect(Offscreen<Grayscale4>* buffer, int16_t x0, int16_t y0,
+  void flushRect(ConstDramRaster<Grayscale4>& buffer, int16_t x0, int16_t y0,
                  int16_t x1, int16_t y1) {
     if (xy_swap_) {
       y0 &= ~1;
       y1 |= 1;
       setYaddr(x0, x1);
       setXaddr(y0, y1);
-      uint8_t* ptr = buffer->buffer() + (x0 + y0 * kWidth) / 2;
+      const uint8_t* ptr = buffer.buffer() + (x0 + y0 * kWidth) / 2;
       uint32_t offset;
       for (int16_t x = (x0 & ~1); x <= (x1 | 1);) {
         if (x++ >= x0) {
@@ -88,7 +86,7 @@ class Ssd1327Target {
       x1 |= 1;
       setXaddr(x0, x1);
       setYaddr(y0, y1);
-      uint8_t* ptr = buffer->buffer() + (x0 + y0 * kWidth) / 2;
+      const uint8_t* ptr = buffer.buffer() + (x0 + y0 * kWidth) / 2;
       for (int16_t y = y0; y <= y1; ++y) {
         uint32_t offset = 0;
         for (int16_t x = x0; x <= x1; x += 2) {
@@ -126,18 +124,17 @@ class Ssd1327Target {
   }
 
   void writeCommand(uint8_t c) {
-    bus_.cmdBegin();
+    transport_.cmdBegin();
     transport_.write(c);
-    bus_.cmdEnd();
+    transport_.cmdEnd();
   }
 
   void writeCommand(uint8_t* c, uint32_t size) {
-    bus_.cmdBegin();
+    transport_.cmdBegin();
     transport_.writeBytes(c, size);
-    bus_.cmdEnd();
+    transport_.cmdEnd();
   }
 
-  TransportBus<pinCS, pinDC, pinRST, Gpio> bus_;
   Transport transport_;
   uint8_t write_buffer_[64];
   bool xy_swap_;
@@ -145,15 +142,12 @@ class Ssd1327Target {
 
 }  // namespace ssd1327
 
-template <typename Transport, int pinCS, int pinDC, int pinRST,
-          typename Gpio = DefaultGpio>
-using Ssd1327 = BufferedAddrWindowDevice<
-    ssd1327::Ssd1327Target<Transport, pinCS, pinDC, pinRST, Gpio>>;
+template <typename Transport>
+using Ssd1327 = BufferedAddrWindowDevice<ssd1327::Ssd1327Target<Transport>>;
 
 template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
-          typename SpiSettings = ssd1327::DefaultSpiSettings,
-          typename Gpio = DefaultGpio>
+          typename SpiSettings = ssd1327::DefaultSpiSettings>
 using Ssd1327spi =
-    Ssd1327<BoundSpi<Spi, SpiSettings>, pinCS, pinDC, pinRST, Gpio>;
+    Ssd1327<SpiTransport<pinCS, pinDC, pinRST, SpiSettings, Spi, DefaultGpio>>;
 
 }  // namespace roo_display

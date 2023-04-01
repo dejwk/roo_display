@@ -293,4 +293,7 @@ using Hspi = SpiTransport<HSPI>;
 using Fspi = SpiTransport<FSPI>;
 
 }  // namespace esp32
+
+using DefaultSpi = esp32::Vspi;
+
 }  // namespace roo_display

@@ -4,8 +4,7 @@
 #include <SPI.h>
 
 #include "roo_display/driver/common/addr_window_device.h"
-#include "roo_display/hal/gpio.h"
-#include "roo_display/hal/transport_bus.h"
+#include "roo_display/transport/spi.h"
 
 namespace roo_display {
 
@@ -55,8 +54,7 @@ enum MadCtl {
   MH = 0x04
 };
 
-template <int pinCS, int pinDC, int pinRST, typename Transport = GenericSpi,
-          typename Gpio = DefaultGpio>
+template <typename Transport>
 class Ili9486Target {
  public:
   typedef Rgb565 ColorMode;
@@ -64,11 +62,10 @@ class Ili9486Target {
 
   Ili9486Target(uint16_t width = kDefaultWidth,
                 uint16_t height = kDefaultHeight)
-      : bus_(), transport_(), width_(width), height_(height) {}
+      : transport_(), width_(width), height_(height) {}
   Ili9486Target(Transport transport, uint16_t width = kDefaultWidth,
                 uint16_t height = kDefaultHeight)
-      : bus_(),
-        transport_(std::move(transport)),
+      : transport_(std::move(transport)),
         width_(width),
         height_(height) {}
 
@@ -77,11 +74,11 @@ class Ili9486Target {
 
   void begin() {
     transport_.beginTransaction();
-    bus_.begin();
+    transport_.begin();
   }
 
   void end() {
-    bus_.end();
+    transport_.end();
     transport_.endTransaction();
   }
 
@@ -158,9 +155,9 @@ class Ili9486Target {
 
  private:
   void writeCommand(uint8_t c) {
-    bus_.cmdBegin();
+    transport_.cmdBegin();
     transport_.write16(c);
-    bus_.cmdEnd();
+    transport_.cmdEnd();
   }
 
   void writeCommand(uint8_t c, const std::initializer_list<uint8_t>& d) {
@@ -168,22 +165,19 @@ class Ili9486Target {
     for (uint8_t i : d) transport_.write16(i);
   }
 
-  TransportBus<pinCS, pinDC, pinRST, Gpio> bus_;
   Transport transport_;
-  uint16_t width_, height_;
+  int16_t width_;
+  int16_t height_;
 };
 
 }  // namespace ili9486
 
-template <typename Transport, int pinCS, int pinDC, int pinRST,
-          typename Gpio = DefaultGpio>
-using Ili9486 = AddrWindowDevice<
-    ili9486::Ili9486Target<pinCS, pinDC, pinRST, Transport, Gpio>>;
+template <typename Transport>
+using Ili9486 = AddrWindowDevice<ili9486::Ili9486Target<Transport>>;
 
 template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
-          typename SpiSettings = ili9486::DefaultSpiSettings,
-          typename Gpio = DefaultGpio>
+          typename SpiSettings = ili9486::DefaultSpiSettings>
 using Ili9486spi =
-    Ili9486<BoundSpi<Spi, SpiSettings>, pinCS, pinDC, pinRST, Gpio>;
+    Ili9486<SpiTransport<pinCS, pinDC, pinRST, SpiSettings, Spi, DefaultGpio>>;
 
 }  // namespace roo_display

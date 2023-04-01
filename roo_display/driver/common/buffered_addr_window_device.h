@@ -1,9 +1,9 @@
 #pragma once
 
+#include <memory>
+
 #include "roo_display/core/offscreen.h"
 #include "roo_display/driver/common/compactor.h"
-#include "roo_display/hal/gpio.h"
-#include "roo_display/hal/transport.h"
 
 namespace roo_display {
 
@@ -16,7 +16,13 @@ class BufferedAddrWindowDevice : public DisplayDevice {
                            Target target = Target())
       : DisplayDevice(orientation, target.width(), target.height()),
         target_(std::move(target)),
-        buffer_(target_.width(), target_.height()),
+        buffer_(new uint8_t[(Target::ColorMode::bits_per_pixel *
+                                 target.width() * target.height() +
+                             7) /
+                            8]),
+        buffer_dev_(target_.width(), target_.height(), buffer_.get(),
+                    typename Target::ColorMode()),
+        buffer_raster_(buffer_dev_.raster()),
         compactor_() {}
 
   ~BufferedAddrWindowDevice() override {}
@@ -33,30 +39,30 @@ class BufferedAddrWindowDevice : public DisplayDevice {
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
                   PaintMode mode) override {
     flushRectCache();
-    buffer_.setAddress(x0, y0, x1, y1, mode);
+    buffer_dev_.setAddress(x0, y0, x1, y1, mode);
     rect_cache_.setWindow(x0, y0, x1, y1);
   }
 
   void write(Color* color, uint32_t pixel_count) override {
-    buffer_.write(color, pixel_count);
+    buffer_dev_.write(color, pixel_count);
     rect_cache_.pixelsWritten(pixel_count);
   }
 
   void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     flushRectCache();
-    buffer_.writeRects(mode, color, x0, y0, x1, y1, count);
+    buffer_dev_.writeRects(mode, color, x0, y0, x1, y1, count);
     while (count-- > 0) {
-      target_.flushRect(&buffer_, *x0++, *y0++, *x1++, *y1++);
+      target_.flushRect(buffer_raster_, *x0++, *y0++, *x1++, *y1++);
     }
   }
 
   void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
     flushRectCache();
-    buffer_.fillRects(mode, color, x0, y0, x1, y1, count);
+    buffer_dev_.fillRects(mode, color, x0, y0, x1, y1, count);
     while (count-- > 0) {
-      target_.flushRect(&buffer_, *x0++, *y0++, *x1++, *y1++);
+      target_.flushRect(buffer_raster_, *x0++, *y0++, *x1++, *y1++);
     }
   }
 
@@ -69,29 +75,29 @@ class BufferedAddrWindowDevice : public DisplayDevice {
                              int16_t count) {
           switch (direction) {
             case Compactor::RIGHT: {
-              buffer_.setAddress(x, y, x + count - 1, y, mode);
-              buffer_.write(colors + offset, count);
-              target_.flushRect(&buffer_, x, y, x + count - 1, y);
+              buffer_dev_.setAddress(x, y, x + count - 1, y, mode);
+              buffer_dev_.write(colors + offset, count);
+              target_.flushRect(buffer_raster_, x, y, x + count - 1, y);
               break;
             }
             case Compactor::DOWN: {
-              buffer_.setAddress(x, y, x, y + count - 1, mode);
-              buffer_.write(colors + offset, count);
-              target_.flushRect(&buffer_, x, y, x, y + count - 1);
+              buffer_dev_.setAddress(x, y, x, y + count - 1, mode);
+              buffer_dev_.write(colors + offset, count);
+              target_.flushRect(buffer_raster_, x, y, x, y + count - 1);
               break;
             }
             case Compactor::LEFT: {
-              buffer_.setAddress(x - count + 1, y, x, y, mode);
+              buffer_dev_.setAddress(x - count + 1, y, x, y, mode);
               std::reverse(colors + offset, colors + offset + count);
-              buffer_.write(colors + offset, count);
-              target_.flushRect(&buffer_, x - count + 1, y, x, y);
+              buffer_dev_.write(colors + offset, count);
+              target_.flushRect(buffer_raster_, x - count + 1, y, x, y);
               break;
             }
             case Compactor::UP: {
-              buffer_.setAddress(x, y - count + 1, x, y, mode);
+              buffer_dev_.setAddress(x, y - count + 1, x, y, mode);
               std::reverse(colors + offset, colors + offset + count);
-              buffer_.write(colors + offset, count);
-              target_.flushRect(&buffer_, x, y - count + 1, x, y);
+              buffer_dev_.write(colors + offset, count);
+              target_.flushRect(buffer_raster_, x, y - count + 1, x, y);
               break;
             }
           }
@@ -107,23 +113,23 @@ class BufferedAddrWindowDevice : public DisplayDevice {
                             int16_t count) {
           switch (direction) {
             case Compactor::RIGHT: {
-              buffer_.fillRect(mode, Box(x, y, x + count - 1, y), color);
-              target_.flushRect(&buffer_, x, y, x + count - 1, y);
+              buffer_dev_.fillRect(mode, Box(x, y, x + count - 1, y), color);
+              target_.flushRect(buffer_raster_, x, y, x + count - 1, y);
               break;
             }
             case Compactor::DOWN: {
-              buffer_.fillRect(mode, Box(x, y, x, y + count - 1), color);
-              target_.flushRect(&buffer_, x, y, x, y + count - 1);
+              buffer_dev_.fillRect(mode, Box(x, y, x, y + count - 1), color);
+              target_.flushRect(buffer_raster_, x, y, x, y + count - 1);
               break;
             }
             case Compactor::LEFT: {
-              buffer_.fillRect(mode, Box(x - count + 1, y, x, y), color);
-              target_.flushRect(&buffer_, x - count + 1, y, x, y);
+              buffer_dev_.fillRect(mode, Box(x - count + 1, y, x, y), color);
+              target_.flushRect(buffer_raster_, x - count + 1, y, x, y);
               break;
             }
             case Compactor::UP: {
-              buffer_.fillRect(mode, Box(x, y - count + 1, x, y), color);
-              target_.flushRect(&buffer_, x, y - count + 1, x, y);
+              buffer_dev_.fillRect(mode, Box(x, y - count + 1, x, y), color);
+              target_.flushRect(buffer_raster_, x, y - count + 1, x, y);
               break;
             }
           }
@@ -211,13 +217,15 @@ class BufferedAddrWindowDevice : public DisplayDevice {
     while (true) {
       Box box = rect_cache_.consume();
       if (box.empty()) return;
-      target_.flushRect(&buffer_, box.xMin(), box.yMin(), box.xMax(),
+      target_.flushRect(buffer_raster_, box.xMin(), box.yMin(), box.xMax(),
                         box.yMax());
     }
   }
 
   Target target_;
-  Offscreen<typename Target::ColorMode> buffer_;
+  std::unique_ptr<uint8_t[]> buffer_;
+  OffscreenDevice<typename Target::ColorMode> buffer_dev_;
+  ConstDramRaster<typename Target::ColorMode> buffer_raster_;
   RectCache rect_cache_;
   Compactor compactor_;
 };

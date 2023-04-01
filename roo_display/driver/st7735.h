@@ -2,16 +2,18 @@
 
 #include <Arduino.h>
 #include <SPI.h>
+
 #include "roo_display/driver/common/addr_window_device.h"
-#include "roo_display/hal/gpio.h"
-#include "roo_display/hal/transport.h"
 #include "roo_display/driver/st77xx.h"
+#include "roo_display/transport/spi.h"
 
 namespace roo_display {
 
 namespace st7735 {
 
-typedef BoundSpi<DefaultSpi, SpiSettings<20000000, MSBFIRST, SPI_MODE0>> SpiTransport;
+static const uint32_t SpiFrequency = 20 * 1000 * 1000;
+
+typedef SpiSettings<SpiFrequency, MSBFIRST, SPI_MODE0> DefaultSpiSettings;
 
 enum Command {
   INVCTR = 0xB4,
@@ -47,12 +49,10 @@ struct Init {
     // Note: ST7735 has max. 132x162 resolution.
     t.writeCommand(CASET, {0x00, (uint8_t)xstart, 0x00, (uint8_t)xend});
     t.writeCommand(RASET, {0x00, (uint8_t)ystart, 0x00, (uint8_t)yend});
-    t.writeCommand(GMCTRP1,
-                     {0x02, 0x1C, 0x07, 0x12, 0x37, 0x32, 0x29, 0x2D, 0x29,
-                      0x25, 0x2B, 0x39, 0x00, 0x01, 0x03, 0x10});
-    t.writeCommand(GMCTRN1,
-                     {0x03, 0x1D, 0x07, 0x06, 0x2E, 0x2C, 0x29, 0x2D, 0x2E,
-                      0x2E, 0x37, 0x3F, 0x00, 0x00, 0x02, 0x10});
+    t.writeCommand(GMCTRP1, {0x02, 0x1C, 0x07, 0x12, 0x37, 0x32, 0x29, 0x2D,
+                             0x29, 0x25, 0x2B, 0x39, 0x00, 0x01, 0x03, 0x10});
+    t.writeCommand(GMCTRN1, {0x03, 0x1D, 0x07, 0x06, 0x2E, 0x2C, 0x29, 0x2D,
+                             0x2E, 0x2E, 0x37, 0x3F, 0x00, 0x00, 0x02, 0x10});
     t.writeCommand(inverted ? INVON : INVOFF);
     t.writeCommand(NORON);
     t.writeCommand(DISPON);
@@ -61,22 +61,30 @@ struct Init {
 
 }  // namespace st7735
 
-template <int pinCS, int pinDC, int pinRST, int16_t display_width,
-          int16_t display_height, int16_t lpad = 0, int16_t tpad = 0,
-          int16_t rpad = lpad, int16_t bpad = tpad, bool inverted = false,
-          typename Transport = st7735::SpiTransport, typename Gpio = DefaultGpio>
+template <typename Transport, int16_t display_width, int16_t display_height,
+          int16_t lpad = 0, int16_t tpad = 0, int16_t rpad = lpad,
+          int16_t bpad = tpad, bool inverted = false>
 using St7735_Generic = AddrWindowDevice<
-    st77xx::St77xxTarget<st7735::Init, pinCS, pinDC, pinRST, display_width, display_height,
-                 lpad, tpad, rpad, bpad, inverted, Transport, Gpio>>;
+    st77xx::St77xxTarget<Transport, st7735::Init, display_width, display_height,
+                         lpad, tpad, rpad, bpad, inverted>>;
 
-template <int pinCS, int pinDC, int pinRST,
-          typename Transport = st7735::SpiTransport, typename Gpio = DefaultGpio>
-using St7735_128x160 = St7735_Generic<pinCS, pinDC, pinRST, 128, 160, 2, 1, 2,
-                                      1, false, Transport, Gpio>;
+template <int pinCS, int pinDC, int pinRST, int16_t display_width, int16_t display_height,
+          int16_t lpad = 0, int16_t tpad = 0, int16_t rpad = lpad,
+          int16_t bpad = tpad, bool inverted = false, typename Spi = DefaultSpi,
+          typename SpiSettings = st7735::DefaultSpiSettings,
+          typename Gpio = DefaultGpio>
+using St7735spi_Generic =
+    St7735_Generic<SpiTransport<pinCS, pinDC, pinRST, SpiSettings, Spi, Gpio>,
+                   display_width, display_height, lpad, tpad, rpad, bpad, inverted>;
 
-template <int pinCS, int pinDC, int pinRST,
-          typename Transport = st7735::SpiTransport, typename Gpio = DefaultGpio>
-using St7735_80x160 = St7735_Generic<pinCS, pinDC, pinRST, 80, 160, 26, 1, 26,
-                                     1, true, Transport, Gpio>;
+template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
+          typename SpiSettings = ili9341::DefaultSpiSettings>
+using St7735spi_128x160 =
+    St7735spi_Generic<pinCS, pinDC, pinRST, 128, 160, 2, 1, 2, 1, false, Spi, SpiSettings>;
+
+template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
+          typename SpiSettings = ili9341::DefaultSpiSettings>
+using St7735spi_80x160 =
+    St7735spi_Generic<pinCS, pinDC, pinRST, 80, 160, 26, 1, 26, 1, true, Spi, SpiSettings>;
 
 }  // namespace roo_display

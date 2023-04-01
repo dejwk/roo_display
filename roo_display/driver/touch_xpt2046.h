@@ -3,7 +3,7 @@
 #include "roo_display/core/device.h"
 #include "roo_display/driver/common/basic_touch.h"
 #include "roo_display/hal/gpio.h"
-#include "roo_display/hal/transport.h"
+#include "roo_display/hal/spi.h"
 
 namespace roo_display {
 

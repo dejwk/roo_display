@@ -1,6 +1,15 @@
 #pragma once
 
 #include <Arduino.h>
+
+#if (defined(ESP32) && (CONFIG_IDF_TARGET_ESP32) && !defined(ROO_TESTING))
+
+#include "roo_display/hal/esp32/spi.h"
+
+#else
+
+// Generic Arduino implementation.
+
 #include <SPI.h>
 
 #include "roo_display/internal/byte_order.h"
@@ -98,59 +107,8 @@ class GenericSpi {
   decltype(SPI)& spi_;
 };
 
-
-template <uint32_t _clock, uint8_t _bit_order, uint8_t _data_mode>
-struct SpiSettings {
-  static constexpr uint32_t clock = _clock;
-  static constexpr uint8_t bit_order = _bit_order;
-  static constexpr uint8_t data_mode = _data_mode;
-};
-
-// Convenience template wrapper that allows to capture all SPI configuration
-// settings at compile time, inside a class specialization.
-template <typename Spi, typename SpiSettings>
-class BoundSpi : public Spi {
- public:
-  template <typename... Args>
-  BoundSpi(Args&&... args) : Spi(std::forward<Args>(args)...) {}
-
-  void beginTransaction() {
-    SPISettings settings(SpiSettings::clock, SpiSettings::bit_order,
-                         SpiSettings::data_mode);
-    Spi::beginTransaction(settings);
-  }
-};
-
-template <int pinCS, typename BoundSpi, typename Gpio>
-class BoundSpiTransaction {
- public:
-  BoundSpiTransaction(BoundSpi& spi) : spi_(spi) {
-    spi_.beginTransaction();
-    Gpio::template setLow<pinCS>();
-  }
-  ~BoundSpiTransaction() {
-    Gpio::template setHigh<pinCS>();
-    spi_.endTransaction();
-  }
-
- private:
-  BoundSpi& spi_;
-};
-
-#if (defined(ESP32) && (CONFIG_IDF_TARGET_ESP32) && !defined(ROO_TESTING))
+using DefaultSpi = GenericSpi;
 
 }  // namespace roo_display
-
-#include "transport_esp32.h"
-
-namespace roo_display {
-
-typedef ::roo_display::esp32::Vspi DefaultSpi;
-
-#else
-
-typedef GenericSpi DefaultSpi;
 
 #endif
-
-}  // namespace roo_display

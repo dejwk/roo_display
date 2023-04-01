@@ -1,6 +1,6 @@
 #pragma once
 
-#include "roo_display/hal/transport_bus.h"
+#include "roo_display/transport/spi.h"
 
 namespace roo_display {
 namespace st77xx {
@@ -34,19 +34,16 @@ enum MadCtl {
   RGB = 0x00,
 };
 
-template <typename Initializer, int pinCS, int pinDC, int pinRST,
-          int16_t display_width, int16_t display_height, int16_t lpad = 0,
-          int16_t tpad = 0, int16_t rpad = lpad, int16_t bpad = tpad,
-          bool inverted = false, typename Transport = GenericSpi,
-          typename Gpio = DefaultGpio>
+template <typename Transport, typename Initializer, int16_t display_width,
+          int16_t display_height, int16_t lpad = 0, int16_t tpad = 0,
+          int16_t rpad = lpad, int16_t bpad = tpad, bool inverted = false>
 class St77xxTarget {
  public:
   typedef Rgb565 ColorMode;
   static constexpr ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN;
 
   St77xxTarget(Transport transport = Transport())
-      : bus_(),
-        transport_(std::move(transport)),
+      : transport_(std::move(transport)),
         width_(display_width),
         height_(display_height),
         x_offset_(lpad),
@@ -57,11 +54,11 @@ class St77xxTarget {
 
   void begin() {
     transport_.beginTransaction();
-    bus_.begin();
+    transport_.begin();
   }
 
   void end() {
-    bus_.end();
+    transport_.end();
     transport_.endTransaction();
   }
 
@@ -97,9 +94,7 @@ class St77xxTarget {
 
   void beginRamWrite() { writeCommand(RAMWR); }
 
-  void ramWrite(uint16_t data) {
-    transport_.write16be(data);
-  }
+  void ramWrite(uint16_t data) { transport_.write16be(data); }
 
   void ramWrite(uint16_t* data, size_t count) {
     transport_.writeBytes((uint8_t*)data, count * 2);
@@ -110,9 +105,9 @@ class St77xxTarget {
   }
 
   void writeCommand(uint8_t c) {
-    bus_.cmdBegin();
+    transport_.cmdBegin();
     transport_.write(c);
-    bus_.cmdEnd();
+    transport_.cmdEnd();
   }
 
   void writeCommand(uint8_t c, const std::initializer_list<uint8_t>& d,
@@ -123,10 +118,11 @@ class St77xxTarget {
   }
 
  private:
-  TransportBus<pinCS, pinDC, pinRST, Gpio> bus_;
   Transport transport_;
-  int16_t width_, height_;
-  int16_t x_offset_, y_offset_;
+  int16_t width_;
+  int16_t height_;
+  int16_t x_offset_;
+  int16_t y_offset_;
 };
 
 }  // namespace st77xx

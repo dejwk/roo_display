@@ -4,8 +4,7 @@
 #include <SPI.h>
 
 #include "roo_display/driver/common/addr_window_device.h"
-#include "roo_display/hal/gpio.h"
-#include "roo_display/hal/transport_bus.h"
+#include "roo_display/transport/spi.h"
 
 namespace roo_display {
 
@@ -70,7 +69,7 @@ enum MadCtl {
   MH = 0x04
 };
 
-template <int pinCS, int pinDC, int pinRST, typename Transport, typename Gpio>
+template <typename Transport>
 class Ili9341Target {
  public:
   typedef Rgb565 ColorMode;
@@ -78,25 +77,22 @@ class Ili9341Target {
 
   Ili9341Target(uint16_t width = ili9341::kDefaultWidth,
                 uint16_t height = ili9341::kDefaultHeight)
-      : bus_(), transport_(), width_(width), height_(height) {}
+      : transport_(), width_(width), height_(height) {}
 
   Ili9341Target(Transport transport, uint16_t width = ili9341::kDefaultWidth,
                 uint16_t height = ili9341::kDefaultHeight)
-      : bus_(),
-        transport_(std::move(transport)),
-        width_(width),
-        height_(height) {}
+      : transport_(std::move(transport)), width_(width), height_(height) {}
 
   int16_t width() const { return width_; }
   int16_t height() const { return height_; }
 
   void begin() {
     transport_.beginTransaction();
-    bus_.begin();
+    transport_.begin();
   }
 
   void end() {
-    bus_.end();
+    transport_.end();
     transport_.endTransaction();
   }
 
@@ -177,9 +173,9 @@ class Ili9341Target {
 
  private:
   void writeCommand(uint8_t c) {
-    bus_.cmdBegin();
+    transport_.cmdBegin();
     transport_.write(c);
-    bus_.cmdEnd();
+    transport_.cmdEnd();
   }
 
   void writeCommand(uint8_t c, const std::initializer_list<uint8_t>& d) {
@@ -187,22 +183,19 @@ class Ili9341Target {
     for (uint8_t i : d) transport_.write(i);
   }
 
-  TransportBus<pinCS, pinDC, pinRST, Gpio> bus_;
   Transport transport_;
-  int16_t width_, height_;
+  int16_t width_;
+  int16_t height_;
 };
 
 }  // namespace ili9341
 
-template <typename Transport, int pinCS, int pinDC, int pinRST,
-          typename Gpio = DefaultGpio>
-using Ili9341 = AddrWindowDevice<
-    ili9341::Ili9341Target<pinCS, pinDC, pinRST, Transport, Gpio>>;
+template <typename Transport>
+using Ili9341 = AddrWindowDevice<ili9341::Ili9341Target<Transport>>;
 
 template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
-          typename SpiSettings = ili9341::DefaultSpiSettings,
-          typename Gpio = DefaultGpio>
+          typename SpiSettings = ili9341::DefaultSpiSettings>
 using Ili9341spi =
-    Ili9341<BoundSpi<Spi, SpiSettings>, pinCS, pinDC, pinRST, Gpio>;
+    Ili9341<SpiTransport<pinCS, pinDC, pinRST, SpiSettings, Spi, DefaultGpio>>;
 
 }  // namespace roo_display

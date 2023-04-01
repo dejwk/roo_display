@@ -6,6 +6,10 @@
 
 #include "roo_display/hal/esp32/gpio.h"
 
+#elif (defined(ESP32) && (CONFIG_IDF_TARGET_ESP32S3) && !defined(ROO_TESTING))
+
+#include "roo_display/hal/esp32s3/gpio.h"
+
 #else
 
 // Generic Arduino implementation.

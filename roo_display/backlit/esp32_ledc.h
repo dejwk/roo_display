@@ -7,14 +7,11 @@ namespace roo_display {
 
 class LedcBacklit : public Backlit {
  public:
-  LedcBacklit(int pin, int channel)
+  LedcBacklit(int pin, int channel, uint8_t intensity = 255)
       : pin_(pin), channel_(channel) {
     pinMode(pin, OUTPUT);
-  }
-
-  void init(uint8_t intensity = 255) {
-    ledcAttachPin(pin_, channel_);
     ledcSetup(channel_, 50000, 8);
+    ledcAttachPin(pin_, channel_);
     ledcWrite(channel_, intensity);
   }
 

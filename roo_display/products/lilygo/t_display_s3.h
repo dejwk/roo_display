@@ -4,6 +4,7 @@
 // Maker: LILYGO
 // Product Code: T-Display-S3
 
+#include "roo_display/backlit/esp32_ledc.h"
 #include "roo_display/core/device.h"
 #include "roo_display/core/orientation.h"
 #include "roo_display/driver/st7789.h"
@@ -24,7 +25,8 @@ class TDisplayS3 : public ComboDevice {
                                               .pinD4 = 45,
                                               .pinD5 = 46,
                                               .pinD6 = 47,
-                                              .pinD7 = 48})) {
+                                              .pinD7 = 48})),
+                                              backlit_(38, 0) {
     display_.setOrientation(orientation);
   }
 
@@ -32,9 +34,13 @@ class TDisplayS3 : public ComboDevice {
 
   DisplayDevice& display() override { return display_; }
 
+  Backlit& backlit() { return backlit_; }
+
  private:
   roo_display::St7789_Generic<esp32s3::ParallelLcd8Bit, 170, 320, 35, 0, 35, 0>
       display_;
+
+  LedcBacklit backlit_;
 };
 
 }  // namespace roo_display::products::lilygo

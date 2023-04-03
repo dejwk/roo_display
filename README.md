@@ -1545,6 +1545,8 @@ The colors are added to the palette in the order you use them. When you try to d
 
 > Note: the implication is that drawing to an offscreen mutates your palette.
 
+> Note: antialiasing doesn't work well with small palettes. Tonal gradients need a lot of colors.
+
 ### Clip masks
 
 In an earlier section, we saw how to use clip masks to restrict drawing to non-rectangular, complex areas. A clip mask, however, is essentially a 1-bit-per-pixel raster. It means that we can use Offscreen to construct bit masks!

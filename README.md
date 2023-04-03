@@ -1405,7 +1405,7 @@ Let's see a simple example:
 #include "roo_display/core/offscreen.h"
 #include "roo_smooth_fonts/NotoSerif_Italic/27.h"
 #include "roo_display/ui/text_label.h"
-#include "roo_display/shape/basic.h"
+#include "roo_display/shape/smooth.h"
 
 // ...
 
@@ -1413,8 +1413,8 @@ void loop() {
   Offscreen<Rgb565> offscreen(200, 140, color::White);
   {
     DrawingContext dc(offscreen);
-    dc.draw(FilledCircle::ByRadius(150, 50, 40, color::Navy));
-    dc.draw(FilledCircle::ByRadius(80, 80, 70, color::Red.withA(0x90)));
+    dc.draw(SmoothFilledCircle({150, 50}, 40, color::Navy));
+    dc.draw(SmoothFilledCircle({80, 80}, 70, color::Red.withA(0x90)));
     dc.draw(TextLabel("Oh, my!", font_NotoSerif_Italic_27(),
                       color::Yellow),
             70, 86);

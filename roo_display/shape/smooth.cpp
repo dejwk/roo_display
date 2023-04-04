@@ -68,6 +68,20 @@ SmoothWedgeShape::SmoothWedgeShape(FpPoint a, float width_a, FpPoint b,
       br_(width_b / 2.0f),
       color_(color),
       round_endings_(ending_style == ENDING_ROUNDED) {
+  if (ar_ < 0) ar_ = 0;
+  if (br_ < 0) br_ = 0;
+  if (ending_style == ENDING_ROUNDED) {
+    float dr = sqrtf((ax_ - bx_) * (ax_ - bx_) + (ay_ - by_) * (ay_ - by_));
+    if (ar_ + dr <= br_) {
+      // 'a' fits in 'b'.
+      ax_ = bx_;
+      ay_ = by_;
+    } else if (br_ + dr <= ar_) {
+      // 'b' fits in 'a'.
+      bx_ = ax_;
+      by_ = ay_;
+    }
+  }
   int16_t x0 = (int32_t)floorf(fminf(a.x - ar_, b.x - br_));
   int16_t y0 = (int32_t)floorf(fminf(a.y - ar_, b.y - br_));
   int16_t x1 = (int32_t)ceilf(fmaxf(a.x + ar_, b.x + br_));
@@ -76,6 +90,13 @@ SmoothWedgeShape::SmoothWedgeShape(FpPoint a, float width_a, FpPoint b,
 }
 
 void SmoothWedgeShape::drawTo(const Surface& s) const {
+  // Handle corner cases.
+  if (ax_ == bx_ && ay_ == by_) {
+    if (round_endings_) {
+      s.drawObject(SmoothFilledCircle({ax_, ay_}, std::max(ar_, br_), color_));
+    }
+    return;
+  }
   int16_t dx = s.dx();
   int16_t dy = s.dy();
   float ax = ax_ + dx;

@@ -9,27 +9,65 @@ namespace roo_display {
 
 namespace {
 
-inline uint8_t getAlpha(float r, float xpax, float ypay, float bax, float bay,
-                        float dr, uint8_t max_alpha) {
-  float h = fmaxf(
-      fminf((xpax * bax + ypay * bay) / (bax * bax + bay * bay), 1.0f), 0.0f);
-  float dx = xpax - bax * h;
-  float dy = ypay - bay * h;
-  float d = r - sqrtf(dx * dx + dy * dy) - h * dr;
-  return (d >= 1.0 ? max_alpha : d <= 0.0 ? 0 : (uint8_t)(d * max_alpha));
+struct WedgeSpec {
+  float r;
+  float dr;
+  float bax;
+  float bay;
+  float hd;
+  float sqrt_hd;
+  uint8_t max_alpha;
+  bool round_endings;
+};
+
+inline uint8_t GetWedgeShapeAlpha(const WedgeSpec& spec, float xpax,
+                                  float ypay) {
+  float hn = (xpax * spec.bax + ypay * spec.bay);
+  float h = hn < 0.0f ? 0.0f : hn > spec.hd ? 1.0f : hn / spec.hd;
+  float dx = xpax - spec.bax * h;
+  float dy = ypay - spec.bay * h;
+  float l_sq = dx * dx + dy * dy;
+  float adj_dist = spec.r - h * spec.dr;
+  float adj_dist_sq = adj_dist * adj_dist;
+  if (adj_dist_sq < l_sq) return 0;
+  if (!spec.round_endings) {
+    float d1 = (hn / spec.hd) * spec.sqrt_hd;
+    float d2 = (1.0f - hn / spec.hd) * spec.sqrt_hd;
+
+    if (d1 < .5f) {
+      if (d1 < -0.5f) return 0;
+      float d = adj_dist - sqrtf(l_sq);
+      return uint8_t(std::min(d, (d1 + 0.5f)) * spec.max_alpha);
+      // if (hn < -0.5f) return 0;
+      // return (uint8_t)((hn + 0.5) * spec.max_alpha);
+    }
+    if (d2 < .5f) {
+      if (d2 < -0.5f) return 0;
+      float d = adj_dist - sqrtf(l_sq);
+      return uint8_t(std::min(d, (d2 + 0.5f)) * spec.max_alpha);
+      // return uint8_t((d2 + 0.5f) * spec.max_alpha);
+      // if (hn < -0.5f) return 0;
+      // return (uint8_t)((hn + 0.5) * spec.max_alpha);
+    }
+  }
+  if (adj_dist_sq - 2 * adj_dist + 1 > l_sq) return spec.max_alpha;
+  float d = adj_dist - sqrtf(l_sq);
+  return (uint8_t)(d * spec.max_alpha);
 }
 
 }  // namespace
 
 SmoothWedgeShape::SmoothWedgeShape(FpPoint a, float a_width, FpPoint b,
-                                   float b_width, Color color)
+                                   float b_width, Color color,
+                                   EndingStyle ending_style)
     : ax_(a.x),
       ay_(a.y),
       bx_(b.x),
       by_(b.y),
       aw_(a_width),
       bw_(b_width),
-      color_(color) {
+      color_(color),
+      round_endings_(ending_style == ENDING_ROUNDED) {
   int16_t x0 = (int32_t)floorf(fminf(a.x - a_width, b.x - b_width));
   int16_t y0 = (int32_t)floorf(fminf(a.y - a_width, b.y - b_width));
   int16_t x1 = (int32_t)ceilf(fmaxf(a.x + a_width, b.x + b_width));
@@ -37,33 +75,44 @@ SmoothWedgeShape::SmoothWedgeShape(FpPoint a, float a_width, FpPoint b,
   extents_ = Box(x0, y0, x1, y1);
 }
 
-void SmoothWedgeShape::drawInteriorTo(const Surface& s) const {
-  float ar = aw_;
-  float br = bw_;
-  float ax = ax_;
-  float ay = ay_;
-  float bx = bx_;
-  float by = by_;
+void SmoothWedgeShape::drawTo(const Surface& s) const {
+  int16_t dx = s.dx();
+  int16_t dy = s.dy();
+  float ax = ax_ + dx;
+  float ay = ay_ + dy;
+  float bx = bx_ + dx;
+  float by = by_ + dy;
   uint8_t max_alpha = color_.a();
+  float bax = bx - ax;
+  float bay = by - ay;
+  float bay_dsq = bax * bax + bay * bay;
+  WedgeSpec spec{
+      .r = aw_ + 0.5f,
+      .dr = aw_ - bw_,
+      .bax = bx_ - ax_,
+      .bay = by_ - ay_,
+      .hd = bay_dsq,
+      .sqrt_hd = sqrtf(bay_dsq),
+      .max_alpha = color_.a(),
+      .round_endings = round_endings_,
+  };
 
   // Establish x start and y start.
-  int32_t ys = ay;
-  if ((ax - ar) > (bx - br)) ys = by;
+  int32_t ys = ay_;
+  if ((ax - aw_) > (bx - bw_)) ys = by_;
 
-  float rdt = ar - br;  // Radius delta.
   uint8_t alpha = max_alpha;
-  ar += 0.5f;
+  float xpax, ypay;
+  bool can_minimize_scan =
+      spec.round_endings && s.fill_mode() != FILL_MODE_RECTANGLE;
 
-  float xpax, ypay, bax = bx - ax, bay = by - ay;
-
-  Box box = Box::Intersect(extents_, s.clip_box().translate(-s.dx(), -s.dy()));
+  Box box = Box::Intersect(extents_.translate(dx, dy), s.clip_box());
   if (box.empty()) {
     return;
   }
+  ys += dy;
   if (ys < box.yMin()) ys = box.yMin();
   int32_t xs = box.xMin();
-  int16_t dx = s.dx();
-  int16_t dy = s.dy();
   Color preblended = AlphaBlend(s.bgcolor(), color_);
 
   BufferedPixelWriter writer(s.out(), s.paint_mode());
@@ -74,16 +123,19 @@ void SmoothWedgeShape::drawInteriorTo(const Surface& s) const {
     bool endX = false;  // Flag to skip pixels
     ypay = yp - ay;
     for (int32_t xp = xs; xp <= box.xMax(); xp++) {
-      if (endX && alpha == 0) break;  // Skip right side.
+      if (endX && alpha == 0 && can_minimize_scan) break;  // Skip right side.
       xpax = xp - ax;
-      alpha = getAlpha(ar, xpax, ypay, bax, bay, rdt, max_alpha);
-      if (alpha == 0) continue;
+      // alpha = getAlpha(ar, xpax, ypay, bax, bay, rdt, max_alpha);
+      alpha = GetWedgeShapeAlpha(spec, xpax, ypay);
+      if (alpha == 0 && can_minimize_scan) continue;
       // Track the edge to minimize calculations.
       if (!endX) {
         endX = true;
-        xs = xp;
+        if (can_minimize_scan) {
+          xs = xp;
+        }
       }
-      writer.writePixel(xp + dx, yp + dy,
+      writer.writePixel(xp, yp,
                         alpha == max_alpha
                             ? preblended
                             : AlphaBlend(s.bgcolor(), color_.withA(alpha)));
@@ -98,21 +150,36 @@ void SmoothWedgeShape::drawInteriorTo(const Surface& s) const {
     bool endX = false;  // Flag to skip pixels
     ypay = yp - ay;
     for (int32_t xp = xs; xp <= box.xMax(); xp++) {
-      if (endX && alpha == 0) break;  // Skip right side of drawn line.
+      if (endX && alpha == 0 && can_minimize_scan)
+        break;  // Skip right side of drawn line.
       xpax = xp - ax;
-      alpha = getAlpha(ar, xpax, ypay, bax, bay, rdt, max_alpha);
-      if (alpha == 0) continue;
+      // alpha = getAlpha(ar, xpax, ypay, bax, bay, rdt, max_alpha);
+      alpha = GetWedgeShapeAlpha(spec, xpax, ypay);
+      if (alpha == 0 && can_minimize_scan) continue;
       // Track line boundary.
       if (!endX) {
         endX = true;
-        xs = xp;
+        if (can_minimize_scan) {
+          xs = xp;
+        }
       }
-      writer.writePixel(xp + dx, yp + dy,
+      writer.writePixel(xp, yp,
                         alpha == max_alpha
                             ? preblended
                             : AlphaBlend(s.bgcolor(), color_.withA(alpha)));
     }
   }
+}
+
+SmoothWedgeShape SmoothWedgedLine(FpPoint a, float width_a, FpPoint b,
+                                  float width_b, Color color,
+                                  EndingStyle ending_style) {
+  return SmoothWedgeShape(a, width_a, b, width_b, color, ending_style);
+}
+
+SmoothWedgeShape SmoothThickLine(FpPoint a, FpPoint b, float width, Color color,
+                                 EndingStyle ending_style) {
+  return SmoothWedgeShape(a, width, b, width, color, ending_style);
 }
 
 SmoothRoundRectShape::SmoothRoundRectShape(float x0, float y0, float x1,

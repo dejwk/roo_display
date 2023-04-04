@@ -10,6 +10,11 @@ struct FpPoint {
   float y;
 };
 
+enum EndingStyle {
+  ENDING_ROUNDED = 0,
+  ENDING_FLAT = 1,
+};
+
 // Anti-aliased wide line with different width at each end and round endings.
 class SmoothWedgeShape : public Drawable {
  public:
@@ -17,15 +22,16 @@ class SmoothWedgeShape : public Drawable {
 
  private:
   friend SmoothWedgeShape SmoothWedgedLine(FpPoint a, float width_a, FpPoint b,
-                                           float width_b, Color color);
+                                           float width_b, Color color,
+                                           EndingStyle ending_style);
 
   friend SmoothWedgeShape SmoothThickLine(FpPoint a, FpPoint b, float width,
-                                          Color color);
+                                          Color color, EndingStyle ending_style);
 
   SmoothWedgeShape(FpPoint a, float width_a, FpPoint b, float width_b,
-                   Color color);
+                   Color color, EndingStyle ending_style);
 
-  void drawInteriorTo(const Surface& s) const override;
+  void drawTo(const Surface& s) const override;
 
   float ax_;
   float ay_;
@@ -34,18 +40,16 @@ class SmoothWedgeShape : public Drawable {
   float aw_;
   float bw_;
   Color color_;
+  bool round_endings_;
   Box extents_;
 };
 
-inline SmoothWedgeShape SmoothWedgedLine(FpPoint a, float width_a, FpPoint b,
-                                         float width_b, Color color) {
-  return SmoothWedgeShape(a, width_a, b, width_b, color);
-}
+SmoothWedgeShape SmoothWedgedLine(FpPoint a, float width_a, FpPoint b,
+                                  float width_b, Color color,
+                                  EndingStyle ending_style = ENDING_ROUNDED);
 
-inline SmoothWedgeShape SmoothThickLine(FpPoint a, FpPoint b, float width,
-                                        Color color) {
-  return SmoothWedgeShape(a, width, b, width, color);
-}
+SmoothWedgeShape SmoothThickLine(FpPoint a, FpPoint b, float width, Color color,
+                                 EndingStyle ending_style = ENDING_ROUNDED);
 
 class SmoothRoundRectShape : public Rasterizable {
  public:

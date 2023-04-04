@@ -431,7 +431,7 @@ inline Color GetSmoothRoundRectShapeColor(const SmoothRoundRectSpec& spec,
   // }
 
   float d_squared = dx * dx + dy * dy;
-  if (d_squared <= spec.ri_squared_adjusted - spec.ri - 1) {
+  if (d_squared <= spec.ri_squared_adjusted - spec.ri) {
     return spec.interior;
   }
   if (d_squared >= spec.r_squared_adjusted + spec.r) {
@@ -450,9 +450,10 @@ inline Color GetSmoothRoundRectShapeColor(const SmoothRoundRectSpec& spec,
     return spec.color.withA((uint8_t)(spec.color.a() * (spec.r - d + 0.5f)));
   }
   if (fully_within_outer) {
-    return AlphaBlend(spec.interior,
-                      spec.color.withA((uint8_t)(spec.color.a() *
-                                                 (1 - (spec.ri - d + 0.5f)))));
+    return AlphaBlend(
+        spec.interior,
+        spec.color.withA(
+            (uint8_t)(spec.color.a() * (1.0f - (spec.ri - d + 0.5f)))));
   }
   return AlphaBlend(
       spec.interior,

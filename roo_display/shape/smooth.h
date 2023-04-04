@@ -37,8 +37,8 @@ class SmoothWedgeShape : public Drawable {
   float ay_;
   float bx_;
   float by_;
-  float aw_;
-  float bw_;
+  float ar_;
+  float br_;
   Color color_;
   bool round_endings_;
   Box extents_;

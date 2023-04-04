@@ -57,21 +57,21 @@ inline uint8_t GetWedgeShapeAlpha(const WedgeSpec& spec, float xpax,
 
 }  // namespace
 
-SmoothWedgeShape::SmoothWedgeShape(FpPoint a, float a_width, FpPoint b,
-                                   float b_width, Color color,
+SmoothWedgeShape::SmoothWedgeShape(FpPoint a, float width_a, FpPoint b,
+                                   float width_b, Color color,
                                    EndingStyle ending_style)
     : ax_(a.x),
       ay_(a.y),
       bx_(b.x),
       by_(b.y),
-      aw_(a_width),
-      bw_(b_width),
+      ar_(width_a / 2.0f),
+      br_(width_b / 2.0f),
       color_(color),
       round_endings_(ending_style == ENDING_ROUNDED) {
-  int16_t x0 = (int32_t)floorf(fminf(a.x - a_width, b.x - b_width));
-  int16_t y0 = (int32_t)floorf(fminf(a.y - a_width, b.y - b_width));
-  int16_t x1 = (int32_t)ceilf(fmaxf(a.x + a_width, b.x + b_width));
-  int16_t y1 = (int32_t)ceilf(fmaxf(a.y + a_width, b.y + b_width));
+  int16_t x0 = (int32_t)floorf(fminf(a.x - ar_, b.x - br_));
+  int16_t y0 = (int32_t)floorf(fminf(a.y - ar_, b.y - br_));
+  int16_t x1 = (int32_t)ceilf(fmaxf(a.x + ar_, b.x + br_));
+  int16_t y1 = (int32_t)ceilf(fmaxf(a.y + ar_, b.y + br_));
   extents_ = Box(x0, y0, x1, y1);
 }
 
@@ -87,8 +87,8 @@ void SmoothWedgeShape::drawTo(const Surface& s) const {
   float bay = by - ay;
   float bay_dsq = bax * bax + bay * bay;
   WedgeSpec spec{
-      .r = aw_ + 0.5f,
-      .dr = aw_ - bw_,
+      .r = ar_ + 0.5f,
+      .dr = ar_ - br_,
       .bax = bx_ - ax_,
       .bay = by_ - ay_,
       .hd = bay_dsq,
@@ -99,7 +99,7 @@ void SmoothWedgeShape::drawTo(const Surface& s) const {
 
   // Establish x start and y start.
   int32_t ys = ay_;
-  if ((ax - aw_) > (bx - bw_)) ys = by_;
+  if ((ax - ar_) > (bx - br_)) ys = by_;
 
   uint8_t alpha = max_alpha;
   float xpax, ypay;

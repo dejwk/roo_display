@@ -68,6 +68,10 @@ SmoothShape SmoothOutlinedRoundRect(float x0, float y0, float x1, float y1,
   if (outline_thickness < 0) outline_thickness = 0;
   float interior_radius = radius - outline_thickness;
   if (interior_radius < 0) interior_radius = 0;
+  x0 += radius;
+  y0 += radius;
+  x1 -= radius;
+  y1 -= radius;
 
   float r = radius;
   float ri = interior_radius;

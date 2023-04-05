@@ -194,6 +194,30 @@ void SmoothWedgeShape::drawTo(const Surface& s) const {
   }
 }
 
+void SmoothWedgeShape::readColors(const int16_t* x, const int16_t* y,
+                                  uint32_t count, Color* result) const {
+  // This default rasterizable implementation seems to be ~50% slower than
+  // drawTo (but it allows to use wedges as backgrounds or overlays, e.g.
+  // indicator needles).
+  uint8_t max_alpha = color_.a();
+  float bax = bx_ - ax_;
+  float bay = by_ - ay_;
+  float bay_dsq = bax * bax + bay * bay;
+  WedgeSpec spec{
+      .r = ar_ + 0.5f,
+      .dr = ar_ - br_,
+      .bax = bx_ - ax_,
+      .bay = by_ - ay_,
+      .hd = bay_dsq,
+      .sqrt_hd = sqrtf(bay_dsq),
+      .max_alpha = color_.a(),
+      .round_endings = round_endings_,
+  };
+  while (count-- > 0) {
+    *result++ = color_.withA(GetWedgeShapeAlpha(spec, *x++ - ax_, *y++ - ay_));
+  }
+}
+
 SmoothWedgeShape SmoothWedgedLine(FpPoint a, float width_a, FpPoint b,
                                   float width_b, Color color,
                                   EndingStyle ending_style) {

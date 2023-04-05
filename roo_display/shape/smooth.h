@@ -16,9 +16,12 @@ enum EndingStyle {
 };
 
 // Anti-aliased wide line with different width at each end and round endings.
-class SmoothWedgeShape : public Drawable {
+class SmoothWedgeShape : public Rasterizable {
  public:
   Box extents() const override { return extents_; }
+
+  void readColors(const int16_t* x, const int16_t* y, uint32_t count,
+                  Color* result) const override;
 
  private:
   friend SmoothWedgeShape SmoothWedgedLine(FpPoint a, float width_a, FpPoint b,
@@ -26,7 +29,8 @@ class SmoothWedgeShape : public Drawable {
                                            EndingStyle ending_style);
 
   friend SmoothWedgeShape SmoothThickLine(FpPoint a, FpPoint b, float width,
-                                          Color color, EndingStyle ending_style);
+                                          Color color,
+                                          EndingStyle ending_style);
 
   SmoothWedgeShape(FpPoint a, float width_a, FpPoint b, float width_b,
                    Color color, EndingStyle ending_style);

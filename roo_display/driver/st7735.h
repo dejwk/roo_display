@@ -78,12 +78,12 @@ using St7735spi_Generic =
                    display_width, display_height, lpad, tpad, rpad, bpad, inverted>;
 
 template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
-          typename SpiSettings = ili9341::DefaultSpiSettings>
+          typename SpiSettings = st7735::DefaultSpiSettings>
 using St7735spi_128x160 =
     St7735spi_Generic<pinCS, pinDC, pinRST, 128, 160, 2, 1, 2, 1, false, Spi, SpiSettings>;
 
 template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
-          typename SpiSettings = ili9341::DefaultSpiSettings>
+          typename SpiSettings = st7735::DefaultSpiSettings>
 using St7735spi_80x160 =
     St7735spi_Generic<pinCS, pinDC, pinRST, 80, 160, 26, 1, 26, 1, true, Spi, SpiSettings>;
 

@@ -51,7 +51,7 @@ class Rasterizable : public virtual Streamable {
   // colors of subsequent pixels.
   std::unique_ptr<PixelStream> createStream(const Box& bounds) const override;
 
- private:
+ protected:
   // Default implementation of drawTo(), using readColors() to determine
   // colors of subsequent pixels.
   void drawTo(const Surface& s) const override;

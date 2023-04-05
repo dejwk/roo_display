@@ -99,6 +99,11 @@ void SmoothWedgeShape::drawTo(const Surface& s) const {
   }
   int16_t dx = s.dx();
   int16_t dy = s.dy();
+  Box box = Box::Intersect(extents_.translate(dx, dy), s.clip_box());
+  if (box.empty()) {
+    return;
+  }
+
   float ax = ax_ + dx;
   float ay = ay_ + dy;
   float bx = bx_ + dx;
@@ -127,10 +132,6 @@ void SmoothWedgeShape::drawTo(const Surface& s) const {
   bool can_minimize_scan =
       spec.round_endings && s.fill_mode() != FILL_MODE_RECTANGLE;
 
-  Box box = Box::Intersect(extents_.translate(dx, dy), s.clip_box());
-  if (box.empty()) {
-    return;
-  }
   ys += dy;
   if (ys < box.yMin()) ys = box.yMin();
   int32_t xs = box.xMin();
@@ -163,6 +164,7 @@ void SmoothWedgeShape::drawTo(const Surface& s) const {
     }
   }
 
+  if (ys > box.yMax()) ys = box.yMax();
   // Reset x start to left side of box.
   xs = box.xMin();
   // Scan bounding box from ys-1 up, calculate pixel intensity from distance to

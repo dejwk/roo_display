@@ -19,16 +19,19 @@ enum EndingStyle {
 // these shapes overlap; e.g. all of them can be reduced to a filled circle.
 class SmoothShape;
 
+// Creates a simple 1-pixel-wide anti-aliased line between two points.
+SmoothShape SmoothLine(FpPoint a, FpPoint b, Color color);
+
+// Creates a line from a to b, with the specified width, and a specified ending
+// style.
+SmoothShape SmoothThickLine(FpPoint a, FpPoint b, float width, Color color,
+                            EndingStyle ending_style = ENDING_ROUNDED);
+
 // Creates a 'wedged' line from a to b, with specified start and end widths,
 // and a specified ending style.
 SmoothShape SmoothWedgedLine(FpPoint a, float width_a, FpPoint b, float width_b,
                              Color color,
                              EndingStyle ending_style = ENDING_ROUNDED);
-
-// Creates a line from a to b, with the specified width,
-// and a specified ending style.
-SmoothShape SmoothThickLine(FpPoint a, FpPoint b, float width, Color color,
-                            EndingStyle ending_style = ENDING_ROUNDED);
 
 // Creates an outlined, round-cornered rectangle with the specified bounds,
 // corner radius, outline thickness, outline color, and (optionally) interior
@@ -51,6 +54,11 @@ SmoothShape SmoothOutlinedCircle(FpPoint center, float radius,
 
 // Creates a circle with the specified center, radius, and color.
 SmoothShape SmoothFilledCircle(FpPoint center, float radius, Color color);
+
+// Creates a rotated filled rectangle with the specified center point, with,
+// height, rotation angle, and color.
+SmoothShape SmoothRotatedFilledRect(FpPoint center, float width, float height,
+                                    float angle, Color color);
 
 // Implementation details follow.
 
@@ -100,6 +108,10 @@ class SmoothShape : public Rasterizable {
                                              Color outline_color,
                                              Color interior_color);
 
+  friend SmoothShape SmoothRotatedFilledRect(FpPoint center, float width,
+                                             float height, float angle,
+                                             Color color);
+
   void drawTo(const Surface& s) const override;
 
   enum Kind { EMPTY = 0, WEDGE = 1, ROUND_RECT = 2 };
@@ -115,6 +127,5 @@ class SmoothShape : public Rasterizable {
     RoundRect round_rect_;
   };
 };
-
 
 }  // namespace roo_display

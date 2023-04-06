@@ -22,8 +22,8 @@ SmoothShape::SmoothShape()
 
 SmoothShape SmoothWedgedLine(FpPoint a, float width_a, FpPoint b, float width_b,
                              Color color, EndingStyle ending_style) {
-  if (width_a < 0) width_a = 0;
-  if (width_b < 0) width_b = 0;
+  if (width_a < 0.0f) width_a = 0.0f;
+  if (width_b < 0.0f) width_b = 0.0f;
   float ar = width_a / 2.0f;
   float br = width_b / 2.0f;
   if (ending_style == ENDING_ROUNDED) {
@@ -53,6 +53,23 @@ SmoothShape SmoothWedgedLine(FpPoint a, float width_a, FpPoint b, float width_b,
 SmoothShape SmoothThickLine(FpPoint a, FpPoint b, float width, Color color,
                             EndingStyle ending_style) {
   return SmoothWedgedLine(a, width, b, width, color, ending_style);
+}
+
+SmoothShape SmoothLine(FpPoint a, FpPoint b, Color color) {
+  return SmoothThickLine(a, b, 1.0f, color, ENDING_ROUNDED);
+}
+
+SmoothShape SmoothRotatedFilledRect(FpPoint center, float width, float height,
+                                    float angle, Color color) {
+  if (width <= 0.0f || height <= 0.0f) return SmoothShape();
+  // We will use width as thickness.
+  // Before rotation, and adjusted by the center point, the line endpoints have
+  // coordinates (0, height/2) and (0, -height/2).
+  float dx = sinf(angle) * (height * 0.5f);
+  float dy = cosf(angle) * (height * 0.5f);
+  return SmoothThickLine({center.x + dx, center.y + dy},
+                         {center.x - dx, center.y - dy}, width, color,
+                         ENDING_FLAT);
 }
 
 SmoothShape SmoothOutlinedRoundRect(float x0, float y0, float x1, float y1,
@@ -136,15 +153,25 @@ struct WedgeDrawSpec {
 
 inline uint8_t GetWedgeShapeAlpha(const WedgeDrawSpec& spec, float xpax,
                                   float ypay) {
+  // hn (h-numerator) is zero at 'a' and equal to spec.hd at 'b'.
   float hn = (xpax * spec.bax + ypay * spec.bay);
+  // h is hn/hd trimmed to [0, 1]. It represents the position of the point along
+  // the line, with 0 at 'a' and 1 at 'b', that is closest to the point under
+  // test. We will call that point 'P'.
   float h = hn < 0.0f ? 0.0f : hn > spec.hd ? 1.0f : hn / spec.hd;
+  // (dx, dy) is a distance vector (from point under test to 'P').
   float dx = xpax - spec.bax * h;
   float dy = ypay - spec.bay * h;
   float l_sq = dx * dx + dy * dy;
+  // adj_dist says how far the (widened) boundary of our shape is from 'P'.
   float adj_dist = spec.r - h * spec.dr;
   float adj_dist_sq = adj_dist * adj_dist;
+  // Check if point under test is outside the (widened) boundary.
   if (adj_dist_sq < l_sq) return 0;
   if (!spec.round_endings) {
+    // We now additionally require that the non-trimmed 'h' is not outside [0,
+    // 1] by more than a pixel distance (and if it is within a pixel distance,
+    // we anti-alias it).
     float d1 = (hn / spec.hd) * spec.sqrt_hd;
     float d2 = (1.0f - hn / spec.hd) * spec.sqrt_hd;
 
@@ -159,8 +186,26 @@ inline uint8_t GetWedgeShapeAlpha(const WedgeDrawSpec& spec, float xpax,
       return uint8_t(std::min(d, (d2 + 0.5f)) * spec.max_alpha);
     }
   }
+  // Handle sub-pixel widths.
+  if (adj_dist < 1.0f) {
+    float l = sqrtf(l_sq);
+    float d;
+    if (l + adj_dist < 1.0f) {
+      // Line fully within the pixel. Use line thickness as alpha.
+      d = 2 * adj_dist - 1.0f;
+    } else {
+      // Line on the boundary of the pixel. Use the regular formula.
+      d = adj_dist - l;
+    }
+    return (uint8_t)(d * spec.max_alpha);
+  }
+  // Equivalent to sqrt(l_sq) < adj_dist - 1 (the point is deep inside the
+  // (widened) boundary), but without sqrt.
   if (adj_dist_sq - 2 * adj_dist + 1 > l_sq) return spec.max_alpha;
-  float d = adj_dist - sqrtf(l_sq);
+  // d is the distance of tested point, inside the (widened) boundary, from the
+  // (widened) boundary. We now know it is in the [0-1] range.
+  float l = sqrtf(l_sq);
+  float d = adj_dist - l;
   return (uint8_t)(d * spec.max_alpha);
 }
 
@@ -397,6 +442,7 @@ void SmoothShape::readColors(const int16_t* x, const int16_t* y, uint32_t count,
       float bay = wedge_.by - wedge_.ay;
       float bay_dsq = bax * bax + bay * bay;
       WedgeDrawSpec spec{
+          // Widen the boundary to simplify calculations.
           .r = wedge_.ar + 0.5f,
           .dr = wedge_.ar - wedge_.br,
           .bax = wedge_.bx - wedge_.ax,

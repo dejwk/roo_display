@@ -7,6 +7,9 @@
 
 namespace roo_display {
 
+SmoothShape::SmoothShape()
+    : kind_(SmoothShape::EMPTY), extents_(0, 0, -1, -1) {}
+
 SmoothShape::SmoothShape(Box extents, Wedge wedge)
     : kind_(SmoothShape::WEDGE),
       extents_(std::move(extents)),
@@ -17,8 +20,10 @@ SmoothShape::SmoothShape(Box extents, RoundRect round_rect)
       extents_(std::move(extents)),
       round_rect_(std::move(round_rect)) {}
 
-SmoothShape::SmoothShape()
-    : kind_(SmoothShape::EMPTY), extents_(0, 0, -1, -1) {}
+SmoothShape::SmoothShape(Box extents, Arc arc)
+    : kind_(SmoothShape::ARC),
+      extents_(std::move(extents)),
+      arc_(std::move(arc)) {}
 
 SmoothShape SmoothWedgedLine(FpPoint a, float width_a, FpPoint b, float width_b,
                              Color color, EndingStyle ending_style) {
@@ -134,6 +139,74 @@ SmoothShape SmoothOutlinedCircle(FpPoint center, float radius,
 
 SmoothShape SmoothFilledCircle(FpPoint center, float radius, Color color) {
   return SmoothOutlinedCircle(center, radius, 0, color, color);
+}
+
+namespace {
+
+inline constexpr int Quadrant(float x, float y) {
+  return (x <= 0 && y > 0)   ? 0
+         : (y <= 0 && x < 0) ? 1
+         : (x >= 0 && y < 0) ? 2
+                             : 3;
+}
+
+}  // namespace
+
+SmoothShape SmoothArc(FpPoint center, float radius, float width,
+                      float angle_start, float angle_end, Color active_color,
+                      Color inactive_color, Color interior_color,
+                      EndingStyle ending_style) {
+  if (radius <= 0 || width <= 0 || angle_end == angle_start)
+    return SmoothShape();
+  if (width > radius) width = radius;
+  if (angle_end < angle_start) {
+    std::swap(angle_end, angle_start);
+  }
+  if (angle_end - angle_start >= 2 * M_PI) {
+    return SmoothOutlinedCircle(center, radius, width, active_color,
+                                interior_color);
+  }
+  while (angle_start > M_PI) {
+    angle_start -= 2 * M_PI;
+    angle_end -= 2 * M_PI;
+  }
+
+  float start_sin = sinf(angle_start);
+  float start_cos = cosf(angle_start);
+  float end_sin = sinf(angle_end);
+  float end_cos = cosf(angle_end);
+
+  float ro = radius;
+  float rc = radius - width * 0.5f;
+
+  float start_x_ro = ro * start_sin;
+  float start_y_ro = -ro * start_cos;
+  float start_x_rc = rc * start_sin;
+  float start_y_rc = -rc * start_cos;
+
+  float end_x_ro = ro * end_sin;
+  float end_y_ro = -ro * end_cos;
+  float end_x_rc = rc * end_sin;
+  float end_y_rc = -rc * end_cos;
+
+  float inv_width = 2.0f / width;
+
+  int start_quadrant = Quadrant(start_x_ro, start_y_ro);
+  int end_quadrant = Quadrant(end_x_ro, end_y_ro);
+
+  Box extents(
+      (int16_t)floorf(center.x - radius), (int16_t)floorf(center.y - radius),
+      (int16_t)ceilf(center.x + radius), (int16_t)ceilf(center.y + radius));
+  return SmoothShape(
+      std::move(extents),
+      SmoothShape::Arc{
+          center.x,       center.y,       radius,
+          radius - width, angle_start,    angle_end,
+          active_color,   inactive_color, interior_color,
+          start_x_ro,     start_y_ro,     start_x_rc,
+          start_y_rc,     end_x_ro,       end_y_ro,
+          end_x_rc,       end_y_rc,       inv_width,
+          start_quadrant, end_quadrant,   ending_style == ENDING_ROUNDED});
 }
 
 // Helper functions for wedge.
@@ -262,6 +335,116 @@ Color GetSmoothRoundRectColor(const SmoothShape::RoundRect& spec, int16_t x,
     return spec.interior_color;
   }
   return GetSmoothRoundRectColorPreChecked(spec, x, y);
+}
+
+Color GetSmoothArcColor(const SmoothShape::Arc& spec, int16_t x, int16_t y) {
+  float dx = x - spec.xc;
+  float dy = y - spec.yc;
+  float d_squared = dx * dx + dy * dy;
+  float ri_squared_adjusted = spec.ri * spec.ri + 0.25f;
+   if (d_squared <= ri_squared_adjusted - spec.ri) {
+    // Pixel fully within the 'inner' ring.
+    return spec.interior_color;
+  }
+  float r_squared_adjusted = spec.ro * spec.ro + 0.25f;
+  if (d_squared >= r_squared_adjusted + spec.ro) {
+    // Pixel fully outside the 'outer' ring.
+    return color::Transparent;
+  }
+  // We now know that the pixel is somewhere inside the ring.
+  Color color = spec.outline_active_color;
+  float n1 = spec.inv_width *
+             ((spec.start_x_ro - spec.start_x_rc) * (spec.start_y_rc - dy) -
+              (spec.start_y_ro - spec.start_y_rc) * (spec.start_x_rc - dx));
+  float n2 = -spec.inv_width *
+             ((spec.end_x_ro - spec.end_x_rc) * (spec.end_y_rc - dy) -
+              (spec.end_y_ro - spec.end_y_rc) * (spec.end_x_rc - dx));
+  bool within_range = false;
+  if (spec.angle_end - spec.angle_start > M_PI) {
+    within_range = (n1 <= -0.5 || n2 <= -0.5);
+  } else {
+    within_range = (n1 <= -0.5 && n2 <= -0.5);
+  }
+  if (!within_range) {
+    // Not entirely within the angle range. May be close to boundary; may be far
+    // from it. The result depends on ending style.
+    if (spec.round_endings) {
+      // The endings may overlap, so we need to check the min distance from both
+      // endpoints.
+      float dxs = dx - spec.start_x_rc;
+      float dys = dy - spec.start_y_rc;
+      float dxe = dx - spec.end_x_rc;
+      float dye = dy - spec.end_y_rc;
+      float r = (spec.ro - spec.ri) * 0.5f;
+      float r_sq = r * r;
+      float smaller_dist_sq =
+          std::min(dxs * dxs + dys * dys, dxe * dxe + dye * dye);
+      if (smaller_dist_sq > r_sq + r + 0.25f) {
+        color = spec.outline_inactive_color;
+      } else if (smaller_dist_sq < r_sq - r + 0.25f) {
+        color = spec.outline_active_color;
+      } else {
+        // Round endings boundary - we need to calculate the alpha-blended
+        // color.
+        float d = sqrt(smaller_dist_sq);
+        color = AlphaBlend(
+            spec.outline_inactive_color,
+            spec.outline_active_color.withA(
+                (uint8_t)(spec.outline_active_color.a() * (r - d + 0.5f))));
+      }
+    } else {
+      // Flat endings.
+      bool outside_range = false;
+      if (spec.angle_end - spec.angle_start > M_PI) {
+        outside_range = (n1 >= 0.5f && n2 >= 0.5f);
+      } else {
+        outside_range = (n1 >= 0.5f || n2 >= 0.5f);
+      }
+      if (outside_range) {
+        color = spec.outline_inactive_color;
+      } else {
+        float alpha = 1.0;
+        if (n1 > -0.5f && n1 < 0.5f) {
+          alpha *= (1 - (n1 + 0.5f));
+        }
+        if (n2 < 0.5f && n2 > -0.5f) {
+          alpha *= (1 - (n2 + 0.5f));
+        }
+        if (alpha > 1.0f) alpha = 1.0f;
+        if (alpha < 0.0f) alpha = 0.0f;
+        color =
+            AlphaBlend(spec.outline_inactive_color,
+                       spec.outline_active_color.withA(
+                           (uint8_t)(spec.outline_active_color.a() * alpha)));
+      }
+    }
+  }
+
+  // Now we need to apply blending at the edges of the outer and inner rings.
+  bool fully_within_outer = d_squared <= r_squared_adjusted - spec.ro;
+  bool fully_outside_inner = spec.ro == spec.ri ||
+                             d_squared >= ri_squared_adjusted + spec.ri ||
+                             spec.ri == 0;
+
+  if (fully_within_outer && fully_outside_inner) {
+    // Fully inside the ring, far enough from the boundary.
+    return color;
+  }
+  float d = sqrtf(d_squared);
+  if (fully_outside_inner) {
+    return color.withA((uint8_t)(color.a() * (spec.ro - d + 0.5f)));
+  }
+  if (fully_within_outer) {
+    return AlphaBlend(
+        spec.interior_color,
+        color.withA(
+            (uint8_t)(color.a() * (1.0f - (spec.ri - d + 0.5f)))));
+  }
+  return AlphaBlend(
+      spec.interior_color,
+      color.withA(
+          (uint8_t)(color.a() * std::max(0.0f, (spec.ro - d + 0.5f) -
+                                                   (spec.ri - d + 0.5f)))));
 }
 
 struct RoundRectDrawSpec {
@@ -464,6 +647,12 @@ void SmoothShape::readColors(const int16_t* x, const int16_t* y, uint32_t count,
       }
       break;
     }
+    case ARC: {
+      while (count-- > 0) {
+        *result++ = GetSmoothArcColor(arc_, *x++, *y++);
+      }
+      break;
+    }
     case EMPTY: {
       while (count-- > 0) {
         *result++ = color::Transparent;
@@ -622,6 +811,9 @@ void SmoothShape::drawTo(const Surface& s) const {
                                           std::min((int16_t)(y + 7), yMax));
         }
       }
+    }
+    case ARC: {
+      Rasterizable::drawTo(s);
     }
     case EMPTY: {
       return;

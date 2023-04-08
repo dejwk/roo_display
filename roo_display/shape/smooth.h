@@ -60,6 +60,11 @@ SmoothShape SmoothFilledCircle(FpPoint center, float radius, Color color);
 SmoothShape SmoothRotatedFilledRect(FpPoint center, float width, float height,
                                     float angle, Color color);
 
+SmoothShape SmoothArc(FpPoint center, float radius, float width,
+                      float angle_start, float angle_end, Color active_color,
+                      Color inactive_color, Color interior_color,
+                      EndingStyle ending_style = ENDING_ROUNDED);
+
 // Implementation details follow.
 
 class SmoothShape : public Rasterizable {
@@ -89,6 +94,33 @@ class SmoothShape : public Rasterizable {
     Box inner_tall;
   };
 
+  struct Arc {
+    float xc;
+    float yc;
+    float ro;
+    float ri;
+    float angle_start;
+    float angle_end;
+    Color outline_active_color;
+    Color outline_inactive_color;
+    Color interior_color;
+    // Endpoints of the cut line at the start angle.
+    float start_x_ro;
+    float start_y_ro;
+    float start_x_rc;
+    float start_y_rc;
+    // Endpoints of the cut line at the end angle.
+    float end_x_ro;
+    float end_y_ro;
+    float end_x_rc;
+    float end_y_rc;
+    // 1 / width = 1 - (ro - ri).
+    float inv_width;
+    int start_quadrant;
+    int end_quadrant;
+    bool round_endings;
+  };
+
   Box extents() const override { return extents_; }
 
   void readColors(const int16_t* x, const int16_t* y, uint32_t count,
@@ -112,19 +144,26 @@ class SmoothShape : public Rasterizable {
                                              float height, float angle,
                                              Color color);
 
+  friend SmoothShape SmoothArc(FpPoint center, float radius, float width,
+                               float angle_start, float angle_end,
+                               Color active_color, Color inactive_color,
+                               Color interior_color, EndingStyle ending_style);
+
   void drawTo(const Surface& s) const override;
 
-  enum Kind { EMPTY = 0, WEDGE = 1, ROUND_RECT = 2 };
+  enum Kind { EMPTY = 0, WEDGE = 1, ROUND_RECT = 2, ARC = 3 };
 
   SmoothShape();
   SmoothShape(Box extents, Wedge wedge);
   SmoothShape(Box extents, RoundRect round_rect);
+  SmoothShape(Box extents, Arc arc);
 
   Kind kind_;
   Box extents_;
   union {
     Wedge wedge_;
     RoundRect round_rect_;
+    Arc arc_;
   };
 };
 

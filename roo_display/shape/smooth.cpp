@@ -314,8 +314,8 @@ inline uint8_t GetWedgeShapeAlpha(const WedgeDrawSpec& spec, float xpax,
 
 // Helper functions for round rect.
 
-Color GetSmoothRoundRectColor(const SmoothShape::RoundRect& spec, int16_t x,
-                              int16_t y) {
+Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& spec, int16_t x,
+                                   int16_t y) {
   float ref_x = std::min(std::max((float)x, spec.x0), spec.x1);
   float ref_y = std::min(std::max((float)y, spec.y0), spec.y1);
   float dx = x - ref_x;
@@ -646,7 +646,7 @@ void ReadRoundRectColors(const SmoothShape::RoundRect& spec, const int16_t* x,
         spec.inner_tall.contains(*x, *y)) {
       *result = spec.interior_color;
     } else {
-      *result = GetSmoothRoundRectColor(spec, *x, *y);
+      *result = GetSmoothRoundRectPixelColor(spec, *x, *y);
     }
     ++x;
     ++y;
@@ -1155,7 +1155,7 @@ bool SmoothShape::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
       Color* out = result;
       for (int16_t y = yMin; y <= yMax; ++y) {
         for (int16_t x = xMin; x <= xMax; ++x) {
-          *out++ = GetSmoothRoundRectColor(round_rect_, x, y);
+          *out++ = GetSmoothRoundRectPixelColor(round_rect_, x, y);
         }
       }
       // This is now very unlikely to be true, or we would have caught it above.

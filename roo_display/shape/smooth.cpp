@@ -367,6 +367,189 @@ Color GetSmoothRoundRectColor(const SmoothShape::RoundRect& spec, int16_t x,
   return GetSmoothRoundRectColorPreChecked(spec, x, y);
 }
 
+struct RoundRectDrawSpec {
+  SmoothShape::RoundRect rect;
+  DisplayOutput* out;
+  FillMode fill_mode;
+  PaintMode paint_mode;
+  float r_squared_adjusted;
+  float ri_squared_adjusted;
+  Color bgcolor;
+  Color pre_blended_outline;
+  Color pre_blended_interior;
+};
+
+// Similar to the above, but uses some precomputed data from spec.
+inline Color GetSmoothRoundRectShapeColor(const RoundRectDrawSpec& spec,
+                                          int16_t x, int16_t y) {
+  // // This only applies to a handful of pixels and seems to slow things down.
+  // if (spec.inner_mid.contains(x, y) || spec.inner_wide.contains(x, y) ||
+  //     spec.inner_tall.contains(x, y)) {
+  //   return spec.interior;
+  // }
+  float ref_x = std::min(std::max((float)x, spec.rect.x0), spec.rect.x1);
+  float ref_y = std::min(std::max((float)y, spec.rect.y0), spec.rect.y1);
+  float dx = x - ref_x;
+  float dy = y - ref_y;
+  // // This only applies to a handful of pixels and seems to slow things down.
+  // if (abs(dx) + abs(dy) < spec.ri - 0.5) {
+  //   return spec.interior;
+  // }
+
+  float d_squared = dx * dx + dy * dy;
+  float r = spec.rect.r;
+  float ri = spec.rect.ri;
+  Color interior = spec.rect.interior_color;
+  Color outline = spec.rect.outline_color;
+
+  if (d_squared <= spec.ri_squared_adjusted - ri) {
+    return interior;
+  }
+  if (d_squared >= spec.r_squared_adjusted + r) {
+    return color::Transparent;
+  }
+  bool fully_within_outer = d_squared <= spec.r_squared_adjusted - r;
+  bool fully_outside_inner =
+      r == ri || d_squared >= spec.ri_squared_adjusted + ri;
+  if (fully_within_outer && fully_outside_inner) {
+    return outline;
+  }
+  // Note: replacing with integer sqrt (iterative, loop-unrolled, 24-bit) slows
+  // things down. At 64-bit not loop-unrolled, does so dramatically.
+  float d = sqrtf(d_squared);
+  if (fully_outside_inner) {
+    return outline.withA((uint8_t)(outline.a() * (r - d + 0.5f)));
+  }
+  if (fully_within_outer) {
+    return AlphaBlend(
+        interior,
+        outline.withA((uint8_t)(outline.a() * (1.0f - (ri - d + 0.5f)))));
+  }
+  return AlphaBlend(
+      interior, outline.withA((uint8_t)(outline.a() *
+                                        std::max(0.0f, (r - d + 0.5f) -
+                                                           (ri - d + 0.5f)))));
+}
+
+float CalcRoundRectDistSq(const SmoothShape::RoundRect& spec, int16_t x,
+                          int16_t y) {
+  float ref_x = std::min(std::max((float)x, spec.x0), spec.x1);
+  float ref_y = std::min(std::max((float)y, spec.y0), spec.y1);
+  float dx = x - ref_x;
+  float dy = y - ref_y;
+  return dx * dx + dy * dy;
+}
+
+// Called for rectangles with area <= 64 pixels.
+void FillSmoothRoundRectRectInternal(const RoundRectDrawSpec& spec,
+                                     int16_t xMin, int16_t yMin, int16_t xMax,
+                                     int16_t yMax) {
+  Color interior = spec.rect.interior_color;
+  Color outline = spec.rect.outline_color;
+  Box box(xMin, yMin, xMax, yMax);
+  if (spec.rect.inner_mid.contains(box) || spec.rect.inner_wide.contains(box) ||
+      spec.rect.inner_tall.contains(box)) {
+    if (spec.fill_mode == FILL_MODE_RECTANGLE || interior.a() > 0) {
+      spec.out->fillRect(spec.paint_mode, box, spec.pre_blended_interior);
+    }
+    return;
+  }
+  float dtl = CalcRoundRectDistSq(spec.rect, xMin, yMin);
+  float dtr = CalcRoundRectDistSq(spec.rect, xMax, yMin);
+  float dbl = CalcRoundRectDistSq(spec.rect, xMin, yMax);
+  float dbr = CalcRoundRectDistSq(spec.rect, xMax, yMax);
+  float r = spec.rect.r;
+  float ri = spec.rect.ri;
+
+  float r_min_sq = (ri - 0.5) * (ri - 0.5);
+  // Check if the rect falls entirely inside the interior boundary.
+  if (dtl < r_min_sq && dtr < r_min_sq && dbl < r_min_sq && dbr < r_min_sq) {
+    if (spec.fill_mode == FILL_MODE_RECTANGLE || interior.a() > 0) {
+      spec.out->fillRect(spec.paint_mode, box, spec.pre_blended_interior);
+    }
+    return;
+  }
+
+  float r_max_sq = (r + 0.5) * (r + 0.5);
+  // Check if the rect falls entirely outside the boundary (in one of the 4
+  // corners).
+  if (xMax < spec.rect.x0) {
+    if (yMax < spec.rect.y0) {
+      if (dbr >= r_max_sq) {
+        if (spec.fill_mode == FILL_MODE_RECTANGLE) {
+          spec.out->fillRect(xMin, yMin, xMax, yMax, spec.bgcolor);
+        }
+        return;
+      }
+    } else if (yMin > spec.rect.y1) {
+      if (dtr >= r_max_sq) {
+        if (spec.fill_mode == FILL_MODE_RECTANGLE) {
+          spec.out->fillRect(xMin, yMin, xMax, yMax, spec.bgcolor);
+        }
+        return;
+      }
+    }
+  } else if (xMin > spec.rect.x1) {
+    if (yMax < spec.rect.y0) {
+      if (dbl >= r_max_sq) {
+        if (spec.fill_mode == FILL_MODE_RECTANGLE) {
+          spec.out->fillRect(xMin, yMin, xMax, yMax, spec.bgcolor);
+        }
+        return;
+      }
+    } else if (yMin > spec.rect.y1) {
+      if (dtl >= r_max_sq) {
+        if (spec.fill_mode == FILL_MODE_RECTANGLE) {
+          spec.out->fillRect(xMin, yMin, xMax, yMax, spec.bgcolor);
+        }
+        return;
+      }
+    }
+  }
+  if (spec.fill_mode == FILL_MODE_VISIBLE) {
+    BufferedPixelWriter writer(*spec.out, spec.paint_mode);
+    for (int16_t y = yMin; y <= yMax; ++y) {
+      for (int16_t x = xMin; x <= xMax; ++x) {
+        Color c = GetSmoothRoundRectShapeColor(spec, x, y);
+        if (c.a() == 0) continue;
+        writer.writePixel(x, y,
+                          c == interior  ? spec.pre_blended_interior
+                          : c == outline ? spec.pre_blended_outline
+                                         : AlphaBlend(spec.bgcolor, c));
+      }
+    }
+  } else {
+    Color color[64];
+    int cnt = 0;
+    for (int16_t y = yMin; y <= yMax; ++y) {
+      for (int16_t x = xMin; x <= xMax; ++x) {
+        Color c = GetSmoothRoundRectShapeColor(spec, x, y);
+        color[cnt++] = c.a() == 0      ? spec.bgcolor
+                       : c == interior ? spec.pre_blended_interior
+                       : c == outline  ? spec.pre_blended_outline
+                                       : AlphaBlend(spec.bgcolor, c);
+      }
+    }
+    spec.out->setAddress(Box(xMin, yMin, xMax, yMax), spec.paint_mode);
+    spec.out->write(color, cnt);
+  }
+}
+
+// Arc.
+
+struct ArcDrawSpec {
+  SmoothShape::Arc arc;
+  DisplayOutput* out;
+  FillMode fill_mode;
+  PaintMode paint_mode;
+  float ro_squared_adjusted;
+  float ri_squared_adjusted;
+  Color bgcolor;
+  Color pre_blended_outline_active;
+  Color pre_blended_outline_inactive;
+  Color pre_blended_interior;
+};
+
 Color GetSmoothArcColor(const SmoothShape::Arc& spec, int16_t x, int16_t y) {
   float dx = x - spec.xc;
   float dy = y - spec.yc;
@@ -479,118 +662,56 @@ Color GetSmoothArcColor(const SmoothShape::Arc& spec, int16_t x, int16_t y) {
                                                    (spec.ri - d + 0.5f)))));
 }
 
-struct RoundRectDrawSpec {
-  SmoothShape::RoundRect rect;
-  DisplayOutput* out;
-  FillMode fill_mode;
-  PaintMode paint_mode;
-  float r_squared_adjusted;
-  float ri_squared_adjusted;
-  Color bgcolor;
-  Color pre_blended_outline;
-  Color pre_blended_interior;
-};
-
-inline Color GetSmoothRoundRectShapeColor(const RoundRectDrawSpec& spec,
-                                          int16_t x, int16_t y) {
-  // // This only applies to a handful of pixels and seems to slow things down.
-  // if (spec.inner_mid.contains(x, y) || spec.inner_wide.contains(x, y) ||
-  //     spec.inner_tall.contains(x, y)) {
-  //   return spec.interior;
-  // }
-  float ref_x = std::min(std::max((float)x, spec.rect.x0), spec.rect.x1);
-  float ref_y = std::min(std::max((float)y, spec.rect.y0), spec.rect.y1);
-  float dx = x - ref_x;
-  float dy = y - ref_y;
-  // // This only applies to a handful of pixels and seems to slow things down.
-  // if (abs(dx) + abs(dy) < spec.ri - 0.5) {
-  //   return spec.interior;
-  // }
-
-  float d_squared = dx * dx + dy * dy;
-  float r = spec.rect.r;
-  float ri = spec.rect.ri;
-  Color interior = spec.rect.interior_color;
-  Color outline = spec.rect.outline_color;
-
-  if (d_squared <= spec.ri_squared_adjusted - ri) {
-    return interior;
-  }
-  if (d_squared >= spec.r_squared_adjusted + r) {
-    return color::Transparent;
-  }
-  bool fully_within_outer = d_squared <= spec.r_squared_adjusted - r;
-  bool fully_outside_inner =
-      r == ri || d_squared >= spec.ri_squared_adjusted + ri;
-  if (fully_within_outer && fully_outside_inner) {
-    return outline;
-  }
-  // Note: replacing with integer sqrt (iterative, loop-unrolled, 24-bit) slows
-  // things down. At 64-bit not loop-unrolled, does so dramatically.
-  float d = sqrtf(d_squared);
-  if (fully_outside_inner) {
-    return outline.withA((uint8_t)(outline.a() * (r - d + 0.5f)));
-  }
-  if (fully_within_outer) {
-    return AlphaBlend(
-        interior,
-        outline.withA((uint8_t)(outline.a() * (1.0f - (ri - d + 0.5f)))));
-  }
-  return AlphaBlend(
-      interior, outline.withA((uint8_t)(outline.a() *
-                                        std::max(0.0f, (r - d + 0.5f) -
-                                                           (ri - d + 0.5f)))));
-}
-
-float CalcRoundRectDistSq(const SmoothShape::RoundRect& spec, int16_t x,
-                          int16_t y) {
-  float ref_x = std::min(std::max((float)x, spec.x0), spec.x1);
-  float ref_y = std::min(std::max((float)y, spec.y0), spec.y1);
-  float dx = x - ref_x;
-  float dy = y - ref_y;
+inline float CalcArcDistSq(const SmoothShape::Arc& spec, int16_t x, int16_t y) {
+  float xc = spec.xc;
+  float yc = spec.yc;
+  float dx = x - xc;
+  float dy = y - yc;
   return dx * dx + dy * dy;
 }
 
-// Called for rectangles with area <= 64 pixels.
-void FillSmoothRoundRectRectInternal(const RoundRectDrawSpec& spec,
-                                     int16_t xMin, int16_t yMin, int16_t xMax,
-                                     int16_t yMax) {
+// Called for arcs with area <= 64 pixels.
+void FillSmoothArcInternal(const ArcDrawSpec& spec,
+                           int16_t xMin, int16_t yMin, int16_t xMax,
+                           int16_t yMax) {
   Box box(xMin, yMin, xMax, yMax);
-  if (spec.rect.inner_mid.contains(box) || spec.rect.inner_wide.contains(box) ||
-      spec.rect.inner_tall.contains(box)) {
-    spec.out->fillRect(spec.paint_mode, box, spec.pre_blended_interior);
+  Color interior = spec.arc.interior_color;
+  Color outline_active = spec.arc.outline_active_color;
+  Color outline_inactive = spec.arc.outline_inactive_color;
+  if (spec.arc.inner_mid.contains(box)) {
+    if (spec.fill_mode == FILL_MODE_RECTANGLE || interior.a() > 0) {
+      spec.out->fillRect(spec.paint_mode, box, color::Red);// spec.pre_blended_interior);
+    }
     return;
   }
-  float dtl = CalcRoundRectDistSq(spec.rect, xMin, yMin);
-  float dtr = CalcRoundRectDistSq(spec.rect, xMax, yMin);
-  float dbl = CalcRoundRectDistSq(spec.rect, xMin, yMax);
-  float dbr = CalcRoundRectDistSq(spec.rect, xMax, yMax);
-  float r = spec.rect.r;
-  float ri = spec.rect.ri;
-  Color interior = spec.rect.interior_color;
-  Color outline = spec.rect.outline_color;
+  float dtl = CalcArcDistSq(spec.arc, xMin, yMin);
+  float dtr = CalcArcDistSq(spec.arc, xMax, yMin);
+  float dbl = CalcArcDistSq(spec.arc, xMin, yMax);
+  float dbr = CalcArcDistSq(spec.arc, xMax, yMax);
+  float ro = spec.arc.ro;
+  float ri = spec.arc.ri;
 
   float r_min_sq = (ri - 0.5) * (ri - 0.5);
   // Check if the rect falls entirely inside the interior boundary.
   if (dtl < r_min_sq && dtr < r_min_sq && dbl < r_min_sq && dbr < r_min_sq) {
     if (spec.fill_mode == FILL_MODE_RECTANGLE || interior.a() > 0) {
-      spec.out->fillRect(spec.paint_mode, box, spec.pre_blended_interior);
+      spec.out->fillRect(spec.paint_mode, box, color::Orange);//spec.pre_blended_interior);
     }
     return;
   }
 
-  float r_max_sq = (r + 0.5) * (r + 0.5);
+  float r_max_sq = (ro + 0.5) * (ro + 0.5);
   // Check if the rect falls entirely outside the boundary (in one of the 4
   // corners).
-  if (xMax < spec.rect.x0) {
-    if (yMax < spec.rect.y0) {
+  if (xMax < spec.arc.xc) {
+    if (yMax < spec.arc.yc) {
       if (dbr >= r_max_sq) {
         if (spec.fill_mode == FILL_MODE_RECTANGLE) {
           spec.out->fillRect(xMin, yMin, xMax, yMax, spec.bgcolor);
         }
         return;
       }
-    } else if (yMin > spec.rect.y1) {
+    } else if (yMin > spec.arc.yc) {
       if (dtr >= r_max_sq) {
         if (spec.fill_mode == FILL_MODE_RECTANGLE) {
           spec.out->fillRect(xMin, yMin, xMax, yMax, spec.bgcolor);
@@ -598,15 +719,15 @@ void FillSmoothRoundRectRectInternal(const RoundRectDrawSpec& spec,
         return;
       }
     }
-  } else if (xMin > spec.rect.x1) {
-    if (yMax < spec.rect.y0) {
+  } else if (xMin > spec.arc.xc) {
+    if (yMax < spec.arc.yc) {
       if (dbl >= r_max_sq) {
         if (spec.fill_mode == FILL_MODE_RECTANGLE) {
           spec.out->fillRect(xMin, yMin, xMax, yMax, spec.bgcolor);
         }
         return;
       }
-    } else if (yMin > spec.rect.y1) {
+    } else if (yMin > spec.arc.yc) {
       if (dtl >= r_max_sq) {
         if (spec.fill_mode == FILL_MODE_RECTANGLE) {
           spec.out->fillRect(xMin, yMin, xMax, yMax, spec.bgcolor);
@@ -619,11 +740,12 @@ void FillSmoothRoundRectRectInternal(const RoundRectDrawSpec& spec,
     BufferedPixelWriter writer(*spec.out, spec.paint_mode);
     for (int16_t y = yMin; y <= yMax; ++y) {
       for (int16_t x = xMin; x <= xMax; ++x) {
-        Color c = GetSmoothRoundRectShapeColor(spec, x, y);
+        Color c = GetSmoothArcColor(spec.arc, x, y);
         if (c.a() == 0) continue;
         writer.writePixel(x, y,
                           c == interior  ? spec.pre_blended_interior
-                          : c == outline ? spec.pre_blended_outline
+                          : c == outline_active ? spec.pre_blended_outline_active
+                          : c == outline_inactive ? spec.pre_blended_outline_inactive
                                          : AlphaBlend(spec.bgcolor, c));
       }
     }
@@ -632,10 +754,11 @@ void FillSmoothRoundRectRectInternal(const RoundRectDrawSpec& spec,
     int cnt = 0;
     for (int16_t y = yMin; y <= yMax; ++y) {
       for (int16_t x = xMin; x <= xMax; ++x) {
-        Color c = GetSmoothRoundRectShapeColor(spec, x, y);
+        Color c = GetSmoothArcColor(spec.arc, x, y);
         color[cnt++] = c.a() == 0      ? spec.bgcolor
                        : c == interior ? spec.pre_blended_interior
-                       : c == outline  ? spec.pre_blended_outline
+                       : c == outline_active  ? spec.pre_blended_outline_active
+                       : c == outline_inactive  ? spec.pre_blended_outline_inactive
                                        : AlphaBlend(spec.bgcolor, c);
       }
     }
@@ -865,44 +988,57 @@ void SmoothShape::drawTo(const Surface& s) const {
       break;
     }
     case ARC: {
-      Rasterizable::drawTo(s);
-      // SmoothShape::Arc arc = arc_;
-      // if (s.dx() != 0 || s.dy() != 0) {
-      //   arc_.xc += s.dx();
-      //   arc_.yc += s.dy();
-      //   arc_.start_x_rc += s.dx();
-      //   arc_.start_y_rc += s.dy();
-      //   arc_.end_x_rc += s.dx();
-      //   arc_.end_y_rc += s.dy();
-      //   arc_.start_x_ro += s.dx();
-      //   arc_.start_y_ro += s.dy();
-      //   arc_.end_x_ro += s.dx();
-      //   arc_.end_y_ro += s.dy();
-      //   arc_.inner_mid = arc_.inner_mid.translate(s.dx(), s.dy());
-      // }
-      // int16_t xMin = box.xMin();
-      // int16_t xMax = box.xMax();
-      // int16_t yMin = box.yMin();
-      // int16_t yMax = box.yMax();
-      // {
-      //   uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
-      //   if (pixel_count <= 64) {
-      //     FillSmoothRoundRectRectInternal(spec, xMin, yMin, xMax, yMax);
-      //     return;
-      //   }
-      // }
-      // const int16_t xMinOuter = (xMin / 8) * 8;
-      // const int16_t yMinOuter = (yMin / 8) * 8;
-      // const int16_t xMaxOuter = (xMax / 8) * 8 + 7;
-      // const int16_t yMaxOuter = (yMax / 8) * 8 + 7;
-      // for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
-      //   for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
-      //     FillSmoothArcInternal(spec, std::max(x, xMin),
-      //                                     std::max(y, yMin),
-      //                                     std::min((int16_t)(x + 7), xMax),
-      //                                     std::min((int16_t)(y + 7), yMax));
-      //   }
-      // }
+      // Rasterizable::drawTo(s);
+      ArcDrawSpec spec{
+        .arc = arc_,
+        .out = &s.out(),
+        .fill_mode = s.fill_mode(),
+        .paint_mode = s.paint_mode(),
+        .ro_squared_adjusted = arc_.ro * arc_.ro + 0.25f,
+        .ri_squared_adjusted = arc_.ri * arc_.ri + 0.25f,
+        .bgcolor = s.bgcolor(),
+        .pre_blended_outline_active =
+              AlphaBlend(AlphaBlend(s.bgcolor(), arc_.interior_color),
+                         arc_.outline_active_color),
+        .pre_blended_outline_inactive =
+              AlphaBlend(AlphaBlend(s.bgcolor(), arc_.interior_color),
+                         arc_.outline_inactive_color),
+      };
+      if (s.dx() != 0 || s.dy() != 0) {
+        spec.arc.xc += s.dx();
+        spec.arc.yc += s.dy();
+        spec.arc.start_x_rc += s.dx();
+        spec.arc.start_y_rc += s.dy();
+        spec.arc.end_x_rc += s.dx();
+        spec.arc.end_y_rc += s.dy();
+        spec.arc.start_x_ro += s.dx();
+        spec.arc.start_y_ro += s.dy();
+        spec.arc.end_x_ro += s.dx();
+        spec.arc.end_y_ro += s.dy();
+        spec.arc.inner_mid = spec.arc.inner_mid.translate(s.dx(), s.dy());
+      }
+      int16_t xMin = box.xMin();
+      int16_t xMax = box.xMax();
+      int16_t yMin = box.yMin();
+      int16_t yMax = box.yMax();
+      {
+        uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
+        if (pixel_count <= 64) {
+          FillSmoothArcInternal(spec, xMin, yMin, xMax, yMax);
+          return;
+        }
+      }
+      const int16_t xMinOuter = (xMin / 8) * 8;
+      const int16_t yMinOuter = (yMin / 8) * 8;
+      const int16_t xMaxOuter = (xMax / 8) * 8 + 7;
+      const int16_t yMaxOuter = (yMax / 8) * 8 + 7;
+      for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
+        for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
+          FillSmoothArcInternal(spec, std::max(x, xMin), std::max(y, yMin),
+                                std::min((int16_t)(x + 7), xMax),
+                                std::min((int16_t)(y + 7), yMax));
+        }
+      }
       break;
     }
     case EMPTY: {

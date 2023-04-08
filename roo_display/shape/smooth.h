@@ -60,10 +60,29 @@ SmoothShape SmoothFilledCircle(FpPoint center, float radius, Color color);
 SmoothShape SmoothRotatedFilledRect(FpPoint center, float width, float height,
                                     float angle, Color color);
 
-SmoothShape SmoothArc(FpPoint center, float radius, float width,
-                      float angle_start, float angle_end, Color active_color,
-                      Color inactive_color, Color interior_color,
-                      EndingStyle ending_style = ENDING_ROUNDED);
+// Creates a 1-pixel-wide arc with the given center, radius, start and end
+// angles, and color.
+SmoothShape SmoothArc(FpPoint center, float radius, float angle_start,
+                      float angle_end, Color color);
+
+// Creates an arc with the given center, radius, and thickness, start and eng
+// angles, color, and an optional ending style.
+SmoothShape SmoothThickArc(FpPoint center, float radius, float thickness,
+                           float angle_start, float angle_end, Color color,
+                           EndingStyle ending_style = ENDING_ROUNDED);
+
+// Creates a pie with the given center, radius, start and eng
+// angles, and color.
+SmoothShape SmoothPie(FpPoint center, float radius, float angle_start,
+                      float angle_end, Color color);
+
+// Creates an arc with the given center, radius, and thickness, start and eng
+// angles, and color, and additionally, the color of the complement of the arc,
+// the color of the circle inside the arc, and the ending style.
+SmoothShape SmoothThickArcWithBackground(
+    FpPoint center, float radius, float thickness, float angle_start,
+    float angle_end, Color active_color, Color inactive_color,
+    Color interior_color, EndingStyle ending_style = ENDING_ROUNDED);
 
 // Implementation details follow.
 
@@ -115,7 +134,7 @@ class SmoothShape : public Rasterizable {
     float end_x_rc;
     float end_y_rc;
     // 1 / width = 1 - (ro - ri).
-    float inv_width;
+    float inv_half_width;
     int start_quadrant;
     int end_quadrant;
     bool round_endings;
@@ -144,10 +163,10 @@ class SmoothShape : public Rasterizable {
                                              float height, float angle,
                                              Color color);
 
-  friend SmoothShape SmoothArc(FpPoint center, float radius, float width,
-                               float angle_start, float angle_end,
-                               Color active_color, Color inactive_color,
-                               Color interior_color, EndingStyle ending_style);
+  friend SmoothShape SmoothThickArcWithBackground(
+      FpPoint center, float radius, float thickness, float angle_start,
+      float angle_end, Color active_color, Color inactive_color,
+      Color interior_color, EndingStyle ending_style);
 
   void drawTo(const Surface& s) const override;
 

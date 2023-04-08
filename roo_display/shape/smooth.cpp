@@ -152,18 +152,41 @@ inline constexpr int Quadrant(float x, float y) {
 
 }  // namespace
 
-SmoothShape SmoothArc(FpPoint center, float radius, float width,
-                      float angle_start, float angle_end, Color active_color,
-                      Color inactive_color, Color interior_color,
-                      EndingStyle ending_style) {
-  if (radius <= 0 || width <= 0 || angle_end == angle_start)
+SmoothShape SmoothArc(FpPoint center, float radius, float angle_start,
+                      float angle_end, Color color) {
+  return SmoothThickArc(center, radius, 1.0f, angle_start, angle_end,
+                        color, ENDING_ROUNDED);
+}
+
+SmoothShape SmoothThickArc(FpPoint center, float radius, float thickness,
+                           float angle_start, float angle_end, Color color,
+                           EndingStyle ending_style) {
+  return SmoothThickArcWithBackground(center, radius, thickness, angle_start,
+                                      angle_end, color, color::Transparent,
+                                      color::Transparent, ending_style);
+}
+
+SmoothShape SmoothPie(FpPoint center, float radius, float angle_start,
+                      float angle_end, Color color) {
+  return SmoothThickArcWithBackground(center, radius, radius, angle_start,
+                                      angle_end, color, color::Transparent,
+                                      color::Transparent, ENDING_FLAT);
+}
+
+SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
+                                         float thickness, float angle_start,
+                                         float angle_end, Color active_color,
+                                         Color inactive_color,
+                                         Color interior_color,
+                                         EndingStyle ending_style) {
+  if (radius <= 0 || thickness <= 0 || angle_end == angle_start)
     return SmoothShape();
-  if (width > radius) width = radius;
+  if (thickness > radius) thickness = radius;
   if (angle_end < angle_start) {
     std::swap(angle_end, angle_start);
   }
   if (angle_end - angle_start >= 2 * M_PI) {
-    return SmoothOutlinedCircle(center, radius, width, active_color,
+    return SmoothOutlinedCircle(center, radius, thickness, active_color,
                                 interior_color);
   }
   while (angle_start > M_PI) {
@@ -177,7 +200,7 @@ SmoothShape SmoothArc(FpPoint center, float radius, float width,
   float end_cos = cosf(angle_end);
 
   float ro = radius;
-  float rc = radius - width * 0.5f;
+  float rc = radius - thickness * 0.5f;
 
   float start_x_ro = ro * start_sin;
   float start_y_ro = -ro * start_cos;
@@ -189,7 +212,7 @@ SmoothShape SmoothArc(FpPoint center, float radius, float width,
   float end_x_rc = rc * end_sin;
   float end_y_rc = -rc * end_cos;
 
-  float inv_width = 2.0f / width;
+  float inv_half_width = 2.0f / thickness;
 
   int start_quadrant = Quadrant(start_x_ro, start_y_ro);
   int end_quadrant = Quadrant(end_x_ro, end_y_ro);
@@ -200,13 +223,13 @@ SmoothShape SmoothArc(FpPoint center, float radius, float width,
   return SmoothShape(
       std::move(extents),
       SmoothShape::Arc{
-          center.x,       center.y,       radius,
-          radius - width, angle_start,    angle_end,
-          active_color,   inactive_color, interior_color,
-          start_x_ro,     start_y_ro,     start_x_rc,
-          start_y_rc,     end_x_ro,       end_y_ro,
-          end_x_rc,       end_y_rc,       inv_width,
-          start_quadrant, end_quadrant,   ending_style == ENDING_ROUNDED});
+          center.x,           center.y,       radius,
+          radius - thickness, angle_start,    angle_end,
+          active_color,       inactive_color, interior_color,
+          start_x_ro,         start_y_ro,     start_x_rc,
+          start_y_rc,         end_x_ro,       end_y_ro,
+          end_x_rc,           end_y_rc,       inv_half_width,
+          start_quadrant,     end_quadrant,   ending_style == ENDING_ROUNDED});
 }
 
 // Helper functions for wedge.
@@ -342,7 +365,7 @@ Color GetSmoothArcColor(const SmoothShape::Arc& spec, int16_t x, int16_t y) {
   float dy = y - spec.yc;
   float d_squared = dx * dx + dy * dy;
   float ri_squared_adjusted = spec.ri * spec.ri + 0.25f;
-   if (d_squared <= ri_squared_adjusted - spec.ri) {
+  if (d_squared <= ri_squared_adjusted - spec.ri) {
     // Pixel fully within the 'inner' ring.
     return spec.interior_color;
   }
@@ -353,10 +376,10 @@ Color GetSmoothArcColor(const SmoothShape::Arc& spec, int16_t x, int16_t y) {
   }
   // We now know that the pixel is somewhere inside the ring.
   Color color = spec.outline_active_color;
-  float n1 = spec.inv_width *
+  float n1 = spec.inv_half_width *
              ((spec.start_x_ro - spec.start_x_rc) * (spec.start_y_rc - dy) -
               (spec.start_y_ro - spec.start_y_rc) * (spec.start_x_rc - dx));
-  float n2 = -spec.inv_width *
+  float n2 = -spec.inv_half_width *
              ((spec.end_x_ro - spec.end_x_rc) * (spec.end_y_rc - dy) -
               (spec.end_y_ro - spec.end_y_rc) * (spec.end_x_rc - dx));
   bool within_range = false;
@@ -437,8 +460,7 @@ Color GetSmoothArcColor(const SmoothShape::Arc& spec, int16_t x, int16_t y) {
   if (fully_within_outer) {
     return AlphaBlend(
         spec.interior_color,
-        color.withA(
-            (uint8_t)(color.a() * (1.0f - (spec.ri - d + 0.5f)))));
+        color.withA((uint8_t)(color.a() * (1.0f - (spec.ri - d + 0.5f)))));
   }
   return AlphaBlend(
       spec.interior_color,
@@ -891,6 +913,9 @@ bool SmoothShape::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
       // }
       // return true;
       return false;
+    }
+    case ARC: {
+      return Rasterizable::readColorRect(xMin, yMin, xMax, yMax, result);
     }
     case EMPTY: {
       *result = color::Transparent;

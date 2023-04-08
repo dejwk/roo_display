@@ -123,6 +123,8 @@ class SmoothShape : public Rasterizable {
     Color outline_active_color;
     Color outline_inactive_color;
     Color interior_color;
+    // Rectangle fully within the inner circle.
+    Box inner_mid;
     // Endpoints of the cut line at the start angle.
     float start_x_ro;
     float start_y_ro;

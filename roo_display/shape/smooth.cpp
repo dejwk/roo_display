@@ -100,14 +100,12 @@ SmoothShape SmoothOutlinedRoundRect(float x0, float y0, float x1, float y1,
   float d = sqrtf(0.5f) * interior_radius;
   Box extents((int16_t)roundf(x0 - r), (int16_t)roundf(y0 - r),
               (int16_t)roundf(x1 + r), (int16_t)roundf(y1 + r));
-  Box inner_mid((int16_t)ceilf(x0 - d + 0.5f), (int16_t)floorf(x1 + d - 0.5f),
-                (int16_t)ceilf(y0 - d + 0.5f), (int16_t)floorf(y1 + d - 0.5f));
-  Box inner_wide((int16_t)ceilf(x0 - ri + 0.5f),
-                 (int16_t)floorf(x1 + ri - 0.5f), (int16_t)ceilf(y0 + 0.5f),
-                 (int16_t)floorf(y1 - 0.5f));
-  Box inner_tall((int16_t)ceilf(x0 + 0.5f), (int16_t)floorf(x1 - 0.5f),
-                 (int16_t)ceilf(y0 - ri + 0.5f),
-                 (int16_t)floorf(y1 + ri - 0.5f));
+  Box inner_mid((int16_t)ceilf(x0 - d + 0.5f), (int16_t)ceilf(y0 - d + 0.5f),
+                (int16_t)floorf(x1 + d - 0.5f), (int16_t)floorf(y1 + d - 0.5f));
+  Box inner_wide((int16_t)ceilf(x0 - ri + 0.5f), (int16_t)ceilf(y0 + 0.5f),
+                 (int16_t)floorf(x1 + ri - 0.5f), (int16_t)floorf(y1 - 0.5f));
+  Box inner_tall((int16_t)ceilf(x0 + 0.5f), (int16_t)ceilf(y0 - ri + 0.5f),
+                 (int16_t)floorf(x1 - 0.5f), (int16_t)floorf(y1 + ri - 0.5f));
   SmoothShape::RoundRect spec{x0,
                               y0,
                               x1,
@@ -154,8 +152,8 @@ inline constexpr int Quadrant(float x, float y) {
 
 SmoothShape SmoothArc(FpPoint center, float radius, float angle_start,
                       float angle_end, Color color) {
-  return SmoothThickArc(center, radius, 1.0f, angle_start, angle_end,
-                        color, ENDING_ROUNDED);
+  return SmoothThickArc(center, radius, 1.0f, angle_start, angle_end, color,
+                        ENDING_ROUNDED);
 }
 
 SmoothShape SmoothThickArc(FpPoint center, float radius, float thickness,
@@ -217,19 +215,28 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
   int start_quadrant = Quadrant(start_x_ro, start_y_ro);
   int end_quadrant = Quadrant(end_x_ro, end_y_ro);
 
+  float d = sqrtf(0.5f) * (radius - thickness);
+  Box inner_mid((int16_t)ceilf(center.x - d + 0.5f),
+                (int16_t)ceilf(center.y - d + 0.5f),
+                (int16_t)floorf(center.x + d - 0.5f),
+                (int16_t)floorf(center.y + d - 0.5f));
+
   Box extents(
       (int16_t)floorf(center.x - radius), (int16_t)floorf(center.y - radius),
       (int16_t)ceilf(center.x + radius), (int16_t)ceilf(center.y + radius));
   return SmoothShape(
       std::move(extents),
-      SmoothShape::Arc{
-          center.x,           center.y,       radius,
-          radius - thickness, angle_start,    angle_end,
-          active_color,       inactive_color, interior_color,
-          start_x_ro,         start_y_ro,     start_x_rc,
-          start_y_rc,         end_x_ro,       end_y_ro,
-          end_x_rc,           end_y_rc,       inv_half_width,
-          start_quadrant,     end_quadrant,   ending_style == ENDING_ROUNDED});
+      SmoothShape::Arc{center.x,       center.y,
+                       radius,         radius - thickness,
+                       angle_start,    angle_end,
+                       active_color,   inactive_color,
+                       interior_color, inner_mid,
+                       start_x_ro,     start_y_ro,
+                       start_x_rc,     start_y_rc,
+                       end_x_ro,       end_y_ro,
+                       end_x_rc,       end_y_rc,
+                       inv_half_width, start_quadrant,
+                       end_quadrant,   ending_style == ENDING_ROUNDED});
 }
 
 // Helper functions for wedge.
@@ -363,6 +370,9 @@ Color GetSmoothRoundRectColor(const SmoothShape::RoundRect& spec, int16_t x,
 Color GetSmoothArcColor(const SmoothShape::Arc& spec, int16_t x, int16_t y) {
   float dx = x - spec.xc;
   float dy = y - spec.yc;
+  if (spec.inner_mid.contains(x, y)) {
+    return spec.interior_color;
+  }
   float d_squared = dx * dx + dy * dy;
   float ri_squared_adjusted = spec.ri * spec.ri + 0.25f;
   if (d_squared <= ri_squared_adjusted - spec.ri) {
@@ -542,8 +552,9 @@ float CalcRoundRectDistSq(const SmoothShape::RoundRect& spec, int16_t x,
 }
 
 // Called for rectangles with area <= 64 pixels.
-void FillSmoothRoundRectRectInternal(RoundRectDrawSpec& spec, int16_t xMin,
-                                     int16_t yMin, int16_t xMax, int16_t yMax) {
+void FillSmoothRoundRectRectInternal(const RoundRectDrawSpec& spec,
+                                     int16_t xMin, int16_t yMin, int16_t xMax,
+                                     int16_t yMax) {
   Box box(xMin, yMin, xMax, yMax);
   if (spec.rect.inner_mid.contains(box) || spec.rect.inner_wide.contains(box) ||
       spec.rect.inner_tall.contains(box)) {
@@ -680,6 +691,21 @@ void SmoothShape::readColors(const int16_t* x, const int16_t* y, uint32_t count,
         *result++ = color::Transparent;
       }
       break;
+    }
+  }
+}
+
+void FillSubrectangle(const RoundRectDrawSpec& spec, int16_t xMin, int16_t yMin,
+                      int16_t xMax, int16_t yMax) {
+  const int16_t xMinOuter = (xMin / 8) * 8;
+  const int16_t yMinOuter = (yMin / 8) * 8;
+  const int16_t xMaxOuter = (xMax / 8) * 8 + 7;
+  const int16_t yMaxOuter = (yMax / 8) * 8 + 7;
+  for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
+    for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
+      FillSmoothRoundRectRectInternal(
+          spec, std::max(x, xMin), std::max(y, yMin),
+          std::min((int16_t)(x + 7), xMax), std::min((int16_t)(y + 7), yMax));
     }
   }
 }
@@ -821,21 +847,63 @@ void SmoothShape::drawTo(const Surface& s) const {
           return;
         }
       }
-      const int16_t xMinOuter = (xMin / 8) * 8;
-      const int16_t yMinOuter = (yMin / 8) * 8;
-      const int16_t xMaxOuter = (xMax / 8) * 8 + 7;
-      const int16_t yMaxOuter = (yMax / 8) * 8 + 7;
-      for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
-        for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
-          FillSmoothRoundRectRectInternal(spec, std::max(x, xMin),
-                                          std::max(y, yMin),
-                                          std::min((int16_t)(x + 7), xMax),
-                                          std::min((int16_t)(y + 7), yMax));
+      if (spec.rect.inner_mid.width() <= 16) {
+        FillSubrectangle(spec, xMin, yMin, xMax, yMax);
+      } else {
+        const Box& inner = spec.rect.inner_mid;
+        FillSubrectangle(spec, xMin, yMin, xMax, inner.yMin() - 1);
+        FillSubrectangle(spec, xMin, inner.yMin(), inner.xMin() - 1,
+                         inner.yMax());
+        if (s.fill_mode() == FILL_MODE_RECTANGLE ||
+            spec.pre_blended_interior != color::Transparent) {
+          s.out().fillRect(inner, spec.pre_blended_interior);
         }
+        FillSubrectangle(spec, inner.xMax() + 1, inner.yMin(), xMax,
+                         inner.yMax());
+        FillSubrectangle(spec, xMin, inner.yMax() + 1, xMax, yMax);
       }
+      break;
     }
     case ARC: {
       Rasterizable::drawTo(s);
+      // SmoothShape::Arc arc = arc_;
+      // if (s.dx() != 0 || s.dy() != 0) {
+      //   arc_.xc += s.dx();
+      //   arc_.yc += s.dy();
+      //   arc_.start_x_rc += s.dx();
+      //   arc_.start_y_rc += s.dy();
+      //   arc_.end_x_rc += s.dx();
+      //   arc_.end_y_rc += s.dy();
+      //   arc_.start_x_ro += s.dx();
+      //   arc_.start_y_ro += s.dy();
+      //   arc_.end_x_ro += s.dx();
+      //   arc_.end_y_ro += s.dy();
+      //   arc_.inner_mid = arc_.inner_mid.translate(s.dx(), s.dy());
+      // }
+      // int16_t xMin = box.xMin();
+      // int16_t xMax = box.xMax();
+      // int16_t yMin = box.yMin();
+      // int16_t yMax = box.yMax();
+      // {
+      //   uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
+      //   if (pixel_count <= 64) {
+      //     FillSmoothRoundRectRectInternal(spec, xMin, yMin, xMax, yMax);
+      //     return;
+      //   }
+      // }
+      // const int16_t xMinOuter = (xMin / 8) * 8;
+      // const int16_t yMinOuter = (yMin / 8) * 8;
+      // const int16_t xMaxOuter = (xMax / 8) * 8 + 7;
+      // const int16_t yMaxOuter = (yMax / 8) * 8 + 7;
+      // for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
+      //   for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
+      //     FillSmoothArcInternal(spec, std::max(x, xMin),
+      //                                     std::max(y, yMin),
+      //                                     std::min((int16_t)(x + 7), xMax),
+      //                                     std::min((int16_t)(y + 7), yMax));
+      //   }
+      // }
+      break;
     }
     case EMPTY: {
       return;
@@ -915,7 +983,62 @@ bool SmoothShape::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
       return false;
     }
     case ARC: {
+      // return Rasterizable::readColorRect(xMin, yMin, xMax, yMax, result);
+      Box box(xMin, yMin, xMax, yMax);
+      // Check if the rect happens to fall within the known inner rectangles.
+      if (arc_.inner_mid.contains(box)) {
+        *result = color::Blue;  // arc_.interior_color;
+        return true;
+      }
       return Rasterizable::readColorRect(xMin, yMin, xMax, yMax, result);
+      // float dtl = CalcRoundRectDistSq(round_rect_, xMin, yMin);
+      // float dtr = CalcRoundRectDistSq(round_rect_, xMax, yMin);
+      // float dbl = CalcRoundRectDistSq(round_rect_, xMin, yMax);
+      // float dbr = CalcRoundRectDistSq(round_rect_, xMax, yMax);
+      // float r_min_sq = (round_rect_.ri - 0.5) * (round_rect_.ri - 0.5);
+      // // Check if the rect falls entirely inside the interior boundary.
+      // if (dtl < r_min_sq && dtr < r_min_sq && dbl < r_min_sq &&
+      //     dbr < r_min_sq) {
+      //   *result = round_rect_.interior_color;
+      //   return true;
+      // }
+
+      // float r_max_sq = (round_rect_.r + 0.5) * (round_rect_.r + 0.5);
+      // // Check if the rect falls entirely outside the boundary (in one of the
+      // 4
+      // // corners).
+      // if (xMax < round_rect_.x0) {
+      //   if (yMax < round_rect_.y0) {
+      //     if (dbr >= r_max_sq) {
+      //       *result = color::Transparent;
+      //       return true;
+      //     }
+      //   } else if (yMax > round_rect_.y1) {
+      //     if (dtr >= r_max_sq) {
+      //       *result = color::Transparent;
+      //       return true;
+      //     }
+      //   }
+      // } else if (xMax > round_rect_.x1) {
+      //   if (yMax < round_rect_.y0) {
+      //     if (dbl >= r_max_sq) {
+      //       *result = color::Transparent;
+      //       return true;
+      //     }
+      //   } else if (yMax > round_rect_.y1) {
+      //     if (dtl >= r_max_sq) {
+      //       *result = color::Transparent;
+      //       return true;
+      //     }
+      //   }
+      // }
+
+      // Color* out = result;
+      // for (int16_t y = yMin; y <= yMax; ++y) {
+      //   for (int16_t x = xMin; x <= xMax; ++x) {
+      //     *out++ = GetSmoothArcColorPreChecked(round_rect_, x, y);
+      //   }
+      // }
     }
     case EMPTY: {
       *result = color::Transparent;

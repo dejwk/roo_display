@@ -239,29 +239,6 @@ class ParallelRgb565 : public DisplayDevice {
       OffscreenDevice<typename internal::Traits<flush_mode>::ColorMode,
                       COLOR_PIXEL_ORDER_MSB_FIRST, BYTE_ORDER_LITTLE_ENDIAN>;
 
-  void flush(int16_t *x0, int16_t *y0, int16_t *x1, int16_t *y1,
-             uint16_t count) {
-    bool swapped = orientation().isXYswapped();
-    int16_t *begin = swapped ? x0 : y0;
-    int16_t *end = swapped ? x1 : y1;
-    int16_t ymin = *begin++;
-    int16_t ymax = *end++;
-    while (--count > 0) {
-      ymin = std::min(ymin, *begin++);
-      ymax = std::max(ymax, *end++);
-    }
-    if (orientation().isTopToBottom()) {
-      Cache_WriteBack_Addr(
-          (uint32_t)(buffer_->buffer() + ymin * cfg_.width * 2),
-          (ymax - ymin + 1) * cfg_.width * 2);
-    } else {
-      Cache_WriteBack_Addr(
-          (uint32_t)(buffer_->buffer() +
-                     (raw_height() - ymax - 1) * cfg_.width * 2),
-          (ymax - ymin + 1) * cfg_.width * 2);
-    }
-  }
-
   Config cfg_;
   std::unique_ptr<Dev> buffer_;
 };

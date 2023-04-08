@@ -202,6 +202,38 @@ void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::fillRects(PaintMode mode,
   buffer_->fillRects(mode, color, x0, y0, x1, y1, count);
 }
 
+namespace {
+
+struct FlushRange {
+  uint32_t offset;
+  uint32_t length;
+};
+
+inline FlushRange ResolveFlushRangeForRects(const Config &cfg,
+                                            Orientation orientation,
+                                            int16_t *x0, int16_t *y0,
+                                            int16_t *x1, int16_t *y1,
+                                            uint16_t count) {
+  if (orientation.isXYswapped()) {
+    y0 = x0;
+    y1 = x1;
+  }
+  int16_t ymin = *y0++;
+  int16_t ymax = *y1++;
+  while (--count > 0) {
+    ymin = std::min(ymin, *y0++);
+    ymax = std::max(ymax, *y1++);
+  }
+  return FlushRange{
+      .offset = orientation.isTopToBottom()
+                    ? ymin * cfg.width * 2
+                    : (cfg.height - ymax - 1) * cfg.width * 2,
+      .length = (ymax - ymin + 1) * cfg.width * 2,
+  };
+}
+
+}  // namespace
+
 template <>
 void ParallelRgb565<FLUSH_MODE_BUFFERED>::init() {
   uint8_t *buffer = AllocateBuffer(cfg_);
@@ -215,12 +247,21 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::end() {}
 template <>
 void ParallelRgb565<FLUSH_MODE_BUFFERED>::write(Color *color,
                                                 uint32_t pixel_count) {
-  int16_t xmin = buffer_->window_x();
-  int16_t ymin = buffer_->window_y();
+  int16_t x0 = buffer_->window_x();
+  int16_t y0 = buffer_->window_y();
   buffer_->write(color, pixel_count);
-  int16_t xmax = buffer_->window_x();
-  int16_t ymax = buffer_->window_y();
-  flush(&xmin, &ymin, &xmax, &ymax, 1);
+  int16_t x1 = buffer_->window_x();
+  int16_t y1 = buffer_->window_y();
+  if (orientation().isXYswapped()) {
+    y0 = x0;
+    y1 = x1;
+  }
+  FlushRange range{.offset = orientation().isTopToBottom()
+                                 ? y0 * cfg_.width * 2
+                                 : (cfg_.height - y1 - 1) * cfg_.width * 2,
+                   .length = (y1 - y0 + 1) * cfg_.width * 2};
+  Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + range.offset,
+                       range.length);
 }
 
 template <>
@@ -228,8 +269,11 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::writePixels(PaintMode mode,
                                                       Color *color, int16_t *x,
                                                       int16_t *y,
                                                       uint16_t pixel_count) {
+  FlushRange range =
+      ResolveFlushRangeForRects(cfg_, orientation(), x, y, x, y, pixel_count);
   buffer_->writePixels(mode, color, x, y, pixel_count);
-  flush(x, y, x, y, pixel_count);
+  Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + range.offset,
+                       range.length);
 }
 
 template <>
@@ -237,8 +281,11 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillPixels(PaintMode mode,
                                                      Color color, int16_t *x,
                                                      int16_t *y,
                                                      uint16_t pixel_count) {
+  FlushRange range =
+      ResolveFlushRangeForRects(cfg_, orientation(), x, y, x, y, pixel_count);
   buffer_->fillPixels(mode, color, x, y, pixel_count);
-  flush(x, y, x, y, pixel_count);
+  Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + range.offset,
+                       range.length);
 }
 
 template <>
@@ -247,8 +294,11 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::writeRects(PaintMode mode,
                                                      int16_t *y0, int16_t *x1,
                                                      int16_t *y1,
                                                      uint16_t count) {
+  FlushRange range =
+      ResolveFlushRangeForRects(cfg_, orientation(), x0, y0, x1, y1, count);
   buffer_->writeRects(mode, color, x0, y0, x1, y1, count);
-  flush(x0, y0, x1, y1, count);
+  Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + range.offset,
+                       range.length);
 }
 
 template <>
@@ -256,8 +306,11 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillRects(PaintMode mode, Color color,
                                                     int16_t *x0, int16_t *y0,
                                                     int16_t *x1, int16_t *y1,
                                                     uint16_t count) {
+  FlushRange range =
+      ResolveFlushRangeForRects(cfg_, orientation(), x0, y0, x1, y1, count);
   buffer_->fillRects(mode, color, x0, y0, x1, y1, count);
-  flush(x0, y0, x1, y1, count);
+  Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + range.offset,
+                       range.length);
 }
 
 template <>

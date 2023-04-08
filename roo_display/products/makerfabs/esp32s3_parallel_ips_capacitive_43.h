@@ -65,7 +65,6 @@ class Esp32s3ParallelIpsCapacitive43 : public ComboDevice {
 
   void initTransport() {
     wire_.begin(17, 18);
-    backlit_.init();
   }
 
   DisplayDevice& display() override { return display_; }

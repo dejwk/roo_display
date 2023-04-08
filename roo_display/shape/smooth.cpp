@@ -314,8 +314,8 @@ inline uint8_t GetWedgeShapeAlpha(const WedgeDrawSpec& spec, float xpax,
 
 // Helper functions for round rect.
 
-Color GetSmoothRoundRectColorPreChecked(const SmoothShape::RoundRect& spec,
-                                        int16_t x, int16_t y) {
+Color GetSmoothRoundRectColor(const SmoothShape::RoundRect& spec, int16_t x,
+                              int16_t y) {
   float ref_x = std::min(std::max((float)x, spec.x0), spec.x1);
   float ref_y = std::min(std::max((float)y, spec.y0), spec.y1);
   float dx = x - ref_x;
@@ -356,15 +356,6 @@ Color GetSmoothRoundRectColorPreChecked(const SmoothShape::RoundRect& spec,
                         (uint8_t)(spec.outline_color.a() *
                                   std::max(0.0f, (spec.r - d + 0.5f) -
                                                      (spec.ri - d + 0.5f)))));
-}
-
-Color GetSmoothRoundRectColor(const SmoothShape::RoundRect& spec, int16_t x,
-                              int16_t y) {
-  if (spec.inner_mid.contains(x, y) || spec.inner_wide.contains(x, y) ||
-      spec.inner_tall.contains(x, y)) {
-    return spec.interior_color;
-  }
-  return GetSmoothRoundRectColorPreChecked(spec, x, y);
 }
 
 struct RoundRectDrawSpec {
@@ -581,6 +572,85 @@ void FillSmoothRoundRectRectInternal(const RoundRectDrawSpec& spec,
     }
     spec.out->setAddress(Box(xMin, yMin, xMax, yMax), spec.paint_mode);
     spec.out->write(color, cnt);
+  }
+}
+
+void FillSubrectangle(const RoundRectDrawSpec& spec, int16_t xMin, int16_t yMin,
+                      int16_t xMax, int16_t yMax) {
+  const int16_t xMinOuter = (xMin / 8) * 8;
+  const int16_t yMinOuter = (yMin / 8) * 8;
+  const int16_t xMaxOuter = (xMax / 8) * 8 + 7;
+  const int16_t yMaxOuter = (yMax / 8) * 8 + 7;
+  for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
+    for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
+      FillSmoothRoundRectRectInternal(
+          spec, std::max(x, xMin), std::max(y, yMin),
+          std::min((int16_t)(x + 7), xMax), std::min((int16_t)(y + 7), yMax));
+    }
+  }
+}
+
+void DrawRoundRect(const SmoothShape::RoundRect& rect, const Surface& s,
+                   const Box& box) {
+  RoundRectDrawSpec spec{
+      .rect = rect,
+      .out = &s.out(),
+      .fill_mode = s.fill_mode(),
+      .paint_mode = s.paint_mode(),
+      .r_squared_adjusted = rect.r * rect.r + 0.25f,
+      .ri_squared_adjusted = rect.ri * rect.ri + 0.25f,
+      .bgcolor = s.bgcolor(),
+      .pre_blended_outline = AlphaBlend(
+          AlphaBlend(s.bgcolor(), rect.interior_color), rect.outline_color),
+      .pre_blended_interior = AlphaBlend(s.bgcolor(), rect.interior_color),
+  };
+  if (s.dx() != 0 || s.dy() != 0) {
+    spec.rect.x0 += s.dx();
+    spec.rect.y0 += s.dy();
+    spec.rect.x1 += s.dx();
+    spec.rect.y1 += s.dy();
+    spec.rect.inner_wide = spec.rect.inner_wide.translate(s.dx(), s.dy());
+    spec.rect.inner_mid = spec.rect.inner_mid.translate(s.dx(), s.dy());
+    spec.rect.inner_tall = spec.rect.inner_tall.translate(s.dx(), s.dy());
+  }
+  int16_t xMin = box.xMin();
+  int16_t xMax = box.xMax();
+  int16_t yMin = box.yMin();
+  int16_t yMax = box.yMax();
+  {
+    uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
+    if (pixel_count <= 64) {
+      FillSmoothRoundRectRectInternal(spec, xMin, yMin, xMax, yMax);
+      return;
+    }
+  }
+  if (spec.rect.inner_mid.width() <= 16) {
+    FillSubrectangle(spec, xMin, yMin, xMax, yMax);
+  } else {
+    const Box& inner = spec.rect.inner_mid;
+    FillSubrectangle(spec, xMin, yMin, xMax, inner.yMin() - 1);
+    FillSubrectangle(spec, xMin, inner.yMin(), inner.xMin() - 1, inner.yMax());
+    if (s.fill_mode() == FILL_MODE_RECTANGLE ||
+        spec.pre_blended_interior != color::Transparent) {
+      s.out().fillRect(inner, spec.pre_blended_interior);
+    }
+    FillSubrectangle(spec, inner.xMax() + 1, inner.yMin(), xMax, inner.yMax());
+    FillSubrectangle(spec, xMin, inner.yMax() + 1, xMax, yMax);
+  }
+}
+
+void ReadRoundRectColors(const SmoothShape::RoundRect& spec, const int16_t* x,
+                         const int16_t* y, uint32_t count, Color* result) {
+  while (count-- > 0) {
+    if (spec.inner_mid.contains(*x, *y) || spec.inner_wide.contains(*x, *y) ||
+        spec.inner_tall.contains(*x, *y)) {
+      *result = spec.interior_color;
+    } else {
+      *result = GetSmoothRoundRectColor(spec, *x, *y);
+    }
+    ++x;
+    ++y;
+    ++result;
   }
 }
 
@@ -842,9 +912,7 @@ void SmoothShape::readColors(const int16_t* x, const int16_t* y, uint32_t count,
       break;
     }
     case ROUND_RECT: {
-      while (count-- > 0) {
-        *result++ = GetSmoothRoundRectColor(round_rect_, *x++, *y++);
-      }
+      ReadRoundRectColors(round_rect_, x, y, count, result);
       break;
     }
     case ARC: {
@@ -858,21 +926,6 @@ void SmoothShape::readColors(const int16_t* x, const int16_t* y, uint32_t count,
         *result++ = color::Transparent;
       }
       break;
-    }
-  }
-}
-
-void FillSubrectangle(const RoundRectDrawSpec& spec, int16_t xMin, int16_t yMin,
-                      int16_t xMax, int16_t yMax) {
-  const int16_t xMinOuter = (xMin / 8) * 8;
-  const int16_t yMinOuter = (yMin / 8) * 8;
-  const int16_t xMaxOuter = (xMax / 8) * 8 + 7;
-  const int16_t yMaxOuter = (yMax / 8) * 8 + 7;
-  for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
-    for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
-      FillSmoothRoundRectRectInternal(
-          spec, std::max(x, xMin), std::max(y, yMin),
-          std::min((int16_t)(x + 7), xMax), std::min((int16_t)(y + 7), yMax));
     }
   }
 }
@@ -980,55 +1033,7 @@ void SmoothShape::drawTo(const Surface& s) const {
       break;
     }
     case ROUND_RECT: {
-      RoundRectDrawSpec spec{
-          .rect = round_rect_,
-          .out = &s.out(),
-          .fill_mode = s.fill_mode(),
-          .paint_mode = s.paint_mode(),
-          .r_squared_adjusted = round_rect_.r * round_rect_.r + 0.25f,
-          .ri_squared_adjusted = round_rect_.ri * round_rect_.ri + 0.25f,
-          .bgcolor = s.bgcolor(),
-          .pre_blended_outline =
-              AlphaBlend(AlphaBlend(s.bgcolor(), round_rect_.interior_color),
-                         round_rect_.outline_color),
-          .pre_blended_interior =
-              AlphaBlend(s.bgcolor(), round_rect_.interior_color),
-      };
-      if (s.dx() != 0 || s.dy() != 0) {
-        spec.rect.x0 += s.dx();
-        spec.rect.y0 += s.dy();
-        spec.rect.x1 += s.dx();
-        spec.rect.y1 += s.dy();
-        spec.rect.inner_wide = spec.rect.inner_wide.translate(s.dx(), s.dy());
-        spec.rect.inner_mid = spec.rect.inner_mid.translate(s.dx(), s.dy());
-        spec.rect.inner_tall = spec.rect.inner_tall.translate(s.dx(), s.dy());
-      }
-      int16_t xMin = box.xMin();
-      int16_t xMax = box.xMax();
-      int16_t yMin = box.yMin();
-      int16_t yMax = box.yMax();
-      {
-        uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
-        if (pixel_count <= 64) {
-          FillSmoothRoundRectRectInternal(spec, xMin, yMin, xMax, yMax);
-          return;
-        }
-      }
-      if (spec.rect.inner_mid.width() <= 16) {
-        FillSubrectangle(spec, xMin, yMin, xMax, yMax);
-      } else {
-        const Box& inner = spec.rect.inner_mid;
-        FillSubrectangle(spec, xMin, yMin, xMax, inner.yMin() - 1);
-        FillSubrectangle(spec, xMin, inner.yMin(), inner.xMin() - 1,
-                         inner.yMax());
-        if (s.fill_mode() == FILL_MODE_RECTANGLE ||
-            spec.pre_blended_interior != color::Transparent) {
-          s.out().fillRect(inner, spec.pre_blended_interior);
-        }
-        FillSubrectangle(spec, inner.xMax() + 1, inner.yMin(), xMax,
-                         inner.yMax());
-        FillSubrectangle(spec, xMin, inner.yMax() + 1, xMax, yMax);
-      }
+      DrawRoundRect(round_rect_, s, box);
       break;
     }
     case ARC: {
@@ -1150,7 +1155,7 @@ bool SmoothShape::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
       Color* out = result;
       for (int16_t y = yMin; y <= yMax; ++y) {
         for (int16_t x = xMin; x <= xMax; ++x) {
-          *out++ = GetSmoothRoundRectColorPreChecked(round_rect_, x, y);
+          *out++ = GetSmoothRoundRectColor(round_rect_, x, y);
         }
       }
       // This is now very unlikely to be true, or we would have caught it above.

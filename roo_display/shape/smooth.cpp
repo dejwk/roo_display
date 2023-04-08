@@ -431,12 +431,9 @@ inline Color GetSmoothRoundRectShapeColor(const RoundRectDrawSpec& spec,
                                                            (ri - d + 0.5f)))));
 }
 
-float CalcRoundRectDistSq(const SmoothShape::RoundRect& spec, int16_t x,
-                          int16_t y) {
-  float ref_x = std::min(std::max((float)x, spec.x0), spec.x1);
-  float ref_y = std::min(std::max((float)y, spec.y0), spec.y1);
-  float dx = x - ref_x;
-  float dy = y - ref_y;
+inline float CalcDistSq(float x1, float y1, int16_t x2, int16_t y2) {
+  float dx = x1 - x2;
+  float dy = y1 - y2;
   return dx * dx + dy * dy;
 }
 
@@ -454,11 +451,11 @@ void FillSmoothRoundRectRectInternal(const RoundRectDrawSpec& spec,
     }
     return;
   }
-  float dtl = CalcRoundRectDistSq(spec.rect, xMin, yMin);
-  float dtr = CalcRoundRectDistSq(spec.rect, xMax, yMin);
-  float dbl = CalcRoundRectDistSq(spec.rect, xMin, yMax);
-  float dbr = CalcRoundRectDistSq(spec.rect, xMax, yMax);
-  float r = spec.rect.r;
+  float dtl = CalcDistSq(spec.rect.x0, spec.rect.y0, xMin, yMin);
+  float dtr = CalcDistSq(spec.rect.x1, spec.rect.y0, xMax, yMin);
+  float dbl = CalcDistSq(spec.rect.x0, spec.rect.y1, xMin, yMax);
+  float dbr = CalcDistSq(spec.rect.x1, spec.rect.y1, xMax, yMax);
+  float ro = spec.rect.r;
   float ri = spec.rect.ri;
 
   float r_min_sq = (ri - 0.5) * (ri - 0.5);
@@ -470,7 +467,7 @@ void FillSmoothRoundRectRectInternal(const RoundRectDrawSpec& spec,
     return;
   }
 
-  float r_max_sq = (r + 0.5) * (r + 0.5);
+  float r_max_sq = (ro + 0.5) * (ro + 0.5);
   // Check if the rect falls entirely outside the boundary (in one of the 4
   // corners).
   if (xMax < spec.rect.x0) {
@@ -510,7 +507,7 @@ void FillSmoothRoundRectRectInternal(const RoundRectDrawSpec& spec,
   // ring, then the rect is also within the ring.
   if (xMin < spec.rect.x0 && xMax < spec.rect.x0) {
     if (yMin < spec.rect.y0 && yMax < spec.rect.y0) {
-      float r_ring_max_sq = (r - 0.5) * (r - 0.5);
+      float r_ring_max_sq = (ro - 0.5) * (ro - 0.5);
       float r_ring_min_sq = (ri + 0.5) * (ri + 0.5);
       if (dtl < r_ring_max_sq && dtl > r_ring_min_sq && dbr < r_ring_max_sq &&
           dbr > r_ring_min_sq) {
@@ -521,7 +518,7 @@ void FillSmoothRoundRectRectInternal(const RoundRectDrawSpec& spec,
         }
       }
     } else if (yMin >= spec.rect.y0 && yMax >= spec.rect.y0) {
-      float r_ring_max_sq = (r - 0.5) * (r - 0.5);
+      float r_ring_max_sq = (ro - 0.5) * (ro - 0.5);
       float r_ring_min_sq = (ri + 0.5) * (ri + 0.5);
       if (dtr < r_ring_max_sq && dtr > r_ring_min_sq && dbl < r_ring_max_sq &&
           dbl > r_ring_min_sq) {
@@ -534,7 +531,7 @@ void FillSmoothRoundRectRectInternal(const RoundRectDrawSpec& spec,
     }
   } else if (xMin >= spec.rect.x0 && xMax >= spec.rect.x0) {
     if (yMin < spec.rect.y0 && yMax < spec.rect.y0) {
-      float r_ring_max_sq = (r - 0.5) * (r - 0.5);
+      float r_ring_max_sq = (ro - 0.5) * (ro - 0.5);
       float r_ring_min_sq = (ri + 0.5) * (ri + 0.5);
       if (dtr < r_ring_max_sq && dtr > r_ring_min_sq && dbl < r_ring_max_sq &&
           dbl > r_ring_min_sq) {
@@ -545,7 +542,7 @@ void FillSmoothRoundRectRectInternal(const RoundRectDrawSpec& spec,
         }
       }
     } else if (yMin >= spec.rect.y0 && yMax >= spec.rect.y0) {
-      float r_ring_max_sq = (r - 0.5) * (r - 0.5);
+      float r_ring_max_sq = (ro - 0.5) * (ro - 0.5);
       float r_ring_min_sq = (ri + 0.5) * (ri + 0.5);
       if (dtl < r_ring_max_sq && dtl > r_ring_min_sq && dbr < r_ring_max_sq &&
           dbr > r_ring_min_sq) {
@@ -714,14 +711,6 @@ Color GetSmoothArcColor(const SmoothShape::Arc& spec, int16_t x, int16_t y) {
                                                    (spec.ri - d + 0.5f)))));
 }
 
-inline float CalcArcDistSq(const SmoothShape::Arc& spec, int16_t x, int16_t y) {
-  float xc = spec.xc;
-  float yc = spec.yc;
-  float dx = x - xc;
-  float dy = y - yc;
-  return dx * dx + dy * dy;
-}
-
 // Called for arcs with area <= 64 pixels.
 void FillSmoothArcInternal(const ArcDrawSpec& spec, int16_t xMin, int16_t yMin,
                            int16_t xMax, int16_t yMax) {
@@ -736,10 +725,10 @@ void FillSmoothArcInternal(const ArcDrawSpec& spec, int16_t xMin, int16_t yMin,
     }
     return;
   }
-  float dtl = CalcArcDistSq(spec.arc, xMin, yMin);
-  float dtr = CalcArcDistSq(spec.arc, xMax, yMin);
-  float dbl = CalcArcDistSq(spec.arc, xMin, yMax);
-  float dbr = CalcArcDistSq(spec.arc, xMax, yMax);
+  float dtl = CalcDistSq(spec.arc.xc, spec.arc.yc, xMin, yMin);
+  float dtr = CalcDistSq(spec.arc.xc, spec.arc.yc, xMax, yMin);
+  float dbl = CalcDistSq(spec.arc.xc, spec.arc.yc, xMin, yMax);
+  float dbr = CalcDistSq(spec.arc.xc, spec.arc.yc, xMax, yMax);
   float ro = spec.arc.ro;
   float ri = spec.arc.ri;
 
@@ -1117,10 +1106,10 @@ bool SmoothShape::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
         *result = round_rect_.interior_color;
         return true;
       }
-      float dtl = CalcRoundRectDistSq(round_rect_, xMin, yMin);
-      float dtr = CalcRoundRectDistSq(round_rect_, xMax, yMin);
-      float dbl = CalcRoundRectDistSq(round_rect_, xMin, yMax);
-      float dbr = CalcRoundRectDistSq(round_rect_, xMax, yMax);
+      float dtl = CalcDistSq(round_rect_.x0, round_rect_.y0, xMin, yMin);
+      float dtr = CalcDistSq(round_rect_.x1, round_rect_.y0, xMax, yMin);
+      float dbl = CalcDistSq(round_rect_.x0, round_rect_.y1, xMin, yMax);
+      float dbr = CalcDistSq(round_rect_.x1, round_rect_.y1, xMax, yMax);
       float r_min_sq = (round_rect_.ri - 0.5) * (round_rect_.ri - 0.5);
       // Check if the rect falls entirely inside the interior boundary.
       if (dtl < r_min_sq && dtr < r_min_sq && dbl < r_min_sq &&

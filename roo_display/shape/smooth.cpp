@@ -412,13 +412,13 @@ inline RectColor DetermineRectColorForRoundRect(
   float ro = rect.ro;
   float ri = rect.ri;
 
-  float r_min_sq = (ri - 0.5) * (ri - 0.5);
+  float r_min_sq = rect.ri_sq_adj - rect.ri;
   // Check if the rect falls entirely inside the interior boundary.
   if (dtl < r_min_sq && dtr < r_min_sq && dbl < r_min_sq && dbr < r_min_sq) {
     return INTERIOR;
   }
 
-  float r_max_sq = (ro + 0.5) * (ro + 0.5);
+  float r_max_sq = rect.ro_sq_adj + rect.ro;
   // Check if the rect falls entirely outside the boundary (in one of the 4
   // corners).
   if (xMax < rect.x0) {
@@ -446,15 +446,15 @@ inline RectColor DetermineRectColorForRoundRect(
   // ring, then the rect is also within the ring.
   if (xMin < rect.x0 && xMax < rect.x0) {
     if (yMin < rect.y0 && yMax < rect.y0) {
-      float r_ring_max_sq = (ro - 0.5) * (ro - 0.5);
-      float r_ring_min_sq = (ri + 0.5) * (ri + 0.5);
+      float r_ring_max_sq = rect.ro_sq_adj - rect.ro;
+      float r_ring_min_sq = rect.ri_sq_adj + rect.ri;
       if (dtl < r_ring_max_sq && dtl > r_ring_min_sq && dbr < r_ring_max_sq &&
           dbr > r_ring_min_sq) {
         return OUTLINE_ACTIVE;
       }
     } else if (yMin >= rect.y0 && yMax >= rect.y0) {
-      float r_ring_max_sq = (ro - 0.5) * (ro - 0.5);
-      float r_ring_min_sq = (ri + 0.5) * (ri + 0.5);
+      float r_ring_max_sq = rect.ro_sq_adj - rect.ro;
+      float r_ring_min_sq = rect.ri_sq_adj + rect.ri;
       if (dtr < r_ring_max_sq && dtr > r_ring_min_sq && dbl < r_ring_max_sq &&
           dbl > r_ring_min_sq) {
         return OUTLINE_ACTIVE;
@@ -462,15 +462,15 @@ inline RectColor DetermineRectColorForRoundRect(
     }
   } else if (xMin >= rect.x0 && xMax >= rect.x0) {
     if (yMin < rect.y0 && yMax < rect.y0) {
-      float r_ring_max_sq = (ro - 0.5) * (ro - 0.5);
-      float r_ring_min_sq = (ri + 0.5) * (ri + 0.5);
+      float r_ring_max_sq = rect.ro_sq_adj - rect.ro;
+      float r_ring_min_sq = rect.ri_sq_adj + rect.ri;
       if (dtr < r_ring_max_sq && dtr > r_ring_min_sq && dbl < r_ring_max_sq &&
           dbl > r_ring_min_sq) {
         return OUTLINE_ACTIVE;
       }
     } else if (yMin >= rect.y0 && yMax >= rect.y0) {
-      float r_ring_max_sq = (ro - 0.5) * (ro - 0.5);
-      float r_ring_min_sq = (ri + 0.5) * (ri + 0.5);
+      float r_ring_max_sq = rect.ro_sq_adj - rect.ro;
+      float r_ring_min_sq = rect.ri_sq_adj + rect.ri;
       if (dtl < r_ring_max_sq && dtl > r_ring_min_sq && dbr < r_ring_max_sq &&
           dbr > r_ring_min_sq) {
         return OUTLINE_ACTIVE;
@@ -482,10 +482,9 @@ inline RectColor DetermineRectColorForRoundRect(
 }
 
 // Called for rectangles with area <= 64 pixels.
-void FillSubrectOfRoundRect(const SmoothShape::RoundRect& rect,
-                            const RoundRectDrawSpec& spec, int16_t xMin,
-                            int16_t yMin, int16_t xMax, int16_t yMax) {
-  Box box(xMin, yMin, xMax, yMax);
+inline void FillSubrectOfRoundRect(const SmoothShape::RoundRect& rect,
+                                   const RoundRectDrawSpec& spec,
+                                   const Box& box) {
   Color interior = rect.interior_color;
   Color outline = rect.outline_color;
   switch (DetermineRectColorForRoundRect(rect, box)) {
@@ -516,8 +515,8 @@ void FillSubrectOfRoundRect(const SmoothShape::RoundRect& rect,
   // Slow case; evaluate every pixel from the rectangle.
   if (spec.fill_mode == FILL_MODE_VISIBLE) {
     BufferedPixelWriter writer(*spec.out, spec.paint_mode);
-    for (int16_t y = yMin; y <= yMax; ++y) {
-      for (int16_t x = xMin; x <= xMax; ++x) {
+    for (int16_t y = box.yMin(); y <= box.yMax(); ++y) {
+      for (int16_t x = box.xMin(); x <= box.xMax(); ++x) {
         Color c = GetSmoothRoundRectPixelColor(rect, x, y);
         if (c.a() == 0) continue;
         writer.writePixel(x, y,
@@ -529,8 +528,8 @@ void FillSubrectOfRoundRect(const SmoothShape::RoundRect& rect,
   } else {
     Color color[64];
     int cnt = 0;
-    for (int16_t y = yMin; y <= yMax; ++y) {
-      for (int16_t x = xMin; x <= xMax; ++x) {
+    for (int16_t y = box.yMin(); y <= box.yMax(); ++y) {
+      for (int16_t x = box.xMin(); x <= box.xMax(); ++x) {
         Color c = GetSmoothRoundRectPixelColor(rect, x, y);
         color[cnt++] = c.a() == 0      ? spec.bgcolor
                        : c == interior ? spec.pre_blended_interior
@@ -538,7 +537,7 @@ void FillSubrectOfRoundRect(const SmoothShape::RoundRect& rect,
                                        : AlphaBlend(spec.bgcolor, c);
       }
     }
-    spec.out->setAddress(Box(xMin, yMin, xMax, yMax), spec.paint_mode);
+    spec.out->setAddress(box, spec.paint_mode);
     spec.out->write(color, cnt);
   }
 }
@@ -578,18 +577,20 @@ bool ReadColorRectOfRoundRect(const SmoothShape::RoundRect& rect, int16_t xMin,
   // return true;
   return false;
 }
+
 void FillSubrectangle(const SmoothShape::RoundRect& rect,
-                      const RoundRectDrawSpec& spec, int16_t xMin, int16_t yMin,
-                      int16_t xMax, int16_t yMax) {
-  const int16_t xMinOuter = (xMin / 8) * 8;
-  const int16_t yMinOuter = (yMin / 8) * 8;
-  const int16_t xMaxOuter = (xMax / 8) * 8 + 7;
-  const int16_t yMaxOuter = (yMax / 8) * 8 + 7;
+                      const RoundRectDrawSpec& spec, const Box& box) {
+  const int16_t xMinOuter = (box.xMin() / 8) * 8;
+  const int16_t yMinOuter = (box.yMin() / 8) * 8;
+  const int16_t xMaxOuter = (box.xMax() / 8) * 8 + 7;
+  const int16_t yMaxOuter = (box.yMax() / 8) * 8 + 7;
   for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
     for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
-      FillSubrectOfRoundRect(rect, spec, std::max(x, xMin), std::max(y, yMin),
-                             std::min((int16_t)(x + 7), xMax),
-                             std::min((int16_t)(y + 7), yMax));
+      FillSubrectOfRoundRect(
+          rect, spec,
+          Box(std::max(x, box.xMin()), std::max(y, box.yMin()),
+              std::min((int16_t)(x + 7), box.xMax()),
+              std::min((int16_t)(y + 7), box.yMax())));
     }
   }
 }
@@ -619,24 +620,30 @@ void DrawRoundRect(SmoothShape::RoundRect rect, const Surface& s,
   int16_t yMin = box.yMin();
   int16_t yMax = box.yMax();
   {
-    uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
+    uint32_t pixel_count = box.area();
     if (pixel_count <= 64) {
-      FillSubrectOfRoundRect(rect, spec, xMin, yMin, xMax, yMax);
+      FillSubrectOfRoundRect(rect, spec, box);
       return;
     }
   }
   if (rect.inner_mid.width() <= 16) {
-    FillSubrectangle(rect, spec, xMin, yMin, xMax, yMax);
+    FillSubrectangle(rect, spec, box);
   } else {
     const Box& inner = rect.inner_mid;
-    FillSubrectangle(rect, spec, xMin, yMin, xMax, inner.yMin() - 1);
-    FillSubrectangle(rect, spec, xMin, inner.yMin(), inner.xMin() - 1, inner.yMax());
+    FillSubrectangle(rect, spec,
+                     Box(box.xMin(), box.yMin(), box.xMax(), inner.yMin() - 1));
+    FillSubrectangle(
+        rect, spec,
+        Box(box.xMin(), inner.yMin(), inner.xMin() - 1, inner.yMax()));
     if (s.fill_mode() == FILL_MODE_RECTANGLE ||
         spec.pre_blended_interior != color::Transparent) {
       s.out().fillRect(inner, spec.pre_blended_interior);
     }
-    FillSubrectangle(rect, spec, inner.xMax() + 1, inner.yMin(), xMax, inner.yMax());
-    FillSubrectangle(rect, spec, xMin, inner.yMax() + 1, xMax, yMax);
+    FillSubrectangle(
+        rect, spec,
+        Box(inner.xMax() + 1, inner.yMin(), box.xMax(), inner.yMax()));
+    FillSubrectangle(rect, spec,
+                     Box(xMin, inner.yMax() + 1, box.xMax(), box.yMax()));
   }
 }
 

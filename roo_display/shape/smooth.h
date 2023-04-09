@@ -104,8 +104,10 @@ class SmoothShape : public Rasterizable {
     float y0;
     float x1;
     float y1;
-    float r;
+    float ro;
     float ri;
+    float ro_sq_adj;
+    float ri_sq_adj;
     Color outline_color;
     Color interior_color;
     Box inner_mid;

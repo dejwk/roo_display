@@ -315,15 +315,6 @@ inline uint8_t GetWedgeShapeAlpha(const WedgeDrawSpec& spec, float xpax,
 
 // Helper functions for round rect.
 
-struct RoundRectDrawSpec {
-  DisplayOutput* out;
-  FillMode fill_mode;
-  PaintMode paint_mode;
-  Color bgcolor;
-  Color pre_blended_outline;
-  Color pre_blended_interior;
-};
-
 inline Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& rect,
                                           int16_t x, int16_t y) {
   // // This only applies to a handful of pixels and seems to slow things down.
@@ -481,6 +472,66 @@ inline RectColor DetermineRectColorForRoundRect(
   return NON_UNIFORM;
 }
 
+bool ReadColorRectOfRoundRect(const SmoothShape::RoundRect& rect, int16_t xMin,
+                              int16_t yMin, int16_t xMax, int16_t yMax,
+                              Color* result) {
+  Box box(xMin, yMin, xMax, yMax);
+  switch (DetermineRectColorForRoundRect(rect, box)) {
+    case TRANSPARENT: {
+      *result = color::Transparent;
+      return true;
+    }
+    case INTERIOR: {
+      *result = rect.interior_color;
+      return true;
+    }
+    case OUTLINE_ACTIVE: {
+      *result = rect.outline_color;
+      return true;
+    }
+    default:
+      break;
+  }
+  Color* out = result;
+  for (int16_t y = yMin; y <= yMax; ++y) {
+    for (int16_t x = xMin; x <= xMax; ++x) {
+      *out++ = GetSmoothRoundRectPixelColor(rect, x, y);
+    }
+  }
+  // This is now very unlikely to be true, or we would have caught it above.
+  // uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
+  // Color c = result[0];
+  // for (uint32_t i = 1; i < pixel_count; i++) {
+  //   if (result[i] != c) return false;
+  // }
+  // return true;
+  return false;
+}
+
+void ReadRoundRectColors(const SmoothShape::RoundRect& rect, const int16_t* x,
+                         const int16_t* y, uint32_t count, Color* result) {
+  while (count-- > 0) {
+    if (rect.inner_mid.contains(*x, *y) || rect.inner_wide.contains(*x, *y) ||
+        rect.inner_tall.contains(*x, *y)) {
+      *result = rect.interior_color;
+    } else {
+      *result = GetSmoothRoundRectPixelColor(rect, *x, *y);
+    }
+    ++x;
+    ++y;
+    ++result;
+  }
+}
+
+struct RoundRectDrawSpec {
+  DisplayOutput* out;
+  FillMode fill_mode;
+  PaintMode paint_mode;
+  Color bgcolor;
+  Color pre_blended_outline;
+  Color pre_blended_interior;
+};
+
 // Called for rectangles with area <= 64 pixels.
 inline void FillSubrectOfRoundRect(const SmoothShape::RoundRect& rect,
                                    const RoundRectDrawSpec& spec,
@@ -540,42 +591,6 @@ inline void FillSubrectOfRoundRect(const SmoothShape::RoundRect& rect,
     spec.out->setAddress(box, spec.paint_mode);
     spec.out->write(color, cnt);
   }
-}
-
-bool ReadColorRectOfRoundRect(const SmoothShape::RoundRect& rect, int16_t xMin,
-                              int16_t yMin, int16_t xMax, int16_t yMax,
-                              Color* result) {
-  Box box(xMin, yMin, xMax, yMax);
-  switch (DetermineRectColorForRoundRect(rect, box)) {
-    case TRANSPARENT: {
-      *result = color::Transparent;
-      return true;
-    }
-    case INTERIOR: {
-      *result = rect.interior_color;
-      return true;
-    }
-    case OUTLINE_ACTIVE: {
-      *result = rect.outline_color;
-      return true;
-    }
-    default:
-      break;
-  }
-  Color* out = result;
-  for (int16_t y = yMin; y <= yMax; ++y) {
-    for (int16_t x = xMin; x <= xMax; ++x) {
-      *out++ = GetSmoothRoundRectPixelColor(rect, x, y);
-    }
-  }
-  // This is now very unlikely to be true, or we would have caught it above.
-  // uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
-  // Color c = result[0];
-  // for (uint32_t i = 1; i < pixel_count; i++) {
-  //   if (result[i] != c) return false;
-  // }
-  // return true;
-  return false;
 }
 
 void FillSubrectangle(const SmoothShape::RoundRect& rect,
@@ -644,21 +659,6 @@ void DrawRoundRect(SmoothShape::RoundRect rect, const Surface& s,
         Box(inner.xMax() + 1, inner.yMin(), box.xMax(), inner.yMax()));
     FillSubrectangle(rect, spec,
                      Box(xMin, inner.yMax() + 1, box.xMax(), box.yMax()));
-  }
-}
-
-void ReadRoundRectColors(const SmoothShape::RoundRect& rect, const int16_t* x,
-                         const int16_t* y, uint32_t count, Color* result) {
-  while (count-- > 0) {
-    if (rect.inner_mid.contains(*x, *y) || rect.inner_wide.contains(*x, *y) ||
-        rect.inner_tall.contains(*x, *y)) {
-      *result = rect.interior_color;
-    } else {
-      *result = GetSmoothRoundRectPixelColor(rect, *x, *y);
-    }
-    ++x;
-    ++y;
-    ++result;
   }
 }
 

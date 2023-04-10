@@ -853,7 +853,8 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
 }
 
 // Called for arcs with area <= 64 pixels.
-void FillSubrectOfArc(const SmoothShape::Arc& arc, const ArcDrawSpec& spec, const Box& box) {
+void FillSubrectOfArc(const SmoothShape::Arc& arc, const ArcDrawSpec& spec,
+                      const Box& box) {
   Color interior = arc.interior_color;
   Color outline_active = arc.outline_active_color;
   Color outline_inactive = arc.outline_inactive_color;
@@ -933,10 +934,10 @@ void DrawArc(SmoothShape::Arc arc, const Surface& s, const Box& box) {
       .bgcolor = s.bgcolor(),
       .pre_blended_outline_active =
           AlphaBlend(AlphaBlend(s.bgcolor(), arc.interior_color),
-                      arc.outline_active_color),
+                     arc.outline_active_color),
       .pre_blended_outline_inactive =
           AlphaBlend(AlphaBlend(s.bgcolor(), arc.interior_color),
-                      arc.outline_inactive_color),
+                     arc.outline_inactive_color),
   };
   if (s.dx() != 0 || s.dy() != 0) {
     arc.xc += s.dx();
@@ -965,9 +966,9 @@ void DrawArc(SmoothShape::Arc arc, const Surface& s, const Box& box) {
   for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
     for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
       FillSubrectOfArc(arc, spec,
-                        Box(std::max(x, box.xMin()), std::max(y, box.yMin()),
-                            std::min((int16_t)(x + 7), box.xMax()),
-                            std::min((int16_t)(y + 7), box.yMax())));
+                       Box(std::max(x, box.xMin()), std::max(y, box.yMin()),
+                           std::min((int16_t)(x + 7), box.xMax()),
+                           std::min((int16_t)(y + 7), box.yMax())));
     }
   }
 }

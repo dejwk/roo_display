@@ -975,53 +975,6 @@ void DrawArc(SmoothShape::Arc arc, const Surface& s, const Box& box) {
 
 }  // namespace
 
-void SmoothShape::readColors(const int16_t* x, const int16_t* y, uint32_t count,
-                             Color* result) const {
-  switch (kind_) {
-    case WEDGE: {
-      // This default rasterizable implementation seems to be ~50% slower than
-      // drawTo (but it allows to use wedges as backgrounds or overlays, e.g.
-      // indicator needles).
-      uint8_t max_alpha = wedge_.color.a();
-      float bax = wedge_.bx - wedge_.ax;
-      float bay = wedge_.by - wedge_.ay;
-      float bay_dsq = bax * bax + bay * bay;
-      WedgeDrawSpec spec{
-          // Widen the boundary to simplify calculations.
-          .r = wedge_.ar + 0.5f,
-          .dr = wedge_.ar - wedge_.br,
-          .bax = wedge_.bx - wedge_.ax,
-          .bay = wedge_.by - wedge_.ay,
-          .hd = bay_dsq,
-          .sqrt_hd = sqrtf(bay_dsq),
-          .max_alpha = wedge_.color.a(),
-          .round_endings = wedge_.round_endings,
-      };
-      while (count-- > 0) {
-        *result++ = wedge_.color.withA(
-            GetWedgeShapeAlpha(spec, *x++ - wedge_.ax, *y++ - wedge_.ay));
-      }
-      break;
-    }
-    case ROUND_RECT: {
-      ReadRoundRectColors(round_rect_, x, y, count, result);
-      break;
-    }
-    case ARC: {
-      while (count-- > 0) {
-        *result++ = GetSmoothArcPixelColor(arc_, *x++, *y++);
-      }
-      break;
-    }
-    case EMPTY: {
-      while (count-- > 0) {
-        *result++ = color::Transparent;
-      }
-      break;
-    }
-  }
-}
-
 void SmoothShape::drawTo(const Surface& s) const {
   Box box = Box::Intersect(extents_.translate(s.dx(), s.dy()), s.clip_box());
   if (box.empty()) {
@@ -1134,6 +1087,53 @@ void SmoothShape::drawTo(const Surface& s) const {
     }
     case EMPTY: {
       return;
+    }
+  }
+}
+
+void SmoothShape::readColors(const int16_t* x, const int16_t* y, uint32_t count,
+                             Color* result) const {
+  switch (kind_) {
+    case WEDGE: {
+      // This default rasterizable implementation seems to be ~50% slower than
+      // drawTo (but it allows to use wedges as backgrounds or overlays, e.g.
+      // indicator needles).
+      uint8_t max_alpha = wedge_.color.a();
+      float bax = wedge_.bx - wedge_.ax;
+      float bay = wedge_.by - wedge_.ay;
+      float bay_dsq = bax * bax + bay * bay;
+      WedgeDrawSpec spec{
+          // Widen the boundary to simplify calculations.
+          .r = wedge_.ar + 0.5f,
+          .dr = wedge_.ar - wedge_.br,
+          .bax = wedge_.bx - wedge_.ax,
+          .bay = wedge_.by - wedge_.ay,
+          .hd = bay_dsq,
+          .sqrt_hd = sqrtf(bay_dsq),
+          .max_alpha = wedge_.color.a(),
+          .round_endings = wedge_.round_endings,
+      };
+      while (count-- > 0) {
+        *result++ = wedge_.color.withA(
+            GetWedgeShapeAlpha(spec, *x++ - wedge_.ax, *y++ - wedge_.ay));
+      }
+      break;
+    }
+    case ROUND_RECT: {
+      ReadRoundRectColors(round_rect_, x, y, count, result);
+      break;
+    }
+    case ARC: {
+      while (count-- > 0) {
+        *result++ = GetSmoothArcPixelColor(arc_, *x++, *y++);
+      }
+      break;
+    }
+    case EMPTY: {
+      while (count-- > 0) {
+        *result++ = color::Transparent;
+      }
+      break;
     }
   }
 }

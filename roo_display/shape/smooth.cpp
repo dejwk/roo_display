@@ -226,31 +226,31 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
   Box extents(
       (int16_t)floorf(center.x - radius), (int16_t)floorf(center.y - radius),
       (int16_t)ceilf(center.x + radius), (int16_t)ceilf(center.y + radius));
-  return SmoothShape(std::move(extents),
-                     SmoothShape::Arc{center.x,
-                                      center.y,
-                                      ro,
-                                      ri,
-                                      ro * ro + 0.25f,
-                                      ri * ri + 0.25f,
-                                      angle_start,
-                                      angle_end,
-                                      active_color,
-                                      inactive_color,
-                                      interior_color,
-                                      inner_mid,
-                                      start_x_ro - start_x_rc,
-                                      start_y_ro - start_y_rc,
-                                      start_x_rc,
-                                      start_y_rc,
-                                      end_x_ro - end_x_rc,
-                                      end_y_ro - end_y_rc,
-                                      end_x_rc,
-                                      end_y_rc,
-                                      inv_half_width,
-                                      start_quadrant,
-                                      end_quadrant,
-                                      ending_style == ENDING_ROUNDED});
+  return SmoothShape(
+      std::move(extents),
+      SmoothShape::Arc{center.x,
+                       center.y,
+                       ro,
+                       ri,
+                       ro * ro + 0.25f,
+                       ri * ri + 0.25f,
+                       angle_start,
+                       angle_end,
+                       active_color,
+                       inactive_color,
+                       interior_color,
+                       inner_mid,
+                       (start_x_ro - start_x_rc) * inv_half_width,
+                       (start_y_ro - start_y_rc) * inv_half_width,
+                       start_x_rc,
+                       start_y_rc,
+                       (end_x_ro - end_x_rc) * inv_half_width,
+                       (end_y_ro - end_y_rc) * inv_half_width,
+                       end_x_rc,
+                       end_y_rc,
+                       start_quadrant,
+                       end_quadrant,
+                       ending_style == ENDING_ROUNDED});
 }
 
 // Helper functions for wedge.
@@ -710,9 +710,8 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
   float dys = dy - spec.start_y_rc;
   float dxe = dx - spec.end_x_rc;
   float dye = dy - spec.end_y_rc;
-  float n1 =
-      spec.inv_half_width * (spec.start_dyoc * dxs - spec.start_dxoc * dys);
-  float n2 = spec.inv_half_width * (spec.end_dxoc * dye - spec.end_dyoc * dxe);
+  float n1 = spec.start_dyoc_norm * dxs - spec.start_dxoc_norm * dys;
+  float n2 = spec.end_dxoc_norm * dye - spec.end_dyoc_norm * dxe;
   bool within_range = false;
   if (spec.angle_end - spec.angle_start > M_PI) {
     within_range = (n1 <= -0.5 || n2 <= -0.5);

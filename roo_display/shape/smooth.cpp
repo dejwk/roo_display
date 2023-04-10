@@ -398,6 +398,13 @@ inline float CalcDistSq(float x1, float y1, int16_t x2, int16_t y2) {
   return dx * dx + dy * dy;
 }
 
+inline float CalcDistSqRect(float x0, float y0, float x1, float y1, int16_t xt,
+                            int16_t yt) {
+  float dx = (xt <= x0 ? xt - x0 : xt >= x1 ? xt - x1 : 0.0f);
+  float dy = (yt <= y0 ? yt - y0 : yt >= y1 ? yt - y1 : 0.0f);
+  return dx * dx + dy * dy;
+}
+
 // Called for rectangles with area <= 64 pixels.
 inline RectColor DetermineRectColorForRoundRect(
     const SmoothShape::RoundRect& rect, const Box& box) {
@@ -409,10 +416,10 @@ inline RectColor DetermineRectColorForRoundRect(
   int16_t yMin = box.yMin();
   int16_t xMax = box.xMax();
   int16_t yMax = box.yMax();
-  float dtl = CalcDistSq(rect.x0, rect.y0, xMin, yMin);
-  float dtr = CalcDistSq(rect.x1, rect.y0, xMax, yMin);
-  float dbl = CalcDistSq(rect.x0, rect.y1, xMin, yMax);
-  float dbr = CalcDistSq(rect.x1, rect.y1, xMax, yMax);
+  float dtl = CalcDistSqRect(rect.x0, rect.y0, rect.x1, rect.y1, xMin, yMin);
+  float dtr = CalcDistSqRect(rect.x0, rect.y0, rect.x1, rect.y1, xMax, yMin);
+  float dbl = CalcDistSqRect(rect.x0, rect.y0, rect.x1, rect.y1, xMin, yMax);
+  float dbr = CalcDistSqRect(rect.x0, rect.y0, rect.x1, rect.y1, xMax, yMax);
   float ro = rect.ro;
   float ri = rect.ri;
 
@@ -448,15 +455,15 @@ inline RectColor DetermineRectColorForRoundRect(
   }
   // If all corners are in the same quadrant, and all corners are within the
   // ring, then the rect is also within the ring.
-  if (xMin < rect.x0 && xMax < rect.x0) {
-    if (yMin < rect.y0 && yMax < rect.y0) {
+  if (xMax <= rect.x1) {
+    if (yMax <= rect.y1) {
       float r_ring_max_sq = rect.ro_sq_adj - rect.ro;
       float r_ring_min_sq = rect.ri_sq_adj + rect.ri;
       if (dtl < r_ring_max_sq && dtl > r_ring_min_sq && dbr < r_ring_max_sq &&
           dbr > r_ring_min_sq) {
         return OUTLINE_ACTIVE;
       }
-    } else if (yMin >= rect.y0 && yMax >= rect.y0) {
+    } else if (yMin >= rect.y0) {
       float r_ring_max_sq = rect.ro_sq_adj - rect.ro;
       float r_ring_min_sq = rect.ri_sq_adj + rect.ri;
       if (dtr < r_ring_max_sq && dtr > r_ring_min_sq && dbl < r_ring_max_sq &&
@@ -464,15 +471,15 @@ inline RectColor DetermineRectColorForRoundRect(
         return OUTLINE_ACTIVE;
       }
     }
-  } else if (xMin >= rect.x0 && xMax >= rect.x0) {
-    if (yMin < rect.y0 && yMax < rect.y0) {
+  } else if (xMin >= rect.x0) {
+    if (yMax <= rect.y1) {
       float r_ring_max_sq = rect.ro_sq_adj - rect.ro;
       float r_ring_min_sq = rect.ri_sq_adj + rect.ri;
       if (dtr < r_ring_max_sq && dtr > r_ring_min_sq && dbl < r_ring_max_sq &&
           dbl > r_ring_min_sq) {
         return OUTLINE_ACTIVE;
       }
-    } else if (yMin >= rect.y0 && yMax >= rect.y0) {
+    } else if (yMin >= rect.y0) {
       float r_ring_max_sq = rect.ro_sq_adj - rect.ro;
       float r_ring_min_sq = rect.ri_sq_adj + rect.ri;
       if (dtl < r_ring_max_sq && dtl > r_ring_min_sq && dbr < r_ring_max_sq &&
@@ -568,7 +575,8 @@ inline void FillSubrectOfRoundRect(const SmoothShape::RoundRect& rect,
     case OUTLINE_ACTIVE: {
       if (spec.fill_mode == FILL_MODE_RECTANGLE ||
           outline != color::Transparent) {
-        spec.out->fillRect(spec.paint_mode, box, spec.pre_blended_outline);
+        spec.out->fillRect(spec.paint_mode, box,
+                           spec.pre_blended_outline);
         return;
       }
     }
@@ -803,7 +811,8 @@ void FillSmoothArcInternal(const ArcDrawSpec& spec, int16_t xMin, int16_t yMin,
   Color outline_active = spec.arc.outline_active_color;
   Color outline_inactive = spec.arc.outline_inactive_color;
   if (spec.arc.inner_mid.contains(box)) {
-    if (spec.fill_mode == FILL_MODE_RECTANGLE || interior != color::Transparent) {
+    if (spec.fill_mode == FILL_MODE_RECTANGLE ||
+        interior != color::Transparent) {
       spec.out->fillRect(spec.paint_mode, box, spec.pre_blended_interior);
     }
     return;
@@ -818,7 +827,8 @@ void FillSmoothArcInternal(const ArcDrawSpec& spec, int16_t xMin, int16_t yMin,
   float r_min_sq = spec.arc.ri_sq_adj - spec.arc.ri;
   // Check if the rect falls entirely inside the interior boundary.
   if (dtl < r_min_sq && dtr < r_min_sq && dbl < r_min_sq && dbr < r_min_sq) {
-    if (spec.fill_mode == FILL_MODE_RECTANGLE || interior != color::Transparent) {
+    if (spec.fill_mode == FILL_MODE_RECTANGLE ||
+        interior != color::Transparent) {
       spec.out->fillRect(spec.paint_mode, box, spec.pre_blended_interior);
     }
     return;

@@ -129,14 +129,16 @@ class SmoothShape : public Rasterizable {
     Color interior_color;
     // Rectangle fully within the inner circle.
     Box inner_mid;
-    // Endpoints of the cut line at the start angle.
-    float start_x_ro;
-    float start_y_ro;
+    // Dist between start line endpoints, outer band to mid-band.
+    float start_dxoc;
+    float start_dyoc;
+    // Endpoint of the cut line at the start angle, mid-band.
     float start_x_rc;
     float start_y_rc;
-    // Endpoints of the cut line at the end angle.
-    float end_x_ro;
-    float end_y_ro;
+    // Dist between end line endpoints, outer band to mid-band.
+    float end_dxoc;
+    float end_dyoc;
+    // Endpoint of the cut line at the end angle, mid-band.
     float end_x_rc;
     float end_y_rc;
     // 1 / (width/2) = 1 - (ro - ri) / 2.

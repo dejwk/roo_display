@@ -239,12 +239,12 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
                                       inactive_color,
                                       interior_color,
                                       inner_mid,
-                                      start_x_ro,
-                                      start_y_ro,
+                                      start_x_ro - start_x_rc,
+                                      start_y_ro - start_y_rc,
                                       start_x_rc,
                                       start_y_rc,
-                                      end_x_ro,
-                                      end_y_ro,
+                                      end_x_ro - end_x_rc,
+                                      end_y_ro - end_y_rc,
                                       end_x_rc,
                                       end_y_rc,
                                       inv_half_width,
@@ -688,7 +688,8 @@ struct ArcDrawSpec {
   Color pre_blended_interior;
 };
 
-Color GetSmoothArcColor(const SmoothShape::Arc& spec, int16_t x, int16_t y) {
+Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
+                             int16_t y) {
   float dx = x - spec.xc;
   float dy = y - spec.yc;
   if (spec.inner_mid.contains(x, y)) {
@@ -705,12 +706,13 @@ Color GetSmoothArcColor(const SmoothShape::Arc& spec, int16_t x, int16_t y) {
   }
   // We now know that the pixel is somewhere inside the ring.
   Color color = spec.outline_active_color;
-  float n1 = spec.inv_half_width *
-             ((spec.start_x_ro - spec.start_x_rc) * (spec.start_y_rc - dy) -
-              (spec.start_y_ro - spec.start_y_rc) * (spec.start_x_rc - dx));
-  float n2 = -spec.inv_half_width *
-             ((spec.end_x_ro - spec.end_x_rc) * (spec.end_y_rc - dy) -
-              (spec.end_y_ro - spec.end_y_rc) * (spec.end_x_rc - dx));
+  float dxs = dx - spec.start_x_rc;
+  float dys = dy - spec.start_y_rc;
+  float dxe = dx - spec.end_x_rc;
+  float dye = dy - spec.end_y_rc;
+  float n1 =
+      spec.inv_half_width * (spec.start_dyoc * dxs - spec.start_dxoc * dys);
+  float n2 = spec.inv_half_width * (spec.end_dxoc * dye - spec.end_dyoc * dxe);
   bool within_range = false;
   if (spec.angle_end - spec.angle_start > M_PI) {
     within_range = (n1 <= -0.5 || n2 <= -0.5);
@@ -723,10 +725,6 @@ Color GetSmoothArcColor(const SmoothShape::Arc& spec, int16_t x, int16_t y) {
     if (spec.round_endings) {
       // The endings may overlap, so we need to check the min distance from both
       // endpoints.
-      float dxs = dx - spec.start_x_rc;
-      float dys = dy - spec.start_y_rc;
-      float dxe = dx - spec.end_x_rc;
-      float dye = dy - spec.end_y_rc;
       float r = (spec.ro - spec.ri) * 0.5f;
       float r_sq = r * r;
       float smaller_dist_sq =
@@ -869,7 +867,7 @@ void FillSmoothArcInternal(const ArcDrawSpec& spec, int16_t xMin, int16_t yMin,
     BufferedPixelWriter writer(*spec.out, spec.paint_mode);
     for (int16_t y = yMin; y <= yMax; ++y) {
       for (int16_t x = xMin; x <= xMax; ++x) {
-        Color c = GetSmoothArcColor(spec.arc, x, y);
+        Color c = GetSmoothArcPixelColor(spec.arc, x, y);
         if (c.a() == 0) continue;
         writer.writePixel(
             x, y,
@@ -884,7 +882,7 @@ void FillSmoothArcInternal(const ArcDrawSpec& spec, int16_t xMin, int16_t yMin,
     int cnt = 0;
     for (int16_t y = yMin; y <= yMax; ++y) {
       for (int16_t x = xMin; x <= xMax; ++x) {
-        Color c = GetSmoothArcColor(spec.arc, x, y);
+        Color c = GetSmoothArcPixelColor(spec.arc, x, y);
         color[cnt++] = c.a() == 0            ? spec.bgcolor
                        : c == interior       ? spec.pre_blended_interior
                        : c == outline_active ? spec.pre_blended_outline_active
@@ -934,7 +932,7 @@ void SmoothShape::readColors(const int16_t* x, const int16_t* y, uint32_t count,
     }
     case ARC: {
       while (count-- > 0) {
-        *result++ = GetSmoothArcColor(arc_, *x++, *y++);
+        *result++ = GetSmoothArcPixelColor(arc_, *x++, *y++);
       }
       break;
     }
@@ -1075,10 +1073,6 @@ void SmoothShape::drawTo(const Surface& s) const {
         spec.arc.start_y_rc += s.dy();
         spec.arc.end_x_rc += s.dx();
         spec.arc.end_y_rc += s.dy();
-        spec.arc.start_x_ro += s.dx();
-        spec.arc.start_y_ro += s.dy();
-        spec.arc.end_x_ro += s.dx();
-        spec.arc.end_y_ro += s.dy();
         spec.arc.inner_mid = spec.arc.inner_mid.translate(s.dx(), s.dy());
       }
       int16_t xMin = box.xMin();

@@ -106,8 +106,8 @@ class SmoothShape : public Rasterizable {
     float y1;
     float ro;
     float ri;
-    float ro_sq_adj;
-    float ri_sq_adj;
+    float ro_sq_adj;  // ro * ro + 0.25f
+    float ri_sq_adj;  // ri * ri + 0.25f
     Color outline_color;
     Color interior_color;
     Box inner_mid;
@@ -120,6 +120,8 @@ class SmoothShape : public Rasterizable {
     float yc;
     float ro;
     float ri;
+    float ro_sq_adj;  // ro * ro + 0.25f
+    float ri_sq_adj;  // ri * ri + 0.25f
     float angle_start;
     float angle_end;
     Color outline_active_color;
@@ -137,7 +139,7 @@ class SmoothShape : public Rasterizable {
     float end_y_ro;
     float end_x_rc;
     float end_y_rc;
-    // 1 / width = 1 - (ro - ri).
+    // 1 / (width/2) = 1 - (ro - ri) / 2.
     float inv_half_width;
     int start_quadrant;
     int end_quadrant;

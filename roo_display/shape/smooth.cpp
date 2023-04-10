@@ -200,6 +200,7 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
 
   float ro = radius;
   float rc = radius - thickness * 0.5f;
+  float ri = radius - thickness;
 
   float start_x_ro = ro * start_sin;
   float start_y_ro = -ro * start_cos;
@@ -225,19 +226,31 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
   Box extents(
       (int16_t)floorf(center.x - radius), (int16_t)floorf(center.y - radius),
       (int16_t)ceilf(center.x + radius), (int16_t)ceilf(center.y + radius));
-  return SmoothShape(
-      std::move(extents),
-      SmoothShape::Arc{center.x,       center.y,
-                       radius,         radius - thickness,
-                       angle_start,    angle_end,
-                       active_color,   inactive_color,
-                       interior_color, inner_mid,
-                       start_x_ro,     start_y_ro,
-                       start_x_rc,     start_y_rc,
-                       end_x_ro,       end_y_ro,
-                       end_x_rc,       end_y_rc,
-                       inv_half_width, start_quadrant,
-                       end_quadrant,   ending_style == ENDING_ROUNDED});
+  return SmoothShape(std::move(extents),
+                     SmoothShape::Arc{center.x,
+                                      center.y,
+                                      ro,
+                                      ri,
+                                      ro * ro + 0.25f,
+                                      ri * ri + 0.25f,
+                                      angle_start,
+                                      angle_end,
+                                      active_color,
+                                      inactive_color,
+                                      interior_color,
+                                      inner_mid,
+                                      start_x_ro,
+                                      start_y_ro,
+                                      start_x_rc,
+                                      start_y_rc,
+                                      end_x_ro,
+                                      end_y_ro,
+                                      end_x_rc,
+                                      end_y_rc,
+                                      inv_half_width,
+                                      start_quadrant,
+                                      end_quadrant,
+                                      ending_style == ENDING_ROUNDED});
 }
 
 // Helper functions for wedge.
@@ -669,8 +682,6 @@ struct ArcDrawSpec {
   DisplayOutput* out;
   FillMode fill_mode;
   PaintMode paint_mode;
-  float ro_squared_adjusted;
-  float ri_squared_adjusted;
   Color bgcolor;
   Color pre_blended_outline_active;
   Color pre_blended_outline_inactive;
@@ -684,13 +695,11 @@ Color GetSmoothArcColor(const SmoothShape::Arc& spec, int16_t x, int16_t y) {
     return spec.interior_color;
   }
   float d_squared = dx * dx + dy * dy;
-  float ri_squared_adjusted = spec.ri * spec.ri + 0.25f;
-  if (d_squared <= ri_squared_adjusted - spec.ri) {
+  if (d_squared <= spec.ri_sq_adj - spec.ri) {
     // Pixel fully within the 'inner' ring.
     return spec.interior_color;
   }
-  float r_squared_adjusted = spec.ro * spec.ro + 0.25f;
-  if (d_squared >= r_squared_adjusted + spec.ro) {
+  if (d_squared >= spec.ro_sq_adj + spec.ro) {
     // Pixel fully outside the 'outer' ring.
     return color::Transparent;
   }
@@ -764,9 +773,9 @@ Color GetSmoothArcColor(const SmoothShape::Arc& spec, int16_t x, int16_t y) {
   }
 
   // Now we need to apply blending at the edges of the outer and inner rings.
-  bool fully_within_outer = d_squared <= r_squared_adjusted - spec.ro;
+  bool fully_within_outer = d_squared <= spec.ro_sq_adj - spec.ro;
   bool fully_outside_inner = spec.ro == spec.ri ||
-                             d_squared >= ri_squared_adjusted + spec.ri ||
+                             d_squared >= spec.ri_sq_adj + spec.ri ||
                              spec.ri == 0;
 
   if (fully_within_outer && fully_outside_inner) {
@@ -1051,8 +1060,6 @@ void SmoothShape::drawTo(const Surface& s) const {
           .out = &s.out(),
           .fill_mode = s.fill_mode(),
           .paint_mode = s.paint_mode(),
-          .ro_squared_adjusted = arc_.ro * arc_.ro + 0.25f,
-          .ri_squared_adjusted = arc_.ri * arc_.ri + 0.25f,
           .bgcolor = s.bgcolor(),
           .pre_blended_outline_active =
               AlphaBlend(AlphaBlend(s.bgcolor(), arc_.interior_color),

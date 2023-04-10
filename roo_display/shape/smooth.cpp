@@ -973,6 +973,51 @@ void DrawArc(SmoothShape::Arc arc, const Surface& s, const Box& box) {
   }
 }
 
+bool ReadColorRectOfArc(const SmoothShape::Arc& arc, int16_t xMin, int16_t yMin,
+                        int16_t xMax, int16_t yMax, Color* result) {
+  Box box(xMin, yMin, xMax, yMax);
+  switch (DetermineRectColorForArc(arc, box)) {
+    case TRANSPARENT: {
+      *result = color::Transparent;
+      return true;
+    }
+    case INTERIOR: {
+      *result = arc.interior_color;
+      return true;
+    }
+    case OUTLINE_ACTIVE: {
+      *result = arc.outline_active_color;
+      return true;
+    }
+    case OUTLINE_INACTIVE: {
+      *result = arc.outline_inactive_color;
+      return true;
+    }
+    default:
+      break;
+  }
+  Color* out = result;
+  for (int16_t y = yMin; y <= yMax; ++y) {
+    for (int16_t x = xMin; x <= xMax; ++x) {
+      *out++ = GetSmoothArcPixelColor(arc, x, y);
+    }
+  }
+  // // This is now very unlikely to be true, or we would have caught it above.
+  Color c = result[0];
+  uint32_t pixel_count = box.area();
+  for (uint32_t i = 1; i < pixel_count; i++) {
+    if (result[i] != c) return false;
+  }
+  return true;
+}
+
+void ReadArcColors(const SmoothShape::Arc& arc, const int16_t* x,
+                   const int16_t* y, uint32_t count, Color* result) {
+  while (count-- > 0) {
+    *result++ = GetSmoothArcPixelColor(arc, *x++, *y++);
+  }
+}
+
 }  // namespace
 
 void SmoothShape::drawTo(const Surface& s) const {
@@ -1124,9 +1169,7 @@ void SmoothShape::readColors(const int16_t* x, const int16_t* y, uint32_t count,
       break;
     }
     case ARC: {
-      while (count-- > 0) {
-        *result++ = GetSmoothArcPixelColor(arc_, *x++, *y++);
-      }
+      ReadArcColors(arc_, x, y, count, result);
       break;
     }
     case EMPTY: {
@@ -1149,62 +1192,7 @@ bool SmoothShape::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
                                       result);
     }
     case ARC: {
-      // return Rasterizable::readColorRect(xMin, yMin, xMax, yMax, result);
-      Box box(xMin, yMin, xMax, yMax);
-      // Check if the rect happens to fall within the known inner rectangles.
-      if (arc_.inner_mid.contains(box)) {
-        *result = arc_.interior_color;
-        return true;
-      }
-      return Rasterizable::readColorRect(xMin, yMin, xMax, yMax, result);
-      // float dtl = CalcRoundRectDistSq(round_rect_, xMin, yMin);
-      // float dtr = CalcRoundRectDistSq(round_rect_, xMax, yMin);
-      // float dbl = CalcRoundRectDistSq(round_rect_, xMin, yMax);
-      // float dbr = CalcRoundRectDistSq(round_rect_, xMax, yMax);
-      // float r_min_sq = (round_rect_.ri - 0.5) * (round_rect_.ri - 0.5);
-      // // Check if the rect falls entirely inside the interior boundary.
-      // if (dtl < r_min_sq && dtr < r_min_sq && dbl < r_min_sq &&
-      //     dbr < r_min_sq) {
-      //   *result = round_rect_.interior_color;
-      //   return true;
-      // }
-
-      // float r_max_sq = (round_rect_.r + 0.5) * (round_rect_.r + 0.5);
-      // // Check if the rect falls entirely outside the boundary (in one of the
-      // 4
-      // // corners).
-      // if (xMax < round_rect_.x0) {
-      //   if (yMax < round_rect_.y0) {
-      //     if (dbr >= r_max_sq) {
-      //       *result = color::Transparent;
-      //       return true;
-      //     }
-      //   } else if (yMax > round_rect_.y1) {
-      //     if (dtr >= r_max_sq) {
-      //       *result = color::Transparent;
-      //       return true;
-      //     }
-      //   }
-      // } else if (xMax > round_rect_.x1) {
-      //   if (yMax < round_rect_.y0) {
-      //     if (dbl >= r_max_sq) {
-      //       *result = color::Transparent;
-      //       return true;
-      //     }
-      //   } else if (yMax > round_rect_.y1) {
-      //     if (dtl >= r_max_sq) {
-      //       *result = color::Transparent;
-      //       return true;
-      //     }
-      //   }
-      // }
-
-      // Color* out = result;
-      // for (int16_t y = yMin; y <= yMax; ++y) {
-      //   for (int16_t x = xMin; x <= xMax; ++x) {
-      //     *out++ = GetSmoothArcColorPreChecked(round_rect_, x, y);
-      //   }
-      // }
+      return ReadColorRectOfArc(arc_, xMin, yMin, xMax, yMax, result);
     }
     case EMPTY: {
       *result = color::Transparent;

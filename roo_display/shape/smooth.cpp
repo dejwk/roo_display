@@ -392,12 +392,6 @@ enum RectColor {
   OUTLINE_INACTIVE = 4,  // Used by arcs.
 };
 
-inline float CalcDistSq(float x1, float y1, int16_t x2, int16_t y2) {
-  float dx = x1 - x2;
-  float dy = y1 - y2;
-  return dx * dx + dy * dy;
-}
-
 inline float CalcDistSqRect(float x0, float y0, float x1, float y1, int16_t xt,
                             int16_t yt) {
   float dx = (xt <= x0 ? xt - x0 : xt >= x1 ? xt - x1 : 0.0f);
@@ -575,8 +569,7 @@ inline void FillSubrectOfRoundRect(const SmoothShape::RoundRect& rect,
     case OUTLINE_ACTIVE: {
       if (spec.fill_mode == FILL_MODE_RECTANGLE ||
           outline != color::Transparent) {
-        spec.out->fillRect(spec.paint_mode, box,
-                           spec.pre_blended_outline);
+        spec.out->fillRect(spec.paint_mode, box, spec.pre_blended_outline);
         return;
       }
     }
@@ -686,7 +679,6 @@ void DrawRoundRect(SmoothShape::RoundRect rect, const Surface& s,
 // Arc.
 
 struct ArcDrawSpec {
-  SmoothShape::Arc arc;
   DisplayOutput* out;
   FillMode fill_mode;
   PaintMode paint_mode;
@@ -803,78 +795,108 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
                                                    (spec.ri - d + 0.5f)))));
 }
 
-// Called for arcs with area <= 64 pixels.
-void FillSmoothArcInternal(const ArcDrawSpec& spec, int16_t xMin, int16_t yMin,
-                           int16_t xMax, int16_t yMax) {
-  Box box(xMin, yMin, xMax, yMax);
-  Color interior = spec.arc.interior_color;
-  Color outline_active = spec.arc.outline_active_color;
-  Color outline_inactive = spec.arc.outline_inactive_color;
-  if (spec.arc.inner_mid.contains(box)) {
-    if (spec.fill_mode == FILL_MODE_RECTANGLE ||
-        interior != color::Transparent) {
-      spec.out->fillRect(spec.paint_mode, box, spec.pre_blended_interior);
-    }
-    return;
-  }
-  float dtl = CalcDistSq(spec.arc.xc, spec.arc.yc, xMin, yMin);
-  float dtr = CalcDistSq(spec.arc.xc, spec.arc.yc, xMax, yMin);
-  float dbl = CalcDistSq(spec.arc.xc, spec.arc.yc, xMin, yMax);
-  float dbr = CalcDistSq(spec.arc.xc, spec.arc.yc, xMax, yMax);
-  float ro = spec.arc.ro;
-  float ri = spec.arc.ri;
+inline float CalcDistSq(float x1, float y1, int16_t x2, int16_t y2) {
+  float dx = x1 - x2;
+  float dy = y1 - y2;
+  return dx * dx + dy * dy;
+}
 
-  float r_min_sq = spec.arc.ri_sq_adj - spec.arc.ri;
+// Called for arcs with area <= 64 pixels.
+inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
+                                          const Box& box) {
+  if (arc.inner_mid.contains(box)) {
+    return INTERIOR;
+  }
+  int16_t xMin = box.xMin();
+  int16_t yMin = box.yMin();
+  int16_t xMax = box.xMax();
+  int16_t yMax = box.yMax();
+  float dtl = CalcDistSq(arc.xc, arc.yc, xMin, yMin);
+  float dtr = CalcDistSq(arc.xc, arc.yc, xMax, yMin);
+  float dbl = CalcDistSq(arc.xc, arc.yc, xMin, yMax);
+  float dbr = CalcDistSq(arc.xc, arc.yc, xMax, yMax);
+  float ro = arc.ro;
+  float ri = arc.ri;
+
+  float r_min_sq = arc.ri_sq_adj - arc.ri;
   // Check if the rect falls entirely inside the interior boundary.
   if (dtl < r_min_sq && dtr < r_min_sq && dbl < r_min_sq && dbr < r_min_sq) {
-    if (spec.fill_mode == FILL_MODE_RECTANGLE ||
-        interior != color::Transparent) {
-      spec.out->fillRect(spec.paint_mode, box, spec.pre_blended_interior);
-    }
-    return;
+    return INTERIOR;
   }
 
-  float r_max_sq = spec.arc.ro_sq_adj + spec.arc.ro;
+  float r_max_sq = arc.ro_sq_adj + arc.ro;
   // Check if the rect falls entirely outside the boundary (in one of the 4
   // corners).
-  if (xMax < spec.arc.xc) {
-    if (yMax < spec.arc.yc) {
+  if (xMax < arc.xc) {
+    if (yMax < arc.yc) {
       if (dbr >= r_max_sq) {
-        if (spec.fill_mode == FILL_MODE_RECTANGLE) {
-          spec.out->fillRect(xMin, yMin, xMax, yMax, spec.bgcolor);
-        }
-        return;
+        return TRANSPARENT;
       }
-    } else if (yMin > spec.arc.yc) {
+    } else if (yMin > arc.yc) {
       if (dtr >= r_max_sq) {
-        if (spec.fill_mode == FILL_MODE_RECTANGLE) {
-          spec.out->fillRect(xMin, yMin, xMax, yMax, spec.bgcolor);
-        }
-        return;
+        return TRANSPARENT;
       }
     }
-  } else if (xMin > spec.arc.xc) {
-    if (yMax < spec.arc.yc) {
+  } else if (xMin > arc.xc) {
+    if (yMax < arc.yc) {
       if (dbl >= r_max_sq) {
-        if (spec.fill_mode == FILL_MODE_RECTANGLE) {
-          spec.out->fillRect(xMin, yMin, xMax, yMax, spec.bgcolor);
-        }
-        return;
+        return TRANSPARENT;
       }
-    } else if (yMin > spec.arc.yc) {
+    } else if (yMin > arc.yc) {
       if (dtl >= r_max_sq) {
-        if (spec.fill_mode == FILL_MODE_RECTANGLE) {
-          spec.out->fillRect(xMin, yMin, xMax, yMax, spec.bgcolor);
-        }
-        return;
+        return TRANSPARENT;
       }
     }
   }
+  // Slow case; evaluate every pixel from the rectangle.
+  return NON_UNIFORM;
+}
+
+// Called for arcs with area <= 64 pixels.
+void FillSubrectOfArc(const SmoothShape::Arc& arc, const ArcDrawSpec& spec, const Box& box) {
+  Color interior = arc.interior_color;
+  Color outline_active = arc.outline_active_color;
+  Color outline_inactive = arc.outline_inactive_color;
+  switch (DetermineRectColorForArc(arc, box)) {
+    case TRANSPARENT: {
+      if (spec.fill_mode == FILL_MODE_RECTANGLE) {
+        spec.out->fillRect(spec.paint_mode, box, spec.bgcolor);
+      }
+      return;
+    }
+    case INTERIOR: {
+      if (spec.fill_mode == FILL_MODE_RECTANGLE ||
+          interior != color::Transparent) {
+        spec.out->fillRect(spec.paint_mode, box, spec.pre_blended_interior);
+      }
+      return;
+    }
+    case OUTLINE_ACTIVE: {
+      if (spec.fill_mode == FILL_MODE_RECTANGLE ||
+          outline_active != color::Transparent) {
+        spec.out->fillRect(spec.paint_mode, box,
+                           spec.pre_blended_outline_active);
+        return;
+      }
+    }
+    case OUTLINE_INACTIVE: {
+      if (spec.fill_mode == FILL_MODE_RECTANGLE ||
+          outline_inactive != color::Transparent) {
+        spec.out->fillRect(spec.paint_mode, box,
+                           spec.pre_blended_outline_inactive);
+        return;
+      }
+    }
+    default:
+      break;
+  }
+
+  // Slow case; evaluate every pixel from the rectangle.
   if (spec.fill_mode == FILL_MODE_VISIBLE) {
     BufferedPixelWriter writer(*spec.out, spec.paint_mode);
-    for (int16_t y = yMin; y <= yMax; ++y) {
-      for (int16_t x = xMin; x <= xMax; ++x) {
-        Color c = GetSmoothArcPixelColor(spec.arc, x, y);
+    for (int16_t y = box.yMin(); y <= box.yMax(); ++y) {
+      for (int16_t x = box.xMin(); x <= box.xMax(); ++x) {
+        Color c = GetSmoothArcPixelColor(arc, x, y);
         if (c.a() == 0) continue;
         writer.writePixel(
             x, y,
@@ -887,9 +909,9 @@ void FillSmoothArcInternal(const ArcDrawSpec& spec, int16_t xMin, int16_t yMin,
   } else {
     Color color[64];
     int cnt = 0;
-    for (int16_t y = yMin; y <= yMax; ++y) {
-      for (int16_t x = xMin; x <= xMax; ++x) {
-        Color c = GetSmoothArcPixelColor(spec.arc, x, y);
+    for (int16_t y = box.yMin(); y <= box.yMax(); ++y) {
+      for (int16_t x = box.xMin(); x <= box.xMax(); ++x) {
+        Color c = GetSmoothArcPixelColor(arc, x, y);
         color[cnt++] = c.a() == 0            ? spec.bgcolor
                        : c == interior       ? spec.pre_blended_interior
                        : c == outline_active ? spec.pre_blended_outline_active
@@ -898,8 +920,55 @@ void FillSmoothArcInternal(const ArcDrawSpec& spec, int16_t xMin, int16_t yMin,
                            : AlphaBlend(spec.bgcolor, c);
       }
     }
-    spec.out->setAddress(Box(xMin, yMin, xMax, yMax), spec.paint_mode);
+    spec.out->setAddress(box, spec.paint_mode);
     spec.out->write(color, cnt);
+  }
+}
+
+void DrawArc(SmoothShape::Arc arc, const Surface& s, const Box& box) {
+  ArcDrawSpec spec{
+      .out = &s.out(),
+      .fill_mode = s.fill_mode(),
+      .paint_mode = s.paint_mode(),
+      .bgcolor = s.bgcolor(),
+      .pre_blended_outline_active =
+          AlphaBlend(AlphaBlend(s.bgcolor(), arc.interior_color),
+                      arc.outline_active_color),
+      .pre_blended_outline_inactive =
+          AlphaBlend(AlphaBlend(s.bgcolor(), arc.interior_color),
+                      arc.outline_inactive_color),
+  };
+  if (s.dx() != 0 || s.dy() != 0) {
+    arc.xc += s.dx();
+    arc.yc += s.dy();
+    arc.start_x_rc += s.dx();
+    arc.start_y_rc += s.dy();
+    arc.end_x_rc += s.dx();
+    arc.end_y_rc += s.dy();
+    arc.inner_mid = arc.inner_mid.translate(s.dx(), s.dy());
+  }
+  int16_t xMin = box.xMin();
+  int16_t xMax = box.xMax();
+  int16_t yMin = box.yMin();
+  int16_t yMax = box.yMax();
+  {
+    uint32_t pixel_count = box.area();
+    if (pixel_count <= 64) {
+      FillSubrectOfArc(arc, spec, box);
+      return;
+    }
+  }
+  const int16_t xMinOuter = (xMin / 8) * 8;
+  const int16_t yMinOuter = (yMin / 8) * 8;
+  const int16_t xMaxOuter = (xMax / 8) * 8 + 7;
+  const int16_t yMaxOuter = (yMax / 8) * 8 + 7;
+  for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
+    for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
+      FillSubrectOfArc(arc, spec,
+                        Box(std::max(x, box.xMin()), std::max(y, box.yMin()),
+                            std::min((int16_t)(x + 7), box.xMax()),
+                            std::min((int16_t)(y + 7), box.yMax())));
+    }
   }
 }
 
@@ -1059,50 +1128,7 @@ void SmoothShape::drawTo(const Surface& s) const {
       break;
     }
     case ARC: {
-      ArcDrawSpec spec{
-          .arc = arc_,
-          .out = &s.out(),
-          .fill_mode = s.fill_mode(),
-          .paint_mode = s.paint_mode(),
-          .bgcolor = s.bgcolor(),
-          .pre_blended_outline_active =
-              AlphaBlend(AlphaBlend(s.bgcolor(), arc_.interior_color),
-                         arc_.outline_active_color),
-          .pre_blended_outline_inactive =
-              AlphaBlend(AlphaBlend(s.bgcolor(), arc_.interior_color),
-                         arc_.outline_inactive_color),
-      };
-      if (s.dx() != 0 || s.dy() != 0) {
-        spec.arc.xc += s.dx();
-        spec.arc.yc += s.dy();
-        spec.arc.start_x_rc += s.dx();
-        spec.arc.start_y_rc += s.dy();
-        spec.arc.end_x_rc += s.dx();
-        spec.arc.end_y_rc += s.dy();
-        spec.arc.inner_mid = spec.arc.inner_mid.translate(s.dx(), s.dy());
-      }
-      int16_t xMin = box.xMin();
-      int16_t xMax = box.xMax();
-      int16_t yMin = box.yMin();
-      int16_t yMax = box.yMax();
-      {
-        uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
-        if (pixel_count <= 64) {
-          FillSmoothArcInternal(spec, xMin, yMin, xMax, yMax);
-          return;
-        }
-      }
-      const int16_t xMinOuter = (xMin / 8) * 8;
-      const int16_t yMinOuter = (yMin / 8) * 8;
-      const int16_t xMaxOuter = (xMax / 8) * 8 + 7;
-      const int16_t yMaxOuter = (yMax / 8) * 8 + 7;
-      for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
-        for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
-          FillSmoothArcInternal(spec, std::max(x, xMin), std::max(y, yMin),
-                                std::min((int16_t)(x + 7), xMax),
-                                std::min((int16_t)(y + 7), yMax));
-        }
-      }
+      DrawArc(arc_, s, box);
       break;
     }
     case EMPTY: {

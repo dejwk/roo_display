@@ -1153,7 +1153,7 @@ bool SmoothShape::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
       Box box(xMin, yMin, xMax, yMax);
       // Check if the rect happens to fall within the known inner rectangles.
       if (arc_.inner_mid.contains(box)) {
-        *result = color::Blue;  // arc_.interior_color;
+        *result = arc_.interior_color;
         return true;
       }
       return Rasterizable::readColorRect(xMin, yMin, xMax, yMax, result);

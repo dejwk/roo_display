@@ -803,9 +803,8 @@ void FillSmoothArcInternal(const ArcDrawSpec& spec, int16_t xMin, int16_t yMin,
   Color outline_active = spec.arc.outline_active_color;
   Color outline_inactive = spec.arc.outline_inactive_color;
   if (spec.arc.inner_mid.contains(box)) {
-    if (spec.fill_mode == FILL_MODE_RECTANGLE || interior.a() > 0) {
-      spec.out->fillRect(spec.paint_mode, box,
-                         color::Red);  // spec.pre_blended_interior);
+    if (spec.fill_mode == FILL_MODE_RECTANGLE || interior != color::Transparent) {
+      spec.out->fillRect(spec.paint_mode, box, spec.pre_blended_interior);
     }
     return;
   }
@@ -816,17 +815,16 @@ void FillSmoothArcInternal(const ArcDrawSpec& spec, int16_t xMin, int16_t yMin,
   float ro = spec.arc.ro;
   float ri = spec.arc.ri;
 
-  float r_min_sq = (ri - 0.5) * (ri - 0.5);
+  float r_min_sq = spec.arc.ri_sq_adj - spec.arc.ri;
   // Check if the rect falls entirely inside the interior boundary.
   if (dtl < r_min_sq && dtr < r_min_sq && dbl < r_min_sq && dbr < r_min_sq) {
-    if (spec.fill_mode == FILL_MODE_RECTANGLE || interior.a() > 0) {
-      spec.out->fillRect(spec.paint_mode, box,
-                         color::Orange);  // spec.pre_blended_interior);
+    if (spec.fill_mode == FILL_MODE_RECTANGLE || interior != color::Transparent) {
+      spec.out->fillRect(spec.paint_mode, box, spec.pre_blended_interior);
     }
     return;
   }
 
-  float r_max_sq = (ro + 0.5) * (ro + 0.5);
+  float r_max_sq = spec.arc.ro_sq_adj + spec.arc.ro;
   // Check if the rect falls entirely outside the boundary (in one of the 4
   // corners).
   if (xMax < spec.arc.xc) {
@@ -1051,7 +1049,6 @@ void SmoothShape::drawTo(const Surface& s) const {
       break;
     }
     case ARC: {
-      // Rasterizable::drawTo(s);
       ArcDrawSpec spec{
           .arc = arc_,
           .out = &s.out(),

@@ -1224,6 +1224,7 @@ void DrawArc(SmoothShape::Arc arc, const Surface& s, const Box& box) {
       .pre_blended_outline_inactive =
           AlphaBlend(AlphaBlend(s.bgcolor(), arc.interior_color),
                      arc.outline_inactive_color),
+      .pre_blended_interior = AlphaBlend(s.bgcolor(), arc.interior_color),
   };
   if (s.dx() != 0 || s.dy() != 0) {
     arc.xc += s.dx();

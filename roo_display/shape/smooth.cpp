@@ -199,6 +199,7 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
   float end_cos = cosf(angle_end);
 
   float ro = radius;
+  float rm = thickness * 0.5f;
   float rc = radius - thickness * 0.5f;
   float ri = radius - thickness;
 
@@ -206,11 +207,15 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
   float start_y_ro = -ro * start_cos;
   float start_x_rc = rc * start_sin;
   float start_y_rc = -rc * start_cos;
+  float start_x_ri = ri * start_sin;
+  float start_y_ri = -ri * start_cos;
 
   float end_x_ro = ro * end_sin;
   float end_y_ro = -ro * end_cos;
   float end_x_rc = rc * end_sin;
   float end_y_rc = -rc * end_cos;
+  float end_x_ri = ri * end_sin;
+  float end_y_ri = -ri * end_cos;
 
   float inv_half_width = 2.0f / thickness;
 
@@ -223,11 +228,50 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
                 (int16_t)floorf(center.x + d - 0.5f),
                 (int16_t)floorf(center.y + d - 0.5f));
 
-  Box extents(
-      (int16_t)floorf(center.x - radius), (int16_t)floorf(center.y - radius),
-      (int16_t)ceilf(center.x + radius), (int16_t)ceilf(center.y + radius));
+  // Figure out the extents.
+  bool q1 = (angle_start <= -1.0f * M_PI && angle_end >= -0.5f * M_PI) ||
+            (angle_end >= 1.75f * M_PI);
+  bool q2 = (angle_start <= -0.5f * M_PI && angle_end >= 0) ||
+            (angle_end >= 2.0f * M_PI);
+  bool q3 = (angle_start <= 0 && angle_end >= 0.5f * M_PI) ||
+            (angle_end >= 2.5f * M_PI);
+  bool q4 = (angle_start <= 0.5f * M_PI && angle_end >= M_PI) ||
+            (angle_end >= 3.0f * M_PI);
+  int16_t xMin, yMin, xMax, yMax;
+  if (q1 || q2 || (angle_start <= -0.5f * M_PI && angle_end >= -0.5f * M_PI)) {
+    xMin = (int16_t)floorf(center.x - radius - 0.5f);
+  } else if (ending_style == ENDING_ROUNDED) {
+    xMin = floorf(center.x + std::min(start_x_rc, end_x_rc) - rm - 0.5f);
+  } else {
+    xMin = floorf(center.x + std::min(std::min(start_x_ro, start_x_ri),
+                                      std::min(end_x_ro, end_x_ri) - 0.5f));
+  }
+  if (q2 || q3 || (angle_start <= 0 && angle_end >= 0)) {
+    yMin = (int16_t)floorf(center.y - radius - 0.5f);
+  } else if (ending_style == ENDING_ROUNDED) {
+    yMin = floorf(center.y + std::min(start_y_rc, end_y_rc) - rm - 0.5f);
+  } else {
+    yMin = floorf(center.y + std::min(std::min(start_y_ro, start_y_ri),
+                                      std::min(end_y_ro, end_y_ri) - 0.5f));
+  }
+  if (q3 || q4 || (angle_start <= 0.5f * M_PI && angle_end >= 0.5f * M_PI)) {
+    xMax = (int16_t)ceilf(center.x + radius + 0.5f);
+  } else if (ending_style == ENDING_ROUNDED) {
+    xMax = ceilf(center.x + std::max(start_x_rc, end_x_rc) + rm + 0.5f);
+  } else {
+    xMax = ceilf(center.x + std::max(std::max(start_x_ro, start_x_ri),
+                                     std::max(end_x_ro, end_x_ri) + 0.5f));
+  }
+  if (q4 || q1 || (angle_start <= M_PI && angle_end >= M_PI)) {
+    yMax = (int16_t)ceilf(center.y + radius + 0.5f);
+  } else if (ending_style == ENDING_ROUNDED) {
+    yMax = ceilf(center.y + std::max(start_y_rc, end_y_rc) + rm + 0.5f);
+  } else {
+    yMax = ceilf(center.y + std::max(std::max(start_y_ro, start_y_ri),
+                                     std::max(end_y_ro, end_y_ri) + 0.5f));
+  }
   return SmoothShape(
-      std::move(extents),
+      std::move(Box(xMin, yMin, xMax, yMax)),
       SmoothShape::Arc{center.x,
                        center.y,
                        ro,
@@ -427,7 +471,6 @@ void ReadWedgeColors(const SmoothShape::Wedge& wedge, const int16_t* x,
   // This default rasterizable implementation seems to be ~50% slower than
   // drawTo (but it allows to use wedges as backgrounds or overlays, e.g.
   // indicator needles).
-  uint8_t max_alpha = wedge.color.a();
   float bax = wedge.bx - wedge.ax;
   float bay = wedge.by - wedge.ay;
   float bay_dsq = bax * bax + bay * bay;
@@ -536,8 +579,6 @@ inline RectColor DetermineRectColorForRoundRect(
   float dtr = CalcDistSqRect(rect.x0, rect.y0, rect.x1, rect.y1, xMax, yMin);
   float dbl = CalcDistSqRect(rect.x0, rect.y0, rect.x1, rect.y1, xMin, yMax);
   float dbr = CalcDistSqRect(rect.x0, rect.y0, rect.x1, rect.y1, xMax, yMax);
-  float ro = rect.ro;
-  float ri = rect.ri;
 
   float r_min_sq = rect.ri_sq_adj - rect.ri;
   // Check if the rect falls entirely inside the interior boundary.
@@ -766,10 +807,6 @@ void DrawRoundRect(SmoothShape::RoundRect rect, const Surface& s,
     rect.inner_mid = rect.inner_mid.translate(s.dx(), s.dy());
     rect.inner_tall = rect.inner_tall.translate(s.dx(), s.dy());
   }
-  int16_t xMin = box.xMin();
-  int16_t xMax = box.xMax();
-  int16_t yMin = box.yMin();
-  int16_t yMax = box.yMax();
   {
     uint32_t pixel_count = box.area();
     if (pixel_count <= 64) {
@@ -794,7 +831,7 @@ void DrawRoundRect(SmoothShape::RoundRect rect, const Surface& s,
         rect, spec,
         Box(inner.xMax() + 1, inner.yMin(), box.xMax(), inner.yMax()));
     FillSubrectangle(rect, spec,
-                     Box(xMin, inner.yMax() + 1, box.xMax(), box.yMax()));
+                     Box(box.xMin(), inner.yMax() + 1, box.xMax(), box.yMax()));
   }
 }
 
@@ -937,8 +974,6 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
   float dtr = CalcDistSq(arc.xc, arc.yc, xMax, yMin);
   float dbl = CalcDistSq(arc.xc, arc.yc, xMin, yMax);
   float dbr = CalcDistSq(arc.xc, arc.yc, xMax, yMax);
-  float ro = arc.ro;
-  float ri = arc.ri;
 
   float r_min_sq = arc.ri_sq_adj - arc.ri;
   // Check if the rect falls entirely inside the interior boundary.
@@ -1208,6 +1243,8 @@ bool SmoothShape::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
       return true;
     }
   }
+  *result = color::Transparent;
+  return true;
 }
 
 }  // namespace roo_display

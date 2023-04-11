@@ -869,8 +869,8 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
   float dys = dy - spec.start_y_rc;
   float dxe = dx - spec.end_x_rc;
   float dye = dy - spec.end_y_rc;
-  float n1 = spec.start_dyoc_norm * dxs - spec.start_dxoc_norm * dys;
-  float n2 = spec.end_dxoc_norm * dye - spec.end_dyoc_norm * dxe;
+  float n1 = spec.start_y_slope * dxs - spec.start_x_slope * dys;
+  float n2 = spec.end_x_slope * dye - spec.end_y_slope * dxe;
   bool within_range = false;
   if (spec.angle_end - spec.angle_start > M_PI) {
     within_range = (n1 <= -0.5 || n2 <= -0.5);

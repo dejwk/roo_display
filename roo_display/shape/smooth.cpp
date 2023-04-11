@@ -270,6 +270,7 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
     yMax = ceilf(center.y + std::max(std::max(start_y_ro, start_y_ri),
                                      std::max(end_y_ro, end_y_ri) + 0.5f));
   }
+
   return SmoothShape(
       std::move(Box(xMin, yMin, xMax, yMax)),
       SmoothShape::Arc{center.x,
@@ -284,12 +285,12 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
                        inactive_color,
                        interior_color,
                        inner_mid,
-                       (start_x_ro - start_x_rc) * inv_half_width,
-                       (start_y_ro - start_y_rc) * inv_half_width,
+                       start_sin,
+                       -start_cos,
                        start_x_rc,
                        start_y_rc,
-                       (end_x_ro - end_x_rc) * inv_half_width,
-                       (end_y_ro - end_y_rc) * inv_half_width,
+                       end_sin,
+                       -end_cos,
                        end_x_rc,
                        end_y_rc,
                        start_quadrant,
@@ -865,12 +866,8 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
   }
   // We now know that the pixel is somewhere inside the ring.
   Color color = spec.outline_active_color;
-  float dxs = dx - spec.start_x_rc;
-  float dys = dy - spec.start_y_rc;
-  float dxe = dx - spec.end_x_rc;
-  float dye = dy - spec.end_y_rc;
-  float n1 = spec.start_y_slope * dxs - spec.start_x_slope * dys;
-  float n2 = spec.end_x_slope * dye - spec.end_y_slope * dxe;
+  float n1 = spec.start_y_slope * dx - spec.start_x_slope * dy;
+  float n2 = spec.end_x_slope * dy - spec.end_y_slope * dx;
   bool within_range = false;
   if (spec.angle_end - spec.angle_start > M_PI) {
     within_range = (n1 <= -0.5 || n2 <= -0.5);
@@ -881,6 +878,10 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
     // Not entirely within the angle range. May be close to boundary; may be far
     // from it. The result depends on ending style.
     if (spec.round_endings) {
+      float dxs = dx - spec.start_x_rc;
+      float dys = dy - spec.start_y_rc;
+      float dxe = dx - spec.end_x_rc;
+      float dye = dy - spec.end_y_rc;
       // The endings may overlap, so we need to check the min distance from both
       // endpoints.
       float r = (spec.ro - spec.ri) * 0.5f;

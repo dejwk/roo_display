@@ -271,14 +271,24 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
                                      std::max(end_y_ro, end_y_ri) + 0.5f));
   }
 
+  float cutoff_angle = 2.0f * asinf(rm / (2.0f * (ro - rm)));
+  bool has_nonempty_cutoff =
+      (angle_end - angle_start + 2.0f * cutoff_angle) < 2.0f * M_PI;
+  float cutoff_start_sin = sinf(angle_start - cutoff_angle);
+  float cutoff_start_cos = cosf(angle_start - cutoff_angle);
+  float cutoff_end_sin = sinf(angle_end + cutoff_angle);
+  float cutoff_end_cos = cosf(angle_end + cutoff_angle);
+
   return SmoothShape(
       std::move(Box(xMin, yMin, xMax, yMax)),
       SmoothShape::Arc{center.x,
                        center.y,
                        ro,
                        ri,
+                       rm,
                        ro * ro + 0.25f,
                        ri * ri + 0.25f,
+                       rm * rm + 0.25f,
                        angle_start,
                        angle_end,
                        active_color,
@@ -295,7 +305,14 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
                        end_y_rc,
                        start_quadrant,
                        end_quadrant,
-                       ending_style == ENDING_ROUNDED});
+                       ending_style == ENDING_ROUNDED,
+                       angle_end - angle_start <= M_PI,
+                       has_nonempty_cutoff,
+                       angle_end - angle_start + 2.0f * cutoff_angle < M_PI,
+                       cutoff_start_sin,
+                       -cutoff_start_cos,
+                       cutoff_end_sin,
+                       -cutoff_end_cos});
 }
 
 // Helper functions for wedge.
@@ -884,22 +901,20 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
       float dye = dy - spec.end_y_rc;
       // The endings may overlap, so we need to check the min distance from both
       // endpoints.
-      float r = (spec.ro - spec.ri) * 0.5f;
-      float r_sq = r * r;
       float smaller_dist_sq =
           std::min(dxs * dxs + dys * dys, dxe * dxe + dye * dye);
-      if (smaller_dist_sq > r_sq + r + 0.25f) {
+      if (smaller_dist_sq > spec.rm_sq_adj + spec.rm) {
         color = spec.outline_inactive_color;
-      } else if (smaller_dist_sq < r_sq - r + 0.25f) {
+      } else if (smaller_dist_sq < spec.rm_sq_adj - spec.rm) {
         color = spec.outline_active_color;
       } else {
         // Round endings boundary - we need to calculate the alpha-blended
         // color.
         float d = sqrt(smaller_dist_sq);
-        color = AlphaBlend(
-            spec.outline_inactive_color,
-            spec.outline_active_color.withA(
-                (uint8_t)(spec.outline_active_color.a() * (r - d + 0.5f))));
+        color = AlphaBlend(spec.outline_inactive_color,
+                           spec.outline_active_color.withA(
+                               (uint8_t)(spec.outline_active_color.a() *
+                                         (spec.rm - d + 0.5f))));
       }
     } else {
       // Flat endings.
@@ -961,6 +976,50 @@ inline float CalcDistSq(float x1, float y1, int16_t x2, int16_t y2) {
   return dx * dx + dy * dy;
 }
 
+inline bool IsPointWithinAngle(float start_x_slope, float start_y_slope,
+                               float end_x_slope, float end_y_slope, bool sharp,
+                               float dx, float dy) {
+  float n1 = start_y_slope * dx - start_x_slope * dy;
+  float n2 = end_x_slope * dy - end_y_slope * dx;
+  bool within_range = false;
+  if (sharp) {
+    return (n1 <= -0.5f && n2 <= -0.5f);
+  } else {
+    return (n1 <= -0.5f || n2 <= -0.5f);
+  }
+}
+
+inline bool IsRectWithinAngle(float start_x_slope, float start_y_slope,
+                              float end_x_slope, float end_y_slope, bool sharp,
+                              float cx, float cy, const Box& box) {
+  return IsPointWithinAngle(start_x_slope, start_y_slope, end_x_slope,
+                            end_y_slope, sharp, box.xMin() - cx,
+                            box.yMin() - cy) &&
+         IsPointWithinAngle(start_x_slope, start_y_slope, end_x_slope,
+                            end_y_slope, sharp, box.xMin() - cx,
+                            box.yMax() - cy) &&
+         IsPointWithinAngle(start_x_slope, start_y_slope, end_x_slope,
+                            end_y_slope, sharp, box.xMax() - cx,
+                            box.yMin() - cy) &&
+         IsPointWithinAngle(start_x_slope, start_y_slope, end_x_slope,
+                            end_y_slope, sharp, box.xMax() - cx,
+                            box.yMax() - cy);
+}
+
+inline bool IsPointWithinCircle(float cx, float cy, float r_sq, float x,
+                                float y) {
+  float dx = x - cx;
+  float dy = y - cy;
+  return dx * dx + dy * dy <= r_sq;
+}
+
+inline bool IsRectWithinCircle(float cx, float cy, float r_sq, const Box& box) {
+  return IsPointWithinCircle(cx, cy, r_sq, box.xMin(), box.yMin()) &&
+         IsPointWithinCircle(cx, cy, r_sq, box.xMin(), box.yMax()) &&
+         IsPointWithinCircle(cx, cy, r_sq, box.xMax(), box.yMin()) &&
+         IsPointWithinCircle(cx, cy, r_sq, box.xMax(), box.yMax());
+}
+
 // Called for arcs with area <= 64 pixels.
 inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
                                           const Box& box) {
@@ -1006,6 +1065,75 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
       }
     }
   }
+  if (arc.round_endings) {
+    if (arc.nonempty_cutoff) {
+      // Check if all rect corners are in the cut-out area.
+    }
+  }
+  // If all corners are in the same quadrant, and all corners are within the
+  // ring, then the rect is also within the ring.
+  if (xMax <= arc.xc) {
+    if (yMax <= arc.yc) {
+      float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
+      float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
+      if (dtl > r_ring_max_sq || dtl < r_ring_min_sq || dbr > r_ring_max_sq ||
+          dbr < r_ring_min_sq) {
+        return NON_UNIFORM;
+      }
+    } else if (yMin >= arc.yc) {
+      float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
+      float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
+      if (dtr > r_ring_max_sq || dtr < r_ring_min_sq || dbl > r_ring_max_sq ||
+          dbl < r_ring_min_sq) {
+        return NON_UNIFORM;
+      }
+    }
+  } else if (xMin >= arc.xc) {
+    if (yMax <= arc.yc) {
+      float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
+      float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
+      if (dtr > r_ring_max_sq || dtr < r_ring_min_sq || dbl > r_ring_max_sq ||
+          dbl < r_ring_min_sq) {
+        return NON_UNIFORM;
+      }
+    } else if (yMin >= arc.yc) {
+      float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
+      float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
+      if (dtl > r_ring_max_sq || dtl < r_ring_min_sq || dbr > r_ring_max_sq ||
+          dbr < r_ring_min_sq) {
+        return NON_UNIFORM;
+      }
+    }
+  }
+  // The rectangle is entirely inside the ring. Let's check if it is actually
+  // single-color.
+  //
+  // First, let's see if the rect is entirely within the 'active' angle.
+  if (IsRectWithinAngle(arc.start_x_slope, arc.start_y_slope, arc.end_x_slope,
+                        arc.end_y_slope, arc.range_angle_sharp, arc.xc, arc.yc,
+                        box)) {
+    return OUTLINE_ACTIVE;
+  }
+
+  // Now, let's see if the rect is perhaps entirely inside the 'inactive' angle.
+  if (arc.nonempty_cutoff &&
+      IsRectWithinAngle(arc.end_cutoff_x_slope, arc.end_cutoff_y_slope,
+                        arc.start_cutoff_x_slope, arc.start_cutoff_y_slope,
+                        !arc.cutoff_angle_sharp, arc.xc, arc.yc, box)) {
+    return OUTLINE_INACTIVE;
+  }
+
+  // Finally, check if maybe the rect is entirely within one of the round
+  // endings.
+  if (arc.round_endings) {
+    if (IsRectWithinCircle(arc.xc + arc.start_x_rc, arc.yc + arc.start_y_rc,
+                           arc.rm_sq_adj - arc.rm, box) ||
+        IsRectWithinCircle(arc.xc + arc.end_x_rc, arc.yc + arc.end_y_rc,
+                           arc.rm_sq_adj - arc.rm, box)) {
+      return OUTLINE_ACTIVE;
+    }
+  }
+
   // Slow case; evaluate every pixel from the rectangle.
   return NON_UNIFORM;
 }

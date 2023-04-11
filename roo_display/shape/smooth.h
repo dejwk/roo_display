@@ -119,9 +119,11 @@ class SmoothShape : public Rasterizable {
     float xc;
     float yc;
     float ro;
-    float ri;
+    float ri;         // ro - width
+    float rm;         // (ro - ri) / 2
     float ro_sq_adj;  // ro * ro + 0.25f
     float ri_sq_adj;  // ri * ri + 0.25f
+    float rm_sq_adj;  // rm * rm + 0.25f
     float angle_start;
     float angle_end;
     Color outline_active_color;
@@ -143,10 +145,16 @@ class SmoothShape : public Rasterizable {
     // Endpoint of the cut line at the end angle, mid-band.
     float end_x_rc;
     float end_y_rc;
-    // 1 / (width/2) = 1 - (ro - ri) / 2.
     int start_quadrant;
     int end_quadrant;
     bool round_endings;
+    bool range_angle_sharp;
+    bool nonempty_cutoff;
+    bool cutoff_angle_sharp;
+    float start_cutoff_x_slope;
+    float start_cutoff_y_slope;
+    float end_cutoff_x_slope;
+    float end_cutoff_y_slope;
   };
 
   Box extents() const override { return extents_; }

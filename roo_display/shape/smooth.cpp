@@ -326,6 +326,128 @@ inline uint8_t GetWedgeShapeAlpha(const WedgeDrawSpec& spec, float xpax,
   return (uint8_t)(d * spec.max_alpha);
 }
 
+void DrawWedge(const SmoothShape::Wedge& wedge, const Surface& s,
+               const Box& box) {
+  int16_t dx = s.dx();
+  int16_t dy = s.dy();
+  float ax = wedge.ax + dx;
+  float ay = wedge.ay + dy;
+  float bx = wedge.bx + dx;
+  float by = wedge.by + dy;
+  uint8_t max_alpha = wedge.color.a();
+  float bax = bx - ax;
+  float bay = by - ay;
+  float bay_dsq = bax * bax + bay * bay;
+  WedgeDrawSpec spec{
+      .r = wedge.ar + 0.5f,
+      .dr = wedge.ar - wedge.br,
+      .bax = wedge.bx - wedge.ax,
+      .bay = wedge.by - wedge.ay,
+      .hd = bay_dsq,
+      .sqrt_hd = sqrtf(bay_dsq),
+      .max_alpha = wedge.color.a(),
+      .round_endings = wedge.round_endings,
+  };
+
+  // Establish x start and y start.
+  int32_t ys = wedge.ay;
+  if ((ax - wedge.ar) > (bx - wedge.br)) ys = wedge.by;
+
+  uint8_t alpha = max_alpha;
+  float xpax, ypay;
+  bool can_minimize_scan =
+      spec.round_endings && s.fill_mode() != FILL_MODE_RECTANGLE;
+
+  ys += dy;
+  if (ys < box.yMin()) ys = box.yMin();
+  int32_t xs = box.xMin();
+  Color preblended = AlphaBlend(s.bgcolor(), wedge.color);
+
+  BufferedPixelWriter writer(s.out(), s.paint_mode());
+
+  // Scan bounding box from ys down, calculate pixel intensity from distance
+  // to line.
+  for (int32_t yp = ys; yp <= box.yMax(); yp++) {
+    bool endX = false;  // Flag to skip pixels
+    ypay = yp - ay;
+    for (int32_t xp = xs; xp <= box.xMax(); xp++) {
+      if (endX && alpha == 0 && can_minimize_scan) break;  // Skip right side.
+      xpax = xp - ax;
+      // alpha = getAlpha(ar, xpax, ypay, bax, bay, rdt, max_alpha);
+      alpha = GetWedgeShapeAlpha(spec, xpax, ypay);
+      if (alpha == 0 && can_minimize_scan) continue;
+      // Track the edge to minimize calculations.
+      if (!endX) {
+        endX = true;
+        if (can_minimize_scan) {
+          xs = xp;
+        }
+      }
+      writer.writePixel(
+          xp, yp,
+          alpha == max_alpha
+              ? preblended
+              : AlphaBlend(s.bgcolor(), wedge.color.withA(alpha)));
+    }
+  }
+
+  if (ys > box.yMax()) ys = box.yMax();
+  // Reset x start to left side of box.
+  xs = box.xMin();
+  // Scan bounding box from ys-1 up, calculate pixel intensity from distance
+  // to line.
+  for (int32_t yp = ys - 1; yp >= box.yMin(); yp--) {
+    bool endX = false;  // Flag to skip pixels
+    ypay = yp - ay;
+    for (int32_t xp = xs; xp <= box.xMax(); xp++) {
+      if (endX && alpha == 0 && can_minimize_scan)
+        break;  // Skip right side of drawn line.
+      xpax = xp - ax;
+      // alpha = getAlpha(ar, xpax, ypay, bax, bay, rdt, max_alpha);
+      alpha = GetWedgeShapeAlpha(spec, xpax, ypay);
+      if (alpha == 0 && can_minimize_scan) continue;
+      // Track line boundary.
+      if (!endX) {
+        endX = true;
+        if (can_minimize_scan) {
+          xs = xp;
+        }
+      }
+      writer.writePixel(
+          xp, yp,
+          alpha == max_alpha
+              ? preblended
+              : AlphaBlend(s.bgcolor(), wedge.color.withA(alpha)));
+    }
+  }
+}
+
+void ReadWedgeColors(const SmoothShape::Wedge& wedge, const int16_t* x,
+                     const int16_t* y, uint32_t count, Color* result) {
+  // This default rasterizable implementation seems to be ~50% slower than
+  // drawTo (but it allows to use wedges as backgrounds or overlays, e.g.
+  // indicator needles).
+  uint8_t max_alpha = wedge.color.a();
+  float bax = wedge.bx - wedge.ax;
+  float bay = wedge.by - wedge.ay;
+  float bay_dsq = bax * bax + bay * bay;
+  WedgeDrawSpec spec{
+      // Widen the boundary to simplify calculations.
+      .r = wedge.ar + 0.5f,
+      .dr = wedge.ar - wedge.br,
+      .bax = wedge.bx - wedge.ax,
+      .bay = wedge.by - wedge.ay,
+      .hd = bay_dsq,
+      .sqrt_hd = sqrtf(bay_dsq),
+      .max_alpha = wedge.color.a(),
+      .round_endings = wedge.round_endings,
+  };
+  while (count-- > 0) {
+    *result++ = wedge.color.withA(
+        GetWedgeShapeAlpha(spec, *x++ - wedge.ax, *y++ - wedge.ay));
+  }
+}
+
 // Helper functions for round rect.
 
 inline Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& rect,
@@ -1027,99 +1149,7 @@ void SmoothShape::drawTo(const Surface& s) const {
   }
   switch (kind_) {
     case WEDGE: {
-      int16_t dx = s.dx();
-      int16_t dy = s.dy();
-      float ax = wedge_.ax + dx;
-      float ay = wedge_.ay + dy;
-      float bx = wedge_.bx + dx;
-      float by = wedge_.by + dy;
-      uint8_t max_alpha = wedge_.color.a();
-      float bax = bx - ax;
-      float bay = by - ay;
-      float bay_dsq = bax * bax + bay * bay;
-      WedgeDrawSpec spec{
-          .r = wedge_.ar + 0.5f,
-          .dr = wedge_.ar - wedge_.br,
-          .bax = wedge_.bx - wedge_.ax,
-          .bay = wedge_.by - wedge_.ay,
-          .hd = bay_dsq,
-          .sqrt_hd = sqrtf(bay_dsq),
-          .max_alpha = wedge_.color.a(),
-          .round_endings = wedge_.round_endings,
-      };
-
-      // Establish x start and y start.
-      int32_t ys = wedge_.ay;
-      if ((ax - wedge_.ar) > (bx - wedge_.br)) ys = wedge_.by;
-
-      uint8_t alpha = max_alpha;
-      float xpax, ypay;
-      bool can_minimize_scan =
-          spec.round_endings && s.fill_mode() != FILL_MODE_RECTANGLE;
-
-      ys += dy;
-      if (ys < box.yMin()) ys = box.yMin();
-      int32_t xs = box.xMin();
-      Color preblended = AlphaBlend(s.bgcolor(), wedge_.color);
-
-      BufferedPixelWriter writer(s.out(), s.paint_mode());
-
-      // Scan bounding box from ys down, calculate pixel intensity from distance
-      // to line.
-      for (int32_t yp = ys; yp <= box.yMax(); yp++) {
-        bool endX = false;  // Flag to skip pixels
-        ypay = yp - ay;
-        for (int32_t xp = xs; xp <= box.xMax(); xp++) {
-          if (endX && alpha == 0 && can_minimize_scan)
-            break;  // Skip right side.
-          xpax = xp - ax;
-          // alpha = getAlpha(ar, xpax, ypay, bax, bay, rdt, max_alpha);
-          alpha = GetWedgeShapeAlpha(spec, xpax, ypay);
-          if (alpha == 0 && can_minimize_scan) continue;
-          // Track the edge to minimize calculations.
-          if (!endX) {
-            endX = true;
-            if (can_minimize_scan) {
-              xs = xp;
-            }
-          }
-          writer.writePixel(
-              xp, yp,
-              alpha == max_alpha
-                  ? preblended
-                  : AlphaBlend(s.bgcolor(), wedge_.color.withA(alpha)));
-        }
-      }
-
-      if (ys > box.yMax()) ys = box.yMax();
-      // Reset x start to left side of box.
-      xs = box.xMin();
-      // Scan bounding box from ys-1 up, calculate pixel intensity from distance
-      // to line.
-      for (int32_t yp = ys - 1; yp >= box.yMin(); yp--) {
-        bool endX = false;  // Flag to skip pixels
-        ypay = yp - ay;
-        for (int32_t xp = xs; xp <= box.xMax(); xp++) {
-          if (endX && alpha == 0 && can_minimize_scan)
-            break;  // Skip right side of drawn line.
-          xpax = xp - ax;
-          // alpha = getAlpha(ar, xpax, ypay, bax, bay, rdt, max_alpha);
-          alpha = GetWedgeShapeAlpha(spec, xpax, ypay);
-          if (alpha == 0 && can_minimize_scan) continue;
-          // Track line boundary.
-          if (!endX) {
-            endX = true;
-            if (can_minimize_scan) {
-              xs = xp;
-            }
-          }
-          writer.writePixel(
-              xp, yp,
-              alpha == max_alpha
-                  ? preblended
-                  : AlphaBlend(s.bgcolor(), wedge_.color.withA(alpha)));
-        }
-      }
+      DrawWedge(wedge_, s, box);
       break;
     }
     case ROUND_RECT: {
@@ -1140,28 +1170,7 @@ void SmoothShape::readColors(const int16_t* x, const int16_t* y, uint32_t count,
                              Color* result) const {
   switch (kind_) {
     case WEDGE: {
-      // This default rasterizable implementation seems to be ~50% slower than
-      // drawTo (but it allows to use wedges as backgrounds or overlays, e.g.
-      // indicator needles).
-      uint8_t max_alpha = wedge_.color.a();
-      float bax = wedge_.bx - wedge_.ax;
-      float bay = wedge_.by - wedge_.ay;
-      float bay_dsq = bax * bax + bay * bay;
-      WedgeDrawSpec spec{
-          // Widen the boundary to simplify calculations.
-          .r = wedge_.ar + 0.5f,
-          .dr = wedge_.ar - wedge_.br,
-          .bax = wedge_.bx - wedge_.ax,
-          .bay = wedge_.by - wedge_.ay,
-          .hd = bay_dsq,
-          .sqrt_hd = sqrtf(bay_dsq),
-          .max_alpha = wedge_.color.a(),
-          .round_endings = wedge_.round_endings,
-      };
-      while (count-- > 0) {
-        *result++ = wedge_.color.withA(
-            GetWedgeShapeAlpha(spec, *x++ - wedge_.ax, *y++ - wedge_.ay));
-      }
+      ReadWedgeColors(wedge_, x, y, count, result);
       break;
     }
     case ROUND_RECT: {

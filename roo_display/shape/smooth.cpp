@@ -239,36 +239,36 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
             (angle_end >= 3.0f * M_PI);
   int16_t xMin, yMin, xMax, yMax;
   if (q1 || q2 || (angle_start <= -0.5f * M_PI && angle_end >= -0.5f * M_PI)) {
-    xMin = (int16_t)floorf(center.x - radius - 0.5f);
+    xMin = (int16_t)floorf(center.x - radius);
   } else if (ending_style == ENDING_ROUNDED) {
-    xMin = floorf(center.x + std::min(start_x_rc, end_x_rc) - rm - 0.5f);
+    xMin = floorf(center.x + std::min(start_x_rc, end_x_rc) - rm);
   } else {
     xMin = floorf(center.x + std::min(std::min(start_x_ro, start_x_ri),
-                                      std::min(end_x_ro, end_x_ri) - 0.5f));
+                                      std::min(end_x_ro, end_x_ri)));
   }
   if (q2 || q3 || (angle_start <= 0 && angle_end >= 0)) {
-    yMin = (int16_t)floorf(center.y - radius - 0.5f);
+    yMin = (int16_t)floorf(center.y - radius);
   } else if (ending_style == ENDING_ROUNDED) {
-    yMin = floorf(center.y + std::min(start_y_rc, end_y_rc) - rm - 0.5f);
+    yMin = floorf(center.y + std::min(start_y_rc, end_y_rc) - rm);
   } else {
     yMin = floorf(center.y + std::min(std::min(start_y_ro, start_y_ri),
-                                      std::min(end_y_ro, end_y_ri) - 0.5f));
+                                      std::min(end_y_ro, end_y_ri)));
   }
   if (q3 || q4 || (angle_start <= 0.5f * M_PI && angle_end >= 0.5f * M_PI)) {
-    xMax = (int16_t)ceilf(center.x + radius + 0.5f);
+    xMax = (int16_t)ceilf(center.x + radius);
   } else if (ending_style == ENDING_ROUNDED) {
-    xMax = ceilf(center.x + std::max(start_x_rc, end_x_rc) + rm + 0.5f);
+    xMax = ceilf(center.x + std::max(start_x_rc, end_x_rc) + rm);
   } else {
     xMax = ceilf(center.x + std::max(std::max(start_x_ro, start_x_ri),
-                                     std::max(end_x_ro, end_x_ri) + 0.5f));
+                                     std::max(end_x_ro, end_x_ri)));
   }
   if (q4 || q1 || (angle_start <= M_PI && angle_end >= M_PI)) {
-    yMax = (int16_t)ceilf(center.y + radius + 0.5f);
+    yMax = (int16_t)ceilf(center.y + radius);
   } else if (ending_style == ENDING_ROUNDED) {
-    yMax = ceilf(center.y + std::max(start_y_rc, end_y_rc) + rm + 0.5f);
+    yMax = ceilf(center.y + std::max(start_y_rc, end_y_rc) + rm);
   } else {
     yMax = ceilf(center.y + std::max(std::max(start_y_ro, start_y_ri),
-                                     std::max(end_y_ro, end_y_ri) + 0.5f));
+                                     std::max(end_y_ro, end_y_ri)));
   }
 
   float cutoff_angle = 2.0f * asinf(rm / (2.0f * (ro - rm)));

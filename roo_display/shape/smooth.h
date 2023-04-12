@@ -84,6 +84,9 @@ SmoothShape SmoothThickArcWithBackground(
     float angle_end, Color active_color, Color inactive_color,
     Color interior_color, EndingStyle ending_style = ENDING_ROUNDED);
 
+// Creates a filled triangle with the specified corners and color.
+SmoothShape SmoothTriangle(FpPoint a, FpPoint b, FpPoint c, Color color);
+
 // Implementation details follow.
 
 class SmoothShape : public Rasterizable {
@@ -157,6 +160,22 @@ class SmoothShape : public Rasterizable {
     float end_cutoff_y_slope;
   };
 
+  struct Triangle {
+    float x1;
+    float y1;
+    float dx12;
+    float dy12;
+    float x2;
+    float y2;
+    float dx23;
+    float dy23;
+    float x3;
+    float y3;
+    float dx31;
+    float dy31;
+    Color color;
+  };
+
   Box extents() const override { return extents_; }
 
   void readColors(const int16_t* x, const int16_t* y, uint32_t count,
@@ -185,14 +204,18 @@ class SmoothShape : public Rasterizable {
       float angle_end, Color active_color, Color inactive_color,
       Color interior_color, EndingStyle ending_style);
 
+  friend SmoothShape SmoothTriangle(FpPoint a, FpPoint b, FpPoint c,
+                                    Color color);
+
   void drawTo(const Surface& s) const override;
 
-  enum Kind { EMPTY = 0, WEDGE = 1, ROUND_RECT = 2, ARC = 3 };
+  enum Kind { EMPTY = 0, WEDGE = 1, ROUND_RECT = 2, ARC = 3, TRIANGLE = 4 };
 
   SmoothShape();
   SmoothShape(Box extents, Wedge wedge);
   SmoothShape(Box extents, RoundRect round_rect);
   SmoothShape(Box extents, Arc arc);
+  SmoothShape(Box extents, Triangle triangle);
 
   Kind kind_;
   Box extents_;
@@ -200,6 +223,7 @@ class SmoothShape : public Rasterizable {
     Wedge wedge_;
     RoundRect round_rect_;
     Arc arc_;
+    Triangle triangle_;
   };
 };
 

@@ -320,7 +320,7 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
                        -cutoff_end_cos});
 }
 
-SmoothShape SmoothTriangle(FpPoint a, FpPoint b, FpPoint c, Color color) {
+SmoothShape SmoothFilledTriangle(FpPoint a, FpPoint b, FpPoint c, Color color) {
   int16_t xMin = floorf(std::min(std::min(a.x, b.x), c.x));
   int16_t yMin = floorf(std::min(std::min(a.y, b.y), c.y));
   int16_t xMax = ceilf(std::max(std::max(a.x, b.x), c.x));
@@ -1424,8 +1424,7 @@ void FillSubrectOfTriangle(const SmoothShape::Triangle& triangle,
     case INTERIOR: {
       if (spec.fill_mode == FILL_MODE_RECTANGLE ||
           interior != color::Transparent) {
-        spec.out->fillRect(spec.paint_mode, box,
-                           color::Red);  // spec.pre_blended_interior);
+        spec.out->fillRect(spec.paint_mode, box, spec.pre_blended_interior);
       }
       return;
     }

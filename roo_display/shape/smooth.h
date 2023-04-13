@@ -85,7 +85,7 @@ SmoothShape SmoothThickArcWithBackground(
     Color interior_color, EndingStyle ending_style = ENDING_ROUNDED);
 
 // Creates a filled triangle with the specified corners and color.
-SmoothShape SmoothTriangle(FpPoint a, FpPoint b, FpPoint c, Color color);
+SmoothShape SmoothFilledTriangle(FpPoint a, FpPoint b, FpPoint c, Color color);
 
 // Implementation details follow.
 
@@ -204,8 +204,8 @@ class SmoothShape : public Rasterizable {
       float angle_end, Color active_color, Color inactive_color,
       Color interior_color, EndingStyle ending_style);
 
-  friend SmoothShape SmoothTriangle(FpPoint a, FpPoint b, FpPoint c,
-                                    Color color);
+  friend SmoothShape SmoothFilledTriangle(FpPoint a, FpPoint b, FpPoint c,
+                                          Color color);
 
   void drawTo(const Surface& s) const override;
 

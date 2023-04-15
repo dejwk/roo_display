@@ -86,7 +86,7 @@ By separating SPI initialization from display initialization, ```roo_display``` 
 
 Display devices tend to support 8 different orientations. These result from a combination of 3 boolean flags: flipping along the horizontal axis, flipping along the vertical axis, and swapping the axes. Equivalently, the same 8 orientations can be considered to be a combination of 4 rotations (0, 90, 180, and 270 degrees) with a possible mirror flip along the X direction.
 
-The ```Orientation``` class allows you to construct the desired orientation intuitively, e.g. as a combination of rotations and flips. In simple cases, a simple ```rotateLeft()```, ```rotateRight```, or ```rotateUpsideDown()``` will suffice, but the other methods may come handy in case you need to change the orientation dynamically (e.g. flip the display or rotate it).
+The ```Orientation``` class allows you to construct the desired orientation intuitively, e.g. as a combination of rotations and flips. In simple cases, a simple ```rotateLeft()```, ```rotateRight()```, or ```rotateUpsideDown()``` will suffice, but the other methods may come handy in case you need to change the orientation dynamically (e.g. flip the display or rotate it).
 
 Internally, the orientation object is represented by just a single byte, and it should be passed by value.
 
@@ -921,6 +921,436 @@ Digits are often monotype, even in proportional fonts. Sometimes you can use thi
 
 Be careful, though: even though the _anchor_ extents of all digits may be the same, the regular extents are not. The bounding box of digit '1' is going to be smaller than that of digit '0', even though they have the same advance. For this reason, you may still need to use `Tile` when rendering numeric content.
 
+## Drawing shapes
+
+### Basic shapes
+
+The file ```roo_display/shape/basic.h``` lets you draw some basic single-color shapes, namely:
+
+* lines,
+* outlined and filled circles, triangles, and straight (non-rotated) rectangles, possibly with round edges.
+
+```cpp
+// ...
+#include "roo_display/shape/basic.h"
+
+// ...
+
+void loop() {
+    DrawingContext dc(display);
+
+    dc.draw(FilledCircle::ByExtents(10, 10, 80, color::Purple));
+    dc.draw(Circle::ByExtents(10, 110, 80, color::Purple));
+    dc.draw(FilledRect(110, 10, 159, 89, color::Red));
+    dc.draw(Rect(110, 110, 159, 189, color::Red));
+    dc.draw(FilledRoundRect(180, 10, 229, 89, 8, color::Blue));
+    dc.draw(RoundRect(180, 110, 229, 189, 8, color::Blue));
+    dc.draw(FilledTriangle({245, 10}, {305, 20}, {250, 89}, color::Orange));
+    dc.draw(Triangle({245, 110}, {305, 120}, {250, 189}, color::Orange));
+
+    dc.draw(Line({10, 210}, {305, 230}, color::Brown));
+    dc.draw(Line({10, 230}, {305, 210}, color::Brown));
+
+  delay(10000);
+}
+```
+
+![img39](doc/images/img39.png)
+
+All the coordinates are specified as integers.
+
+Circles and filled circles can be specified in two ways:
+
+1. the traditional, center plus radius,
+2. an alternative: top-left corner of the bounding rectangle, and a diameter.
+
+The former is more natural, but only the latter allows you to specify circles with even diameters. (If you specify the circle as a center point and a radius, the circle will always be symmetric about the center point - but it implies that the diameter is really 2 * r + 1, for integer coordinates).
+
+### Anti-aliased shapes
+
+A more recently introduced collection of anti-aliased flicker-free shapes can be found in ```roo_display/shape/smooth.h```. For starters, you can use it to smooth out commonly drawn primitives, such as circles, rounded rectangles, and triangles:
+
+```cpp
+void loop() {
+  DrawingContext dc(display);
+
+  dc.draw(SmoothFilledCircle({45.5, 45.5}, 40, color::Purple));
+  dc.draw(SmoothCircle({45.5, 145.5}, 39.5, color::Purple));
+  dc.draw(SmoothFilledRoundRect(179.5, 9.5, 229.5, 89.5, 7.5, color::Blue));
+  dc.draw(SmoothRoundRect(180, 110, 229, 189, 8, color::Blue));
+  dc.draw(SmoothFilledTriangle({245, 10}, {305, 20}, {250, 89}, color::Orange));
+
+  dc.draw(SmoothLine({10, 210}, {305, 230}, color::Brown));
+  dc.draw(SmoothLine({10, 230}, {305, 210}, color::Brown));
+}
+```
+
+![img40](doc/images/img40.png)
+
+Note that the coordinates that we now used look differently than before: they are floating-point. Because of that, you can now define the shapes with sub-pixel precision, and e.g. implement extremely smooth animations (we will see examples of that later). But it also now requires some caution, as we need to start thinking of pixels as 'squares'. The integer values of the coordinates not correspond to the _centers_ of the pixels. Consequently, a pixel with integer coordinates (x, y) now has the floating-point bounds of (x - 0.5, y - 0.5, x + 0.5, y + 0.5). Finally, the display whose resolution is width x height, now have the top-left corner at (-0.5, -0.5), and the bottom-right corner at (width - 0.5, height - 0.5).
+
+It may seem counter-intuitive at first that floating-point coordinates are shifted 'by half' like this, but the alternative would be that integer coordinates fall in-between pixels, causing unexpected artifacts.
+
+For 'outlined' shapes, we now need to think about the 'thickness' of the outline, which, in the case above, is equal to 1 pixel. The radius and extents that you specify is the radius and extents at the _middle_ of the outline. Consequently, the outer extents of a rounded rectangle, as well as an outer radius of a circle, is larger by 0.5 than the specified extents and the radius, and conversely, the inner extents / radius are smaller by 0.5 than the specified extents / radius. This is why we used different specs for the filled circle and round rect: compared to the non-filled counterparts, we extended them by 0.5 on each side. It causes the entire pixel 'rectangles' at boundaries to be considered as belonging to the filled shape. (But experiment and see what would happen if we didn't.)
+
+To further highlight this subtle point, see how very small circles, both filled and outlined, are rendered depending on the position of the center (mid-pixel or in-between-pixels):
+
+```cpp
+void loop() {
+  DrawingContext dc(display);
+  dc.setTransformation(Transformation().scale(5, 5));
+
+  dc.draw(SmoothFilledCircle({3, 5}, 0.5, color::Black));
+  dc.draw(SmoothFilledCircle({10, 5}, 1, color::Black));
+  dc.draw(SmoothFilledCircle({17, 5}, 1.5, color::Black));
+  dc.draw(SmoothFilledCircle({25, 5}, 2, color::Black));
+  dc.draw(SmoothFilledCircle({35, 5}, 2.5, color::Black));
+  dc.draw(SmoothFilledCircle({45, 5}, 3, color::Black));
+  dc.draw(SmoothFilledCircle({55, 5}, 3.5, color::Black));
+
+  dc.draw(SmoothCircle({3, 15}, 0.5, color::Black));
+  dc.draw(SmoothCircle({10, 15}, 1, color::Black));
+  dc.draw(SmoothCircle({17, 15}, 1.5, color::Black));
+  dc.draw(SmoothCircle({25, 15}, 2, color::Black));
+  dc.draw(SmoothCircle({35, 15}, 2.5, color::Black));
+  dc.draw(SmoothCircle({45, 15}, 3, color::Black));
+  dc.draw(SmoothCircle({55, 15}, 3.5, color::Black));
+
+  dc.draw(SmoothFilledCircle({3.5, 25.5}, 0.5, color::Black));
+  dc.draw(SmoothFilledCircle({10.5, 25.5}, 1, color::Black));
+  dc.draw(SmoothFilledCircle({17.5, 25.5}, 1.5, color::Black));
+  dc.draw(SmoothFilledCircle({25.5, 25.5}, 2, color::Black));
+  dc.draw(SmoothFilledCircle({35.5, 25.5}, 2.5, color::Black));
+  dc.draw(SmoothFilledCircle({45.5, 25.5}, 3, color::Black));
+  dc.draw(SmoothFilledCircle({55.5, 25.5}, 3.5, color::Black));
+
+  dc.draw(SmoothCircle({3.5, 35.5}, 0.5, color::Black));
+  dc.draw(SmoothCircle({10.5, 35.5}, 1, color::Black));
+  dc.draw(SmoothCircle({17.5, 35.5}, 1.5, color::Black));
+  dc.draw(SmoothCircle({25.5, 35.5}, 2, color::Black));
+  dc.draw(SmoothCircle({35.5, 35.5}, 2.5, color::Black));
+  dc.draw(SmoothCircle({45.5, 35.5}, 3, color::Black));
+  dc.draw(SmoothCircle({55.5, 35.5}, 3.5, color::Black));
+}
+```
+
+![img41](doc/images/img41.png)
+
+> Note: floating-point coordinates obviate the need to ever specify circles by extents. Smooth circles are always specifies via center point and a radius.
+
+### Thick and color-filled outlines
+
+Speaking of thickness: you are not limited to the 1-pixel-thick outlines. You can specify arbitrary positive floating-point thickness:
+
+```cpp
+void loop() {
+  DrawingContext dc(display);
+  for (int i = 0; i < 10; ++i) {
+    float dx = 30 * i;
+    dc.draw(SmoothThickCircle({25 + dx, 25}, 10, 0.25 * (i + 1), color::Black));
+    dc.draw(SmoothThickCircle({25 + dx, 55}, 10, 0.25 * (i + 11), color::Black));
+    dc.draw(SmoothThickCircle({25 + dx, 85}, 10, 0.25 * (i + 21), color::Black));
+    dc.draw(SmoothThickCircle({25 + dx, 115}, 10, 0.25 * (i + 31), color::Black));
+
+    dc.draw(SmoothThickRoundRect(15 + dx, 150, 35 + dx, 170, 5, 0.25 * (i + 1), color::Black));
+    dc.draw(SmoothThickRoundRect(15 + dx, 180, 35 + dx, 200, 5, 0.25 * (i + 11), color::Black));
+    dc.draw(SmoothThickRoundRect(15 + dx, 210, 35 + dx, 230, 5, 0.25 * (i + 21), color::Black));
+  }
+}
+```
+
+![img42](doc/images/img42.png)
+
+You can also optionally fill the interiors of the outlines with color:
+
+```cpp
+void loop() {
+  DrawingContext dc(display);
+  dc.draw(SmoothThickCircle({80, 100}, 50, 10, color::DarkSlateBlue, color::Orange));
+
+  Box btn(190, 80, 279, 119);
+  dc.draw(SmoothThickRoundRect(btn.xMin(), btn.yMin(), btn.xMax(), btn.yMax(),
+                               8, 3.5, color::Navy, color::LightGray));
+  dc.setBackgroundColor(color::LightGray);
+  dc.draw(MakeTileOf(TextLabel("OK", font_NotoSans_Bold_15(), color::Black),
+                     btn, kCenter | kMiddle, color::Transparent));
+
+  delay(10000);
+}
+```
+
+![img43](doc/images/img43.png)
+
+### Thick lines
+
+You can add thickness to lines:
+
+```cpp
+void loop() {
+  DrawingContext dc(display);
+  for (int i = 0; i < 50; ++i) {
+    float dy = 10 * i - 15;
+    dc.draw(SmoothThickLine({25, dy}, {294, dy + 20}, 0.25 * (i + 1), color::Black));
+  }
+
+  delay(10000);
+}
+```
+
+![img44](doc/images/img44.png)
+
+Note that the endings of lines are rounded, which becomes more obvious as the lines get thicker:
+
+```cpp
+void loop() {
+  DrawingContext dc(display);
+  for (int i = 0; i < 6; ++i) {
+    float dy = 25 * i + 2.5 * i * i + 10;
+    dc.draw(SmoothThickLine({25, dy}, {294, dy + 20}, 5 * (i + 1), color::Black));
+  }
+
+  delay(10000);
+}
+```
+
+![img45](doc/images/img45.png)
+
+You can also choose to use flat line endings:
+
+```cpp
+void loop() {
+  DrawingContext dc(display);
+  for (int i = 0; i < 6; ++i) {
+    float dy = 25 * i + 2.5 * i * i + 10;
+    dc.draw(SmoothThickLine({25, dy}, {294, dy + 20}, 5 * (i + 1),
+                            color::Black, ENDING_FLAT));
+  }
+
+  delay(10000);
+}
+```
+
+![img46](doc/images/img46.png)
+
+Note that flat-ended lines are essentially rectangles. This means that you can use them to draw arbitrarily rotated rectangles:
+
+```cpp
+void loop() {
+  DrawingContext dc(display);
+  for (int i = 0; i < 12; ++i) {
+    float x = cosf(2 * M_PI * i / 12);
+    float y = sinf(2 * M_PI * i / 12);
+    dc.draw(SmoothThickLine({160 + x * 70, 120 + y * 70},
+                            {160 + x * 100, 120 + y * 100},
+                            20, color::Black, ENDING_FLAT));
+  }
+
+  dc.draw(
+      SmoothRotatedFilledRect({160, 120}, 50, 50, M_PI / 4, color::Crimson));
+
+  delay(10000);
+}
+```
+
+![img47](doc/images/img47.png)
+
+Note that for the center square, we used the utility method `SmoothRotatedFilledRect` that draws a rectangle with specified center, sides, and rotation angle.
+
+### Wedges
+
+You can specify different widths for two ends of a line, thus creating 'wedge-like' shapes:
+
+```cpp
+void loop() {
+  DrawingContext dc(display);
+  float x = cosf(2 * M_PI * i / 12);
+  float y = sinf(2 * M_PI * i / 12);
+  dc.draw(SmoothWedgedLine({160 + x * 90, 120 + y * 90}, 40,
+                            {160 + x * 115, 120 + y * 115}, 50,
+                            color::Black, ENDING_FLAT));
+
+  dc.draw(SmoothWedgedLine({160 + x * 50, 120 + y * 50}, 20,
+                            {160 + x * 80, 120 + y * 80}, 8,
+                            color::Blue, ENDING_ROUNDED));
+
+  dc.draw(
+      SmoothRotatedFilledRect({160, 120}, 50, 50, M_PI / 4, color::Crimson));
+
+  delay(10000);
+}
+```
+
+![img48](doc/images/img48.png)
+
+The width can go down all the way to zero, allowing drawing of indicator needles of various sharpness:
+
+```cpp
+void loop() {
+  DrawingContext dc(display);
+  for (int i = 0; i < 15; ++i) {
+    dc.draw(SmoothWedgedLine({20 + i * 20, 120}, 15,
+                              {20 + i * 20, 10}, 14 - i,
+                              color::Black));
+  }
+
+  for (int i = 0; i < 7; ++i) {
+    dc.draw(SmoothWedgedLine({20 + i * 45, 210}, 4 + i * 5,
+                              {20 + i * 45, 140}, 0,
+                              color::DarkRed));
+  }
+
+  delay(10000);
+}
+```
+
+![img49](doc/images/img49.png)
+
+### Arcs
+
+You can draw arcs with a specified radius as well as the start and end angle:
+
+```cpp
+void loop() {
+  DrawingContext dc(display);
+  for (int i = 0; i < 10; ++i) {
+    dc.draw(SmoothArc({160, 120}, i * 10,
+                      (i + 1) * -0.3, (i + 1) * 0.3,
+                      color::Black));
+  }
+
+  delay(10000);
+}
+```
+
+![img50](doc/images/img50.png)
+
+Just like with lines, you can specify thickness and ending style:
+
+```cpp
+
+#include "roo_display/color/hsv.h"
+
+// ...
+
+void loop() {
+  DrawingContext dc(display);
+  for (int i = 0; i < 6; ++i) {
+    dc.draw(SmoothThickArc({160, 120}, i * 21, 18,
+                            (i + 1) * -0.5, (i + 1) * 0.5,
+                            HsvToRgb(i * 15, 1.0f, 0.7f),
+                            ENDING_ROUNDED));
+  }
+
+  delay(10000);
+}
+```
+
+![img51](doc/images/img51.png)
+
+Round-ended arcs can be useful for implementing touch controls:
+
+```cpp
+void loop() {
+  DrawingContext dc(display);
+  float radius = 70;
+  float width = 50;
+  dc.draw(SmoothThickArc({160, 120}, radius, width,
+                          -M_PI * 2 / 3, M_PI * 2 / 3, color::LightSkyBlue));
+
+  float angle = -M_PI * 1 / 3;
+  float xc = 160 + sinf(angle) * radius;
+  float yc = 120 - cosf(angle) * radius;
+  dc.setBackgroundColor(color::LightGray);
+  dc.draw(SmoothFilledCircle({xc, yc}, width / 2 - 5, color::Black));
+
+  delay(10000);
+}
+```
+
+![img52](doc/images/img52.png)
+
+Flat-ended arcs, on the other hand, can be useful in drawing radial gauges:
+
+```cpp
+void loop() {
+  DrawingContext dc(display);
+  float radius = 120;
+  float width = 30;
+  FpPoint center{130, 190};
+  dc.draw(SmoothThickArc(center, radius, width, -M_PI * 1 / 6 - 0.05,
+                          M_PI * 1 / 2 + 0.05, color::LightGray, ENDING_FLAT));
+  dc.setBackgroundColor(color::LightGray);
+  for (int i = 0; i < 51; ++i) {
+    float angle = (i / 50.0f * 2 / 3 - 1.0f / 6.0f) * M_PI;
+    Serial.println(angle);
+    float x = sinf(angle);
+    float y = -cosf(angle);
+    float tick_inner_radius = radius - width / 2 + 5;
+    float tick_len = (i % 5 == 0 ? 20 : 10);
+    float tick_radius = tick_inner_radius + tick_len;
+    dc.draw(SmoothLine({x * tick_inner_radius, y * tick_inner_radius},
+                        {x * tick_radius, y * tick_radius}, color::Black),
+            center.x, center.y);
+  }
+  float needle_radius = radius - width / 2 - 5;
+  float needle_angle = 0.1 * M_PI;
+  float needle_x = sinf(needle_angle);
+  float needle_y = -cosf(needle_angle);
+  dc.draw(SmoothWedgedLine({center}, 10,
+                            {center.x + needle_x * needle_radius,
+                            center.y + needle_y * needle_radius},
+                            0, color::Red));
+
+  delay(10000);
+}
+```
+
+![img53](doc/images/img53.png)
+
+Later, we will see how to animate these without flicker.
+
+### Pies
+
+By drawing an arc with flat ends and width exactly equal to half the radius, we get a pie. The library provides a convenience function to create these:
+
+```cpp
+void loop() {
+  DrawingContext dc(display);
+  float radius = 90;
+  FpPoint center{160, 120};
+  float areas[] = {0.35, 0.27, 0.2, 0.18};
+  Color colors[] = {color::Red, color::Green, color::Orange, color::RoyalBlue};
+  float start_angle = 0.0f;
+  for (int i = 0; i < 4; ++i) {
+    float angle = areas[i] * (2 * M_PI);
+    float end_angle = start_angle + angle;
+    float mid_angle = start_angle + angle * 0.5f;
+    dc.draw(SmoothPie({center.x + sinf(mid_angle) * 1,
+                        center.y - cosf(mid_angle) * 1},
+                      radius, start_angle, end_angle, colors[i]));
+    start_angle += angle;
+  }
+
+  delay(10000);
+}
+```
+
+![img54](doc/images/img54.png)
+
+### Caveats of anti-aliased graphics
+
+Anti-aliased graphics can work wonders on low-resolution displays, and it is often an indispensable tool. Nonetheless, it comes with some caveats, that we will describe below.
+
+#### Background
+
+If your display driver natively supports alpha-blending (e.g. using a parallel driver for ESP32-S3), or if you are drawing to an intermediate memory buffer (described later), everything will work great - you can draw smooth primitives over each other, and they will be correctly anti-aliased.
+
+Otherwise, smooth primitives will only look good on single-color backgrounds, and you need to be careful to set the background color correctly.
+
+#### Performance
+
+Anti-aliased primitives take 2-3 times longer to draw, compared with basic counterparts.
+
 ## Drawing images and icons
 
 The `roo_display` library supports drawing JPEG and PNG images out of the box.
@@ -1654,7 +2084,7 @@ The minimum bar for a `Drawable` is to be able to draw itself to a `Surface` pro
 * a `Streamable` is able to generate a sequential stream of its pixels, possibly given a clip box rectangle;
 * a `Rasterizable` is able to report a color of any pixel within its bounding rectangle, given the coordinates.
 
-Out of the drawable classes that we encountered so far, `Raster` and `Offscreen` are rasterizable, and `RleImage` and `RleImage4bppBiased` are streamable.
+Out of the drawable classes that we encountered so far, `Raster`, `Offscreen`, and all smooth shapes, are rasterizable, and `RleImage` and `RleImage4bppBiased` are streamable.
 
 In this section, we will focus on rasterizables, leaving streamables for the later section on flicker-less composition.
 

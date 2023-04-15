@@ -82,19 +82,25 @@ SmoothShape SmoothRotatedFilledRect(FpPoint center, float width, float height,
                          ENDING_FLAT);
 }
 
-SmoothShape SmoothOutlinedRoundRect(float x0, float y0, float x1, float y1,
-                                    float radius, float outline_thickness,
-                                    Color outline_color, Color interior_color) {
+SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
+                                 float radius, float thickness, Color color,
+                                 Color interior_color) {
+  if (radius < 0) radius = 0;
+  if (thickness < 0) thickness = 0;
   if (x1 < x0) std::swap(x0, x1);
   if (y1 < y0) std::swap(y0, y1);
+  x0 -= thickness * 0.5f;
+  y0 -= thickness * 0.5f;
+  x1 += thickness * 0.5f;
+  y1 += thickness * 0.5f;
+  radius += thickness * 0.5f;
   float w = x1 - x0;
   float h = y1 - y0;
   float max_radius = ((w < h) ? w : h) / 2;  // 1/2 minor axis.
+  if (radius > max_radius) radius = max_radius;
   float ro = radius;
-  if (ro > max_radius) ro = max_radius;
   if (ro < 0) ro = 0;
-  if (outline_thickness < 0) outline_thickness = 0;
-  float ri = ro - outline_thickness;
+  float ri = ro - thickness;
   if (ri < 0) ri = 0;
   x0 += ro;
   y0 += ro;
@@ -118,7 +124,7 @@ SmoothShape SmoothOutlinedRoundRect(float x0, float y0, float x1, float y1,
                               ri,
                               ro * ro + 0.25f,
                               ri * ri + 0.25f,
-                              outline_color,
+                              color,
                               interior_color,
                               std::move(inner_mid),
                               std::move(inner_wide),
@@ -127,22 +133,30 @@ SmoothShape SmoothOutlinedRoundRect(float x0, float y0, float x1, float y1,
   return SmoothShape(std::move(extents), std::move(spec));
 }
 
-SmoothShape SmoothFilledRoundRect(float x0, float y0, float x1, float y1,
-                                  float radius, Color color) {
-  return SmoothOutlinedRoundRect(x0, y0, x1, y1, radius, 0, color, color);
+SmoothShape SmoothRoundRect(float x0, float y0, float x1, float y1,
+                            float radius, Color color, Color interior_color) {
+  return SmoothThickRoundRect(x0, y0, x1, y1, radius, 1, color, interior_color);
 }
 
-SmoothShape SmoothOutlinedCircle(FpPoint center, float radius,
-                                 float outline_thickness, Color outline_color,
-                                 Color interior_color) {
-  return SmoothOutlinedRoundRect(center.x - radius, center.y - radius,
-                                 center.x + radius, center.y + radius, radius,
-                                 outline_thickness, outline_color,
-                                 interior_color);
+SmoothShape SmoothFilledRoundRect(float x0, float y0, float x1, float y1,
+                                  float radius, Color color) {
+  return SmoothThickRoundRect(x0, y0, x1, y1, radius, 0, color, color);
+}
+
+SmoothShape SmoothThickCircle(FpPoint center, float radius, float thickness,
+                              Color color, Color interior_color) {
+  return SmoothThickRoundRect(center.x - radius, center.y - radius,
+                              center.x + radius, center.y + radius, radius,
+                              thickness, color, interior_color);
+}
+
+SmoothShape SmoothCircle(FpPoint center, float radius, Color color,
+                         Color interior_color) {
+  return SmoothThickCircle(center, radius, 1, color, interior_color);
 }
 
 SmoothShape SmoothFilledCircle(FpPoint center, float radius, Color color) {
-  return SmoothOutlinedCircle(center, radius, 0, color, color);
+  return SmoothThickCircle(center, radius, 0, color, color);
 }
 
 namespace {
@@ -172,7 +186,7 @@ SmoothShape SmoothThickArc(FpPoint center, float radius, float thickness,
 
 SmoothShape SmoothPie(FpPoint center, float radius, float angle_start,
                       float angle_end, Color color) {
-  return SmoothThickArcWithBackground(center, radius, radius, angle_start,
+  return SmoothThickArcWithBackground(center, radius * 0.5f, radius, angle_start,
                                       angle_end, color, color::Transparent,
                                       color::Transparent, ENDING_FLAT);
 }
@@ -183,15 +197,16 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
                                          Color inactive_color,
                                          Color interior_color,
                                          EndingStyle ending_style) {
-  if (radius <= 0 || thickness <= 0 || angle_end == angle_start)
+  if (radius <= 0 || thickness <= 0 || angle_end == angle_start) {
     return SmoothShape();
-  if (thickness > radius) thickness = radius;
+  }
+  radius += thickness * 0.5f;
   if (angle_end < angle_start) {
     std::swap(angle_end, angle_start);
   }
   if (angle_end - angle_start >= 2 * M_PI) {
-    return SmoothOutlinedCircle(center, radius, thickness, active_color,
-                                interior_color);
+    return SmoothThickCircle(center, radius, thickness, active_color,
+                             interior_color);
   }
   while (angle_start > M_PI) {
     angle_start -= 2 * M_PI;
@@ -204,9 +219,10 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
   float end_cos = cosf(angle_end);
 
   float ro = radius;
-  float rm = thickness * 0.5f;
-  float rc = radius - thickness * 0.5f;
-  float ri = radius - thickness;
+  float ri = std::max(0.0f, ro - thickness);
+  thickness = ro - ri;
+  float rc = (ro + ri) * 0.5f;
+  float rm = (ro - ri) * 0.5f;
 
   float start_x_ro = ro * start_sin;
   float start_y_ro = -ro * start_cos;
@@ -465,11 +481,13 @@ void DrawWedge(const SmoothShape::Wedge& wedge, const Surface& s,
           xs = xp;
         }
       }
-      writer.writePixel(
-          xp, yp,
-          alpha == max_alpha
-              ? preblended
-              : AlphaBlend(s.bgcolor(), wedge.color.withA(alpha)));
+      if (alpha != 0 || s.fill_mode() == FILL_MODE_RECTANGLE) {
+        writer.writePixel(
+            xp, yp,
+            alpha == max_alpha
+                ? preblended
+                : AlphaBlend(s.bgcolor(), wedge.color.withA(alpha)));
+      }
     }
   }
 
@@ -495,11 +513,13 @@ void DrawWedge(const SmoothShape::Wedge& wedge, const Surface& s,
           xs = xp;
         }
       }
-      writer.writePixel(
-          xp, yp,
-          alpha == max_alpha
-              ? preblended
-              : AlphaBlend(s.bgcolor(), wedge.color.withA(alpha)));
+      if (alpha != 0 || s.fill_mode() == FILL_MODE_RECTANGLE) {
+        writer.writePixel(
+            xp, yp,
+            alpha == max_alpha
+                ? preblended
+                : AlphaBlend(s.bgcolor(), wedge.color.withA(alpha)));
+      }
     }
   }
 }
@@ -1107,6 +1127,8 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
           dbl < r_ring_min_sq) {
         return NON_UNIFORM;
       }
+    } else {
+      return NON_UNIFORM;
     }
   } else if (xMin >= arc.xc) {
     if (yMax <= arc.yc) {
@@ -1123,7 +1145,11 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
           dbr < r_ring_min_sq) {
         return NON_UNIFORM;
       }
+    } else {
+      return NON_UNIFORM;
     }
+  } else {
+    return NON_UNIFORM;
   }
   // The rectangle is entirely inside the ring. Let's check if it is actually
   // single-color.
@@ -1204,7 +1230,7 @@ void FillSubrectOfArc(const SmoothShape::Arc& arc, const ArcDrawSpec& spec,
     for (int16_t y = box.yMin(); y <= box.yMax(); ++y) {
       for (int16_t x = box.xMin(); x <= box.xMax(); ++x) {
         Color c = GetSmoothArcPixelColor(arc, x, y);
-        if (c.a() == 0) continue;
+        if (c == color::Transparent) continue;
         writer.writePixel(
             x, y,
             c == interior           ? spec.pre_blended_interior

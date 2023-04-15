@@ -34,25 +34,36 @@ SmoothShape SmoothWedgedLine(FpPoint a, float width_a, FpPoint b, float width_b,
                              EndingStyle ending_style = ENDING_ROUNDED);
 
 // Creates an outlined, round-cornered rectangle with the specified bounds,
-// corner radius, outline thickness, outline color, and (optionally) interior
-// color, defaulting to transparent.
-SmoothShape SmoothOutlinedRoundRect(float x0, float y0, float x1, float y1,
-                                    float radius, float outline_thickness,
-                                    Color outline_color,
-                                    Color interior_color = color::Transparent);
+// corner radius, color, and (optionally) interior color, defaulting
+// to transparent.
+SmoothShape SmoothRoundRect(float x0, float y0, float x1, float y1,
+                            float radius, Color color,
+                            Color interior_color = color::Transparent);
+
+// Creates an outlined, round-cornered rectangle with the specified bounds,
+// corner radius, thickness, color, and (optionally) interior color, defaulting
+// to transparent.
+SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
+                                 float radius, float thickness, Color color,
+                                 Color interior_color = color::Transparent);
 
 // Creates a round-rectangle with the specified bounds, corner radius, and
 // color.
 SmoothShape SmoothFilledRoundRect(float x0, float y0, float x1, float y1,
                                   float radius, Color color);
 
-// Creates a circle with the specified center, radius, outline width, outline
-// color, and optionally interior color (defaulting to transparent).
-SmoothShape SmoothOutlinedCircle(FpPoint center, float radius,
-                                 float outline_thickness, Color outline_color,
-                                 Color interior_color = color::Transparent);
+// Creates a circle with the specified center, radius, color, and
+// optionally interior color (defaulting to transparent).
+SmoothShape SmoothCircle(FpPoint center, float radius, Color color,
+                         Color interior_color = color::Transparent);
 
-// Creates a circle with the specified center, radius, and color.
+// Creates a circle with the specified center, radius, thickness,
+// color, and optionally interior color (defaulting to transparent).
+SmoothShape SmoothThickCircle(FpPoint center, float radius, float thickness,
+                              Color color,
+                              Color interior_color = color::Transparent);
+
+// Creates a filled circle with the specified center, radius, and color.
 SmoothShape SmoothFilledCircle(FpPoint center, float radius, Color color);
 
 // Creates a rotated filled rectangle with the specified center point, with,
@@ -189,11 +200,10 @@ class SmoothShape : public Rasterizable {
                                       float width_b, Color color,
                                       EndingStyle ending_style);
 
-  friend SmoothShape SmoothOutlinedRoundRect(float x0, float y0, float x1,
-                                             float y1, float radius,
-                                             float outline_thickness,
-                                             Color outline_color,
-                                             Color interior_color);
+  friend SmoothShape SmoothThickRoundRect(float x0, float y0, float x1,
+                                          float y1, float radius,
+                                          float thickness, Color color,
+                                          Color interior_color);
 
   friend SmoothShape SmoothRotatedFilledRect(FpPoint center, float width,
                                              float height, float angle,

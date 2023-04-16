@@ -24,7 +24,9 @@ class FrontToBackWriter : public DisplayOutput {
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
                   PaintMode mode) override {
     mask_filter_.setAddress(x0, y0, x1, y1, mode);
-    offscreen_.output().setAddress(x0, y0, x1, y1, mode);
+    int16_t dx = mask_.bounds().xMin();
+    int16_t dy = mask_.bounds().yMin();
+    offscreen_.output().setAddress(x0 - dx, y0 - dy, x1 - dx, y1 - dy, mode);
   }
 
   void write(Color* color, uint32_t pixel_count) override {

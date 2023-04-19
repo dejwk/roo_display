@@ -2,7 +2,7 @@
 
 This guide is work in progress. Please come back soon for updated content!
 
-## Fundamentals
+## Part 1: Getting started
 
 ### Connecting your display
 
@@ -181,6 +181,8 @@ void loop() {
 ```
 
 ![img1](doc/images/img1.png)
+
+In section TODO(ref), we will explore how to draw other shapes, and how to use anti-aliasing.
 
 ### Color
 
@@ -658,7 +660,7 @@ void loop() {
 
 ![img18](doc/images/img18.png)
 
-## Drawing individual pixels
+### Drawing individual pixels
 
 There is no 'Pixel' drawable. Drawing pixels as individual drawables would be slow.
 
@@ -706,17 +708,19 @@ void loop() {
 
 When possible, try to draw subsequent pixels in horizontal or vertical streaks, i.e., write pixels in a single direction as much as possible. It may help the underlying device driver to reduce communication volume (e.g. SPI transfers), thus improving performance.
 
-## Working with text
+## Part 2: Features in depth
+
+### Working with text
 
 This section digs deeper into the details of handling text output.
 
-### Fonts
+#### Fonts
 
 As most things in `roo_display`, a font is represented by an abstract class: `Font`. Most of the time, you can treat a font as an opaque object that you pass to `TextLabel`. Nonetheless, we will now look at `Font` in some more detail.
 
 Logically, each font is a collection of _glyphs_ (individual symbols), covering some subset of Unicode.
 
-#### Pre-packaged fonts
+##### Pre-packaged fonts
 
 The primary concrete font implementation in `roo_display` is the `SmoothFont` class. A smooth font stores glyphs in PROGMEM, using a custom internal data format. Smooth fonts are anti-aliased (they use 4-bit alpha), and support kerning. In order to use a smooth font, all you need to do is to include and reference it, as we saw in the examples above.
 
@@ -732,7 +736,7 @@ The footprint of smooth fonts in PROGMEM is reasonably small - unless you use ma
 
 In addition to smooth fonts, you will also find a simple fixed-size 5x7 'Adafruit' ASCII font. You will likely not find it very useful, except perhaps as a simple case study of the font implementation.
 
-#### Importing custom fonts
+##### Importing custom fonts
 
 There are many reasons why you might want to import additional fonts. Maybe you want to use a different face; maybe you need a different size, or maybe you need a different set of glyphs. Whatever the reason, importing fonts is easy, with help of [roo_display_font_importer](https://github.com/dejwk/roo_display_font_importer). This Java-based tool will convert any font available in your system, at any size you want, and with any glyph subset you want, to a smooth font that you can use with `roo_display`.
 
@@ -766,7 +770,7 @@ void loop() {
 
 ![img21](doc/images/img21.png)
 
-#### Metrics
+##### Metrics
 
 You can obtain general font metrics by calling `font.metrics()`. The returned `FontMetrics` object allows you to obtain FreeType properties of the font, such as ascent, descent, linegap, linespace, as well as the maximum glyph extents. You can also find out the minimum left- and right-side bearing, which specify how much can a glyph 'stick out' of its anchor extents. More on that below, in the section on alignment.
 
@@ -778,7 +782,7 @@ Finally, by calling `font.getHorizontalStringGlyphMetrics(StringView)` you can m
 
 That said, the same properties are also captured by `TextLabel`'s `extents()` and `anchorExtents()`, which may be simpler to use (see below).
 
-### Alignment
+#### Alignment
 
 Text alignment can be a little tricky. When optically left- or right-aligned, a glyph, such as 'y', may actually have a 'tail' that hang outside of the alignment boundary. Another glyph, such as 'i', may have a gap. Top and bottom alignment does not depend on glyphs at all, but only on the overall font's metrics, so that the text doesn't jump up and down when the content changes. Also, in many cases, you may need to keep text aligned at baseline.
 
@@ -850,7 +854,7 @@ void loop() {
 
 If you want to know exactly how much padding is needed for a given font so that it never truncates any glyph, use `font.metrics().minLsb()` and `font.metrics().minRsb()`. Note that 'overhangs' are represented by negative values. That is, if these methods return non-negative values, the text will never overhang for that font.
 
-### Aligning at baseline
+##### Aligning at baseline
 
 Text baseline always has y-coordinate zero. Therefore, using `kBaseline` will keep the text aligned at baseline:
 
@@ -895,7 +899,7 @@ void loop() {
 
 Note that for spacing the words, we relied on the fact that `anchorExtents().width()` is equal to the text advance, and that the 'space' glyph has proper advance for its font size, resulting in naturally-looking spacing.
 
-### UTF-8
+#### UTF-8
 
 Text labels, as well as any other routines operating on strings, assume UTF-8 encoding. Most code editors also use UTF-8, which means that you can simply paste Unicode content into your string literals, and things just work (see the OpenSymbol example above).
 
@@ -905,7 +909,7 @@ The library provides a few utilities to work with UTF-8, in the `"roo_display/co
 * `EncodeRuneAsUtf8()` is a convenience function that helps converting regular, multi-byte UTF code points to UTF-8.
 * `Utf8Decoder` is a utility class that does the opposite, i.e. it allows to extract subsequent code points out of UTF-8 content.
 
-### Formatted text
+#### Formatted text
 
 The library provides convenience 'sprintf-like' utilities in `"roo_display/ui/string_printer.h"`. You can use them to format text into `std::string`, which is used in other places such as the `TextLabel`.
 
@@ -915,15 +919,15 @@ The library provides convenience 'sprintf-like' utilities in `"roo_display/ui/st
 TextLabel label(StringPrintf("%.1f°C", temp), font, color);
 ```
 
-### Drawing numbers
+#### Drawing numbers
 
 Digits are often monotype, even in proportional fonts. Sometimes you can use this property to minimize redraws; e.g. use glyph metrics to determine positions of digits, and then update the individual digits.
 
 Be careful, though: even though the _anchor_ extents of all digits may be the same, the regular extents are not. The bounding box of digit '1' is going to be smaller than that of digit '0', even though they have the same advance. For this reason, you may still need to use `Tile` when rendering numeric content.
 
-## Drawing shapes
+### Drawing shapes
 
-### Basic shapes
+#### Basic shapes
 
 The file ```roo_display/shape/basic.h``` lets you draw some basic single-color shapes, namely:
 
@@ -966,7 +970,7 @@ Circles and filled circles can be specified in two ways:
 
 The former is more natural, but only the latter allows you to specify circles with even diameters. (If you specify the circle as a center point and a radius, the circle will always be symmetric about the center point - but it implies that the diameter is really 2 * r + 1, for integer coordinates).
 
-### Anti-aliased shapes
+#### Anti-aliased shapes
 
 A more recently introduced collection of anti-aliased flicker-free shapes can be found in ```roo_display/shape/smooth.h```. For starters, you can use it to smooth out commonly drawn primitives, such as circles, rounded rectangles, and triangles:
 
@@ -1038,7 +1042,7 @@ void loop() {
 
 > Note: floating-point coordinates obviate the need to ever specify circles by extents. Smooth circles are always specifies via center point and a radius.
 
-### Thick and color-filled outlines
+#### Thick and color-filled outlines
 
 Speaking of thickness: you are not limited to the 1-pixel-thick outlines. You can specify arbitrary positive floating-point thickness:
 
@@ -1081,7 +1085,7 @@ void loop() {
 
 ![img43](doc/images/img43.png)
 
-### Thick lines
+#### Thick lines
 
 You can add thickness to lines:
 
@@ -1156,7 +1160,7 @@ void loop() {
 
 Note that for the center square, we used the utility method `SmoothRotatedFilledRect` that draws a rectangle with specified center, sides, and rotation angle.
 
-### Wedges
+#### Wedges
 
 You can specify different widths for two ends of a line, thus creating 'wedge-like' shapes:
 
@@ -1205,7 +1209,7 @@ void loop() {
 
 ![img49](doc/images/img49.png)
 
-### Arcs
+#### Arcs
 
 You can draw arcs with a specified radius as well as the start and end angle:
 
@@ -1309,7 +1313,7 @@ void loop() {
 
 Later, we will see how to animate these without flicker.
 
-### Pies
+#### Pies
 
 By drawing an arc with flat ends and width exactly equal to half the radius, we get a pie. The library provides a convenience function to create these:
 
@@ -1337,21 +1341,25 @@ void loop() {
 
 ![img54](doc/images/img54.png)
 
-### Caveats of anti-aliased graphics
+#### Caveats of anti-aliased graphics
 
 Anti-aliased graphics can work wonders on low-resolution displays, and it is often an indispensable tool. Nonetheless, it comes with some caveats, that we will describe below.
 
-#### Background
+##### Background
 
 If your display driver natively supports alpha-blending (e.g. using a parallel driver for ESP32-S3), or if you are drawing to an intermediate memory buffer (described later), everything will work great - you can draw smooth primitives over each other, and they will be correctly anti-aliased.
 
 Otherwise, smooth primitives will only look good on single-color backgrounds, and you need to be careful to set the background color correctly.
 
-#### Performance
+##### Low-color modes
+
+You need many colors to correctly represent anti-aliased graphics. For that reason, it will not work well in low-color modes (e.g. monochrome displays, or when drawing to an offscreen buffer using an indexed color mode).
+
+##### Performance
 
 Anti-aliased primitives take 2-3 times longer to draw, compared with basic counterparts.
 
-## Drawing images and icons
+### Drawing images and icons
 
 The `roo_display` library supports drawing JPEG and PNG images out of the box.
 
@@ -1359,7 +1367,7 @@ For low-footprint artwork such as icons and small images, the library provides a
 
 If you just want to use some simple icons, there is a companion library of `roo_material_icons`, containing over 34000 Google 'Material Design' icons in various styles and 4 predefined sizes.
 
-### JPEG
+#### JPEG
 
 You can easily draw JPEG images stored on an SD card, SPIFFS, or some other file system:
 
@@ -1424,7 +1432,7 @@ void loop() {
 
 ![img24](doc/images/img24.png)
 
-### PNG
+#### PNG
 
 Drawing PNG files is very similar to drawing JPEGs:
 
@@ -1493,7 +1501,7 @@ void loop() {
 
 ![img25](doc/images/img25.png)
 
-### Built-in image format
+#### Built-in image format
 
 Your application may need to draw icons and simple static images. Storing them in PNG files has a number of disadvantages:
 
@@ -1635,7 +1643,7 @@ We made the image small so that the example fits on one page, but this technique
 
 The image size, in pixels, is 60x45, which would mean 1350 bytes without compression (note that we're using 4bpp, i.e. 2 pixels per byte). The RLE compression reduced it to 547 bytes, i.e. by almost 60%.
 
-#### Pixel formats
+##### Pixel formats
 
 Both the Raster class and the RleImage class support a wide range of color modes, namely:
 
@@ -1672,7 +1680,7 @@ This flexibility means that if you happen to have some existing uncompressed ima
 
 In addition to the general-purpose `RleImage`, the library supports an alternative RLE encoding format, `RleImage4bppxBiased`, designed specifically for 4bpp color modes. This format is intended for cases when the colors encoded as 0x0 and 0xF occur significantly more frequently than the colors 0x1 - 0xE. The main application is to compress monochrome, antialiased content, such as font glyphs and icons, using the Alpha4 color mode. In these cases, 0x0 represents the 'background' and 0xF represents the 'foreground', while the other colors are used for antialiased 'edges'.
 
-#### Importing images
+##### Importing images
 
 You can use a companion utility [roo_display_image_importer](https://github.com/dejwk/roo_display_image_importer) to convert arbitrary images to the `roo_display`'s built-in image format:
 
@@ -1684,7 +1692,7 @@ unzip roo_display_image_importer.zip
 
 See the importer's [documentation](https://github.com/dejwk/roo_display_image_importer) for details.
 
-### Using the Material Icons collection
+#### Using the Material Icons collection
 
 If you want to use modern high-quality icons, try the companion library [roo_material_icons](https://github.com/dejwk/roo_material_icons). It contains over 34000 'Material Design' icons, divided into 4 styles, 18 categories, and 4 sizes (18x18, 24x24, 36x36, and 48x48). These free icons are well known from Google products and Android. You can browse them [here](https://fonts.google.com/icons?icon.set=Material+Icons).
 
@@ -1820,7 +1828,7 @@ Note that the icons usually need to be drawn tiled, because their extents may be
 
 > Note: due to the sheer volume, full compilation of icon files may take a few minutes. (No worries, though: only the icons that you _actually use_ get linked into your binary). If the compilation times bother you, delete icon files that you are not going to use.
 
-## Using off-screen buffers
+### Using off-screen buffers
 
 The `Offscreen` class allows you to draw to a memory buffer, instead of directly to the screen. It can be particularly useful in a couple of scenarios:
 
@@ -1861,7 +1869,7 @@ Note how the circles blend over each other, and how the text is correctly anti-a
 
 There is a number of important observations to make based on this example. First, you can specify the offscreen's color mode. Second, you can obtain a drawing context for the Offscreen, and draw anything to it, just as it if was a real device. Third, the offscreen is itself drawable, so you can easily draw it on the screen (or even to another offscreen) when you need to.
 
-### Buffer allocation
+#### Buffer allocation
 
 When created, the offscreen tries to allocate a memory buffer on the heap. The amount of memory needed is implied by the offscreen dimensions and the color mode. In our example, the buffer needs 200 _140_ 2 = 56000 bytes. If you specify the background color in the constructor, that buffer will be initialized (the offscreen will be cleared using that background color). Otherwise, the buffer will remain un-initialized; you will need to update all the offscreen's pixels manually.
 
@@ -1879,7 +1887,7 @@ void loop() {
 
 Note that in this case, the buffer is _not_ cleared in the constructor.
 
-### Pixel formats
+#### Pixel formats
 
 You can parameterize the offscreen in exactly the same way as you can parameterize a raster. That is, you can specify the color mode, as well as byte order (for multi-byte color modes) or pixel order (for sub-byte color modes). Essentially, you can think of an offscreen as a DRAM raster that you can draw to. In fact, you can retrieve that raster, by calling `offscreen.raster()`.
 
@@ -1887,14 +1895,14 @@ Usually, you will want to use the Rgb565 color mode, as it is what most displays
 
 Byte order and pixel order are rarely relevant (so, stick to the defaults). They may matter if you plan to export the resulting raster outside of the library and you need to adhere to a specific pixel format.
 
-#### Indexed color modes
+##### Indexed color modes
 
 When using offscreens with indexed color modes, you need to specify the color palette. You have two options:
 
 * provide the specific list of palette colors up front, or
 * allow the library to dynamically build the palette as you draw the content.
 
-##### Using a specific palette
+###### Using a specific palette
 
 Using an explicit palette with an offscreen is similar to using it with a raster, except for one important difference: the palette must be created as `ReadWrite`:
 
@@ -1944,7 +1952,7 @@ Note that even though we only drew three colors explicitly (cyan, magenta, and y
 
 If you do try to draw a color that is not in the palette, the first color of the palette is used as a replacement.
 
-##### Using a dynamic palette
+###### Using a dynamic palette
 
 Anticipating all the colors you'll use can be a little tedious. A simpler way is to let `roo_display` build the palette for you automatically, using the colors that you actually use when drawing:
 
@@ -1977,7 +1985,7 @@ The colors are added to the palette in the order you use them. When you try to d
 
 > Note: antialiasing doesn't work well with small palettes. Tonal gradients need a lot of colors.
 
-### Clip masks
+#### Clip masks
 
 In an earlier section, we saw how to use clip masks to restrict drawing to non-rectangular, complex areas. A clip mask, however, is essentially a 1-bit-per-pixel raster. It means that we can use Offscreen to construct bit masks!
 
@@ -2031,7 +2039,7 @@ void loop() {
 
 As you can see, clip masks can be useful for drawing complex geometry with minimum RAM footprint. We just need to draw the primitives multiple times, applying different masks. It will be slower than preparing everything in a 'real' Rgb565 offscreen and drawing it out, but it only needs 9600 bytes for the entire 320x200 screen, as opposed to over 153 KB for Rgb565 (that we unlikely to be able to allocate).
 
-### Offscreens with transparency: PAINT_MODE_REPLACE
+#### Offscreens with transparency: PAINT_MODE_REPLACE
 
 Ocassionally, you may want to use an Offscreen with an alpha channel, that is, using one of the color modes that support transparency, such as ARGB8888, ARGB6666, ARGB4444, Alpha4, etc. This way you can prepare translucent contents in the offscreen buffer, and later alpha-blend it over something else. It poses an interesting challenge: how do you actually draw translucent contents to such an offscreen? Whatever you draw, will, by default, be alpha-blended over the existing content. The issue is similar to painting on glass: the more paint you put on the glass, the more opaque it becomes, no matter how tranlucent the paint is. How do you _replace_ the underlying color with translucency, effectively 'erasing' the glass before you put the new paint on?
 
@@ -2043,7 +2051,7 @@ The solution it to call so call `setPaintMode(PAINT_MODE_REPLACE)` on the Drawin
 
 Paint mode can be adjusted for any drawing context, not just for the offscreens. It is rarely relevant for physical devices, though, because they operate in RGB (e.g. RGB565), without alpha, so there is rarely any need to output translucent colors to them and expect anything else than alpha-blending over the background bolor (or existing contents if they support that).
 
-### Extents and alignment
+#### Extents and alignment
 
 So far, for the offscreens we created, the only geometry we specified was width and height. Such an offscreen has both extents and anchor extents equal to `(0, 0, width - 1, height - 1)`.
 
@@ -2075,7 +2083,7 @@ Finally, there is a convenience offscreen constructor that accepts an arbitrary 
 
 In the next section, we will see why it may be sometimes useful (if you can afford the memory).
 
-## Backgrounds
+### Backgrounds
 
 Not all drawables are created equal.
 
@@ -2225,11 +2233,11 @@ void loop() {
 
 Now you can practically forget that the background is there - it will be painted no matter what you draw.
 
-## Touch
+### Touch
 
 In this section, we will look at support for touch-screen devices.
 
-### Configuration
+#### Configuration
 
 Touch configuration tends to be quite independent from the display. Some devices may use the same SPI bus for both (with common SCK, MOSI used for the display, and MISO used for touch). Some others may have completely separate SPI pins for touch. (That gives more flexibility, but you can still attach these to the same SPI bus if you want to). Yet others may use different bus types for display and touch whatsoever; e.g. parallel interface for display, and a 2-Wire for touch.
 
@@ -2264,7 +2272,7 @@ void setup() {
 
 The 'touch CS' pin is specified as a template argument to the touch driver. `SPI.begin()` handles both the display and touch, since they are connected to the same bus (using default pins) in this case.
 
-### Calibration
+#### Calibration
 
 The native coordinate system used by your touch device can be completely different than your display. For example, you may have a 320x240 screen, but the XPT 2046 will report coordinates in the range [0..4095], and they may even be flipped with respect to the screen.
 
@@ -2272,7 +2280,9 @@ The native coordinate system used by your touch device can be completely differe
 
 How do you figure out the right values? Use the script `examples/calibrate_touch.ino` which guides you through the steps.
 
-### Usage
+#### Usage
+
+TODO(discuss multi-touch)
 
 Once configured and calibrated, touch is simple to use. Specifically, the `Display` class provides the following method:
 
@@ -2347,7 +2357,7 @@ void loop(void) {
 
 Touch coordinates always correspond to the display coordinates, which is to say, they respond to the display orientation settings. Basically, if you draw a point at (x, y) and touch it, the touch coordinates are (x, y) as well.
 
-## Implementing your own drawables
+### Implementing your own drawables
 
 In the earlier section, we had a quick peek at the `Drawable` interface. Let's not look at it in more detail:
 
@@ -2391,7 +2401,7 @@ class Drawable {
 
 We already discussed `extents()` and `anchorExtents()` before. The former specifies the minimum bounding box for any pixels drawn, and the latter defines bounds for the purpose of alignment.
 
-## Using DrawingContext
+#### Using DrawingContext
 
 In order to implement the actual drawing, you override either `drawTo()` or `drawInteriorTo()`. Implementing the latter is a little easier, so we will start with that.
 
@@ -2458,11 +2468,11 @@ Note that the drawing context will take care of any offsets due to alignment, so
 
 Also, you can apply any paremeterization supported by the drawing context. For example, you can add backgrounds or transformations, apply clip masks, and set background colors.
 
-#### Handling FILL_MODE_RECTANGLE
+##### Handling FILL_MODE_RECTANGLE
 
 If you looked carefully at the definition of the `Drawable` class before, you may have noticed that the difference between `drawTo()` and `drawInteriorTo` is that the former needs to respect the drawing context's fill mode. That is, in case of FILL_MODE_RECTANGLE, `drawTo()` needs to draw all pixels of the `extents()` rectangle - even those that are fully transparent. In some cases it is simple or even trivial (e.g. for objects that are naturally rectangular, such as images). In other cases it is difficult - which is why the default implementation is provided in the first place. The rule of thumb: if it is simple enough, override `drawTo()`; otherwise, override `drawInteriorTo()`.
 
-### Drawing to the surface
+#### Drawing to the surface
 
 Using `DrawingContext` is simple and powerful, but it adds some CPU and memory overhead. In particular, the `DrawingContext` object is over 0.5KB in size, so it may add some pressure on your call stack usage.
 
@@ -2480,7 +2490,7 @@ If all you need is draw some existing objects without applying any transformatio
 
 This method will still correctly handle any translations, clipping, and the inherited background color, so you don't need to worry about any of that.
 
-### Drawing directly to the driver
+#### Drawing directly to the driver
 
 If your drawable is drawn frequently and if it consists of many small parts, the techniques described above may add too much overhead.  In this case, you need to go to a lower level, and write more directly to `s.out()`, which generally is your display's driver. You will then need to manually handle some aspects of the drawable contract. Specifically:
 
@@ -2491,7 +2501,7 @@ If your drawable is drawn frequently and if it consists of many small parts, the
 
 With these in mind, you can call the methods on `s.out()` to output rectangles or pixels via the driver API.
 
-#### Driver API
+##### Driver API
 
 The driver API, represented by the `DisplayOutput` class, is quite small; it consists of just 6 'core' methods:
 
@@ -2505,7 +2515,7 @@ As you can see, the API operates on _batches_ of items. It is key to achieving g
 
 In most cases, optimal use of the batch API does not come naturally, so you may want to use buffered drawing utilities.
 
-#### Buffered drawing utilities
+##### Buffered drawing utilities
 
 Helper classes defined in `roo_display/core/buffered_drawing.h` are adapters that allow drawing individual primitives such as pixels, lines, or rectangles, grouping them in batches before sending them to the driver. When you instantiate such an adapter, it allocates a small buffer on the stack, and uses that buffer to build up batches that are then flushed to the driver.
 
@@ -2531,15 +2541,27 @@ Finally, there is `BufferedColorWriter` that buffers calls to `write`.
 
 Checking for clipping at every item adds some overhead, so it is better to optimize it out if possible. For example, the built-in implementation of `Line::drawTo()` will first check if the line fits entirely in the clip rectangle, and if so, it uses the 'non-clipping' variant of the HLineFiller or the VLineFiller (depending on slope).
 
-## Flicker-less composition
+## Part 3: Advanced topics
 
-## Extending the library
+### Avoiding flicker and aliasing artifacts
+
+Flicker is an enemy of slick UIs. It gets in the way of smooth animations. Also, the presence of flicker means that we have drawn some pixels more times than necessary, wasting the communication bandwidth.
+
+#### Using Offscreen
+
+#### Using backgrounds
+
+#### Using rasterizable overlays and color filters
+
+#### Stacking streamables and rasterizables using Combo classes
+
+#### Using the background-fill optimizer
 
 ### Adding new device drivers
 
 TL;DR: there are a lot of really similar devices around. Try the age-old technique first: if you see a device similar to yours that is already supported, try tweaking its existing driver.
 
-#### DisplayDevice
+##### DisplayDevice
 
 A display driver is represented by the abstract `DisplayDevice` class. To implement a driver, means to implement the pure virtual methods in this class:
 
@@ -2564,7 +2586,7 @@ The `setAddress()` and `{write/fill}x{Pixels/Rects}` methods accept a `PaintMode
 
 If a destination color is non-opaque and the driver does not support the 'alpha' channel, the driver should simply ignore the alpha and treat the color as opaque.
 
-#### The AddrWindowDevice template class
+##### The AddrWindowDevice template class
 
 Many display devices are internally implemented using the same underlying paradigm, in which all drawing is essentially reduced to `setAddress()` and `write()`. The AddrWindowDevice helper base class provides a common implementation that implements this paradigm. The class is parameterized using a `Target` class. Essentially, instead of implementing the `DisplayDevice`, you now need to implement a `Target`. The number of methods to implement there is actually larger, but they are simpler. You no longer need to worry about rectangles, pixels, and ARGB conversion; instead, you need to implement basic primitives to set the address window in the X/Y direction, and to write raw pixel data in the native format (often RGB565). Additionally, the base class implements a useful implementation for `writePixels` and `fillPixels`, namely: it detects neighboring pixels in a batch, and tries to minimize the number of calls to 'set window' methods. This implementation can considerably reduce communication volume and thus significantly improve pixel drawing performance.
 
@@ -2572,7 +2594,7 @@ The implementation of most of the existing drivers, e.g. ILI9486, ILI9488, ILI94
 
 > Note that template parameterization is used rather than inheritance, to facilitate code inlining and avoid the cost of (virtual) method calls. It allows these drivers to be as fast as they would have been if implemented from scratch.
 
-#### Transport abstraction
+##### Transport abstraction
 
 In order to support hardware-optimized, microcontroller-specific SPI and GPIO implementations, and to provide extensibility towards non-SPI transports, the drivers are generally templated on `Transport` and `Gpio` classes. The `Transport` provides the following methods:
 
@@ -2583,4 +2605,4 @@ SPI drivers are specializations that use the `DefaultSpi` transport by default, 
 
 > Again, templates are used to maximize inlining and bring the performance close to 'bare metal'.
 
-### Supporting non-SPI transports
+#### Supporting non-SPI transports

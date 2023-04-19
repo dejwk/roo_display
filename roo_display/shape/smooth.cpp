@@ -804,7 +804,7 @@ inline void FillSubrectOfRoundRect(const SmoothShape::RoundRect& rect,
     for (int16_t y = box.yMin(); y <= box.yMax(); ++y) {
       for (int16_t x = box.xMin(); x <= box.xMax(); ++x) {
         Color c = GetSmoothRoundRectPixelColor(rect, x, y);
-        if (c.a() == 0) continue;
+        if (c == color::Transparent) continue;
         writer.writePixel(x, y,
                           c == interior  ? spec.pre_blended_interior
                           : c == outline ? spec.pre_blended_outline
@@ -882,7 +882,7 @@ void DrawRoundRect(SmoothShape::RoundRect rect, const Surface& s,
         rect, spec,
         Box(box.xMin(), inner.yMin(), inner.xMin() - 1, inner.yMax()));
     if (s.fill_mode() == FILL_MODE_RECTANGLE ||
-        spec.pre_blended_interior != color::Transparent) {
+        rect.interior_color != color::Transparent) {
       s.out().fillRect(inner, spec.pre_blended_interior);
     }
     FillSubrectangle(

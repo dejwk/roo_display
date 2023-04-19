@@ -17,10 +17,6 @@ class FrontToBackWriter : public DisplayOutput {
         mask_(offscreen_.buffer(), bounds),
         mask_filter_(output, &mask_) {}
 
-  ~FrontToBackWriter() {
-    mask_filter_.fillRect(PAINT_MODE_REPLACE, mask_.bounds(), color::White);
-  }
-
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
                   PaintMode mode) override {
     mask_filter_.setAddress(x0, y0, x1, y1, mode);

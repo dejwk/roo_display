@@ -1,7 +1,8 @@
 #include "roo_display/core/combo.h"
 
 namespace roo_display {
-namespace internal {
+
+namespace {
 
 struct Chunk {
   Chunk(uint16_t width, uint16_t input_mask)
@@ -123,7 +124,7 @@ class Composition {
  private:
   Box bounds_;
   std::vector<Box> input_extents_;  // Unclipped.
-  std::vector<internal::Block> data_;
+  std::vector<Block> data_;
   int input_count_;
 };
 
@@ -280,7 +281,7 @@ inline bool Composition::Add(const Box& full_extents) {
   int input_idx = input_count_;
   uint16_t input_mask = 1 << input_idx;
   input_count_++;
-  std::vector<internal::Block> newdata;
+  std::vector<Block> newdata;
   newdata.reserve(data_.capacity());
   auto i = data_.begin();
   int16_t cursor;
@@ -334,27 +335,27 @@ inline bool Composition::Add(const Box& full_extents) {
   }
 }
 
-void writeRect(internal::Engine* engine, const Box& bounds,
+void WriteRect(Engine* engine, const Box& bounds,
                internal::BufferingStream* streams, const Surface& s) {
   s.out().setAddress(bounds, s.paint_mode());
   BufferedColorWriter writer(s.out());
   while (true) {
     switch (engine->fetch()) {
-      case internal::EXIT: {
+      case EXIT: {
         return;
       }
-      case internal::BLANK: {
+      case BLANK: {
         uint16_t count = engine->read_word();
         writer.writeColorN(s.bgcolor(), count);
         break;
       }
-      case internal::SKIP: {
+      case SKIP: {
         uint16_t input = engine->read_word();
         uint16_t count = engine->read_word();
         streams[input].skip(count);
         break;
       }
-      case internal::WRITE_SINGLE: {
+      case WRITE_SINGLE: {
         uint16_t input = engine->read_word();
         uint16_t count = engine->read_word();
         do {
@@ -372,7 +373,7 @@ void writeRect(internal::Engine* engine, const Box& bounds,
         } while (count > 0);
         break;
       }
-      case internal::WRITE: {
+      case WRITE: {
         uint16_t inputs = engine->read_word();
         uint16_t count = engine->read_word();
         do {
@@ -418,17 +419,17 @@ void writeRect(internal::Engine* engine, const Box& bounds,
   }
 }
 
-void writeVisible(internal::Engine* engine, const Box& bounds,
+void WriteVisible(Engine* engine, const Box& bounds,
                   internal::BufferingStream* streams, const Surface& s) {
   BufferedPixelWriter writer(s.out(), s.paint_mode());
   uint16_t x = bounds.xMin();
   uint16_t y = bounds.yMin();
   while (true) {
     switch (engine->fetch()) {
-      case internal::EXIT: {
+      case EXIT: {
         return;
       }
-      case internal::BLANK: {
+      case BLANK: {
         uint16_t count = engine->read_word();
         x += count;
         if (x > bounds.xMax()) {
@@ -437,13 +438,13 @@ void writeVisible(internal::Engine* engine, const Box& bounds,
         }
         break;
       }
-      case internal::SKIP: {
+      case SKIP: {
         uint16_t input = engine->read_word();
         uint16_t count = engine->read_word();
         streams[input].skip(count);
         break;
       }
-      case internal::WRITE_SINGLE: {
+      case WRITE_SINGLE: {
         uint16_t input = engine->read_word();
         uint16_t count = engine->read_word();
         if (s.bgcolor() == color::Transparent) {
@@ -473,7 +474,7 @@ void writeVisible(internal::Engine* engine, const Box& bounds,
         }
         break;
       }
-      case internal::WRITE: {
+      case WRITE: {
         uint16_t inputs = engine->read_word();
         uint16_t count = engine->read_word();
         Color buf[kPixelWritingBufferSize];
@@ -536,13 +537,13 @@ void writeVisible(internal::Engine* engine, const Box& bounds,
   }
 }
 
-}  // namespace internal
+}  // namespace
 
 void Combo::drawTo(const Surface& s) const {
   Box bounds = Box::Intersect(s.clip_box(), extents_.translate(s.dx(), s.dy()));
   if (bounds.empty()) return;
   std::vector<internal::BufferingStream> streams;
-  internal::Composition composition(bounds);
+  Composition composition(bounds);
   for (const auto& input : inputs_) {
     const Box& iextents = input.extents();
     if (composition.Add(iextents.translate(s.dx(), s.dy()))) {
@@ -550,13 +551,13 @@ void Combo::drawTo(const Surface& s) const {
     }
   }
 
-  internal::Program prg;
+  Program prg;
   composition.Compile(&prg);
-  internal::Engine engine(&prg);
+  Engine engine(&prg);
   if (s.fill_mode() == FILL_MODE_RECTANGLE) {
-    internal::writeRect(&engine, bounds, &*streams.begin(), s);
+    WriteRect(&engine, bounds, &*streams.begin(), s);
   } else {
-    internal::writeVisible(&engine, bounds, &*streams.begin(), s);
+    WriteVisible(&engine, bounds, &*streams.begin(), s);
   }
 }
 

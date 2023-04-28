@@ -1,4 +1,4 @@
-#include "roo_display/core/combo.h"
+#include "roo_display/composition/streamable_stack.h"
 
 namespace roo_display {
 
@@ -634,7 +634,7 @@ class StreamableComboStream : public PixelStream {
 
 }  // namespace
 
-void Combo::drawTo(const Surface& s) const {
+void StreamableStack::drawTo(const Surface& s) const {
   Box bounds = Box::Intersect(s.clip_box(), extents_.translate(s.dx(), s.dy()));
   if (bounds.empty()) return;
   std::vector<internal::BufferingStream> streams;
@@ -656,7 +656,7 @@ void Combo::drawTo(const Surface& s) const {
   }
 }
 
-std::unique_ptr<PixelStream> Combo::createStream() const {
+std::unique_ptr<PixelStream> StreamableStack::createStream() const {
   Box bounds = extents();
   std::vector<internal::BufferingStream> streams;
   Composition composition(bounds);
@@ -673,7 +673,8 @@ std::unique_ptr<PixelStream> Combo::createStream() const {
       new StreamableComboStream(std::move(prg), std::move(streams)));
 }
 
-std::unique_ptr<PixelStream> Combo::createStream(const Box& clip_box) const {
+std::unique_ptr<PixelStream> StreamableStack::createStream(
+    const Box& clip_box) const {
   Box bounds = Box::Intersect(extents(), clip_box);
   std::vector<internal::BufferingStream> streams;
   Composition composition(bounds);

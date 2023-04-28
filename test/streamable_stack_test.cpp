@@ -1,23 +1,22 @@
 
-#include "roo_display/core/combo.h"
+#include "roo_display/composition/streamable_stack.h"
 
 #include "roo_display.h"
 #include "roo_display/color/color.h"
 #include "testing.h"
-// #include "offscreen.h"
 
 using namespace testing;
 
 namespace roo_display {
 
-TEST(Combo, Empty) {
-  Combo combo(Box(3, 4, 5, 7));
-  EXPECT_EQ(combo.NaturalExtents(), Box(0, 0, -1, -1));
+TEST(StreamableStack, Empty) {
+  StreamableStack stack(Box(3, 4, 5, 7));
+  EXPECT_EQ(stack.naturalExtents(), Box(0, 0, -1, -1));
   FakeOffscreen<Rgb565> test_screen(10, 11, color::Black);
   Display display(test_screen);
   {
     DrawingContext dc(display);
-    dc.draw(combo);
+    dc.draw(stack);
   }
   EXPECT_THAT(test_screen, MatchesContent(WhiteOnBlack(), 10, 11,
                                           "          "
@@ -33,20 +32,20 @@ TEST(Combo, Empty) {
                                           "          "));
 }
 
-TEST(Combo, SingleUnclipped) {
+TEST(StreamableStack, SingleUnclipped) {
   auto input = MakeTestStreamable(Grayscale4(), 4, 4,
                                   "1234"
                                   "2345"
                                   "3456"
                                   "4567");
-  Combo combo(Box(3, 4, 9, 10));
-  combo.AddInput(&input, 5, 6);
-  EXPECT_EQ(combo.NaturalExtents(), Box(5, 6, 8, 9));
+  StreamableStack stack(Box(3, 4, 9, 10));
+  stack.addInput(&input, 5, 6);
+  EXPECT_EQ(stack.naturalExtents(), Box(5, 6, 8, 9));
   FakeOffscreen<Argb4444> test_screen(10, 11, color::Black);
   Display display(test_screen);
   {
     DrawingContext dc(display);
-    dc.draw(combo);
+    dc.draw(stack);
   }
   EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
                                           "          "
@@ -62,21 +61,21 @@ TEST(Combo, SingleUnclipped) {
                                           "          "));
 }
 
-TEST(Combo, SingleClipped) {
+TEST(StreamableStack, SingleClipped) {
   auto input = MakeTestStreamable(Grayscale4(), 4, 4,
                                   "1234"
                                   "2345"
                                   "3456"
                                   "4567");
-  Combo combo(Box(3, 4, 9, 10));
-  combo.AddInput(&input, 5, 6);
-  EXPECT_EQ(combo.NaturalExtents(), Box(5, 6, 8, 9));
+  StreamableStack stack(Box(3, 4, 9, 10));
+  stack.addInput(&input, 5, 6);
+  EXPECT_EQ(stack.naturalExtents(), Box(5, 6, 8, 9));
   FakeOffscreen<Argb4444> test_screen(10, 11, color::Black);
   Display display(test_screen);
   {
     DrawingContext dc(display);
     dc.setClipBox(6, 7, 7, 8);
-    dc.draw(combo);
+    dc.draw(stack);
   }
   EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
                                           "          "
@@ -92,7 +91,36 @@ TEST(Combo, SingleClipped) {
                                           "          "));
 }
 
-TEST(Combo, TwoDisjoint) {
+TEST(StreamableStack, SingleSelfClipped) {
+  auto input = MakeTestStreamable(Grayscale4(), 4, 4,
+                                  "1234"
+                                  "2345"
+                                  "3456"
+                                  "4567");
+  StreamableStack stack(Box(3, 4, 9, 10));
+  stack.addInput(&input, Box(1, 1, 2, 2), 5, 6);
+  EXPECT_EQ(stack.naturalExtents(), Box(6, 7, 7, 8));
+  FakeOffscreen<Argb4444> test_screen(10, 11, color::Black);
+  Display display(test_screen);
+  {
+    DrawingContext dc(display);
+    dc.draw(stack);
+  }
+  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
+                                          "          "
+                                          "          "
+                                          "          "
+                                          "          "
+                                          "          "
+                                          "          "
+                                          "          "
+                                          "      34  "
+                                          "      45  "
+                                          "          "
+                                          "          "));
+}
+
+TEST(StreamableStack, TwoDisjoint) {
   auto input1 = MakeTestStreamable(Grayscale4(), 3, 3,
                                   "123"
                                   "234"
@@ -101,15 +129,15 @@ TEST(Combo, TwoDisjoint) {
                                   "666"
                                   "777"
                                   "888");
-  Combo combo(Box(1, 1, 9, 10));
-  combo.AddInput(&input1, 2, 2);
-  combo.AddInput(&input2, 6, 6);
-  EXPECT_EQ(combo.NaturalExtents(), Box(2, 2, 8, 8));
+  StreamableStack stack(Box(1, 1, 9, 10));
+  stack.addInput(&input1, 2, 2);
+  stack.addInput(&input2, 6, 6);
+  EXPECT_EQ(stack.naturalExtents(), Box(2, 2, 8, 8));
   FakeOffscreen<Argb4444> test_screen(10, 11, color::Black);
   Display display(test_screen);
   {
     DrawingContext dc(display);
-    dc.draw(combo);
+    dc.draw(stack);
   }
   EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
                                           "          "
@@ -125,7 +153,7 @@ TEST(Combo, TwoDisjoint) {
                                           "          "));
 }
 
-TEST(Combo, TwoDisjointInherentlyClipped) {
+TEST(StreamableStack, TwoDisjointInherentlyClipped) {
   auto input1 = MakeTestStreamable(Grayscale4(), 3, 3,
                                   "123"
                                   "234"
@@ -134,15 +162,15 @@ TEST(Combo, TwoDisjointInherentlyClipped) {
                                   "666"
                                   "777"
                                   "888");
-  Combo combo(Box(3, 3, 7, 7));
-  combo.AddInput(&input1, 2, 2);
-  combo.AddInput(&input2, 6, 6);
-  EXPECT_EQ(combo.NaturalExtents(), Box(2, 2, 8, 8));
+  StreamableStack stack(Box(3, 3, 7, 7));
+  stack.addInput(&input1, 2, 2);
+  stack.addInput(&input2, 6, 6);
+  EXPECT_EQ(stack.naturalExtents(), Box(2, 2, 8, 8));
   FakeOffscreen<Argb4444> test_screen(10, 11, color::Black);
   Display display(test_screen);
   {
     DrawingContext dc(display);
-    dc.draw(combo);
+    dc.draw(stack);
   }
   EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
                                           "          "
@@ -158,7 +186,7 @@ TEST(Combo, TwoDisjointInherentlyClipped) {
                                           "          "));
 }
 
-TEST(Combo, TwoHorizontalOverlap) {
+TEST(StreamableStack, TwoHorizontalOverlap) {
   auto input1 = MakeTestStreamable(Grayscale4(), 3, 3,
                                   "123"
                                   "234"
@@ -167,15 +195,15 @@ TEST(Combo, TwoHorizontalOverlap) {
                                   "666"
                                   "777"
                                   "888");
-  Combo combo(Box(1, 1, 9, 10));
-  combo.AddInput(&input1, 2, 2);
-  combo.AddInput(&input2, 6, 3);
-  EXPECT_EQ(combo.NaturalExtents(), Box(2, 2, 8, 5));
+  StreamableStack stack(Box(1, 1, 9, 10));
+  stack.addInput(&input1, 2, 2);
+  stack.addInput(&input2, 6, 3);
+  EXPECT_EQ(stack.naturalExtents(), Box(2, 2, 8, 5));
   FakeOffscreen<Argb4444> test_screen(10, 11, color::Black);
   Display display(test_screen);
   {
     DrawingContext dc(display);
-    dc.draw(combo);
+    dc.draw(stack);
   }
   EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
                                           "          "
@@ -191,7 +219,7 @@ TEST(Combo, TwoHorizontalOverlap) {
                                           "          "));
 }
 
-TEST(Combo, TwoVerticalOverlap) {
+TEST(StreamableStack, TwoVerticalOverlap) {
   auto input1 = MakeTestStreamable(Grayscale4(), 3, 3,
                                   "123"
                                   "234"
@@ -200,15 +228,15 @@ TEST(Combo, TwoVerticalOverlap) {
                                   "666"
                                   "777"
                                   "888");
-  Combo combo(Box(1, 1, 9, 10));
-  combo.AddInput(&input1, 2, 2);
-  combo.AddInput(&input2, 3, 6);
-  EXPECT_EQ(combo.NaturalExtents(), Box(2, 2, 5, 8));
+  StreamableStack stack(Box(1, 1, 9, 10));
+  stack.addInput(&input1, 2, 2);
+  stack.addInput(&input2, 3, 6);
+  EXPECT_EQ(stack.naturalExtents(), Box(2, 2, 5, 8));
   FakeOffscreen<Argb4444> test_screen(10, 11, color::Black);
   Display display(test_screen);
   {
     DrawingContext dc(display);
-    dc.draw(combo);
+    dc.draw(stack);
   }
   EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
                                           "          "
@@ -224,7 +252,7 @@ TEST(Combo, TwoVerticalOverlap) {
                                           "          "));
 }
 
-TEST(Combo, TwoOverlap) {
+TEST(StreamableStack, TwoOverlap) {
   auto input1 = MakeTestStreamable(Grayscale4(), 3, 3,
                                   "123"
                                   "234"
@@ -233,15 +261,15 @@ TEST(Combo, TwoOverlap) {
                                   "666"
                                   "777"
                                   "888");
-  Combo combo(Box(1, 1, 9, 10));
-  combo.AddInput(&input1, 2, 2);
-  combo.AddInput(&input2, 3, 3);
-  EXPECT_EQ(combo.NaturalExtents(), Box(2, 2, 5, 5));
+  StreamableStack stack(Box(1, 1, 9, 10));
+  stack.addInput(&input1, 2, 2);
+  stack.addInput(&input2, 3, 3);
+  EXPECT_EQ(stack.naturalExtents(), Box(2, 2, 5, 5));
   FakeOffscreen<Argb4444> test_screen(10, 11, color::Black);
   Display display(test_screen);
   {
     DrawingContext dc(display);
-    dc.draw(combo);
+    dc.draw(stack);
   }
   EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
                                           "          "
@@ -257,7 +285,7 @@ TEST(Combo, TwoOverlap) {
                                           "          "));
 }
 
-TEST(Combo, TwoOverlapAlphaBlend) {
+TEST(StreamableStack, TwoOverlapAlphaBlend) {
   auto input1 = MakeTestStreamable(Alpha4(color::White), 3, 3,
                                   "123"
                                   "234"
@@ -266,15 +294,15 @@ TEST(Combo, TwoOverlapAlphaBlend) {
                                   "666"
                                   "777"
                                   "888");
-  Combo combo(Box(1, 1, 9, 10));
-  combo.AddInput(&input1, 2, 2);
-  combo.AddInput(&input2, 3, 3);
-  EXPECT_EQ(combo.NaturalExtents(), Box(2, 2, 5, 5));
+  StreamableStack stack(Box(1, 1, 9, 10));
+  stack.addInput(&input1, 2, 2);
+  stack.addInput(&input2, 3, 3);
+  EXPECT_EQ(stack.naturalExtents(), Box(2, 2, 5, 5));
   FakeOffscreen<Argb4444> test_screen(10, 11, color::Black);
   Display display(test_screen);
   {
     DrawingContext dc(display);
-    dc.draw(combo);
+    dc.draw(stack);
   }
   EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
                                           "          "

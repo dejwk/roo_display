@@ -33,35 +33,36 @@ class Input {
 
 }  // namespace internal
 
-// Combo represents a multi-layered stack of streamables.
-class Combo : public Streamable {
+// StreamableStack represents a multi-layered stack of streamables.
+class StreamableStack : public Streamable {
  public:
   // creates new Combo with the given extents.
-  Combo(const Box& extents) : extents_(extents), anchor_extents_(extents) {}
+  StreamableStack(const Box& extents)
+      : extents_(extents), anchor_extents_(extents) {}
 
-  // Adds a new input to the combo.
+  // Adds a new input to the stack.
   void addInput(const Streamable* input) {
     inputs_.emplace_back(input, input->extents());
   }
 
-  // Adds a new clipped input to the combo.
+  // Adds a new clipped input to the stack.
   void addInput(const Streamable* input, Box clip_box) {
     inputs_.emplace_back(input, Box::Intersect(input->extents(), clip_box));
   }
 
-  // Adds a new input to the combo, with the specified offset.
+  // Adds a new input to the stack, with the specified offset.
   void addInput(const Streamable* input, uint16_t dx, uint16_t dy) {
     inputs_.emplace_back(input, input->extents(), dx, dy);
   }
 
-  // Adds a new clipped input to the combo, with the specified offset.
+  // Adds a new clipped input to the stack, with the specified offset.
   void addInput(const Streamable* input, Box clip_box, uint16_t dx,
                 uint16_t dy) {
     inputs_.emplace_back(input, Box::Intersect(input->extents(), clip_box), dx,
                          dy);
   }
 
-  // Returns the overall extents of the combo.
+  // Returns the overall extents of the stack.
   Box extents() const override { return extents_; }
 
   Box anchorExtents() const override { return anchor_extents_; }
@@ -80,10 +81,10 @@ class Combo : public Streamable {
 
   std::unique_ptr<PixelStream> createStream(const Box& clip_box) const override;
 
-  // Overrides this combo's extents.
+  // Overrides this stack's extents.
   void setExtents(const Box& extents) { extents_ = extents; }
 
-  // Sets this combo's anchor extents.
+  // Sets this stack's anchor extents.
   void setAnchorExtents(const Box& anchor_extents) {
     anchor_extents_ = anchor_extents;
   }

@@ -81,9 +81,9 @@ cc_test(
 )
 
 cc_test(
-    name = "combo_test",
+    name = "streamable_stack_test",
     srcs = [
-        "test/combo_test.cpp",
+        "test/streamable_stack_test.cpp",
         "test/testing.h",
     ],
     copts = ["-Iexternal/gtest/include"],

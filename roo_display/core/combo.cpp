@@ -537,6 +537,101 @@ void WriteVisible(Engine* engine, const Box& bounds,
   }
 }
 
+class StreamableComboStream : public PixelStream {
+ public:
+  StreamableComboStream(Program prg,
+                        std::vector<internal::BufferingStream> streams)
+      : prg_(std::move(prg)),
+        engine_(&prg_),
+        streams_(std::move(streams)),
+        remaining_count_(0) {}
+
+  void Read(Color* buf, uint16_t size) override {
+    Color* result = buf;
+    do {
+      while (remaining_count_ == 0) {
+        last_instruction_ = engine_.fetch();
+        switch (last_instruction_) {
+          case EXIT: {
+            return;
+          }
+          case BLANK: {
+            remaining_count_ = engine_.read_word();
+            break;
+          }
+          case SKIP: {
+            uint16_t input = engine_.read_word();
+            uint16_t count = engine_.read_word();
+            streams_[input].skip(count);
+            continue;
+          }
+          case WRITE_SINGLE: {
+            input_ = engine_.read_word();
+            remaining_count_ = engine_.read_word();
+            break;
+          }
+          case WRITE: {
+            input_ = engine_.read_word();
+            remaining_count_ = engine_.read_word();
+            break;
+          }
+          default: {
+            // Unexpected.
+            return;
+          }
+        }
+      }
+      uint16_t batch = std::min(size, remaining_count_);
+      switch (last_instruction_) {
+        case BLANK: {
+          FillColor(result, batch, color::Transparent);
+          break;
+        }
+        case WRITE_SINGLE: {
+          streams_[input_].read(result, batch);
+          break;
+        }
+        case WRITE: {
+          uint16_t input = 0;
+          uint16_t input_mask = input_;
+          while (true) {
+            if (input_mask & 1) {
+              streams_[input].read(result, batch);
+              break;
+            }
+            input++;
+            input_mask >>= 1;
+          }
+          while (true) {
+            input++;
+            input_mask >>= 1;
+            if (input_mask == 0) break;
+            if (input_mask & 1) {
+              streams_[input].blend(result, batch);
+            }
+          }
+          break;
+        }
+        default: {
+          // Unexpected.
+          break;
+        }
+      }
+      result += batch;
+      size -= batch;
+      remaining_count_ -= batch;
+    } while (size > 0);
+  }
+
+ private:
+  Program prg_;
+  Engine engine_;
+  std::vector<internal::BufferingStream> streams_;
+  Instruction last_instruction_;
+  uint16_t input_;
+  uint16_t remaining_count_;
+};
+
 }  // namespace
 
 void Combo::drawTo(const Surface& s) const {
@@ -559,6 +654,40 @@ void Combo::drawTo(const Surface& s) const {
   } else {
     WriteVisible(&engine, bounds, &*streams.begin(), s);
   }
+}
+
+std::unique_ptr<PixelStream> Combo::createStream() const {
+  Box bounds = extents();
+  std::vector<internal::BufferingStream> streams;
+  Composition composition(bounds);
+  for (const auto& input : inputs_) {
+    const Box& iextents = input.extents();
+    if (composition.Add(iextents)) {
+      streams.emplace_back(input.createStream(), iextents.area());
+    }
+  }
+
+  Program prg;
+  composition.Compile(&prg);
+  return std::unique_ptr<PixelStream>(
+      new StreamableComboStream(std::move(prg), std::move(streams)));
+}
+
+std::unique_ptr<PixelStream> Combo::createStream(const Box& clip_box) const {
+  Box bounds = Box::Intersect(extents(), clip_box);
+  std::vector<internal::BufferingStream> streams;
+  Composition composition(bounds);
+  for (const auto& input : inputs_) {
+    const Box& iextents = input.extents();
+    if (composition.Add(iextents)) {
+      streams.emplace_back(input.createStream(), iextents.area());
+    }
+  }
+
+  Program prg;
+  composition.Compile(&prg);
+  return std::unique_ptr<PixelStream>(
+      new StreamableComboStream(std::move(prg), std::move(streams)));
 }
 
 }  // namespace roo_display

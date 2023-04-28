@@ -31,7 +31,7 @@ class Input {
 }  // namespace internal
 
 // Combo represents a multi-layered stack of streamables.
-class Combo : public Drawable {
+class Combo : public Streamable {
  public:
   // creates new Combo with the given extents.
   Combo(const Box& extents) : extents_(extents), anchor_extents_(extents) {}
@@ -58,6 +58,10 @@ class Combo : public Drawable {
     }
     return result;
   }
+
+  std::unique_ptr<PixelStream> createStream() const override;
+
+  std::unique_ptr<PixelStream> createStream(const Box& clip_box) const override;
 
   // Overrides this combo's extents.
   void setExtents(const Box& extents) { extents_ = extents; }

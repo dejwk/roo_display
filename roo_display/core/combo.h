@@ -37,10 +37,10 @@ class Combo : public Drawable {
   Combo(const Box& extents) : extents_(extents) {}
 
   // Adds a new input to the combo.
-  void AddInput(const Streamable* input) { inputs_.emplace_back(input); }
+  void addInput(const Streamable* input) { inputs_.emplace_back(input); }
 
   // Adds a new input to the combo, with the specified offset.
-  void AddInput(const Streamable* input, uint16_t dx, uint16_t dy) {
+  void addInput(const Streamable* input, uint16_t dx, uint16_t dy) {
     inputs_.emplace_back(input, dx, dy);
   }
 
@@ -48,7 +48,7 @@ class Combo : public Drawable {
   Box extents() const override { return extents_; }
 
   // Returns minimal extents that will fit all components without clipping.
-  Box NaturalExtents() {
+  Box naturalExtents() {
     if (inputs_.empty()) return Box(0, 0, -1, -1);
     Box result = inputs_[0].extents();
     for (int i = 1; i < inputs_.size(); i++) {

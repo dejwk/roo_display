@@ -12,20 +12,23 @@ namespace internal {
 
 class Input {
  public:
-  Input(const Streamable* obj) : obj_(obj), extents_(obj->extents()) {}
+  Input(const Streamable* obj, Box extents)
+      : obj_(obj), extents_(extents), dx_(0), dy_(0) {}
 
-  Input(const Streamable* obj, uint16_t dx, uint16_t dy)
-      : obj_(obj), extents_(obj->extents().translate(dx, dy)) {}
+  Input(const Streamable* obj, Box extents, uint16_t dx, uint16_t dy)
+      : obj_(obj), extents_(extents.translate(dx, dy)), dx_(dx), dy_(dy) {}
 
   const Box& extents() const { return extents_; }
 
   std::unique_ptr<PixelStream> createStream() const {
-    return obj_->createStream();
+    return obj_->createStream(extents_.translate(-dx_, -dy_));
   }
 
  private:
   const Streamable* obj_;
   Box extents_;
+  int16_t dx_;
+  int16_t dy_;
 };
 
 }  // namespace internal
@@ -37,11 +40,25 @@ class Combo : public Streamable {
   Combo(const Box& extents) : extents_(extents), anchor_extents_(extents) {}
 
   // Adds a new input to the combo.
-  void addInput(const Streamable* input) { inputs_.emplace_back(input); }
+  void addInput(const Streamable* input) {
+    inputs_.emplace_back(input, input->extents());
+  }
+
+  // Adds a new clipped input to the combo.
+  void addInput(const Streamable* input, Box clip_box) {
+    inputs_.emplace_back(input, Box::Intersect(input->extents(), clip_box));
+  }
 
   // Adds a new input to the combo, with the specified offset.
   void addInput(const Streamable* input, uint16_t dx, uint16_t dy) {
-    inputs_.emplace_back(input, dx, dy);
+    inputs_.emplace_back(input, input->extents(), dx, dy);
+  }
+
+  // Adds a new clipped input to the combo, with the specified offset.
+  void addInput(const Streamable* input, Box clip_box, uint16_t dx,
+                uint16_t dy) {
+    inputs_.emplace_back(input, Box::Intersect(input->extents(), clip_box), dx,
+                         dy);
   }
 
   // Returns the overall extents of the combo.

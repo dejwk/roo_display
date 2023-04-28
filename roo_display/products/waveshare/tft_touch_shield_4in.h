@@ -10,7 +10,6 @@
 #include "roo_display/core/orientation.h"
 #include "roo_display/driver/ili9486.h"
 #include "roo_display/driver/touch_xpt2046.h"
-#include "roo_display/hal/transport.h"
 #include "roo_display/products/combo_device.h"
 
 namespace roo_display::products::waveshare {

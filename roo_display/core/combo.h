@@ -34,7 +34,7 @@ class Input {
 class Combo : public Drawable {
  public:
   // creates new Combo with the given extents.
-  Combo(const Box& extents) : extents_(extents) {}
+  Combo(const Box& extents) : extents_(extents), anchor_extents_(extents) {}
 
   // Adds a new input to the combo.
   void addInput(const Streamable* input) { inputs_.emplace_back(input); }
@@ -47,6 +47,8 @@ class Combo : public Drawable {
   // Returns the overall extents of the combo.
   Box extents() const override { return extents_; }
 
+  Box anchorExtents() const override { return anchor_extents_; }
+
   // Returns minimal extents that will fit all components without clipping.
   Box naturalExtents() {
     if (inputs_.empty()) return Box(0, 0, -1, -1);
@@ -57,13 +59,19 @@ class Combo : public Drawable {
     return result;
   }
 
-  // Overrides this combo's overall extents.
-  void set_extents(const Box& extents) { extents_ = extents; }
+  // Overrides this combo's extents.
+  void setExtents(const Box& extents) { extents_ = extents; }
+
+  // Sets this combo's anchor extents.
+  void setAnchorExtents(const Box& anchor_extents) {
+    anchor_extents_ = anchor_extents;
+  }
 
  private:
   void drawTo(const Surface& s) const override;
 
   Box extents_;
+  Box anchor_extents_;
   std::vector<internal::Input> inputs_;
 };
 

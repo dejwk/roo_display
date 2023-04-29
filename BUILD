@@ -81,19 +81,6 @@ cc_test(
 )
 
 cc_test(
-    name = "streamable_stack_test",
-    srcs = [
-        "test/streamable_stack_test.cpp",
-        "test/testing.h",
-    ],
-    copts = ["-Iexternal/gtest/include"],
-    linkstatic = 1,
-    deps = [
-        "//lib/roo_display:testing",
-    ],
-)
-
-cc_test(
     name = "clip_mask_test",
     srcs = [
         "test/clip_mask_test.cpp",
@@ -220,11 +207,37 @@ cc_test(
 )
 
 cc_test(
+    name = "streamable_stack_test",
+    srcs = [
+        "test/streamable_stack_test.cpp",
+        "test/testing.h",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    deps = [
+        "//lib/roo_display:testing",
+    ],
+)
+
+cc_test(
     name = "rasterizable_test",
     srcs = [
         "test/rasterizable_test.cpp",
         "test/testing.h",
     ],
+    linkstatic = 1,
+    deps = [
+        "//lib/roo_display:testing",
+    ],
+)
+
+cc_test(
+    name = "rasterizable_stack_test",
+    srcs = [
+        "test/rasterizable_stack_test.cpp",
+        "test/testing.h",
+    ],
+    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",

@@ -322,6 +322,35 @@ class ParserDrawable : public Drawable {
   ParserStreamable<ColorMode> streamable_;
 };
 
+template <typename ColorMode>
+class ParserRasterizable : public Rasterizable {
+ public:
+  ParserRasterizable(int16_t width, int16_t height, string data)
+      : ParserRasterizable(ColorMode(), width, height, data) {}
+
+  ParserRasterizable(ColorMode mode, int16_t width, int16_t height, string data)
+      : extents_(0, 0, width - 1, height - 1) {
+    ParserStreamable<ColorMode> streamable(mode, width, height, data);
+    auto stream = streamable.createRawStream();
+    for (int i = 0; i < extents_.area(); ++i) {
+      raster_.push_back(stream->next());
+    }
+  }
+
+  Box extents() const override { return extents_; }
+
+  void readColors(const int16_t* x, const int16_t* y, uint32_t count,
+                  Color* result) const override {
+    while (count-- > 0) {
+      *result++ = raster_[*y++ * extents_.width() + *x++];
+    }
+  }
+
+ private:
+  Box extents_;
+  std::vector<Color> raster_;
+};
+
 template <typename RawStreamable,
           typename ColorMode = typename std::decay<
               decltype(std::declval<RawStreamable>().color_mode())>::type>
@@ -893,6 +922,12 @@ internal::ParserDrawable<ColorMode> MakeTestDrawable(const ColorMode& mode,
                                                      int16_t height,
                                                      string content) {
   return internal::ParserDrawable<ColorMode>(mode, width, height, content);
+}
+
+template <typename ColorMode>
+internal::ParserRasterizable<ColorMode> MakeTestRasterizable(
+    const ColorMode& mode, int16_t width, int16_t height, string content) {
+  return internal::ParserRasterizable<ColorMode>(mode, width, height, content);
 }
 
 DrawableRawStreamable<RawStreamableFilledRect> SolidRect(int16_t x0, int16_t y0,

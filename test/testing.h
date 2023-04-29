@@ -305,6 +305,23 @@ class ParserStreamable : public Streamable {
   string data_;
 };
 
+template <typename ColorMode>
+class ParserDrawable : public Drawable {
+ public:
+  ParserDrawable(int16_t width, int16_t height, string data)
+      : streamable_(width, height, data) {}
+
+  ParserDrawable(ColorMode mode, int16_t width, int16_t height, string data)
+      : streamable_(mode, width, height, data) {}
+
+  Box extents() const override { return streamable_.extents(); }
+
+ private:
+  void drawTo(const Surface& s) const override { s.drawObject(streamable_); };
+
+  ParserStreamable<ColorMode> streamable_;
+};
+
 template <typename RawStreamable,
           typename ColorMode = typename std::decay<
               decltype(std::declval<RawStreamable>().color_mode())>::type>
@@ -871,10 +888,11 @@ internal::ParserStreamable<ColorMode> MakeTestStreamable(const ColorMode& mode,
 }
 
 template <typename ColorMode>
-DrawableRawStreamable<internal::ParserStreamable<ColorMode>> MakeTestDrawable(
-    const ColorMode& mode, int16_t width, int16_t height, string content) {
-  return MakeDrawableRawStreamable(
-      MakeTestStreamable(mode, width, height, std::move(content)));
+internal::ParserDrawable<ColorMode> MakeTestDrawable(const ColorMode& mode,
+                                                     int16_t width,
+                                                     int16_t height,
+                                                     string content) {
+  return internal::ParserDrawable<ColorMode>(mode, width, height, content);
 }
 
 DrawableRawStreamable<RawStreamableFilledRect> SolidRect(int16_t x0, int16_t y0,

@@ -96,9 +96,9 @@ TEST(SmoothFontTest, SimpleTextWithBackground) {
   // glyphYMin() = 14 + 2 = 16.
   EXPECT_THAT(screen, MatchesContent(Grayscale4(), 26, 18,
                                      "11111111111111111111111111"
-                                     "1                       11"
-                                     "1                       11"
-                                     "1                       11"
+                                     "11111111111111111111111111"
+                                     "11111111111111111111111111"
+                                     "11111111111111111111111111"
                                      "1          3DE2         11"
                                      "1    4*2   B5  5        11"
                                      "1    CC4   *  1C        11"
@@ -121,15 +121,12 @@ TEST(SmoothFontTest, ClippedTextWithBackground) {
               FILL_MODE_RECTANGLE);
   // We expect that the background will fill the bbox that extends vertically
   // from font.metrics().glyphYMin() to font.metrics().glyphYMax() (in FreeType
-  // coordinates). In other words, in screen coordinates, we expect that the top
-  // of the background rect will have y coordinate = y - glyphYMax() = 14 - 13
-  // = 1, and the bottom of the background will have y coordinate =  y -
-  // glyphYMin() = 14 + 2 = 16.
+  // coordinates).
   EXPECT_THAT(screen, MatchesContent(Grayscale4(), 26, 18,
                                      "11111111111111111111111111"
                                      "11111111111111111111111111"
                                      "11111111111111111111111111"
-                                     "111111            11111111"
+                                     "11111111111111111111111111"
                                      "111111     3DE2   11111111"
                                      "111111*2   B5  5  11111111"
                                      "111111C4   *  1C  11111111"

@@ -149,7 +149,6 @@ void DrawingContext::drawInternal(const Drawable& object, int16_t dx,
                            : output();
   Surface s(out, dx + dx_, dy + dy_, clip_box_.translate(dx_, dy_), write_once_,
             bgcolor, fill_mode_, paint_mode_);
-
   if (clip_mask_ == nullptr) {
     drawInternalWithBackground(s, object);
   } else {
@@ -181,14 +180,20 @@ void DrawingContext::drawInternalWithBackground(Surface& s,
 void DrawingContext::drawInternalTransformed(Surface& s,
                                              const Drawable& object) {
   if (!transformed_) {
+    if (s.clipToExtents(object.extents()) == Box::CLIP_RESULT_EMPTY) return;
     s.drawObject(object);
   } else if (!transformation_.is_rescaled() && !transformation_.xy_swap()) {
     // Translation only.
     s.set_dx(s.dx() + transformation_.x_offset());
     s.set_dy(s.dy() + transformation_.y_offset());
+    if (s.clipToExtents(object.extents()) == Box::CLIP_RESULT_EMPTY) return;
     s.drawObject(object);
   } else {
-    s.drawObject(TransformedDrawable(transformation_, &object));
+    auto transformed = TransformedDrawable(transformation_, &object);
+    if (s.clipToExtents(transformed.extents()) == Box::CLIP_RESULT_EMPTY) {
+      return;
+    }
+    s.drawObject(transformed);
   }
 }
 

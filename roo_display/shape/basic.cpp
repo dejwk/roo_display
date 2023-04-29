@@ -517,7 +517,6 @@ void Triangle::drawInteriorTo(const Surface &s) const {
 
 void FilledTriangle::drawInteriorTo(const Surface &s) const {
   Box box = extents().translate(s.dx(), s.dy());
-  if (!box.intersects(s.clip_box())) return;
   Color color = AlphaBlend(s.bgcolor(), this->color());
   int16_t x0 = x0_ + s.dx();
   int16_t y0 = y0_ + s.dy();

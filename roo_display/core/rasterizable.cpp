@@ -6,13 +6,13 @@ namespace {
 
 class Stream : public PixelStream {
  public:
-  Stream(const Rasterizable* data, Box bounds)
+  Stream(const Rasterizable *data, Box bounds)
       : data_(data),
         bounds_(std::move(bounds)),
         x_(bounds_.xMin()),
         y_(bounds_.yMin()) {}
 
-  void Read(Color* buf, uint16_t size) override {
+  void Read(Color *buf, uint16_t size) override {
     int16_t x[size];
     int16_t y[size];
     for (int i = 0; i < size; ++i) {
@@ -25,7 +25,15 @@ class Stream : public PixelStream {
         ++y_;
       }
     }
-    data_->readColors(x, y, size, buf);
+    if (y[0] == y[size - 1]) {
+      if (data_->readColorRect(x[0], y[0], x[size - 1], y[0], buf)) {
+        for (int i = 1; i < size; ++i) {
+          buf[i] = buf[0];
+        }
+      }
+    } else {
+      data_->readColors(x, y, size, buf);
+    }
   }
 
   void Skip(uint32_t count) override {
@@ -39,7 +47,7 @@ class Stream : public PixelStream {
   }
 
  private:
-  const Rasterizable* data_;
+  const Rasterizable *data_;
   Box bounds_;
   int16_t x_, y_;
 };
@@ -48,9 +56,9 @@ static const int kMaxBufSize = 32;
 
 }  // namespace
 
-void Rasterizable::readColorsMaybeOutOfBounds(const int16_t* x,
-                                              const int16_t* y, uint32_t count,
-                                              Color* result,
+void Rasterizable::readColorsMaybeOutOfBounds(const int16_t *x,
+                                              const int16_t *y, uint32_t count,
+                                              Color *result,
                                               Color out_of_bounds_color) const {
   Box bounds = extents();
   // First process as much as we can without copying and extra memory.
@@ -103,12 +111,12 @@ void Rasterizable::readColorsMaybeOutOfBounds(const int16_t* x,
 }
 
 bool Rasterizable::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
-                                 int16_t yMax, Color* result) const {
+                                 int16_t yMax, Color *result) const {
   uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
   int16_t x[pixel_count];
   int16_t y[pixel_count];
-  int16_t* cx = x;
-  int16_t* cy = y;
+  int16_t *cx = x;
+  int16_t *cy = y;
   for (int16_t y_cursor = yMin; y_cursor <= yMax; ++y_cursor) {
     for (int16_t x_cursor = xMin; x_cursor <= xMax; ++x_cursor) {
       *cx++ = x_cursor;
@@ -128,18 +136,255 @@ std::unique_ptr<PixelStream> Rasterizable::createStream() const {
 }
 
 std::unique_ptr<PixelStream> Rasterizable::createStream(
-    const Box& bounds) const {
+    const Box &bounds) const {
   return std::unique_ptr<PixelStream>(new Stream(this, bounds));
 }
 
-void Rasterizable::drawTo(const Surface& s) const {
-  Box ext = extents();
-  Box bounds = Box::Intersect(s.clip_box(), ext.translate(s.dx(), s.dy()));
-  if (bounds.empty()) return;
-  Stream stream(this, bounds.translate(-s.dx(), -s.dy()));
-  internal::FillRectFromStream(s.out(), bounds, &stream, s.bgcolor(),
-                               s.fill_mode(), s.paint_mode(),
-                               getTransparencyMode());
+// void Rasterizable::drawTo(const Surface& s) const {
+//   Box ext = extents();
+//   Box bounds = Box::Intersect(s.clip_box(), ext.translate(s.dx(), s.dy()));
+//   if (bounds.empty()) return;
+//   Stream stream(this, bounds.translate(-s.dx(), -s.dy()));
+//   internal::FillRectFromStream(s.out(), bounds, &stream, s.bgcolor(),
+//                                s.fill_mode(), s.paint_mode(),
+//                                getTransparencyMode());
+// }
+
+namespace {
+
+inline void FillReplaceRect(DisplayOutput &output, const Box &extents,
+                            const Rasterizable &object, PaintMode mode) {
+  uint32_t count = extents.area();
+  Color buf[count];
+  bool same = object.readColorRect(extents.xMin(), extents.yMin(),
+                                   extents.xMax(), extents.yMax(), buf);
+  if (same) {
+    output.fillRect(mode, extents, buf[0]);
+  } else {
+    output.setAddress(extents, mode);
+    output.write(buf, count);
+  }
+}
+
+inline void FillPaintRectOverOpaqueBg(DisplayOutput &output, const Box &extents,
+                                      Color bgcolor, const Rasterizable &object,
+                                      PaintMode mode) {
+  uint32_t count = extents.area();
+  Color buf[count];
+  bool same = object.readColorRect(extents.xMin(), extents.yMin(),
+                                   extents.xMax(), extents.yMax(), buf);
+  if (same) {
+    output.fillRect(mode, extents, AlphaBlendOverOpaque(bgcolor, buf[0]));
+  } else {
+    for (int i = 0; i < count; i++) {
+      buf[i] = AlphaBlendOverOpaque(bgcolor, buf[i]);
+    }
+    output.setAddress(extents, mode);
+    output.write(buf, count);
+  }
+}
+
+inline void FillPaintRectOverBg(DisplayOutput &output, const Box &extents,
+                                Color bgcolor, const Rasterizable &object,
+                                PaintMode mode) {
+  uint32_t count = extents.area();
+  Color buf[count];
+  bool same = object.readColorRect(extents.xMin(), extents.yMin(),
+                                   extents.xMax(), extents.yMax(), buf);
+  if (same) {
+    output.fillRect(mode, extents, AlphaBlend(bgcolor, buf[0]));
+  } else {
+    for (int i = 0; i < count; i++) {
+      buf[i] = AlphaBlend(bgcolor, buf[i]);
+    }
+    output.setAddress(extents, mode);
+    output.write(buf, count);
+  }
+}
+
+// Assumes no bgcolor.
+inline void WriteRectVisible(DisplayOutput &output, const Box &extents,
+                             const Rasterizable &object, PaintMode mode) {
+  uint32_t count = extents.area();
+  Color buf[count];
+  bool same = object.readColorRect(extents.xMin(), extents.yMin(),
+                                   extents.xMax(), extents.yMax(), buf);
+  if (same) {
+    if (buf[0] != color::Transparent) {
+      output.fillRect(mode, extents, buf[0]);
+    }
+  } else {
+    BufferedPixelWriter writer(output, mode);
+    Color *ptr = buf;
+    for (int16_t j = extents.yMin(); j <= extents.yMax(); ++j) {
+      for (int16_t i = extents.xMin(); i <= extents.xMax(); ++i) {
+        if (*ptr != color::Transparent) writer.writePixel(i, j, *ptr);
+        ++ptr;
+      }
+    }
+  }
+}
+
+inline void WriteRectVisibleOverOpaqueBg(DisplayOutput &output,
+                                         const Box &extents, Color bgcolor,
+                                         const Rasterizable &object,
+                                         PaintMode mode) {
+  uint32_t count = extents.area();
+  Color buf[count];
+  bool same = object.readColorRect(extents.xMin(), extents.yMin(),
+                                   extents.xMax(), extents.yMax(), buf);
+  if (same) {
+    if (buf[0] != color::Transparent) {
+      output.fillRect(mode, extents, AlphaBlendOverOpaque(bgcolor, buf[0]));
+    }
+  } else {
+    BufferedPixelWriter writer(output, mode);
+    Color *ptr = buf;
+    for (int16_t j = extents.yMin(); j <= extents.yMax(); ++j) {
+      for (int16_t i = extents.xMin(); i <= extents.xMax(); ++i) {
+        if (*ptr != color::Transparent)
+          writer.writePixel(i, j, AlphaBlendOverOpaque(bgcolor, *ptr));
+        ++ptr;
+      }
+    }
+  }
+}
+
+inline void WriteRectVisibleOverBg(DisplayOutput &output, const Box &extents,
+                                   Color bgcolor, const Rasterizable &object,
+                                   PaintMode mode) {
+  uint32_t count = extents.area();
+  Color buf[count];
+  bool same = object.readColorRect(extents.xMin(), extents.yMin(),
+                                   extents.xMax(), extents.yMax(), buf);
+  if (same) {
+    if (buf[0] != color::Transparent) {
+      output.fillRect(mode, extents, AlphaBlend(bgcolor, buf[0]));
+    }
+  } else {
+    BufferedPixelWriter writer(output, mode);
+    Color *ptr = buf;
+    for (int16_t j = extents.yMin(); j <= extents.yMax(); ++j) {
+      for (int16_t i = extents.xMin(); i <= extents.xMax(); ++i) {
+        if (*ptr != color::Transparent)
+          writer.writePixel(i, j, AlphaBlend(bgcolor, *ptr));
+        ++ptr;
+      }
+    }
+  }
+}
+
+}  // namespace
+
+void Rasterizable::drawTo(const Surface &s) const {
+  Box box = extents();
+  int16_t xMin = box.xMin();
+  int16_t xMax = box.xMax();
+  int16_t yMin = box.yMin();
+  int16_t yMax = box.yMax();
+  uint32_t pixel_count = box.area();
+  const int16_t xMinOuter = (xMin / 8) * 8;
+  const int16_t yMinOuter = (yMin / 8) * 8;
+  const int16_t xMaxOuter = (xMax / 8) * 8 + 7;
+  const int16_t yMaxOuter = (yMax / 8) * 8 + 7;
+  FillMode fill_mode = s.fill_mode();
+  TransparencyMode transparency = getTransparencyMode();
+  Color bgcolor = s.bgcolor();
+  DisplayOutput &output = s.out();
+  PaintMode mode = s.paint_mode();
+  if (fill_mode == FILL_MODE_RECTANGLE || transparency == TRANSPARENCY_NONE) {
+    if (pixel_count <= 64) {
+      FillReplaceRect(output, box, *this, mode);
+      return;
+    }
+    if (bgcolor.a() == 0 || transparency == TRANSPARENCY_NONE) {
+      for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
+        for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
+          FillReplaceRect(output,
+                          Box(std::max(x, box.xMin()), std::max(y, box.yMin()),
+                              std::min((int16_t)(x + 7), box.xMax()),
+                              std::min((int16_t)(y + 7), box.yMax())),
+                          *this, mode);
+        }
+      }
+    } else if (bgcolor.a() == 0xFF) {
+      if (pixel_count <= 64) {
+        FillPaintRectOverOpaqueBg(output, box, bgcolor, *this, mode);
+        return;
+      }
+      for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
+        for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
+          FillPaintRectOverOpaqueBg(
+              output,
+              Box(std::max(x, box.xMin()), std::max(y, box.yMin()),
+                  std::min((int16_t)(x + 7), box.xMax()),
+                  std::min((int16_t)(y + 7), box.yMax())),
+              bgcolor, *this, mode);
+        }
+      }
+    } else {
+      if (pixel_count <= 64) {
+        FillPaintRectOverBg(output, box, bgcolor, *this, mode);
+        return;
+      }
+      for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
+        for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
+          FillPaintRectOverBg(
+              output,
+              Box(std::max(x, box.xMin()), std::max(y, box.yMin()),
+                  std::min((int16_t)(x + 7), box.xMax()),
+                  std::min((int16_t)(y + 7), box.yMax())),
+              bgcolor, *this, mode);
+        }
+      }
+    }
+  } else {
+    if (bgcolor.a() == 0) {
+      if (pixel_count <= 64) {
+        WriteRectVisible(output, box, *this, mode);
+        return;
+      }
+      for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
+        for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
+          WriteRectVisible(output,
+                           Box(std::max(x, box.xMin()), std::max(y, box.yMin()),
+                               std::min((int16_t)(x + 7), box.xMax()),
+                               std::min((int16_t)(y + 7), box.yMax())),
+                           *this, mode);
+        }
+      }
+    } else if (bgcolor.a() == 0xFF) {
+      if (pixel_count <= 64) {
+        WriteRectVisibleOverOpaqueBg(output, box, bgcolor, *this, mode);
+        return;
+      }
+      for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
+        for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
+          WriteRectVisibleOverOpaqueBg(
+              output,
+              Box(std::max(x, box.xMin()), std::max(y, box.yMin()),
+                  std::min((int16_t)(x + 7), box.xMax()),
+                  std::min((int16_t)(y + 7), box.yMax())),
+              bgcolor, *this, mode);
+        }
+      }
+    } else {
+      if (pixel_count <= 64) {
+        WriteRectVisibleOverBg(output, box, bgcolor, *this, mode);
+        return;
+      }
+      for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
+        for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
+          WriteRectVisibleOverBg(
+              output,
+              Box(std::max(x, box.xMin()), std::max(y, box.yMin()),
+                  std::min((int16_t)(x + 7), box.xMax()),
+                  std::min((int16_t)(y + 7), box.yMax())),
+              bgcolor, *this, mode);
+        }
+      }
+    }
+  }
 }
 
 }  // namespace roo_display

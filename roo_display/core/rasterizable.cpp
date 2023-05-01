@@ -153,11 +153,13 @@ std::unique_ptr<PixelStream> Rasterizable::createStream(
 namespace {
 
 inline void FillReplaceRect(DisplayOutput &output, const Box &extents,
-                            const Rasterizable &object, PaintMode mode) {
+                            int16_t dx, int16_t dy, const Rasterizable &object,
+                            PaintMode mode) {
   uint32_t count = extents.area();
   Color buf[count];
-  bool same = object.readColorRect(extents.xMin(), extents.yMin(),
-                                   extents.xMax(), extents.yMax(), buf);
+  bool same =
+      object.readColorRect(extents.xMin() - dx, extents.yMin() - dy,
+                           extents.xMax() - dx, extents.yMax() - dy, buf);
   if (same) {
     output.fillRect(mode, extents, buf[0]);
   } else {
@@ -167,12 +169,14 @@ inline void FillReplaceRect(DisplayOutput &output, const Box &extents,
 }
 
 inline void FillPaintRectOverOpaqueBg(DisplayOutput &output, const Box &extents,
-                                      Color bgcolor, const Rasterizable &object,
+                                      int16_t dx, int16_t dy, Color bgcolor,
+                                      const Rasterizable &object,
                                       PaintMode mode) {
   uint32_t count = extents.area();
   Color buf[count];
-  bool same = object.readColorRect(extents.xMin(), extents.yMin(),
-                                   extents.xMax(), extents.yMax(), buf);
+  bool same =
+      object.readColorRect(extents.xMin() - dx, extents.yMin() - dy,
+                           extents.xMax() - dx, extents.yMax() - dy, buf);
   if (same) {
     output.fillRect(mode, extents, AlphaBlendOverOpaque(bgcolor, buf[0]));
   } else {
@@ -185,12 +189,13 @@ inline void FillPaintRectOverOpaqueBg(DisplayOutput &output, const Box &extents,
 }
 
 inline void FillPaintRectOverBg(DisplayOutput &output, const Box &extents,
-                                Color bgcolor, const Rasterizable &object,
-                                PaintMode mode) {
+                                int16_t dx, int16_t dy, Color bgcolor,
+                                const Rasterizable &object, PaintMode mode) {
   uint32_t count = extents.area();
   Color buf[count];
-  bool same = object.readColorRect(extents.xMin(), extents.yMin(),
-                                   extents.xMax(), extents.yMax(), buf);
+  bool same =
+      object.readColorRect(extents.xMin() - dx, extents.yMin() - dy,
+                           extents.xMax() - dx, extents.yMax() - dy, buf);
   if (same) {
     output.fillRect(mode, extents, AlphaBlend(bgcolor, buf[0]));
   } else {
@@ -204,11 +209,13 @@ inline void FillPaintRectOverBg(DisplayOutput &output, const Box &extents,
 
 // Assumes no bgcolor.
 inline void WriteRectVisible(DisplayOutput &output, const Box &extents,
-                             const Rasterizable &object, PaintMode mode) {
+                             int16_t dx, int16_t dy, const Rasterizable &object,
+                             PaintMode mode) {
   uint32_t count = extents.area();
   Color buf[count];
-  bool same = object.readColorRect(extents.xMin(), extents.yMin(),
-                                   extents.xMax(), extents.yMax(), buf);
+  bool same =
+      object.readColorRect(extents.xMin() - dx, extents.yMin() - dy,
+                           extents.xMax() - dx, extents.yMax() - dy, buf);
   if (same) {
     if (buf[0] != color::Transparent) {
       output.fillRect(mode, extents, buf[0]);
@@ -226,13 +233,15 @@ inline void WriteRectVisible(DisplayOutput &output, const Box &extents,
 }
 
 inline void WriteRectVisibleOverOpaqueBg(DisplayOutput &output,
-                                         const Box &extents, Color bgcolor,
+                                         const Box &extents, int16_t dx,
+                                         int16_t dy, Color bgcolor,
                                          const Rasterizable &object,
                                          PaintMode mode) {
   uint32_t count = extents.area();
   Color buf[count];
-  bool same = object.readColorRect(extents.xMin(), extents.yMin(),
-                                   extents.xMax(), extents.yMax(), buf);
+  bool same =
+      object.readColorRect(extents.xMin() - dx, extents.yMin() - dy,
+                           extents.xMax() - dx, extents.yMax() - dy, buf);
   if (same) {
     if (buf[0] != color::Transparent) {
       output.fillRect(mode, extents, AlphaBlendOverOpaque(bgcolor, buf[0]));
@@ -251,12 +260,13 @@ inline void WriteRectVisibleOverOpaqueBg(DisplayOutput &output,
 }
 
 inline void WriteRectVisibleOverBg(DisplayOutput &output, const Box &extents,
-                                   Color bgcolor, const Rasterizable &object,
-                                   PaintMode mode) {
+                                   int16_t dx, int16_t dy, Color bgcolor,
+                                   const Rasterizable &object, PaintMode mode) {
   uint32_t count = extents.area();
   Color buf[count];
-  bool same = object.readColorRect(extents.xMin(), extents.yMin(),
-                                   extents.xMax(), extents.yMax(), buf);
+  bool same =
+      object.readColorRect(extents.xMin() - dx, extents.yMin() - dy,
+                           extents.xMax() - dx, extents.yMax() - dy, buf);
   if (same) {
     if (buf[0] != color::Transparent) {
       output.fillRect(mode, extents, AlphaBlend(bgcolor, buf[0]));
@@ -277,7 +287,7 @@ inline void WriteRectVisibleOverBg(DisplayOutput &output, const Box &extents,
 }  // namespace
 
 void Rasterizable::drawTo(const Surface &s) const {
-  Box box = extents();
+  Box box = s.clip_box();
   int16_t xMin = box.xMin();
   int16_t xMax = box.xMax();
   int16_t yMin = box.yMin();
@@ -294,7 +304,7 @@ void Rasterizable::drawTo(const Surface &s) const {
   PaintMode mode = s.paint_mode();
   if (fill_mode == FILL_MODE_RECTANGLE || transparency == TRANSPARENCY_NONE) {
     if (pixel_count <= 64) {
-      FillReplaceRect(output, box, *this, mode);
+      FillReplaceRect(output, box, s.dx(), s.dy(), *this, mode);
       return;
     }
     if (bgcolor.a() == 0 || transparency == TRANSPARENCY_NONE) {
@@ -304,12 +314,13 @@ void Rasterizable::drawTo(const Surface &s) const {
                           Box(std::max(x, box.xMin()), std::max(y, box.yMin()),
                               std::min((int16_t)(x + 7), box.xMax()),
                               std::min((int16_t)(y + 7), box.yMax())),
-                          *this, mode);
+                          s.dx(), s.dy(), *this, mode);
         }
       }
     } else if (bgcolor.a() == 0xFF) {
       if (pixel_count <= 64) {
-        FillPaintRectOverOpaqueBg(output, box, bgcolor, *this, mode);
+        FillPaintRectOverOpaqueBg(output, box, s.dx(), s.dy(), bgcolor, *this,
+                                  mode);
         return;
       }
       for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
@@ -319,12 +330,12 @@ void Rasterizable::drawTo(const Surface &s) const {
               Box(std::max(x, box.xMin()), std::max(y, box.yMin()),
                   std::min((int16_t)(x + 7), box.xMax()),
                   std::min((int16_t)(y + 7), box.yMax())),
-              bgcolor, *this, mode);
+              s.dx(), s.dy(), bgcolor, *this, mode);
         }
       }
     } else {
       if (pixel_count <= 64) {
-        FillPaintRectOverBg(output, box, bgcolor, *this, mode);
+        FillPaintRectOverBg(output, box, s.dx(), s.dy(), bgcolor, *this, mode);
         return;
       }
       for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
@@ -334,14 +345,14 @@ void Rasterizable::drawTo(const Surface &s) const {
               Box(std::max(x, box.xMin()), std::max(y, box.yMin()),
                   std::min((int16_t)(x + 7), box.xMax()),
                   std::min((int16_t)(y + 7), box.yMax())),
-              bgcolor, *this, mode);
+              s.dx(), s.dy(), bgcolor, *this, mode);
         }
       }
     }
   } else {
     if (bgcolor.a() == 0) {
       if (pixel_count <= 64) {
-        WriteRectVisible(output, box, *this, mode);
+        WriteRectVisible(output, box, s.dx(), s.dy(), *this, mode);
         return;
       }
       for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
@@ -350,12 +361,13 @@ void Rasterizable::drawTo(const Surface &s) const {
                            Box(std::max(x, box.xMin()), std::max(y, box.yMin()),
                                std::min((int16_t)(x + 7), box.xMax()),
                                std::min((int16_t)(y + 7), box.yMax())),
-                           *this, mode);
+                           s.dx(), s.dy(), *this, mode);
         }
       }
     } else if (bgcolor.a() == 0xFF) {
       if (pixel_count <= 64) {
-        WriteRectVisibleOverOpaqueBg(output, box, bgcolor, *this, mode);
+        WriteRectVisibleOverOpaqueBg(output, box, s.dx(), s.dy(), bgcolor,
+                                     *this, mode);
         return;
       }
       for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
@@ -365,12 +377,13 @@ void Rasterizable::drawTo(const Surface &s) const {
               Box(std::max(x, box.xMin()), std::max(y, box.yMin()),
                   std::min((int16_t)(x + 7), box.xMax()),
                   std::min((int16_t)(y + 7), box.yMax())),
-              bgcolor, *this, mode);
+              s.dx(), s.dy(), bgcolor, *this, mode);
         }
       }
     } else {
       if (pixel_count <= 64) {
-        WriteRectVisibleOverBg(output, box, bgcolor, *this, mode);
+        WriteRectVisibleOverBg(output, box, s.dx(), s.dy(), bgcolor, *this,
+                               mode);
         return;
       }
       for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
@@ -380,7 +393,7 @@ void Rasterizable::drawTo(const Surface &s) const {
               Box(std::max(x, box.xMin()), std::max(y, box.yMin()),
                   std::min((int16_t)(x + 7), box.xMax()),
                   std::min((int16_t)(y + 7), box.yMax())),
-              bgcolor, *this, mode);
+              s.dx(), s.dy(), bgcolor, *this, mode);
         }
       }
     }

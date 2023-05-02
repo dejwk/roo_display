@@ -57,7 +57,7 @@ void TouchGt911::reset() {
 int TouchGt911::readTouch(TouchPoint* points) {
   uint8_t status = readByte(kTouchRead);
   uint8_t ready = (status & 0x80) != 0;
-  uint8_t have_key = (status & 0x10) != 0;
+  // uint8_t have_key = (status & 0x10) != 0;
   if (!ready) return 0;
   int touches = status & 0xF;
   uint8_t data[7];
@@ -76,7 +76,7 @@ uint8_t TouchGt911::readByte(uint16_t reg) {
   wire_.write(reg >> 8);
   wire_.write(reg & 0xFF);
   wire_.endTransmission();
-  wire_.requestFrom(addr_, 1);
+  wire_.requestFrom(addr_, (uint8_t)1);
   x = wire_.read();
   return x;
 }

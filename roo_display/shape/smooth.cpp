@@ -238,8 +238,6 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
   float end_x_ri = ri * end_sin;
   float end_y_ri = -ri * end_cos;
 
-  float inv_half_width = 2.0f / thickness;
-
   int start_quadrant = Quadrant(start_x_ro, start_y_ro);
   int end_quadrant = Quadrant(end_x_ro, end_y_ro);
 
@@ -1021,7 +1019,6 @@ inline bool IsPointWithinAngle(float start_x_slope, float start_y_slope,
                                float dx, float dy) {
   float n1 = start_y_slope * dx - start_x_slope * dy;
   float n2 = end_x_slope * dy - end_y_slope * dx;
-  bool within_range = false;
   if (sharp) {
     return (n1 <= -0.5f && n2 <= -0.5f);
   } else {

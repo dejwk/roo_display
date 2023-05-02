@@ -2,13 +2,9 @@
 
 #include "roo_display.h"
 #include "roo_display/color/color.h"
+#include "roo_display/shape/point.h"
 
 namespace roo_display {
-
-struct FpPoint {
-  float x;
-  float y;
-};
 
 enum EndingStyle {
   ENDING_ROUNDED = 0,

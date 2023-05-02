@@ -11,7 +11,6 @@
 #include "roo_display/core/orientation.h"
 #include "roo_display/driver/ili9488.h"
 #include "roo_display/driver/touch_ft6x36.h"
-#include "roo_display/hal/transport.h"
 #include "roo_display/products/combo_device.h"
 
 namespace roo_display::products::makerfabs {

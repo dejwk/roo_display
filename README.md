@@ -2235,10 +2235,9 @@ Now you can practically forget that the background is there - it will be painted
 
 ### Gradients
 
-In the previous section, we saw how to define simple horizontal or vertical color gradients. You will find support for more sophisticated gradients in `roo_display/color/gradient.h`. Specifically, you can use it to define angular, radial, and arbitrary linear gradients, and all of them can be multi-point, and possibly periodic:
+In the previous section, we saw how to define simple horizontal or vertical color gradients. You will find support for more sophisticated gradients in `roo_display/color/gradient.h`. You can define angular, radial, and arbitrary linear gradients, and all of them can be multi-point, and possibly periodic:
 
 ```cpp
-
 #include "roo_display/color/gradient.h"
 #include "roo_display/color/hsv.h"
 
@@ -2261,6 +2260,10 @@ void loop() {
             kCenter | kMiddle);
   }
   {
+    // Periodic, angular gradient.
+    // Note that we're repeating the same color at both ends of the gradient,
+    // to make the period equal to 120 degrees (2 * Pi / 3) and to smoothly
+    // oscillate between red and yellow.
     DrawingContext dc(display, Box(w / 2, 0, w - 1, h / 2 - 1));
     auto gradient =
         AngularGradient({w * 3 / 4, h / 4},
@@ -2275,6 +2278,7 @@ void loop() {
             kCenter | kMiddle);
   }
   {
+    // Multi-node vertical gradient.
     DrawingContext dc(display, Box(0, h / 2, w / 2 - 1, h - 1));
     float v = 0.9;
     float s = 0.7;
@@ -2294,6 +2298,7 @@ void loop() {
             kCenter | kMiddle);
   }
   {
+    // Multi-node skewed linear gradient.
     DrawingContext dc(display, Box(w / 2, h / 2, w - 1, h - 1));
     float v = 0.9;
     float s = 0.7;

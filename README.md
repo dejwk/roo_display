@@ -2545,15 +2545,90 @@ Checking for clipping at every item adds some overhead, so it is better to optim
 
 ### Avoiding flicker and aliasing artifacts
 
-Flicker is an enemy of slick UIs. It gets in the way of smooth animations. Also, the presence of flicker means that we have drawn some pixels more times than necessary, wasting the communication bandwidth.
+Flicker is an enemy of a slick graphical interface. It gets in the way of smooth animations. Its presence also means that some pixels are drawn more times than necessary, wasting the communication bandwidth.
+
+Anti-aliased graphics look great, but if you use non-solid backgrounds, they can cause headaches (except for the few displays with drivers supporting alpha-blending natively).
+
+In this section, we discuss tools that help composing the content before drawing it, avoiding both flicker and aliasing artifacts, at the expense of some combination of memory or CPU cost.
 
 #### Using Offscreen
 
+The simplest way to prepare the content before drawing it to the screen is to use an offscreen buffer, as described in the section TODO(ref). Drawing to an offscreen is about an order of magnitude faster than drawing to a physical screen, and flushing a rectangular area onto the screen is also generally reasonably fast, so it tends to work out well in terms of performance. Offscreens natively support alpha-blending, so the anti-aliased and other translucent content will be handled correctly.
+
+The biggest drawback of using offscreens is that they need frame buffer memory. If you have enough memory to spare, give offscreens a try. Otherwise, read on.
+
+#### Using clip masks
+
+In the section TODO(ref), you saw how to use clip masks to control the drawing area. Clip masks use just one bit per pixel (e.g., ~19 KB for a 480x320 screen), and are thus often viable when offscreens aren't. Clip masks don't solve the alpha-blending problem, though, and thus may not be appropriate for drawing anti-aliased content.
+
 #### Using backgrounds
+
+In section TODO(ref), we saw how to use rasterizable backgrounds. Drawable contents is combined with the background immediately before drawing, with proper alpha-blending, using a small temporary memory buffer (below 1 KB) allocated on the stack, and it never introduces flicker.
 
 #### Using rasterizable overlays and color filters
 
+The way backgrounds internally work is by intercepting and augmenting calls to the undelying device driver - in this case, using the `BackgroundFilter` device class. This technique can be used to implement other filters. For example, a `ForegroundFilter` applies a given rasterizable on the _top_ of the content drawn, rather than behind it, which can be useful in drawing overlaid graphics or 'sprites':
+
+```cpp
+#include "roo_display/filter/foreground.h"
+
+// ...
+
+class PressAnimationOverlay : public Drawable {
+ public:
+  PressAnimationOverlay(const Drawable* contents)
+      : contents_(contents), xc_(0), yc_(0), r_(0) {}
+
+  Box extents() const override { return contents_->extents(); }
+
+  void set(int16_t xc, int16_t yc, int16_t r) {
+    xc_ = xc;
+    yc_ = yc;
+    r_ = r;
+  }
+
+ private:
+  void drawTo(const Surface& s) const override {
+    Surface my_s(s);
+    my_s.set_bgcolor(AlphaBlend(s.bgcolor(), color::Purple.withA(0x20)));
+    auto circle = SmoothFilledCircle(
+        {xc_, yc_}, r_, color::Purple.withA(0x30));
+    ForegroundFilter fg(s.out(), &circle);
+    if (r_ != 0) {
+      my_s.set_out(&fg);
+    }
+    my_s.drawObject(*contents_);
+  }
+
+  const Drawable* contents_;
+  int16_t xc_, yc_, r_;
+};
+
+void loop() {
+  auto tile = MakeTileOf(
+    TextLabel("Hello, World!", font_NotoSans_Bold_27(), color::Black),
+    Box(0, 0, 200, 50),
+    kCenter | kMiddle);
+  PressAnimationOverlay overlaid(&tile);
+  if ((millis() / 1000) % 2 == 0) {
+    overlaid.set(180, 120, (millis() % 1000) / 2);
+  }
+  DrawingContext dc(display);
+  dc.setFillMode(FILL_MODE_RECTANGLE);
+  dc.draw(overlaid, kCenter | kMiddle);
+}
+```
+
+![img55](doc/images/img55.png)
+
+
 #### Stacking streamables and rasterizables using Combo classes
+
+
+
+#### Using 'draw-once' mode
+
+#### Example: analog gauge
 
 #### Using the background-fill optimizer
 
@@ -2563,7 +2638,7 @@ TL;DR: there are a lot of really similar devices around. Try the age-old techniq
 
 ##### DisplayDevice
 
-A display driver is represented by the abstract `DisplayDevice` class. To implement a driver, means to implement the pure virtual methods in this class:
+A display driver is represented by the abstract `DisplayDevice` class. To implement a driver, you need to implement the pure virtual methods in this class:
 
 * `setAddress()`: set a rectangular window that will be filled by subsequent calls to `write`;
 * `write()`: writes to the subsequent pixels in the address window;
@@ -2588,15 +2663,15 @@ If a destination color is non-opaque and the driver does not support the 'alpha'
 
 ##### The AddrWindowDevice template class
 
-Many display devices are internally implemented using the same underlying paradigm, in which all drawing is essentially reduced to `setAddress()` and `write()`. The AddrWindowDevice helper base class provides a common implementation that implements this paradigm. The class is parameterized using a `Target` class. Essentially, instead of implementing the `DisplayDevice`, you now need to implement a `Target`. The number of methods to implement there is actually larger, but they are simpler. You no longer need to worry about rectangles, pixels, and ARGB conversion; instead, you need to implement basic primitives to set the address window in the X/Y direction, and to write raw pixel data in the native format (often RGB565). Additionally, the base class implements a useful implementation for `writePixels` and `fillPixels`, namely: it detects neighboring pixels in a batch, and tries to minimize the number of calls to 'set window' methods. This implementation can considerably reduce communication volume and thus significantly improve pixel drawing performance.
+Many display devices are internally implemented using the same underlying paradigm, in which all drawing is essentially reduced to `setAddress()` and `write()`. The AddrWindowDevice helper base class provides a common implementation of this paradigm. The class is parameterized using a `Target` class. Essentially, instead of implementing the `DisplayDevice`, you now need to implement a `Target`. The number of methods to implement there is actually larger, but they are simpler. You no longer need to worry about rectangles, pixels, and ARGB conversion; instead, you need to implement basic primitives to set the address window in the X/Y direction, and to write raw pixel data in the native format (often RGB565). Additionally, the base class provides an optimized baseline implementation of `writePixels` and `fillPixels`, detecting neighboring pixels in a batch and minimizing the number of calls to 'set window' methods. This optimization can considerably reduce communication volume and thus significantly improve pixel drawing performance.
 
-The implementation of most of the existing drivers, e.g. ILI9486, ILI9488, ILI9431, ST7789, and ST7735, use `AddWindowDevice` as the base class. They include an implementation of the appropriate `Target`, plus some typedefs to put it together with the `AddWindowDevice`. The `Target` implements the core device-specific part, e.g. the init sequence, the window and data output commands, etc.
+The implementation of most of the existing drivers, e.g. ILI9486, ILI9488, ILI9431, ST7789, and ST7735, use `AddWindowDevice` as the base class. They include an implementation of the appropriate `Target`, plus some typedefs to put it together with the `AddWindowDevice`. The `Target` implements the core device-specific part, such as the init sequence and the commands to set the window and write the data.
 
-> Note that template parameterization is used rather than inheritance, to facilitate code inlining and avoid the cost of (virtual) method calls. It allows these drivers to be as fast as they would have been if implemented from scratch.
+> Note that template parameterization is used rather than inheritance, to facilitate inlining and avoid the cost of virtual method calls.
 
 ##### Transport abstraction
 
-In order to support hardware-optimized, microcontroller-specific SPI and GPIO implementations, and to provide extensibility towards non-SPI transports, the drivers are generally templated on `Transport` and `Gpio` classes. The `Transport` provides the following methods:
+In order to support hardware-optimized, microcontroller-specific SPI and GPIO implementations, and to provide extensibility towards non-SPI transports, many drivers are templated on `Transport` and `Gpio` classes. The `Transport` provides the following methods:
 
 * `beginTransaction()` / `endTransaction()`,
 * `write()`, `write16()`, `write16be()`, `write32()`, `write32be()`, `writeBytes()`, `fill16()`, `fill24be()`.

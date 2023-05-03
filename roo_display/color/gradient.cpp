@@ -1,0 +1,217 @@
+#include "roo_display/color/gradient.h"
+
+namespace roo_display {
+
+ColorGradient::ColorGradient(std::vector<Node> gradient, Boundary boundary)
+    : gradient_(std::move(gradient)),
+      boundary_(boundary),
+      transparency_mode_(TRANSPARENCY_NONE),
+      inv_period_(1.0f / (gradient_.back().value - gradient_.front().value)) {
+  for (const Node& n : gradient_) {
+    uint8_t a = n.color.a();
+    if (a != 255) {
+      if (a != 0) {
+        transparency_mode_ = TRANSPARENCY_GRADUAL;
+        break;
+      }
+      transparency_mode_ = TRANSPARENCY_BINARY;
+    }
+  }
+}
+
+Color ColorGradient::getColor(float value) const {
+  // Adjust the value, handling the boundary type.
+  switch (boundary_) {
+    case EXTENDED: {
+      break;
+    }
+    case TRUNCATED: {
+      if (value < gradient_.front().value) {
+        float diff = gradient_.front().value - value;
+        if (diff >= 1) return color::Transparent;
+        return gradient_.front().color.withA(255 * diff);
+      }
+      if (value > gradient_.back().value) {
+        float diff = value - gradient_.back().value;
+        if (diff >= 1) return color::Transparent;
+        return gradient_.back().color.withA(255 * diff);
+      }
+      break;
+    }
+    case PERIODIC: {
+      if (value < gradient_.front().value || value > gradient_.back().value) {
+        float adj = value - gradient_.front().value;
+        float period = gradient_.back().value - gradient_.front().value;
+        value =
+            adj - period * floorf(adj * inv_period_) + gradient_.front().value;
+      }
+      break;
+    }
+  }
+  // First, find the matching interval.
+  uint16_t right_bound = 0;
+  while (right_bound < gradient_.size() &&
+         gradient_[right_bound].value < value) {
+    right_bound++;
+  }
+  if (right_bound == 0) {
+    return gradient_[0].color;
+  } else if (right_bound >= gradient_.size()) {
+    return gradient_.back().color;
+  } else {
+    // Interpolate.
+    float left_temp = gradient_[right_bound - 1].value;
+    float right_temp = gradient_[right_bound].value;
+    int16_t f = (int16_t)(256 * (value - left_temp) / (right_temp - left_temp));
+    Color left = gradient_[right_bound - 1].color;
+    Color right = gradient_[right_bound].color;
+    uint32_t a =
+        ((uint16_t)left.a() * (256 - f) + (uint16_t)right.a() * f) / 256;
+    uint32_t r =
+        ((uint16_t)left.r() * (256 - f) + (uint16_t)right.r() * f) / 256;
+    uint32_t g =
+        ((uint16_t)left.g() * (256 - f) + (uint16_t)right.g() * f) / 256;
+    uint32_t b =
+        ((uint16_t)left.b() * (256 - f) + (uint16_t)right.b() * f) / 256;
+    return Color(a << 24 | r << 16 | g << 8 | b);
+  }
+}
+
+RadialGradient::RadialGradient(FpPoint center, ColorGradient gradient,
+                               Box extents)
+    : cx_(center.x),
+      cy_(center.y),
+      gradient_(std::move(gradient)),
+      extents_(extents) {}
+
+void RadialGradient::readColors(const int16_t* x, const int16_t* y,
+                                uint32_t count, Color* result) const {
+  while (count-- > 0) {
+    float dx = *x - cx_;
+    float dy = *y - cy_;
+    float r = sqrtf(dx * dx + dy * dy);
+    Color c = gradient_.getColor(r);
+    *result++ = c;
+    ++x;
+    ++y;
+  }
+}
+
+RadialGradientSq::RadialGradientSq(Point center, ColorGradient gradient,
+                                   Box extents)
+    : cx_(center.x),
+      cy_(center.y),
+      gradient_(std::move(gradient)),
+      extents_(extents) {}
+
+void RadialGradientSq::readColors(const int16_t* x, const int16_t* y,
+                                  uint32_t count, Color* result) const {
+  while (count-- > 0) {
+    int16_t dx = *x - cx_;
+    int16_t dy = *y - cy_;
+    uint32_t r = dx * dx + dy * dy;
+    Color c = gradient_.getColor(r);
+    *result++ = c;
+    ++x;
+    ++y;
+  }
+}
+
+LinearGradient::LinearGradient(Point origin, float dx, float dy,
+                               ColorGradient gradient, Box extents)
+    : cx_(origin.x),
+      cy_(origin.y),
+      dx_(dx),
+      dy_(dy),
+      gradient_(std::move(gradient)),
+      extents_(extents) {}
+
+void LinearGradient::readColors(const int16_t* x, const int16_t* y,
+                                uint32_t count, Color* result) const {
+  if (dx_ == 0.0f) {
+    if (dy_ == 1.0f) {
+      while (count-- > 0) {
+        *result++ = gradient_.getColor(*y++ - cy_);
+      }
+    } else {
+      while (count-- > 0) {
+        *result++ = gradient_.getColor((*y++ - cy_) * dy_);
+      }
+    }
+  } else if (dy_ == 0.0f) {
+    if (dx_ == 1.0f) {
+      while (count-- > 0) {
+        *result++ = gradient_.getColor(*x++ - cx_);
+      }
+    } else {
+      while (count-- > 0) {
+        *result++ = gradient_.getColor((*x++ - cx_) * dx_);
+      }
+    }
+  } else {
+    while (count-- > 0) {
+      *result++ = gradient_.getColor((*x++ - cx_) * dx_ + (*y++ - cy_) * dy_);
+    }
+  }
+}
+
+bool LinearGradient::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
+                                   int16_t yMax, Color* result) const {
+  int16_t width = xMax - xMin + 1;
+  if (dx_ == 0.0f) {
+    if (dy_ == 1.0f) {
+      for (int16_t y = yMin; y <= yMax; ++y) {
+        FillColor(result, width, gradient_.getColor(y - cy_));
+        result += width;
+      }
+    } else {
+      for (int16_t y = yMin; y <= yMax; ++y) {
+        FillColor(result, width, gradient_.getColor((y - cy_) * dy_));
+        result += width;
+      }
+    }
+  } else if (dy_ == 0.0f) {
+    if (dx_ == 1.0f) {
+      const Color* start = result;
+      for (int16_t x = xMin; x <= xMax; ++x) {
+        *result++ = gradient_.getColor(x - cx_);
+      }
+      for (int16_t y = yMin + 1; y <= yMax; ++y) {
+        memcpy(result, start, width * sizeof(Color));
+        result += width;
+      }
+    } else {
+      const Color* start = result;
+      for (int16_t x = xMin; x <= xMax; ++x) {
+        *result++ = gradient_.getColor((x - cx_) * dx_);
+      }
+      for (int16_t y = yMin + 1; y <= yMax; ++y) {
+        memcpy(result, start, width * sizeof(Color));
+        result += width;
+      }
+    }
+  } else {
+    for (int16_t y = yMin; y <= yMax; ++y) {
+      for (int16_t x = xMin; x <= xMax; ++x) {
+        *result++ = gradient_.getColor((x - cx_) * dx_ + (y - cy_) * dy_);
+      }
+    }
+  }
+  return false;
+}
+
+AngularGradient::AngularGradient(FpPoint center, ColorGradient gradient,
+                                 Box extents)
+    : cx_(center.x),
+      cy_(center.y),
+      gradient_(std::move(gradient)),
+      extents_(extents) {}
+
+void AngularGradient::readColors(const int16_t* x, const int16_t* y,
+                                 uint32_t count, Color* result) const {
+  while (count-- > 0) {
+    *result++ = gradient_.getColor(atan2f(*x++ - cx_, cy_ - *y++));
+  }
+}
+
+}  // namespace roo_display

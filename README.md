@@ -2233,6 +2233,94 @@ void loop() {
 
 Now you can practically forget that the background is there - it will be painted no matter what you draw.
 
+### Gradients
+
+In the previous section, we saw how to define simple horizontal or vertical color gradients. You will find support for more sophisticated gradients in `roo_display/color/gradient.h`. Specifically, you can use it to define angular, radial, and arbitrary linear gradients, and all of them can be multi-point, and possibly periodic:
+
+```cpp
+
+#include "roo_display/color/gradient.h"
+#include "roo_display/color/hsv.h"
+
+// ...
+
+void loop() {
+  int w = display.width();
+  int h = display.height();
+  auto centered = kMiddle | kCenter;
+  {
+    // Radial gradient.
+    DrawingContext dc(display, Box(0, 0, w / 2 - 1, h / 2 - 1));
+    auto gradient = RadialGradientSq(
+        {w / 4, h / 4}, ColorGradient({{0, HsvToRgb(60, 0.8, 0.99)},
+                                       {50 * 50, HsvToRgb(0, 0.8, 0.95)},
+                                       {51 * 51, color::Transparent}}));
+    dc.setBackground(&gradient);
+    dc.clear();
+    dc.draw(TextLabel("&", font_NotoSerif_Italic_90(), color::Black),
+            kCenter | kMiddle);
+  }
+  {
+    DrawingContext dc(display, Box(w / 2, 0, w - 1, h / 2 - 1));
+    auto gradient =
+        AngularGradient({w * 3 / 4, h / 4},
+                        ColorGradient({{0, HsvToRgb(60, 0.8, 0.95)},
+                                       {M_PI / 3, HsvToRgb(0, 0.8, 0.99)},
+                                       {M_PI / 1.5, HsvToRgb(60, 0.8, 0.95)}},
+                                      ColorGradient::PERIODIC),
+                        Box(w / 2 + 20, 20, w - 21, h / 2 - 21));
+    dc.setBackground(&gradient);
+    dc.clear();
+    dc.draw(TextLabel("&", font_NotoSerif_Italic_90(), color::Black),
+            kCenter | kMiddle);
+  }
+  {
+    DrawingContext dc(display, Box(0, h / 2, w / 2 - 1, h - 1));
+    float v = 0.9;
+    float s = 0.7;
+    auto gradient = VerticalGradient(10, 1,
+                                     ColorGradient({{0, HsvToRgb(0, s, v)},
+                                                    {20, HsvToRgb(60, s, v)},
+                                                    {40, HsvToRgb(120, s, v)},
+                                                    {60, HsvToRgb(180, s, v)},
+                                                    {80, HsvToRgb(240, s, v)},
+                                                    {100, HsvToRgb(300, s, v)},
+                                                    {120, HsvToRgb(360, s, v)}},
+                                                   ColorGradient::PERIODIC),
+                                     Box(20, h / 2 + 20, w / 2 - 21, h - 21));
+    dc.setBackground(&gradient);
+    dc.clear();
+    dc.draw(TextLabel("&", font_NotoSerif_Italic_90(), color::Black),
+            kCenter | kMiddle);
+  }
+  {
+    DrawingContext dc(display, Box(w / 2, h / 2, w - 1, h - 1));
+    float v = 0.9;
+    float s = 0.7;
+    auto gradient = LinearGradient({w / 2 + 10, h / 2 + 10}, 0.5, 0.3,
+                                   ColorGradient({{0, HsvToRgb(0, s, v)},
+                                                  {20, HsvToRgb(60, s, v)},
+                                                  {40, HsvToRgb(120, s, v)},
+                                                  {60, HsvToRgb(180, s, v)},
+                                                  {80, HsvToRgb(240, s, v)},
+                                                  {100, HsvToRgb(300, s, v)},
+                                                  {120, HsvToRgb(360, s, v)}},
+                                                 ColorGradient::PERIODIC),
+                                   Box(w / 2 + 20, h / 2 + 20, w - 21, h - 21));
+    dc.setBackground(&gradient);
+    dc.clear();
+    dc.draw(TextLabel("&", font_NotoSerif_Italic_90(), color::Black),
+            kCenter | kMiddle);
+  }
+
+  delay(10000);
+}
+```
+
+![img56](doc/images/img56.png)
+
+> Note: large-area gradients may slow down the rendering noticeably. Multicolor areas are generally slower to render than unicolor areas, and, on top of that, gradient computation is CPU-intensive. For example, the angular gradient requires calculation of a trigonometric function for every pixel. Use with caution.
+
 ### Touch
 
 In this section, we will look at support for touch-screen devices.
@@ -2621,10 +2709,7 @@ void loop() {
 
 ![img55](doc/images/img55.png)
 
-
 #### Stacking streamables and rasterizables using Combo classes
-
-
 
 #### Using 'draw-once' mode
 

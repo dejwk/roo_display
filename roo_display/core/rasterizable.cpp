@@ -146,7 +146,7 @@ std::unique_ptr<PixelStream> Rasterizable::createStream(
 //   if (bounds.empty()) return;
 //   Stream stream(this, bounds.translate(-s.dx(), -s.dy()));
 //   internal::FillRectFromStream(s.out(), bounds, &stream, s.bgcolor(),
-//                                s.fill_mode(), s.paint_mode(),
+//                                s.fill_mode(), s.blending_mode(),
 //                                getTransparencyMode());
 // }
 
@@ -154,7 +154,7 @@ namespace {
 
 inline void FillReplaceRect(DisplayOutput &output, const Box &extents,
                             int16_t dx, int16_t dy, const Rasterizable &object,
-                            PaintMode mode) {
+                            BlendingMode mode) {
   uint32_t count = extents.area();
   Color buf[count];
   bool same =
@@ -171,7 +171,7 @@ inline void FillReplaceRect(DisplayOutput &output, const Box &extents,
 inline void FillPaintRectOverOpaqueBg(DisplayOutput &output, const Box &extents,
                                       int16_t dx, int16_t dy, Color bgcolor,
                                       const Rasterizable &object,
-                                      PaintMode mode) {
+                                      BlendingMode mode) {
   uint32_t count = extents.area();
   Color buf[count];
   bool same =
@@ -190,7 +190,7 @@ inline void FillPaintRectOverOpaqueBg(DisplayOutput &output, const Box &extents,
 
 inline void FillPaintRectOverBg(DisplayOutput &output, const Box &extents,
                                 int16_t dx, int16_t dy, Color bgcolor,
-                                const Rasterizable &object, PaintMode mode) {
+                                const Rasterizable &object, BlendingMode mode) {
   uint32_t count = extents.area();
   Color buf[count];
   bool same =
@@ -210,7 +210,7 @@ inline void FillPaintRectOverBg(DisplayOutput &output, const Box &extents,
 // Assumes no bgcolor.
 inline void WriteRectVisible(DisplayOutput &output, const Box &extents,
                              int16_t dx, int16_t dy, const Rasterizable &object,
-                             PaintMode mode) {
+                             BlendingMode mode) {
   uint32_t count = extents.area();
   Color buf[count];
   bool same =
@@ -236,7 +236,7 @@ inline void WriteRectVisibleOverOpaqueBg(DisplayOutput &output,
                                          const Box &extents, int16_t dx,
                                          int16_t dy, Color bgcolor,
                                          const Rasterizable &object,
-                                         PaintMode mode) {
+                                         BlendingMode mode) {
   uint32_t count = extents.area();
   Color buf[count];
   bool same =
@@ -261,7 +261,7 @@ inline void WriteRectVisibleOverOpaqueBg(DisplayOutput &output,
 
 inline void WriteRectVisibleOverBg(DisplayOutput &output, const Box &extents,
                                    int16_t dx, int16_t dy, Color bgcolor,
-                                   const Rasterizable &object, PaintMode mode) {
+                                   const Rasterizable &object, BlendingMode mode) {
   uint32_t count = extents.area();
   Color buf[count];
   bool same =
@@ -301,7 +301,7 @@ void Rasterizable::drawTo(const Surface &s) const {
   TransparencyMode transparency = getTransparencyMode();
   Color bgcolor = s.bgcolor();
   DisplayOutput &output = s.out();
-  PaintMode mode = s.paint_mode();
+  BlendingMode mode = s.blending_mode();
   if (fill_mode == FILL_MODE_RECTANGLE || transparency == TRANSPARENCY_NONE) {
     if (pixel_count <= 64) {
       FillReplaceRect(output, box, s.dx(), s.dy(), *this, mode);

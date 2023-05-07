@@ -114,20 +114,20 @@ class BackgroundFillOptimizer : public DisplayOutput {
   virtual ~BackgroundFillOptimizer() {}
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
-                  PaintMode mode) override;
+                  BlendingMode mode) override;
 
   void write(Color* color, uint32_t pixel_count) override;
 
-  void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
+  void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override;
 
-  void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
+  void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override;
 
-  void writePixels(PaintMode mode, Color* color, int16_t* x, int16_t* y,
+  void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
                    uint16_t pixel_count) override;
 
-  void fillPixels(PaintMode mode, Color color, int16_t* x, int16_t* y,
+  void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override;
 
  private:
@@ -147,7 +147,7 @@ class BackgroundFillOptimizer : public DisplayOutput {
   const uint8_t palette_size_;
 
   Box address_window_;
-  PaintMode paint_mode_;
+  BlendingMode blending_mode_;
   int16_t cursor_x_;
   int16_t cursor_y_;
 };

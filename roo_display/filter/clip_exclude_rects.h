@@ -57,9 +57,9 @@ class RectUnionFilter : public DisplayOutput {
   }
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
-                  PaintMode mode) override {
+                  BlendingMode mode) override {
     address_window_ = Box(x0, y0, x1, y1);
-    paint_mode_ = mode;
+    blending_mode_ = mode;
     cursor_x_ = x0;
     cursor_y_ = y0;
   }
@@ -67,7 +67,7 @@ class RectUnionFilter : public DisplayOutput {
   void write(Color* color, uint32_t pixel_count) override {
     // Naive implementation, for now.
     uint32_t i = 0;
-    BufferedPixelWriter writer(*output_, paint_mode_);
+    BufferedPixelWriter writer(*output_, blending_mode_);
     while (i < pixel_count) {
       if (!exclusion_->contains(cursor_x_, cursor_y_)) {
         writer.writePixel(cursor_x_, cursor_y_, color[i]);
@@ -80,7 +80,7 @@ class RectUnionFilter : public DisplayOutput {
     }
   }
 
-  // void fill(PaintMode mode, Color color, uint32_t pixel_count) override {
+  // void fill(BlendingMode mode, Color color, uint32_t pixel_count) override {
   //   // Naive implementation, for now.
   //   uint32_t i = 0;
   //   BufferedPixelFiller filler(output_, color, mode);
@@ -96,7 +96,7 @@ class RectUnionFilter : public DisplayOutput {
   //   }
   // }
 
-  void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
+  void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     BufferedRectWriter writer(*output_, mode);
     while (count-- > 0) {
@@ -104,7 +104,7 @@ class RectUnionFilter : public DisplayOutput {
     }
   }
 
-  void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
+  void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
     BufferedRectFiller filler(*output_, color, mode);
     while (count-- > 0) {
@@ -112,7 +112,7 @@ class RectUnionFilter : public DisplayOutput {
     }
   }
 
-  void writePixels(PaintMode mode, Color* color, int16_t* x, int16_t* y,
+  void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
                    uint16_t pixel_count) override {
     int16_t* x_out = x;
     int16_t* y_out = y;
@@ -131,7 +131,7 @@ class RectUnionFilter : public DisplayOutput {
     }
   }
 
-  void fillPixels(PaintMode mode, Color color, int16_t* x, int16_t* y,
+  void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override {
     int16_t* x_out = x;
     int16_t* y_out = y;
@@ -212,7 +212,7 @@ class RectUnionFilter : public DisplayOutput {
   DisplayOutput* output_;
   const RectUnion* exclusion_;
   Box address_window_;
-  PaintMode paint_mode_;
+  BlendingMode blending_mode_;
   int16_t cursor_x_;
   int16_t cursor_y_;
 };

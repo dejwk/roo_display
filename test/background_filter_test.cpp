@@ -22,7 +22,7 @@ class SimpleRoundBg {
  public:
   SimpleRoundBg(Box extents) {}
   template <typename ColorMode>
-  void writePixel(PaintMode mode, int16_t x, int16_t y, Color color,
+  void writePixel(BlendingMode mode, int16_t x, int16_t y, Color color,
                   FakeOffscreen<ColorMode>* offscreen) {
     Color bgcolor = color::Transparent;
     if (Box(1, 2, 16, 8).contains(x, y)) {
@@ -57,38 +57,38 @@ typedef FakeFilteringOffscreen<Grayscale4, SimpleRoundBg> RefDeviceSimple;
 typedef FilteredOutput<Grayscale4, SimpleRoundBg> TestDeviceSimple;
 
 TEST(Background, SimpleTests) {
-  TestFillRects<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+  TestFillRects<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                    Orientation());
-  TestFillHLines<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+  TestFillHLines<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                     Orientation());
-  TestFillVLines<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+  TestFillVLines<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                     Orientation());
   TestFillDegeneratePixels<TestDeviceSimple, RefDeviceSimple>(
-      PAINT_MODE_REPLACE, Orientation());
-  TestFillPixels<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+      BLENDING_MODE_SOURCE, Orientation());
+  TestFillPixels<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                     Orientation());
 
-  TestWriteRects<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+  TestWriteRects<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                     Orientation());
-  TestWriteHLines<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+  TestWriteHLines<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                      Orientation());
-  TestWriteVLines<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+  TestWriteVLines<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                      Orientation());
   TestWriteDegeneratePixels<TestDeviceSimple, RefDeviceSimple>(
-      PAINT_MODE_REPLACE, Orientation());
-  TestWritePixels<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+      BLENDING_MODE_SOURCE, Orientation());
+  TestWritePixels<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                      Orientation());
-  TestWritePixelsSnake<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+  TestWritePixelsSnake<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                           Orientation());
   TestWriteRectWindowSimple<TestDeviceSimple, RefDeviceSimple>(
-      PAINT_MODE_REPLACE, Orientation());
+      BLENDING_MODE_SOURCE, Orientation());
 }
 
 TEST(Background, StressTests) {
-  TestWritePixelsStress<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+  TestWritePixelsStress<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                            Orientation());
   TestWriteRectWindowStress<TestDeviceSimple, RefDeviceSimple>(
-      PAINT_MODE_REPLACE, Orientation());
+      BLENDING_MODE_SOURCE, Orientation());
 }
 
 }  // namespace roo_display

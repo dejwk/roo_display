@@ -2,9 +2,9 @@
 
 #include <inttypes.h>
 
+#include "roo_display/color/blending.h"
 #include "roo_display/color/color.h"
 #include "roo_display/color/color_set.h"
-#include "roo_display/color/transparency_mode.h"
 #include "roo_display/internal/hashtable.h"
 
 namespace roo_display {

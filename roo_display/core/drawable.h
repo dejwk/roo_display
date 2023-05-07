@@ -1,8 +1,7 @@
 #pragma once
 
+#include "roo_display/color/blending.h"
 #include "roo_display/color/color.h"
-#include "roo_display/color/paint_mode.h"
-#include "roo_display/color/transparency_mode.h"
 #include "roo_display/core/box.h"
 
 namespace roo_display {
@@ -58,7 +57,7 @@ class Surface {
   Surface(DisplayOutput &out, int16_t dx, int16_t dy, Box clip,
           bool is_write_once, Color bg = color::Transparent,
           FillMode fill_mode = FILL_MODE_VISIBLE,
-          PaintMode paint_mode = PAINT_MODE_BLEND)
+          BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER)
       : out_(&out),
         dx_(dx),
         dy_(dy),
@@ -66,15 +65,15 @@ class Surface {
         is_write_once_(is_write_once),
         bgcolor_(bg),
         fill_mode_(fill_mode),
-        paint_mode_(paint_mode) {
+        blending_mode_(blending_mode) {
     if (bg.a() == 0xFF) {
-      paint_mode = PAINT_MODE_REPLACE;
+      blending_mode = BLENDING_MODE_SOURCE;
     }
   }
 
   Surface(DisplayOutput *out, Box clip, bool is_write_once,
           Color bg = color::Transparent, FillMode fill_mode = FILL_MODE_VISIBLE,
-          PaintMode paint_mode = PAINT_MODE_BLEND)
+          BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER)
       : out_(out),
         dx_(0),
         dy_(0),
@@ -82,9 +81,10 @@ class Surface {
         is_write_once_(is_write_once),
         bgcolor_(bg),
         fill_mode_(fill_mode),
-        paint_mode_(paint_mode) {
-    if (bg.a() == 0xFF) {
-      paint_mode = PAINT_MODE_REPLACE;
+        blending_mode_(blending_mode) {
+    if (bg.a() == 0xFF && (blending_mode == BLENDING_MODE_SOURCE_OVER ||
+                           blending_mode == BLENDING_MODE_SOURCE_OVER_OPAQUE)) {
+      blending_mode = BLENDING_MODE_SOURCE;
     }
   }
 
@@ -127,15 +127,18 @@ class Surface {
 
   void set_fill_mode(FillMode fill_mode) { fill_mode_ = fill_mode; }
 
-  // Returns the paint mode that should generally be passed to the device
-  // when the object is drawn. The object may overwrite the paint mode
-  // (with PAINT_MODE_REPLACE) only if it is certain that all pixels it
+  // Returns the blending mode that should generally be passed to the device
+  // when the object is drawn. Defaults to BLENDING_MODE_SOURCE_OVER.
+  // If the mode is BLENDING_MODE_SOURCE_OVER, the object may replace it
+  // with BLENDING_MODE_SOURCE when it is certain that all pixels it
   // writes are completely opaque. Note that in case when the background
-  // is specified and completely non-opaque, the paint mode is automatically
-  // set to PAINT_MODE_REPLACE.
-  PaintMode paint_mode() const { return paint_mode_; }
+  // is specified and completely opaque, BLENDING_MODE_SOURCE_OVER is
+  // automatically replaced with BLENDING_MODE_SOURCE.
+  BlendingMode blending_mode() const { return blending_mode_; }
 
-  void set_paint_mode(PaintMode paint_mode) { paint_mode_ = paint_mode; }
+  void set_blending_mode(BlendingMode blending_mode) {
+    blending_mode_ = blending_mode;
+  }
 
   void set_dx(int16_t dx) { dx_ = dx; }
   void set_dy(int16_t dy) { dy_ = dy; }
@@ -179,15 +182,12 @@ class Surface {
   bool is_write_once_;
   Color bgcolor_;
   FillMode fill_mode_;
-  PaintMode paint_mode_;
+  BlendingMode blending_mode_;
 };
 
 // Interface implemented by any class that represents things (like images in
 // various formats) that can be drawn to an output device (such as a TFT
 // screen, or an off-screen buffer).
-//
-// Note: each drawable object internally decides on its PaintMode (e.g.
-// 'replace' vs 'alpha-blend').
 //
 // Implementations must override two methods:
 // * either drawTo or drawInteriorTo (see below), to implement the actual

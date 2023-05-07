@@ -88,22 +88,22 @@ class TransformedDisplayOutput : public DisplayOutput {
         y_cursor_(0) {}
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
-                  PaintMode mode) override;
+                  BlendingMode mode) override;
 
   void write(Color *color, uint32_t pixel_count) override;
 
-  // virtual void fill(PaintMode mode, Color color, uint32_t pixel_count) = 0;
+  // virtual void fill(BlendingMode mode, Color color, uint32_t pixel_count) = 0;
 
-  void writePixels(PaintMode mode, Color *color, int16_t *x, int16_t *y,
+  void writePixels(BlendingMode mode, Color *color, int16_t *x, int16_t *y,
                    uint16_t pixel_count) override;
 
-  void fillPixels(PaintMode mode, Color color, int16_t *x, int16_t *y,
+  void fillPixels(BlendingMode mode, Color color, int16_t *x, int16_t *y,
                   uint16_t pixel_count) override;
 
-  void writeRects(PaintMode mode, Color *color, int16_t *x0, int16_t *y0,
+  void writeRects(BlendingMode mode, Color *color, int16_t *x0, int16_t *y0,
                   int16_t *x1, int16_t *y1, uint16_t pixel_count) override;
 
-  void fillRects(PaintMode mode, Color color, int16_t *x0, int16_t *y0,
+  void fillRects(BlendingMode mode, Color color, int16_t *x0, int16_t *y0,
                  int16_t *x1, int16_t *y1, uint16_t count) override;
 
   const Box &clip_box() const { return clip_box_; }
@@ -113,7 +113,7 @@ class TransformedDisplayOutput : public DisplayOutput {
   Transformation transformation_;
   Box clip_box_;
   Box addr_window_;
-  PaintMode paint_mode_;
+  BlendingMode blending_mode_;
   int16_t x_cursor_;
   int16_t y_cursor_;
 };
@@ -137,7 +137,7 @@ class TransformedDrawable : public Drawable {
         transformation_.translate(s.dx(), s.dy()).clip(s.clip_box());
     TransformedDisplayOutput new_output(s.out(), adjusted);
     Surface news(&new_output, adjusted.smallestBoundingRect(),
-                 s.is_write_once(), s.bgcolor(), s.fill_mode(), s.paint_mode());
+                 s.is_write_once(), s.bgcolor(), s.fill_mode(), s.blending_mode());
     news.drawObject(*delegate_);
   }
 

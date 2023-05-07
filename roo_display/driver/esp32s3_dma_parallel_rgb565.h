@@ -210,22 +210,22 @@ class ParallelRgb565 : public DisplayDevice {
   void end() override;
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
-                  PaintMode mode) override {
+                  BlendingMode mode) override {
     buffer_->setAddress(x0, y0, x1, y1, mode);
   }
 
   void write(Color *color, uint32_t pixel_count) override;
 
-  void writePixels(PaintMode mode, Color *color, int16_t *x, int16_t *y,
+  void writePixels(BlendingMode mode, Color *color, int16_t *x, int16_t *y,
                    uint16_t pixel_count) override;
 
-  void fillPixels(PaintMode mode, Color color, int16_t *x, int16_t *y,
+  void fillPixels(BlendingMode mode, Color color, int16_t *x, int16_t *y,
                   uint16_t pixel_count) override;
 
-  void writeRects(PaintMode mode, Color *color, int16_t *x0, int16_t *y0,
+  void writeRects(BlendingMode mode, Color *color, int16_t *x0, int16_t *y0,
                   int16_t *x1, int16_t *y1, uint16_t count) override;
 
-  void fillRects(PaintMode mode, Color color, int16_t *x0, int16_t *y0,
+  void fillRects(BlendingMode mode, Color color, int16_t *x0, int16_t *y0,
                  int16_t *x1, int16_t *y1, uint16_t count) override;
 
   void orientationUpdated() override {

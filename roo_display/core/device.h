@@ -2,8 +2,8 @@
 
 #include <inttypes.h>
 
+#include "roo_display/color/blending.h"
 #include "roo_display/color/color.h"
-#include "roo_display/color/paint_mode.h"
 #include "roo_display/core/box.h"
 #include "roo_display/core/orientation.h"
 
@@ -28,15 +28,15 @@ class DisplayOutput {
   virtual void end() {}
 
   // Convenience shortcut.
-  void setAddress(const Box &bounds, PaintMode mode) {
+  void setAddress(const Box &bounds, BlendingMode blending_mode) {
     setAddress(bounds.xMin(), bounds.yMin(), bounds.xMax(), bounds.yMax(),
-               mode);
+               blending_mode);
   }
 
   // Set a rectangular window that will be filled by subsequent calls to
   // write(), using the specified paint mode.
   virtual void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
-                          PaintMode mode) = 0;
+                          BlendingMode blending_mode) = 0;
 
   // Writes to the subsequent pixels in the address window. The address must
   // have been previously set using setAddress, and not invalidated by calling
@@ -47,53 +47,55 @@ class DisplayOutput {
   // virtual void fill(Color color, uint32_t pixel_count) = 0;
 
   // Draws the specified pixels. Invalidates the address window.
-  virtual void writePixels(PaintMode mode, Color *color, int16_t *x, int16_t *y,
-                           uint16_t pixel_count) = 0;
+  virtual void writePixels(BlendingMode blending_mode, Color *color, int16_t *x,
+                           int16_t *y, uint16_t pixel_count) = 0;
 
   // Draws the specified pixels, using the same color. Invalidates the address
   // window.
-  virtual void fillPixels(PaintMode mode, Color color, int16_t *x, int16_t *y,
-                          uint16_t pixel_count) = 0;
+  virtual void fillPixels(BlendingMode blending_mode, Color color, int16_t *x,
+                          int16_t *y, uint16_t pixel_count) = 0;
 
   // Draws the specified rectangles. Invalidates the address window.
-  virtual void writeRects(PaintMode mode, Color *color, int16_t *x0,
+  virtual void writeRects(BlendingMode blending_mode, Color *color, int16_t *x0,
                           int16_t *y0, int16_t *x1, int16_t *y1,
                           uint16_t count) = 0;
 
   // Draws the specified rectangles, using the same color. Invalidates the
   // address window.
-  virtual void fillRects(PaintMode mode, Color color, int16_t *x0, int16_t *y0,
-                         int16_t *x1, int16_t *y1, uint16_t count) = 0;
+  virtual void fillRects(BlendingMode blending_mode, Color color, int16_t *x0,
+                         int16_t *y0, int16_t *x1, int16_t *y1,
+                         uint16_t count) = 0;
 
   // Convenience method to fill a single rectangle. Invalidates the address
   // window.
-  inline void fillRect(PaintMode mode, const Box &rect, Color color) {
+  inline void fillRect(BlendingMode blending_mode, const Box &rect,
+                       Color color) {
     int16_t x0 = rect.xMin();
     int16_t y0 = rect.yMin();
     int16_t x1 = rect.xMax();
     int16_t y1 = rect.yMax();
 
-    fillRects(mode, color, &x0, &y0, &x1, &y1, 1);
+    fillRects(blending_mode, color, &x0, &y0, &x1, &y1, 1);
   }
 
-  // Convenience method to fill a single rectangle using REPLACE mode.
-  // Invalidates the address window.
-  inline void fillRect(const Box &rect, Color color) {
-    fillRect(PAINT_MODE_REPLACE, rect, color);
-  }
+  // // Convenience method to fill a single rectangle using REPLACE mode.
+  // // Invalidates the address window.
+  // inline void fillRect(const Box &rect, Color color) {
+  //   fillRect(BLENDING_MODE_SOURCE, rect, color);
+  // }
 
   // Convenience method to fill a single rectangle.
   // Invalidates the address window.
-  inline void fillRect(PaintMode mode, int16_t x0, int16_t y0, int16_t x1,
-                       int16_t y1, Color color) {
-    fillRects(mode, color, &x0, &y0, &x1, &y1, 1);
+  inline void fillRect(BlendingMode blending_mode, int16_t x0, int16_t y0,
+                       int16_t x1, int16_t y1, Color color) {
+    fillRects(blending_mode, color, &x0, &y0, &x1, &y1, 1);
   }
 
   // Convenience method to fill a single rectangle using REPLACE mode.
   // Invalidates the address window.
   inline void fillRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
                        Color color) {
-    fillRects(PAINT_MODE_REPLACE, color, &x0, &y0, &x1, &y1, 1);
+    fillRects(BLENDING_MODE_SOURCE, color, &x0, &y0, &x1, &y1, 1);
   }
 };
 
@@ -155,11 +157,11 @@ class DisplayDevice : public DisplayOutput {
     return orientation().isXYswapped() ? raw_width() : raw_height();
   }
 
-  // Devices that support PAINT_MODE_BLEND should ignore this hint.
+  // Devices that support BLENDING_MODE_SOURCE_OVER should ignore this hint.
   // Devices that do not support alpha-blending, e.g. because the hardware
   // does not suport reading from the framebuffer, should take this hint
   // to use the specified color as the assumed background color for any
-  // writes that use PAINT_MODE_BLEND.
+  // writes that use BLENDING_MODE_SOURCE_OVER.
   virtual void setBgColorHint(Color bgcolor) {}
 
  protected:

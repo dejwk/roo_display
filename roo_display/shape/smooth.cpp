@@ -459,7 +459,7 @@ void DrawWedge(const SmoothShape::Wedge& wedge, const Surface& s,
   int32_t xs = box.xMin();
   Color preblended = AlphaBlend(s.bgcolor(), wedge.color);
 
-  BufferedPixelWriter writer(s.out(), s.paint_mode());
+  BufferedPixelWriter writer(s.out(), s.blending_mode());
 
   // Scan bounding box from ys down, calculate pixel intensity from distance
   // to line.
@@ -759,7 +759,7 @@ void ReadRoundRectColors(const SmoothShape::RoundRect& rect, const int16_t* x,
 struct RoundRectDrawSpec {
   DisplayOutput* out;
   FillMode fill_mode;
-  PaintMode paint_mode;
+  BlendingMode blending_mode;
   Color bgcolor;
   Color pre_blended_outline;
   Color pre_blended_interior;
@@ -774,21 +774,21 @@ inline void FillSubrectOfRoundRect(const SmoothShape::RoundRect& rect,
   switch (DetermineRectColorForRoundRect(rect, box)) {
     case TRANSPARENT: {
       if (spec.fill_mode == FILL_MODE_RECTANGLE) {
-        spec.out->fillRect(spec.paint_mode, box, spec.bgcolor);
+        spec.out->fillRect(spec.blending_mode, box, spec.bgcolor);
       }
       return;
     }
     case INTERIOR: {
       if (spec.fill_mode == FILL_MODE_RECTANGLE ||
           interior != color::Transparent) {
-        spec.out->fillRect(spec.paint_mode, box, spec.pre_blended_interior);
+        spec.out->fillRect(spec.blending_mode, box, spec.pre_blended_interior);
       }
       return;
     }
     case OUTLINE_ACTIVE: {
       if (spec.fill_mode == FILL_MODE_RECTANGLE ||
           outline != color::Transparent) {
-        spec.out->fillRect(spec.paint_mode, box, spec.pre_blended_outline);
+        spec.out->fillRect(spec.blending_mode, box, spec.pre_blended_outline);
         return;
       }
     }
@@ -798,7 +798,7 @@ inline void FillSubrectOfRoundRect(const SmoothShape::RoundRect& rect,
 
   // Slow case; evaluate every pixel from the rectangle.
   if (spec.fill_mode == FILL_MODE_VISIBLE) {
-    BufferedPixelWriter writer(*spec.out, spec.paint_mode);
+    BufferedPixelWriter writer(*spec.out, spec.blending_mode);
     for (int16_t y = box.yMin(); y <= box.yMax(); ++y) {
       for (int16_t x = box.xMin(); x <= box.xMax(); ++x) {
         Color c = GetSmoothRoundRectPixelColor(rect, x, y);
@@ -821,7 +821,7 @@ inline void FillSubrectOfRoundRect(const SmoothShape::RoundRect& rect,
                                        : AlphaBlend(spec.bgcolor, c);
       }
     }
-    spec.out->setAddress(box, spec.paint_mode);
+    spec.out->setAddress(box, spec.blending_mode);
     spec.out->write(color, cnt);
   }
 }
@@ -848,7 +848,7 @@ void DrawRoundRect(SmoothShape::RoundRect rect, const Surface& s,
   RoundRectDrawSpec spec{
       .out = &s.out(),
       .fill_mode = s.fill_mode(),
-      .paint_mode = s.paint_mode(),
+      .blending_mode = s.blending_mode(),
       .bgcolor = s.bgcolor(),
       .pre_blended_outline = AlphaBlend(
           AlphaBlend(s.bgcolor(), rect.interior_color), rect.outline_color),
@@ -881,7 +881,7 @@ void DrawRoundRect(SmoothShape::RoundRect rect, const Surface& s,
         Box(box.xMin(), inner.yMin(), inner.xMin() - 1, inner.yMax()));
     if (s.fill_mode() == FILL_MODE_RECTANGLE ||
         rect.interior_color != color::Transparent) {
-      s.out().fillRect(inner, spec.pre_blended_interior);
+      s.out().fillRect(BLENDING_MODE_SOURCE, inner, spec.pre_blended_interior);
     }
     FillSubrectangle(
         rect, spec,
@@ -896,7 +896,7 @@ void DrawRoundRect(SmoothShape::RoundRect rect, const Surface& s,
 struct ArcDrawSpec {
   DisplayOutput* out;
   FillMode fill_mode;
-  PaintMode paint_mode;
+  BlendingMode blending_mode;
   Color bgcolor;
   Color pre_blended_outline_active;
   Color pre_blended_outline_inactive;
@@ -1190,21 +1190,21 @@ void FillSubrectOfArc(const SmoothShape::Arc& arc, const ArcDrawSpec& spec,
   switch (DetermineRectColorForArc(arc, box)) {
     case TRANSPARENT: {
       if (spec.fill_mode == FILL_MODE_RECTANGLE) {
-        spec.out->fillRect(spec.paint_mode, box, spec.bgcolor);
+        spec.out->fillRect(spec.blending_mode, box, spec.bgcolor);
       }
       return;
     }
     case INTERIOR: {
       if (spec.fill_mode == FILL_MODE_RECTANGLE ||
           interior != color::Transparent) {
-        spec.out->fillRect(spec.paint_mode, box, spec.pre_blended_interior);
+        spec.out->fillRect(spec.blending_mode, box, spec.pre_blended_interior);
       }
       return;
     }
     case OUTLINE_ACTIVE: {
       if (spec.fill_mode == FILL_MODE_RECTANGLE ||
           outline_active != color::Transparent) {
-        spec.out->fillRect(spec.paint_mode, box,
+        spec.out->fillRect(spec.blending_mode, box,
                            spec.pre_blended_outline_active);
         return;
       }
@@ -1212,7 +1212,7 @@ void FillSubrectOfArc(const SmoothShape::Arc& arc, const ArcDrawSpec& spec,
     case OUTLINE_INACTIVE: {
       if (spec.fill_mode == FILL_MODE_RECTANGLE ||
           outline_inactive != color::Transparent) {
-        spec.out->fillRect(spec.paint_mode, box,
+        spec.out->fillRect(spec.blending_mode, box,
                            spec.pre_blended_outline_inactive);
         return;
       }
@@ -1223,7 +1223,7 @@ void FillSubrectOfArc(const SmoothShape::Arc& arc, const ArcDrawSpec& spec,
 
   // Slow case; evaluate every pixel from the rectangle.
   if (spec.fill_mode == FILL_MODE_VISIBLE) {
-    BufferedPixelWriter writer(*spec.out, spec.paint_mode);
+    BufferedPixelWriter writer(*spec.out, spec.blending_mode);
     for (int16_t y = box.yMin(); y <= box.yMax(); ++y) {
       for (int16_t x = box.xMin(); x <= box.xMax(); ++x) {
         Color c = GetSmoothArcPixelColor(arc, x, y);
@@ -1250,7 +1250,7 @@ void FillSubrectOfArc(const SmoothShape::Arc& arc, const ArcDrawSpec& spec,
                            : AlphaBlend(spec.bgcolor, c);
       }
     }
-    spec.out->setAddress(box, spec.paint_mode);
+    spec.out->setAddress(box, spec.blending_mode);
     spec.out->write(color, cnt);
   }
 }
@@ -1259,7 +1259,7 @@ void DrawArc(SmoothShape::Arc arc, const Surface& s, const Box& box) {
   ArcDrawSpec spec{
       .out = &s.out(),
       .fill_mode = s.fill_mode(),
-      .paint_mode = s.paint_mode(),
+      .blending_mode = s.blending_mode(),
       .bgcolor = s.bgcolor(),
       .pre_blended_outline_active =
           AlphaBlend(AlphaBlend(s.bgcolor(), arc.interior_color),
@@ -1353,7 +1353,7 @@ void ReadArcColors(const SmoothShape::Arc& arc, const int16_t* x,
 struct TriangleDrawSpec {
   DisplayOutput* out;
   FillMode fill_mode;
-  PaintMode paint_mode;
+  BlendingMode blending_mode;
   Color bgcolor;
   Color pre_blended_interior;
 };
@@ -1440,14 +1440,14 @@ void FillSubrectOfTriangle(const SmoothShape::Triangle& triangle,
   switch (DetermineRectColorForTriangle(triangle, box)) {
     case TRANSPARENT: {
       if (spec.fill_mode == FILL_MODE_RECTANGLE) {
-        spec.out->fillRect(spec.paint_mode, box, spec.bgcolor);
+        spec.out->fillRect(spec.blending_mode, box, spec.bgcolor);
       }
       return;
     }
     case INTERIOR: {
       if (spec.fill_mode == FILL_MODE_RECTANGLE ||
           interior != color::Transparent) {
-        spec.out->fillRect(spec.paint_mode, box, spec.pre_blended_interior);
+        spec.out->fillRect(spec.blending_mode, box, spec.pre_blended_interior);
       }
       return;
     }
@@ -1457,7 +1457,7 @@ void FillSubrectOfTriangle(const SmoothShape::Triangle& triangle,
 
   // Slow case; evaluate every pixel from the rectangle.
   if (spec.fill_mode == FILL_MODE_VISIBLE) {
-    BufferedPixelWriter writer(*spec.out, spec.paint_mode);
+    BufferedPixelWriter writer(*spec.out, spec.blending_mode);
     for (int16_t y = box.yMin(); y <= box.yMax(); ++y) {
       for (int16_t x = box.xMin(); x <= box.xMax(); ++x) {
         Color c = GetSmoothTrianglePixelColor(triangle, x, y);
@@ -1478,7 +1478,7 @@ void FillSubrectOfTriangle(const SmoothShape::Triangle& triangle,
                                        : AlphaBlend(spec.bgcolor, c);
       }
     }
-    spec.out->setAddress(box, spec.paint_mode);
+    spec.out->setAddress(box, spec.blending_mode);
     spec.out->write(color, cnt);
   }
 }
@@ -1488,7 +1488,7 @@ void DrawTriangle(SmoothShape::Triangle triangle, const Surface& s,
   TriangleDrawSpec spec{
       .out = &s.out(),
       .fill_mode = s.fill_mode(),
-      .paint_mode = s.paint_mode(),
+      .blending_mode = s.blending_mode(),
       .bgcolor = s.bgcolor(),
       .pre_blended_interior = AlphaBlend(s.bgcolor(), triangle.color),
   };

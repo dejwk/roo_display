@@ -40,17 +40,17 @@ class SmoothFont : public Font {
                             const GlyphMetrics &metrics,
                             const uint8_t *PROGMEM data, const Box &clip_box,
                             Color color, Color bgcolor,
-                            PaintMode paint_mode) const;
+                            BlendingMode blending_mode) const;
 
   void drawBordered(DisplayOutput &output, int16_t x, int16_t y,
                     int16_t bgwidth, const Drawable &glyph, const Box &clip_box,
-                    Color bgColor, PaintMode paint_mode) const;
+                    Color bgColor, BlendingMode blending_mode) const;
 
   void drawGlyphModeFill(DisplayOutput &output, int16_t x, int16_t y,
                          int16_t bgwidth, const GlyphMetrics &metrics,
                          const uint8_t *PROGMEM data, int16_t offset,
                          const Box &clip_box, Color color, Color bgColor,
-                         PaintMode paint_mode) const;
+                         BlendingMode blending_mode) const;
 
   void drawKernedGlyphsModeFill(
       DisplayOutput &output, int16_t x, int16_t y, int16_t bgwidth,
@@ -58,7 +58,7 @@ class SmoothFont : public Font {
       int16_t left_offset, const GlyphMetrics &right_metrics,
       const uint8_t *PROGMEM right_data, int16_t right_offset,
       const Box &clip_box, Color color, Color bgColor,
-      PaintMode paint_mode) const;
+      BlendingMode blending_mode) const;
 
   int glyph_count_;
   int glyph_metadata_size_;

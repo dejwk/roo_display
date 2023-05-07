@@ -147,20 +147,20 @@ class OffscreenDevice : public DisplayDevice {
   void orientationUpdated();
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
-                  PaintMode mode) override;
+                  BlendingMode mode) override;
 
   void write(Color *color, uint32_t pixel_count) override;
 
-  void writePixels(PaintMode mode, Color *color, int16_t *x, int16_t *y,
+  void writePixels(BlendingMode mode, Color *color, int16_t *x, int16_t *y,
                    uint16_t pixel_count) override;
 
-  void fillPixels(PaintMode mode, Color color, int16_t *x, int16_t *y,
+  void fillPixels(BlendingMode mode, Color color, int16_t *x, int16_t *y,
                   uint16_t pixel_count) override;
 
-  void writeRects(PaintMode mode, Color *color, int16_t *x0, int16_t *y0,
+  void writeRects(BlendingMode mode, Color *color, int16_t *x0, int16_t *y0,
                   int16_t *x1, int16_t *y1, uint16_t count) override;
 
-  void fillRects(PaintMode mode, Color color, int16_t *x0, int16_t *y0,
+  void fillRects(BlendingMode mode, Color color, int16_t *x0, int16_t *y0,
                  int16_t *x1, int16_t *y1, uint16_t count) override;
 
   ColorMode &color_mode() { return color_mode_; }
@@ -212,14 +212,14 @@ class OffscreenDevice : public DisplayDevice {
     }
   }
 
-  void fillRectsAbsolute(PaintMode mode, Color color, int16_t *x0, int16_t *y0,
-                         int16_t *x1, int16_t *y1, uint16_t count);
+  void fillRectsAbsolute(BlendingMode mode, Color color, int16_t *x0,
+                         int16_t *y0, int16_t *x1, int16_t *y1, uint16_t count);
 
-  void fillHlinesAbsolute(PaintMode mode, Color color, int16_t *x0, int16_t *y0,
-                          int16_t *x1, uint16_t count);
+  void fillHlinesAbsolute(BlendingMode mode, Color color, int16_t *x0,
+                          int16_t *y0, int16_t *x1, uint16_t count);
 
-  void fillVlinesAbsolute(PaintMode mode, Color color, int16_t *x0, int16_t *y0,
-                          int16_t *y1, uint16_t count);
+  void fillVlinesAbsolute(BlendingMode mode, Color color, int16_t *x0,
+                          int16_t *y0, int16_t *y1, uint16_t count);
 
   ColorMode color_mode_;
 
@@ -230,7 +230,7 @@ class OffscreenDevice : public DisplayDevice {
   // // Streaming read acess.
   // Raster<const uint8_t *, ColorMode, pixel_order, byte_order> raster_;
   internal::AddressWindow window_;
-  PaintMode paint_mode_;
+  BlendingMode blending_mode_;
 };
 
 // Offscreen<Rgb565> offscreen;
@@ -334,14 +334,14 @@ class Offscreen : public Rasterizable {
   }
 
   const OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
-                        storage_type>
-      &output() const {
+                        storage_type> &
+  output() const {
     return device_;
   }
 
   OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
-                  storage_type>
-      &output() {
+                  storage_type> &
+  output() {
     return device_;
   }
 
@@ -506,8 +506,8 @@ class RawIterator<24, BYTE_ORDER_LITTLE_ENDIAN> {
   uint8_t *ptr_;
 };
 
-// ReplaceWriter is a Writer that will overwrite previous content of the buffer
-// using the specified colors.
+// ReplaceWriter is a Writer specialization for BLENDING_MODE_SOURCE. That is,
+// it will overwrite previous content of the buffer using the specified colors.
 
 // For sub-byte color modes.
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
@@ -571,8 +571,9 @@ class ReplaceWriter<ColorMode, pixel_order, byte_order, 1, storage_type> {
   const Color *color_;
 };
 
-// BlendWriter is a Writer that will alpha-blend written pixels over the
-// previous content.
+// BlendWriter is a Writer specialization for BLENDING_MODE_SOURCE_OVER, also
+// used for BLENDING_MODE_SOURCE_OVER_OPAQUE. That is, it will alpha-blend
+// written pixels over the previous content.
 
 // For sub-byte color modes.
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
@@ -587,8 +588,9 @@ class BlendWriter {
     SubPixelColorHelper<ColorMode, pixel_order> subpixel;
     int pixel_index = offset % pixels_per_byte;
     uint8_t *target = p + offset / pixels_per_byte;
-    auto color = color_mode_.rawAlphaBlend(
-        subpixel.ReadSubPixelColor(*target, pixel_index), *color_++);
+    RawBlender<ColorMode, BLENDING_MODE_SOURCE_OVER> blender;
+    auto color = blender(subpixel.ReadSubPixelColor(*target, pixel_index),
+                         *color_++, color_mode_);
     subpixel.applySubPixelColor(color, target, pixel_index);
   }
 
@@ -597,8 +599,9 @@ class BlendWriter {
     int pixel_index = offset % pixels_per_byte;
     uint8_t *target = p + offset / pixels_per_byte;
     while (count-- > 0) {
-      auto color = color_mode_.rawAlphaBlend(
-          subpixel.ReadSubPixelColor(*target, pixel_index), *color_++);
+      RawBlender<ColorMode, BLENDING_MODE_SOURCE_OVER> blender;
+      auto color = blender(subpixel.ReadSubPixelColor(*target, pixel_index),
+                           *color_++, color_mode_);
       subpixel.applySubPixelColor(color, target, pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;
@@ -622,13 +625,15 @@ class BlendWriter<ColorMode, pixel_order, byte_order, 1, storage_type> {
 
   void operator()(uint8_t *p, uint32_t offset) {
     internal::RawIterator<ColorMode::bits_per_pixel, byte_order> itr(p, offset);
-    itr.write(color_mode_.rawAlphaBlend(itr.read(), *color_++));
+    RawBlender<ColorMode, BLENDING_MODE_SOURCE_OVER> blender;
+    itr.write(blender(itr.read(), *color_++, color_mode_));
   }
 
   void operator()(uint8_t *p, uint32_t offset, uint32_t count) {
     internal::RawIterator<ColorMode::bits_per_pixel, byte_order> itr(p, offset);
+    RawBlender<ColorMode, BLENDING_MODE_SOURCE_OVER> blender;
     while (count-- > 0) {
-      itr.write(color_mode_.rawAlphaBlend(itr.read(), *color_++));
+      itr.write(blender(itr.read(), *color_++, color_mode_));
       ++itr;
     }
   }
@@ -798,8 +803,9 @@ class BlendFiller {
     SubPixelColorHelper<ColorMode, pixel_order> subpixel;
     int pixel_index = offset % pixels_per_byte;
     uint8_t *target = p + offset / pixels_per_byte;
-    auto color = color_mode_.rawAlphaBlend(
-        subpixel.ReadSubPixelColor(*target, pixel_index), color_);
+    RawBlender<ColorMode, BLENDING_MODE_SOURCE_OVER> blender;
+    auto color = blender(subpixel.ReadSubPixelColor(*target, pixel_index),
+                         color_, color_mode_);
     subpixel.applySubPixelColor(color, target, pixel_index);
   }
 
@@ -807,9 +813,10 @@ class BlendFiller {
     SubPixelColorHelper<ColorMode, pixel_order> subpixel;
     int pixel_index = offset % pixels_per_byte;
     uint8_t *target = p + offset / pixels_per_byte;
+    RawBlender<ColorMode, BLENDING_MODE_SOURCE_OVER> blender;
     while (count-- > 0) {
-      auto color = color_mode_.rawAlphaBlend(
-          subpixel.ReadSubPixelColor(*target, pixel_index), color_);
+      auto color = blender(subpixel.ReadSubPixelColor(*target, pixel_index),
+                           color_, color_mode_);
       subpixel.applySubPixelColor(color, target, pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;
@@ -833,13 +840,15 @@ class BlendFiller<ColorMode, pixel_order, byte_order, 1, storage_type> {
 
   void operator()(uint8_t *p, uint32_t offset) const {
     internal::RawIterator<ColorMode::bits_per_pixel, byte_order> itr(p, offset);
-    itr.write(color_mode_.rawAlphaBlend(itr.read(), color_));
+    RawBlender<ColorMode, BLENDING_MODE_SOURCE_OVER> blender;
+    itr.write(blender(itr.read(), color_, color_mode_));
   }
 
   void operator()(uint8_t *p, uint32_t offset, uint32_t count) const {
     internal::RawIterator<ColorMode::bits_per_pixel, byte_order> itr(p, offset);
+    RawBlender<ColorMode, BLENDING_MODE_SOURCE_OVER> blender;
     while (count-- > 0) {
-      itr.write(color_mode_.rawAlphaBlend(itr.read(), color_));
+      itr.write(blender(itr.read(), color_, color_mode_));
       ++itr;
     }
   }
@@ -896,24 +905,25 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
 void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                      storage_type>::setAddress(uint16_t x0, uint16_t y0,
                                                uint16_t x1, uint16_t y1,
-                                               PaintMode mode) {
+                                               BlendingMode mode) {
   window_.setAddress(x0, y0, x1, y1, raw_width(), raw_height(),
                      orienter_.orientation());
-  paint_mode_ = mode;
+  blending_mode_ = mode;
 }
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
 void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                      storage_type>::write(Color *color, uint32_t pixel_count) {
-  switch (paint_mode_) {
-    case PAINT_MODE_REPLACE: {
+  switch (blending_mode_) {
+    case BLENDING_MODE_SOURCE: {
       internal::ReplaceWriter<ColorMode, pixel_order, byte_order> writer(
           color_mode(), color);
       writeToWindow(writer, pixel_count);
       break;
     }
-    case PAINT_MODE_BLEND: {
+    case BLENDING_MODE_SOURCE_OVER:
+    case BLENDING_MODE_SOURCE_OVER_OPAQUE: {
       internal::BlendWriter<ColorMode, pixel_order, byte_order> writer(
           color_mode(), color);
       writeToWindow(writer, pixel_count);
@@ -927,14 +937,15 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
 void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
-                     storage_type>::writePixels(PaintMode mode, Color *color,
-                                                int16_t *x, int16_t *y,
+                     storage_type>::writePixels(BlendingMode blending_mode,
+                                                Color *color, int16_t *x,
+                                                int16_t *y,
                                                 uint16_t pixel_count) {
   uint8_t *buffer = buffer_;
   int16_t w = raw_width();
   orienter_.OrientPixels(x, y, pixel_count);
-  switch (mode) {
-    case PAINT_MODE_REPLACE: {
+  switch (blending_mode) {
+    case BLENDING_MODE_SOURCE: {
       internal::ReplaceWriter<ColorMode, pixel_order, byte_order> write(
           color_mode(), color);
       while (pixel_count-- > 0) {
@@ -942,7 +953,8 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
       }
       break;
     }
-    case PAINT_MODE_BLEND: {
+    case BLENDING_MODE_SOURCE_OVER:
+    case BLENDING_MODE_SOURCE_OVER_OPAQUE: {
       internal::BlendWriter<ColorMode, pixel_order, byte_order> write(
           color_mode(), color);
       while (pixel_count-- > 0) {
@@ -958,14 +970,15 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
 void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
-                     storage_type>::fillPixels(PaintMode mode, Color color,
-                                               int16_t *x, int16_t *y,
+                     storage_type>::fillPixels(BlendingMode blending_mode,
+                                               Color color, int16_t *x,
+                                               int16_t *y,
                                                uint16_t pixel_count) {
   uint8_t *buffer = buffer_;
   int16_t w = raw_width();
   orienter_.OrientPixels(x, y, pixel_count);
-  switch (mode) {
-    case PAINT_MODE_REPLACE: {
+  switch (blending_mode) {
+    case BLENDING_MODE_SOURCE: {
       internal::ReplaceFiller<ColorMode, pixel_order, byte_order> write(
           color_mode(), color);
       while (pixel_count-- > 0) {
@@ -973,7 +986,8 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
       }
       break;
     }
-    case PAINT_MODE_BLEND: {
+    case BLENDING_MODE_SOURCE_OVER:
+    case BLENDING_MODE_SOURCE_OVER_OPAQUE: {
       internal::BlendFiller<ColorMode, pixel_order, byte_order> write(
           color_mode(), color);
       while (pixel_count-- > 0) {
@@ -989,7 +1003,7 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
 void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
-                     storage_type>::writeRects(PaintMode mode, Color *color,
+                     storage_type>::writeRects(BlendingMode mode, Color *color,
                                                int16_t *x0, int16_t *y0,
                                                int16_t *x1, int16_t *y1,
                                                uint16_t count) {
@@ -1002,7 +1016,7 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
 void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
-                     storage_type>::fillRects(PaintMode mode, Color color,
+                     storage_type>::fillRects(BlendingMode mode, Color color,
                                               int16_t *x0, int16_t *y0,
                                               int16_t *x1, int16_t *y1,
                                               uint16_t count) {
@@ -1066,26 +1080,30 @@ void fillVlinesAbsoluteImpl(Filler &fill, uint8_t *buffer, int16_t width,
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
 void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
-                     storage_type>::fillRectsAbsolute(PaintMode mode,
+                     storage_type>::fillRectsAbsolute(BlendingMode
+                                                          blending_mode,
                                                       Color color, int16_t *x0,
                                                       int16_t *y0, int16_t *x1,
                                                       int16_t *y1,
                                                       uint16_t count) {
   if (y0 == y1) {
-    fillHlinesAbsolute(mode, color, x0, y0, x1, count);
+    fillHlinesAbsolute(blending_mode, color, x0, y0, x1, count);
   } else if (x0 == x1) {
-    fillVlinesAbsolute(mode, color, x0, y0, y1, count);
+    fillVlinesAbsolute(blending_mode, color, x0, y0, y1, count);
   } else {
-    if (color.isOpaque()) mode = PAINT_MODE_REPLACE;
-    switch (mode) {
-      case PAINT_MODE_REPLACE: {
+    if (color.isOpaque()) {
+      blending_mode = BLENDING_MODE_SOURCE;
+    }
+    switch (blending_mode) {
+      case BLENDING_MODE_SOURCE: {
         internal::ReplaceFiller<ColorMode, pixel_order, byte_order> fill(
             color_mode(), color);
         fillRectsAbsoluteImpl(fill, buffer_, raw_width(), x0, y0, x1, y1,
                               count);
         break;
       }
-      case PAINT_MODE_BLEND: {
+      case BLENDING_MODE_SOURCE_OVER:
+      case BLENDING_MODE_SOURCE_OVER_OPAQUE: {
         internal::BlendFiller<ColorMode, pixel_order, byte_order> fill(
             color_mode(), color);
         fillRectsAbsoluteImpl(fill, buffer_, raw_width(), x0, y0, x1, y1,
@@ -1100,19 +1118,23 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
 void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
-                     storage_type>::fillHlinesAbsolute(PaintMode mode,
+                     storage_type>::fillHlinesAbsolute(BlendingMode
+                                                           blending_mode,
                                                        Color color, int16_t *x0,
                                                        int16_t *y0, int16_t *x1,
                                                        uint16_t count) {
-  if (color.isOpaque()) mode = PAINT_MODE_REPLACE;
-  switch (mode) {
-    case PAINT_MODE_REPLACE: {
+  if (color.isOpaque()) {
+    blending_mode = BLENDING_MODE_SOURCE;
+  }
+  switch (blending_mode) {
+    case BLENDING_MODE_SOURCE: {
       internal::ReplaceFiller<ColorMode, pixel_order, byte_order> fill(
           color_mode(), color);
       fillHlinesAbsoluteImpl(fill, buffer_, raw_width(), x0, y0, x1, count);
       break;
     }
-    case PAINT_MODE_BLEND: {
+    case BLENDING_MODE_SOURCE_OVER:
+    case BLENDING_MODE_SOURCE_OVER_OPAQUE: {
       internal::BlendFiller<ColorMode, pixel_order, byte_order> fill(
           color_mode(), color);
       fillHlinesAbsoluteImpl(fill, buffer_, raw_width(), x0, y0, x1, count);
@@ -1126,19 +1148,23 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
 void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
-                     storage_type>::fillVlinesAbsolute(PaintMode mode,
+                     storage_type>::fillVlinesAbsolute(BlendingMode
+                                                           blending_mode,
                                                        Color color, int16_t *x0,
                                                        int16_t *y0, int16_t *y1,
                                                        uint16_t count) {
-  if (color.isOpaque()) mode = PAINT_MODE_REPLACE;
-  switch (mode) {
-    case PAINT_MODE_REPLACE: {
+  if (color.isOpaque()) {
+    blending_mode = BLENDING_MODE_SOURCE;
+  }
+  switch (blending_mode) {
+    case BLENDING_MODE_SOURCE: {
       internal::ReplaceFiller<ColorMode, pixel_order, byte_order> fill(
           color_mode(), color);
       fillVlinesAbsoluteImpl(fill, buffer_, raw_width(), x0, y0, y1, count);
       break;
     }
-    case PAINT_MODE_BLEND: {
+    case BLENDING_MODE_SOURCE_OVER:
+    case BLENDING_MODE_SOURCE_OVER_OPAQUE: {
       internal::BlendFiller<ColorMode, pixel_order, byte_order> fill(
           color_mode(), color);
       fillVlinesAbsoluteImpl(fill, buffer_, raw_width(), x0, y0, y1, count);

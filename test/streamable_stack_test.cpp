@@ -122,13 +122,13 @@ TEST(StreamableStack, SingleSelfClipped) {
 
 TEST(StreamableStack, TwoDisjoint) {
   auto input1 = MakeTestStreamable(Grayscale4(), 3, 3,
-                                  "123"
-                                  "234"
-                                  "345");
+                                   "123"
+                                   "234"
+                                   "345");
   auto input2 = MakeTestStreamable(Grayscale4(), 3, 3,
-                                  "666"
-                                  "777"
-                                  "888");
+                                   "666"
+                                   "777"
+                                   "888");
   StreamableStack stack(Box(1, 1, 9, 10));
   stack.addInput(&input1, 2, 2);
   stack.addInput(&input2, 6, 6);
@@ -155,13 +155,13 @@ TEST(StreamableStack, TwoDisjoint) {
 
 TEST(StreamableStack, TwoDisjointInherentlyClipped) {
   auto input1 = MakeTestStreamable(Grayscale4(), 3, 3,
-                                  "123"
-                                  "234"
-                                  "345");
+                                   "123"
+                                   "234"
+                                   "345");
   auto input2 = MakeTestStreamable(Grayscale4(), 3, 3,
-                                  "666"
-                                  "777"
-                                  "888");
+                                   "666"
+                                   "777"
+                                   "888");
   StreamableStack stack(Box(3, 3, 7, 7));
   stack.addInput(&input1, 2, 2);
   stack.addInput(&input2, 6, 6);
@@ -188,13 +188,13 @@ TEST(StreamableStack, TwoDisjointInherentlyClipped) {
 
 TEST(StreamableStack, TwoHorizontalOverlap) {
   auto input1 = MakeTestStreamable(Grayscale4(), 3, 3,
-                                  "123"
-                                  "234"
-                                  "345");
+                                   "123"
+                                   "234"
+                                   "345");
   auto input2 = MakeTestStreamable(Grayscale4(), 3, 3,
-                                  "666"
-                                  "777"
-                                  "888");
+                                   "666"
+                                   "777"
+                                   "888");
   StreamableStack stack(Box(1, 1, 9, 10));
   stack.addInput(&input1, 2, 2);
   stack.addInput(&input2, 6, 3);
@@ -221,13 +221,13 @@ TEST(StreamableStack, TwoHorizontalOverlap) {
 
 TEST(StreamableStack, TwoVerticalOverlap) {
   auto input1 = MakeTestStreamable(Grayscale4(), 3, 3,
-                                  "123"
-                                  "234"
-                                  "345");
+                                   "123"
+                                   "234"
+                                   "345");
   auto input2 = MakeTestStreamable(Grayscale4(), 3, 3,
-                                  "666"
-                                  "777"
-                                  "888");
+                                   "666"
+                                   "777"
+                                   "888");
   StreamableStack stack(Box(1, 1, 9, 10));
   stack.addInput(&input1, 2, 2);
   stack.addInput(&input2, 3, 6);
@@ -254,13 +254,13 @@ TEST(StreamableStack, TwoVerticalOverlap) {
 
 TEST(StreamableStack, TwoOverlap) {
   auto input1 = MakeTestStreamable(Grayscale4(), 3, 3,
-                                  "123"
-                                  "234"
-                                  "345");
+                                   "123"
+                                   "234"
+                                   "345");
   auto input2 = MakeTestStreamable(Grayscale4(), 3, 3,
-                                  "666"
-                                  "777"
-                                  "888");
+                                   "666"
+                                   "777"
+                                   "888");
   StreamableStack stack(Box(1, 1, 9, 10));
   stack.addInput(&input1, 2, 2);
   stack.addInput(&input2, 3, 3);
@@ -287,13 +287,13 @@ TEST(StreamableStack, TwoOverlap) {
 
 TEST(StreamableStack, TwoOverlapAlphaBlend) {
   auto input1 = MakeTestStreamable(Alpha4(color::White), 3, 3,
-                                  "123"
-                                  "234"
-                                  "345");
+                                   "567"
+                                   "678"
+                                   "789");
   auto input2 = MakeTestStreamable(Alpha4(color::White), 3, 3,
-                                  "666"
-                                  "777"
-                                  "888");
+                                   "666"
+                                   "777"
+                                   "888");
   StreamableStack stack(Box(1, 1, 9, 10));
   stack.addInput(&input1, 2, 2);
   stack.addInput(&input2, 3, 3);
@@ -307,9 +307,9 @@ TEST(StreamableStack, TwoOverlapAlphaBlend) {
   EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
                                           "          "
                                           "          "
-                                          "  123     "
-                                          "  2886    "
-                                          "  39A7    "
+                                          "  567     "
+                                          "  6AB6    "
+                                          "  7BC7    "
                                           "   888    "
                                           "          "
                                           "          "

@@ -171,14 +171,14 @@ Box Transformation::smallestBoundingRect() const {
 }
 
 void TransformedDisplayOutput::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
-                                          uint16_t y1, PaintMode mode) {
+                                          uint16_t y1, BlendingMode mode) {
   if (!transformation_.is_rescaled() && !transformation_.xy_swap()) {
     delegate_.setAddress(
         x0 + transformation_.x_offset(), y0 + transformation_.y_offset(),
         x1 + transformation_.x_offset(), y1 + transformation_.y_offset(), mode);
   } else {
     addr_window_ = Box(x0, y0, x1, y1);
-    paint_mode_ = mode;
+    blending_mode_ = mode;
     x_cursor_ = x0;
     y_cursor_ = y0;
   }
@@ -188,7 +188,7 @@ void TransformedDisplayOutput::write(Color *color, uint32_t pixel_count) {
   if (!transformation_.is_rescaled() && !transformation_.xy_swap()) {
     delegate_.write(color, pixel_count);
   } else if (!transformation_.is_abs_rescaled()) {
-    ClippingBufferedPixelWriter writer(delegate_, clip_box_, paint_mode_);
+    ClippingBufferedPixelWriter writer(delegate_, clip_box_, blending_mode_);
     while (pixel_count-- > 0) {
       int16_t x = x_cursor_;
       int16_t y = y_cursor_;
@@ -206,7 +206,7 @@ void TransformedDisplayOutput::write(Color *color, uint32_t pixel_count) {
       }
     }
   } else {
-    ClippingBufferedRectWriter writer(delegate_, clip_box_, paint_mode_);
+    ClippingBufferedRectWriter writer(delegate_, clip_box_, blending_mode_);
     while (pixel_count-- > 0) {
       int16_t x0 = x_cursor_;
       int16_t y0 = y_cursor_;
@@ -227,9 +227,9 @@ void TransformedDisplayOutput::write(Color *color, uint32_t pixel_count) {
   }
 }
 
-// virtual void fill(PaintMode mode, Color color, uint32_t pixel_count) = 0;
+// virtual void fill(BlendingMode mode, Color color, uint32_t pixel_count) = 0;
 
-void TransformedDisplayOutput::writePixels(PaintMode mode, Color *color,
+void TransformedDisplayOutput::writePixels(BlendingMode mode, Color *color,
                                            int16_t *x, int16_t *y,
                                            uint16_t pixel_count) {
   if (transformation_.xy_swap()) {
@@ -270,7 +270,7 @@ void TransformedDisplayOutput::writePixels(PaintMode mode, Color *color,
   }
 }
 
-void TransformedDisplayOutput::fillPixels(PaintMode mode, Color color,
+void TransformedDisplayOutput::fillPixels(BlendingMode mode, Color color,
                                           int16_t *x, int16_t *y,
                                           uint16_t pixel_count) {
   if (transformation_.xy_swap()) {
@@ -309,7 +309,7 @@ void TransformedDisplayOutput::fillPixels(PaintMode mode, Color color,
   }
 }
 
-void TransformedDisplayOutput::writeRects(PaintMode mode, Color *color,
+void TransformedDisplayOutput::writeRects(BlendingMode mode, Color *color,
                                           int16_t *x0, int16_t *y0, int16_t *x1,
                                           int16_t *y1, uint16_t count) {
   ClippingBufferedRectWriter writer(delegate_, clip_box_, mode);
@@ -327,7 +327,7 @@ void TransformedDisplayOutput::writeRects(PaintMode mode, Color *color,
   }
 }
 
-void TransformedDisplayOutput::fillRects(PaintMode mode, Color color,
+void TransformedDisplayOutput::fillRects(BlendingMode mode, Color color,
                                          int16_t *x0, int16_t *y0, int16_t *x1,
                                          int16_t *y1, uint16_t count) {
   ClippingBufferedRectFiller filler(delegate_, color, clip_box_, mode);

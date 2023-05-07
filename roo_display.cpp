@@ -101,27 +101,27 @@ namespace {
 class Pixels : public Drawable {
  public:
   Pixels(const std::function<void(ClippingBufferedPixelWriter&)>& fn,
-         Box extents, PaintMode paint_mode)
-      : fn_(fn), extents_(extents), paint_mode_(paint_mode) {}
+         Box extents, BlendingMode blending_mode)
+      : fn_(fn), extents_(extents), blending_mode_(blending_mode) {}
 
   Box extents() const override { return extents_; }
 
  private:
   void drawTo(const Surface& s) const override {
     if (s.dx() == 0 && s.dy() == 0) {
-      ClippingBufferedPixelWriter writer(s.out(), extents_, paint_mode_);
+      ClippingBufferedPixelWriter writer(s.out(), extents_, blending_mode_);
       fn_(writer);
     } else {
       TransformedDisplayOutput out(s.out(),
                                    Transformation().translate(s.dx(), s.dy()));
-      ClippingBufferedPixelWriter writer(out, extents_, paint_mode_);
+      ClippingBufferedPixelWriter writer(out, extents_, blending_mode_);
       fn_(writer);
     }
   }
 
   const std::function<void(ClippingBufferedPixelWriter&)>& fn_;
   Box extents_;
-  PaintMode paint_mode_;
+  BlendingMode blending_mode_;
 };
 
 }  // namespace
@@ -137,9 +137,9 @@ void DrawingContext::setWriteOnce() {
 
 void DrawingContext::drawPixels(
     const std::function<void(ClippingBufferedPixelWriter&)>& fn,
-    PaintMode paint_mode) {
+    BlendingMode blending_mode) {
   draw(
-      Pixels(fn, transformation_.smallestEnclosingRect(clip_box_), paint_mode));
+      Pixels(fn, transformation_.smallestEnclosingRect(clip_box_), blending_mode));
 }
 
 void DrawingContext::drawInternal(const Drawable& object, int16_t dx,
@@ -148,7 +148,7 @@ void DrawingContext::drawInternal(const Drawable& object, int16_t dx,
                            ? *front_to_back_writer_
                            : output();
   Surface s(out, dx + dx_, dy + dy_, clip_box_.translate(dx_, dy_), write_once_,
-            bgcolor, fill_mode_, paint_mode_);
+            bgcolor, fill_mode_, blending_mode_);
   if (clip_mask_ == nullptr) {
     drawInternalWithBackground(s, object);
   } else {
@@ -211,7 +211,7 @@ class ErasedDrawable : public Drawable {
     Surface news = s;
     ColorFilter<Erasure> filter(s.out());
     news.set_out(&filter);
-    news.set_paint_mode(PAINT_MODE_REPLACE);
+    news.set_blending_mode(BLENDING_MODE_SOURCE);
     news.drawObject(*delegate_);
   }
 

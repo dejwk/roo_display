@@ -337,7 +337,7 @@ inline bool Composition::Add(const Box& full_extents) {
 
 void WriteRect(Engine* engine, const Box& bounds,
                internal::BufferingStream* streams, const Surface& s) {
-  s.out().setAddress(bounds, s.paint_mode());
+  s.out().setAddress(bounds, s.blending_mode());
   BufferedColorWriter writer(s.out());
   while (true) {
     switch (engine->fetch()) {
@@ -421,7 +421,7 @@ void WriteRect(Engine* engine, const Box& bounds,
 
 void WriteVisible(Engine* engine, const Box& bounds,
                   internal::BufferingStream* streams, const Surface& s) {
-  BufferedPixelWriter writer(s.out(), s.paint_mode());
+  BufferedPixelWriter writer(s.out(), s.blending_mode());
   uint16_t x = bounds.xMin();
   uint16_t y = bounds.yMin();
   while (true) {

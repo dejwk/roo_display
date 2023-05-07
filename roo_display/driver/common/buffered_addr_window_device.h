@@ -37,7 +37,7 @@ class BufferedAddrWindowDevice : public DisplayDevice {
   }
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
-                  PaintMode mode) override {
+                  BlendingMode mode) override {
     flushRectCache();
     buffer_dev_.setAddress(x0, y0, x1, y1, mode);
     rect_cache_.setWindow(x0, y0, x1, y1);
@@ -48,7 +48,7 @@ class BufferedAddrWindowDevice : public DisplayDevice {
     rect_cache_.pixelsWritten(pixel_count);
   }
 
-  void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
+  void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     flushRectCache();
     buffer_dev_.writeRects(mode, color, x0, y0, x1, y1, count);
@@ -57,7 +57,7 @@ class BufferedAddrWindowDevice : public DisplayDevice {
     }
   }
 
-  void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
+  void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
     flushRectCache();
     buffer_dev_.fillRects(mode, color, x0, y0, x1, y1, count);
@@ -66,7 +66,7 @@ class BufferedAddrWindowDevice : public DisplayDevice {
     }
   }
 
-  void writePixels(PaintMode mode, Color* colors, int16_t* xs, int16_t* ys,
+  void writePixels(BlendingMode mode, Color* colors, int16_t* xs, int16_t* ys,
                    uint16_t pixel_count) override {
     compactor_.drawPixels(
         xs, ys, pixel_count,
@@ -104,7 +104,7 @@ class BufferedAddrWindowDevice : public DisplayDevice {
         });
   }
 
-  void fillPixels(PaintMode mode, Color color, int16_t* xs, int16_t* ys,
+  void fillPixels(BlendingMode mode, Color color, int16_t* xs, int16_t* ys,
                   uint16_t pixel_count) override {
     compactor_.drawPixels(
         xs, ys, pixel_count,

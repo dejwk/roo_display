@@ -287,9 +287,9 @@ TEST(RasterizableStack, TwoOverlap) {
 
 TEST(RasterizableStack, TwoOverlapAlphaBlend) {
   auto input1 = MakeTestRasterizable(Alpha4(color::White), 3, 3,
-                                     "123"
-                                     "234"
-                                     "345");
+                                     "567"
+                                     "678"
+                                     "789");
   auto input2 = MakeTestRasterizable(Alpha4(color::White), 3, 3,
                                      "666"
                                      "777"
@@ -307,9 +307,9 @@ TEST(RasterizableStack, TwoOverlapAlphaBlend) {
   EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
                                           "          "
                                           "          "
-                                          "  123     "
-                                          "  2886    "
-                                          "  39A7    "
+                                          "  567     "
+                                          "  6AB6    "
+                                          "  7BC7    "
                                           "   888    "
                                           "          "
                                           "          "

@@ -40,7 +40,7 @@ class BlendingFilter : public DisplayOutput {
   void setOutput(DisplayOutput& output) { output_ = &output; }
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
-                  PaintMode mode) override {
+                  BlendingMode mode) override {
     address_window_ = Box(x0 - dx_, y0 - dy_, x1 - dx_, y1 - dy_);
     cursor_x_ = x0 - dx_;
     cursor_y_ = y0 - dy_;
@@ -67,7 +67,7 @@ class BlendingFilter : public DisplayOutput {
     output_->write(newcolor, pixel_count);
   }
 
-  // void fill(PaintMode mode, Color color, uint32_t pixel_count) override {
+  // void fill(BlendingMode mode, Color color, uint32_t pixel_count) override {
   //   // Naive implementation, for now.
   //   uint32_t i = 0;
   //   BufferedPixelFiller filler(output_, color, mode);
@@ -83,21 +83,21 @@ class BlendingFilter : public DisplayOutput {
   //   }
   // }
 
-  void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
+  void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     while (count-- > 0) {
       fillRect(mode, *x0++, *y0++, *x1++, *y1++, *color++);
     }
   }
 
-  void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
+  void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
     while (count-- > 0) {
       fillRect(mode, *x0++, *y0++, *x1++, *y1++, color);
     }
   }
 
-  void writePixels(PaintMode mode, Color* color, int16_t* x, int16_t* y,
+  void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
                    uint16_t pixel_count) override {
     Color newcolor[pixel_count];
     read(x, y, pixel_count, newcolor);
@@ -107,7 +107,7 @@ class BlendingFilter : public DisplayOutput {
     output_->writePixels(mode, newcolor, x, y, pixel_count);
   }
 
-  void fillPixels(PaintMode mode, Color color, int16_t* x, int16_t* y,
+  void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override {
     Color newcolor[pixel_count];
     read(x, y, pixel_count, newcolor);
@@ -136,7 +136,7 @@ class BlendingFilter : public DisplayOutput {
     }
   }
 
-  void fillRect(PaintMode mode, int16_t xMin, int16_t yMin, int16_t xMax,
+  void fillRect(BlendingMode mode, int16_t xMin, int16_t yMin, int16_t xMax,
                 int16_t yMax, Color color) {
     Color out_of_bounds_color = AlphaBlend(blender_.bgcolor(), color);
     Box trimmed =
@@ -169,7 +169,7 @@ class BlendingFilter : public DisplayOutput {
     }
   }
 
-  void fillRectIntersectingRaster(PaintMode mode, int16_t xMin, int16_t yMin,
+  void fillRectIntersectingRaster(BlendingMode mode, int16_t xMin, int16_t yMin,
                                   int16_t xMax, int16_t yMax, Color color) {
     {
       uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
@@ -192,7 +192,7 @@ class BlendingFilter : public DisplayOutput {
   }
 
   // Called for rectangles with area <= 64 pixels.
-  void fillRectInternal(PaintMode mode, int16_t xMin, int16_t yMin,
+  void fillRectInternal(BlendingMode mode, int16_t xMin, int16_t yMin,
                         int16_t xMax, int16_t yMax, Color color) {
     uint16_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
     Color newcolor[pixel_count];

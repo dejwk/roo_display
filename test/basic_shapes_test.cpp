@@ -87,7 +87,7 @@ TEST(BasicShapes, FillRectTransparent) {
     // And overlay a semi-transparent shape #2
     Color c = color::Red;
     c.set_a(0x40);
-    dc.setPaintMode(PAINT_MODE_BLEND);
+    dc.setBlendingMode(BLENDING_MODE_SOURCE_OVER);
     dc.draw(FilledRect(2, 3, 3, 4, c));
   }
   EXPECT_THAT(test_screen, MatchesContent(Rgb565(), 5, 6,

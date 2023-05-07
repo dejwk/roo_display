@@ -265,8 +265,8 @@ TEST(DrawingContext, ContextOfSurface) {
 
    private:
     void drawTo(const Surface& s) const override {
-      s.out().fillRect(PAINT_MODE_REPLACE, extents().translate(s.dx(), s.dy()),
-                       color::White);
+      s.out().fillRect(BLENDING_MODE_SOURCE,
+                       extents().translate(s.dx(), s.dy()), color::White);
     }
   };
 

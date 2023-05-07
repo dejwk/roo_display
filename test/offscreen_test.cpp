@@ -328,9 +328,9 @@ class WriterTester {
     for (int32_t i = 0; i < width * height; ++i) expected_[i] = bg;
   }
 
-  void write(PaintMode mode, Color* colors, uint32_t offset) {
+  void write(BlendingMode mode, Color* colors, uint32_t offset) {
     switch (mode) {
-      case PAINT_MODE_REPLACE: {
+      case BLENDING_MODE_SOURCE: {
         internal::ReplaceWriter<ColorMode, pixel_order, byte_order> tested_(
             color_mode_, colors);
         TrivialReplaceWriter<ColorMode> tester_(color_mode_, colors);
@@ -338,7 +338,7 @@ class WriterTester {
         tester_(expected_.get(), offset);
         break;
       }
-      case PAINT_MODE_BLEND: {
+      case BLENDING_MODE_SOURCE_OVER: {
         internal::BlendWriter<ColorMode, pixel_order, byte_order> tested_(
             color_mode_, colors);
         TrivialBlendWriter<ColorMode> tester_(color_mode_, colors);
@@ -353,9 +353,9 @@ class WriterTester {
     CheckEq();
   }
 
-  void write(PaintMode mode, Color* colors, uint32_t offset, uint32_t count) {
+  void write(BlendingMode mode, Color* colors, uint32_t offset, uint32_t count) {
     switch (mode) {
-      case PAINT_MODE_REPLACE: {
+      case BLENDING_MODE_SOURCE: {
         internal::ReplaceWriter<ColorMode, pixel_order, byte_order> tested_(
             color_mode_, colors);
         TrivialReplaceWriter<ColorMode> tester_(color_mode_, colors);
@@ -363,7 +363,7 @@ class WriterTester {
         tester_(expected_.get(), offset, count);
         break;
       }
-      case PAINT_MODE_BLEND: {
+      case BLENDING_MODE_SOURCE_OVER: {
         internal::BlendWriter<ColorMode, pixel_order, byte_order> tested_(
             color_mode_, colors);
         TrivialBlendWriter<ColorMode> tester_(color_mode_, colors);
@@ -378,9 +378,9 @@ class WriterTester {
     CheckEq();
   }
 
-  void fill(PaintMode mode, Color color, uint32_t offset) {
+  void fill(BlendingMode mode, Color color, uint32_t offset) {
     switch (mode) {
-      case PAINT_MODE_REPLACE: {
+      case BLENDING_MODE_SOURCE: {
         internal::ReplaceFiller<ColorMode, pixel_order, byte_order> tested_(
             color_mode_, color);
         TrivialReplaceFiller<ColorMode> tester_(color_mode_, color);
@@ -388,7 +388,7 @@ class WriterTester {
         tester_(expected_.get(), offset);
         break;
       }
-      case PAINT_MODE_BLEND: {
+      case BLENDING_MODE_SOURCE_OVER: {
         internal::BlendFiller<ColorMode, pixel_order, byte_order> tested_(
             color_mode_, color);
         TrivialBlendFiller<ColorMode> tester_(color_mode_, color);
@@ -403,9 +403,9 @@ class WriterTester {
     CheckEq();
   }
 
-  void fill(PaintMode mode, Color color, uint32_t offset, uint32_t count) {
+  void fill(BlendingMode mode, Color color, uint32_t offset, uint32_t count) {
     switch (mode) {
-      case PAINT_MODE_REPLACE: {
+      case BLENDING_MODE_SOURCE: {
         internal::ReplaceFiller<ColorMode, pixel_order, byte_order> tested_(
             color_mode_, color);
         TrivialReplaceFiller<ColorMode> tester_(color_mode_, color);
@@ -413,7 +413,7 @@ class WriterTester {
         tester_(expected_.get(), offset, count);
         break;
       }
-      case PAINT_MODE_BLEND: {
+      case BLENDING_MODE_SOURCE_OVER: {
         internal::BlendFiller<ColorMode, pixel_order, byte_order> tested_(
             color_mode_, color);
         TrivialBlendFiller<ColorMode> tester_(color_mode_, color);
@@ -466,34 +466,34 @@ class ColorRandomizer {
 };
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order>
-void TestWriteBasic(PaintMode paint_mode, ColorMode color_mode = ColorMode()) {
+void TestWriteBasic(BlendingMode blending_mode, ColorMode color_mode = ColorMode()) {
   ColorRandomizer<ColorMode> colors(32, color_mode);
   WriterTester<ColorMode, pixel_order, byte_order> tester(4, 8, color_mode);
-  tester.write(paint_mode, colors.get() + 0, 0);
-  tester.write(paint_mode, colors.get() + 1, 3);
-  tester.write(paint_mode, colors.get() + 2, 11);
-  tester.write(paint_mode, colors.get() + 3, 12);
-  tester.write(paint_mode, colors.get() + 4, 13);
+  tester.write(blending_mode, colors.get() + 0, 0);
+  tester.write(blending_mode, colors.get() + 1, 3);
+  tester.write(blending_mode, colors.get() + 2, 11);
+  tester.write(blending_mode, colors.get() + 3, 12);
+  tester.write(blending_mode, colors.get() + 4, 13);
 
-  tester.write(paint_mode, colors.get() + 5, 1, 0);
-  tester.write(paint_mode, colors.get() + 6, 3, 1);
-  tester.write(paint_mode, colors.get() + 7, 6, 1);
-  tester.write(paint_mode, colors.get() + 8, 9, 2);
-  tester.write(paint_mode, colors.get() + 10, 12, 2);
-  tester.write(paint_mode, colors.get() + 12, 15, 3);
-  tester.write(paint_mode, colors.get() + 15, 20, 3);
+  tester.write(blending_mode, colors.get() + 5, 1, 0);
+  tester.write(blending_mode, colors.get() + 6, 3, 1);
+  tester.write(blending_mode, colors.get() + 7, 6, 1);
+  tester.write(blending_mode, colors.get() + 8, 9, 2);
+  tester.write(blending_mode, colors.get() + 10, 12, 2);
+  tester.write(blending_mode, colors.get() + 12, 15, 3);
+  tester.write(blending_mode, colors.get() + 15, 20, 3);
 
   // Test some overwrites.
-  tester.write(paint_mode, colors.get() + 18, 12);
-  tester.write(paint_mode, colors.get() + 19, 13);
+  tester.write(blending_mode, colors.get() + 18, 12);
+  tester.write(blending_mode, colors.get() + 19, 13);
 
-  tester.write(paint_mode, colors.get() + 20, 6, 1);
-  tester.write(paint_mode, colors.get() + 21, 9, 2);
-  tester.write(paint_mode, colors.get() + 23, 12, 2);
+  tester.write(blending_mode, colors.get() + 20, 6, 1);
+  tester.write(blending_mode, colors.get() + 21, 9, 2);
+  tester.write(blending_mode, colors.get() + 23, 12, 2);
 };
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order>
-void TestWriteLongRandom(PaintMode paint_mode,
+void TestWriteLongRandom(BlendingMode blending_mode,
                          ColorMode color_mode = ColorMode()) {
   ColorRandomizer<ColorMode> colors(32768, color_mode);
   WriterTester<ColorMode, pixel_order, byte_order> tester(16, 64, color_mode);
@@ -502,162 +502,162 @@ void TestWriteLongRandom(PaintMode paint_mode,
     uint32_t offset = rand() % 1024;
     uint32_t len = rand() % 512;
     if (offset + len >= 1024) len = 1024 - offset;
-    tester.write(paint_mode, colors.get() + pixels_total, offset, len);
+    tester.write(blending_mode, colors.get() + pixels_total, offset, len);
     pixels_total += len;
   }
 };
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order>
-void TestFillBasic(PaintMode paint_mode, ColorMode color_mode) {
+void TestFillBasic(BlendingMode blending_mode, ColorMode color_mode) {
   ColorRandomizer<ColorMode> colors(32, color_mode);
   WriterTester<ColorMode, pixel_order, byte_order> tester(4, 8, color_mode);
   const Color* c = colors.get();
-  tester.fill(paint_mode, c[0], 0);
-  tester.fill(paint_mode, c[1], 3);
-  tester.fill(paint_mode, c[2], 11);
-  tester.fill(paint_mode, c[3], 12);
-  tester.fill(paint_mode, c[4], 13);
+  tester.fill(blending_mode, c[0], 0);
+  tester.fill(blending_mode, c[1], 3);
+  tester.fill(blending_mode, c[2], 11);
+  tester.fill(blending_mode, c[3], 12);
+  tester.fill(blending_mode, c[4], 13);
 
-  tester.fill(paint_mode, c[5], 1, 0);
-  tester.fill(paint_mode, c[6], 3, 1);
-  tester.fill(paint_mode, c[7], 6, 1);
-  tester.fill(paint_mode, c[8], 9, 2);
-  tester.fill(paint_mode, c[9], 12, 2);
-  tester.fill(paint_mode, c[10], 15, 3);
-  tester.fill(paint_mode, c[11], 20, 3);
+  tester.fill(blending_mode, c[5], 1, 0);
+  tester.fill(blending_mode, c[6], 3, 1);
+  tester.fill(blending_mode, c[7], 6, 1);
+  tester.fill(blending_mode, c[8], 9, 2);
+  tester.fill(blending_mode, c[9], 12, 2);
+  tester.fill(blending_mode, c[10], 15, 3);
+  tester.fill(blending_mode, c[11], 20, 3);
 
   // Test some overwrites.
-  tester.fill(paint_mode, c[12], 12);
-  tester.fill(paint_mode, c[13], 13);
+  tester.fill(blending_mode, c[12], 12);
+  tester.fill(blending_mode, c[13], 13);
 
-  tester.fill(paint_mode, c[14], 6, 1);
-  tester.fill(paint_mode, c[15], 9, 2);
-  tester.fill(paint_mode, c[16], 12, 2);
+  tester.fill(blending_mode, c[14], 6, 1);
+  tester.fill(blending_mode, c[15], 9, 2);
+  tester.fill(blending_mode, c[16], 12, 2);
 };
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order>
-void TestFillLongRandom(PaintMode paint_mode, ColorMode color_mode) {
+void TestFillLongRandom(BlendingMode blending_mode, ColorMode color_mode) {
   ColorRandomizer<ColorMode> colors(128, color_mode);
   WriterTester<ColorMode, pixel_order, byte_order> tester(16, 64, color_mode);
   for (int i = 0; i < 128; ++i) {
     uint32_t offset = rand() % 1024;
     uint32_t len = rand() % 512;
     if (offset + len >= 1024) len = 1024 - offset;
-    tester.fill(paint_mode, colors.get()[i], offset, len);
+    tester.fill(blending_mode, colors.get()[i], offset, len);
   }
 };
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order>
-void TestWriter(PaintMode paint_mode, ColorMode color_mode) {
-  TestWriteBasic<ColorMode, pixel_order, byte_order>(paint_mode, color_mode);
-  TestWriteLongRandom<ColorMode, pixel_order, byte_order>(paint_mode,
+void TestWriter(BlendingMode blending_mode, ColorMode color_mode) {
+  TestWriteBasic<ColorMode, pixel_order, byte_order>(blending_mode, color_mode);
+  TestWriteLongRandom<ColorMode, pixel_order, byte_order>(blending_mode,
                                                           color_mode);
 }
 
 template <typename ColorMode, ColorPixelOrder pixel_order>
-void TestWriter(PaintMode paint_mode, ColorMode color_mode) {
-  TestWriter<ColorMode, pixel_order, BYTE_ORDER_BIG_ENDIAN>(paint_mode,
+void TestWriter(BlendingMode blending_mode, ColorMode color_mode) {
+  TestWriter<ColorMode, pixel_order, BYTE_ORDER_BIG_ENDIAN>(blending_mode,
                                                             color_mode);
-  TestWriter<ColorMode, pixel_order, BYTE_ORDER_LITTLE_ENDIAN>(paint_mode,
+  TestWriter<ColorMode, pixel_order, BYTE_ORDER_LITTLE_ENDIAN>(blending_mode,
                                                                color_mode);
 }
 
 template <typename ColorMode>
-void TestWriter(PaintMode paint_mode, ColorMode color_mode = ColorMode()) {
-  TestWriter<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST>(paint_mode, color_mode);
-  TestWriter<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST>(paint_mode, color_mode);
+void TestWriter(BlendingMode blending_mode, ColorMode color_mode = ColorMode()) {
+  TestWriter<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST>(blending_mode, color_mode);
+  TestWriter<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST>(blending_mode, color_mode);
 }
 
-TEST(ReplaceWriter, Grayscale4) { TestWriter<Grayscale4>(PAINT_MODE_REPLACE); }
-TEST(ReplaceWriter, Grayscale8) { TestWriter<Grayscale8>(PAINT_MODE_REPLACE); }
-TEST(ReplaceWriter, Argb8888) { TestWriter<Argb8888>(PAINT_MODE_REPLACE); }
-TEST(ReplaceWriter, Argb6666) { TestWriter<Argb6666>(PAINT_MODE_REPLACE); }
-TEST(ReplaceWriter, Argb4444) { TestWriter<Argb4444>(PAINT_MODE_REPLACE); }
-TEST(ReplaceWriter, Rgb565) { TestWriter<Rgb565>(PAINT_MODE_REPLACE); }
+TEST(ReplaceWriter, Grayscale4) { TestWriter<Grayscale4>(BLENDING_MODE_SOURCE); }
+TEST(ReplaceWriter, Grayscale8) { TestWriter<Grayscale8>(BLENDING_MODE_SOURCE); }
+TEST(ReplaceWriter, Argb8888) { TestWriter<Argb8888>(BLENDING_MODE_SOURCE); }
+TEST(ReplaceWriter, Argb6666) { TestWriter<Argb6666>(BLENDING_MODE_SOURCE); }
+TEST(ReplaceWriter, Argb4444) { TestWriter<Argb4444>(BLENDING_MODE_SOURCE); }
+TEST(ReplaceWriter, Rgb565) { TestWriter<Rgb565>(BLENDING_MODE_SOURCE); }
 TEST(ReplaceWriter, Alpha8) {
-  TestWriter<Alpha8>(PAINT_MODE_REPLACE, color::Black);
+  TestWriter<Alpha8>(BLENDING_MODE_SOURCE, color::Black);
 }
 TEST(ReplaceWriter, Alpha4) {
-  TestWriter<Alpha4>(PAINT_MODE_REPLACE, color::Black);
+  TestWriter<Alpha4>(BLENDING_MODE_SOURCE, color::Black);
 }
 
 TEST(ReplaceWriter, Rgb565WithTransparency) {
-  TestWriter<Rgb565WithTransparency>(PAINT_MODE_REPLACE,
+  TestWriter<Rgb565WithTransparency>(BLENDING_MODE_SOURCE,
                                      Rgb565WithTransparency(12));
 }
 
-TEST(BlendWriter, Grayscale4) { TestWriter<Grayscale4>(PAINT_MODE_BLEND); }
-TEST(BlendWriter, Grayscale8) { TestWriter<Grayscale8>(PAINT_MODE_BLEND); }
-TEST(BlendWriter, Argb8888) { TestWriter<Argb8888>(PAINT_MODE_BLEND); }
-TEST(BlendWriter, Argb6666) { TestWriter<Argb6666>(PAINT_MODE_BLEND); }
-TEST(BlendWriter, Argb4444) { TestWriter<Argb4444>(PAINT_MODE_BLEND); }
-TEST(BlendWriter, Rgb565) { TestWriter<Rgb565>(PAINT_MODE_BLEND); }
+TEST(BlendWriter, Grayscale4) { TestWriter<Grayscale4>(BLENDING_MODE_SOURCE_OVER); }
+TEST(BlendWriter, Grayscale8) { TestWriter<Grayscale8>(BLENDING_MODE_SOURCE_OVER); }
+TEST(BlendWriter, Argb8888) { TestWriter<Argb8888>(BLENDING_MODE_SOURCE_OVER); }
+TEST(BlendWriter, Argb6666) { TestWriter<Argb6666>(BLENDING_MODE_SOURCE_OVER); }
+TEST(BlendWriter, Argb4444) { TestWriter<Argb4444>(BLENDING_MODE_SOURCE_OVER); }
+TEST(BlendWriter, Rgb565) { TestWriter<Rgb565>(BLENDING_MODE_SOURCE_OVER); }
 TEST(BlendWriter, Alpha8) {
-  TestWriter<Alpha8>(PAINT_MODE_BLEND, color::Black);
+  TestWriter<Alpha8>(BLENDING_MODE_SOURCE_OVER, color::Black);
 }
 TEST(BlendWriter, Alpha4) {
-  TestWriter<Alpha4>(PAINT_MODE_BLEND, color::Black);
+  TestWriter<Alpha4>(BLENDING_MODE_SOURCE_OVER, color::Black);
 }
 
 TEST(BlendWriter, Rgb565WithTransparency) {
-  TestWriter<Rgb565WithTransparency>(PAINT_MODE_BLEND,
+  TestWriter<Rgb565WithTransparency>(BLENDING_MODE_SOURCE_OVER,
                                      Rgb565WithTransparency(12));
 }
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order>
-void TestFiller(PaintMode paint_mode, ColorMode color_mode = ColorMode()) {
-  TestFillBasic<ColorMode, pixel_order, byte_order>(paint_mode, color_mode);
-  TestFillLongRandom<ColorMode, pixel_order, byte_order>(paint_mode,
+void TestFiller(BlendingMode blending_mode, ColorMode color_mode = ColorMode()) {
+  TestFillBasic<ColorMode, pixel_order, byte_order>(blending_mode, color_mode);
+  TestFillLongRandom<ColorMode, pixel_order, byte_order>(blending_mode,
                                                          color_mode);
 }
 
 template <typename ColorMode, ColorPixelOrder pixel_order>
-void TestFiller(PaintMode paint_mode, ColorMode color_mode = ColorMode()) {
-  TestFiller<ColorMode, pixel_order, BYTE_ORDER_BIG_ENDIAN>(paint_mode,
+void TestFiller(BlendingMode blending_mode, ColorMode color_mode = ColorMode()) {
+  TestFiller<ColorMode, pixel_order, BYTE_ORDER_BIG_ENDIAN>(blending_mode,
                                                             color_mode);
-  TestFiller<ColorMode, pixel_order, BYTE_ORDER_LITTLE_ENDIAN>(paint_mode,
+  TestFiller<ColorMode, pixel_order, BYTE_ORDER_LITTLE_ENDIAN>(blending_mode,
                                                                color_mode);
 }
 
 template <typename ColorMode>
-void TestFiller(PaintMode paint_mode, ColorMode color_mode = ColorMode()) {
-  TestFiller<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST>(paint_mode, color_mode);
-  TestFiller<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST>(paint_mode, color_mode);
+void TestFiller(BlendingMode blending_mode, ColorMode color_mode = ColorMode()) {
+  TestFiller<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST>(blending_mode, color_mode);
+  TestFiller<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST>(blending_mode, color_mode);
 }
 
-TEST(ReplaceFiller, Grayscale4) { TestFiller<Grayscale4>(PAINT_MODE_REPLACE); }
-TEST(ReplaceFiller, Grayscale8) { TestFiller<Grayscale8>(PAINT_MODE_REPLACE); }
-TEST(ReplaceFiller, Argb8888) { TestFiller<Argb8888>(PAINT_MODE_REPLACE); }
-TEST(ReplaceFiller, Argb6666) { TestFiller<Argb6666>(PAINT_MODE_REPLACE); }
-TEST(ReplaceFiller, Argb4444) { TestFiller<Argb4444>(PAINT_MODE_REPLACE); }
-TEST(ReplaceFiller, Rgb565) { TestFiller<Rgb565>(PAINT_MODE_REPLACE); }
+TEST(ReplaceFiller, Grayscale4) { TestFiller<Grayscale4>(BLENDING_MODE_SOURCE); }
+TEST(ReplaceFiller, Grayscale8) { TestFiller<Grayscale8>(BLENDING_MODE_SOURCE); }
+TEST(ReplaceFiller, Argb8888) { TestFiller<Argb8888>(BLENDING_MODE_SOURCE); }
+TEST(ReplaceFiller, Argb6666) { TestFiller<Argb6666>(BLENDING_MODE_SOURCE); }
+TEST(ReplaceFiller, Argb4444) { TestFiller<Argb4444>(BLENDING_MODE_SOURCE); }
+TEST(ReplaceFiller, Rgb565) { TestFiller<Rgb565>(BLENDING_MODE_SOURCE); }
 TEST(ReplaceFiller, Alpha8) {
-  TestFiller<Alpha8>(PAINT_MODE_REPLACE, color::Black);
+  TestFiller<Alpha8>(BLENDING_MODE_SOURCE, color::Black);
 }
 TEST(ReplaceFiller, Alpha4) {
-  TestFiller<Alpha4>(PAINT_MODE_REPLACE, color::Black);
+  TestFiller<Alpha4>(BLENDING_MODE_SOURCE, color::Black);
 }
 
 TEST(ReplaceFiller, Rgb565WithTransparency) {
-  TestWriter<Rgb565WithTransparency>(PAINT_MODE_REPLACE,
+  TestWriter<Rgb565WithTransparency>(BLENDING_MODE_SOURCE,
                                      Rgb565WithTransparency(12));
 }
 
-TEST(BlendFiller, Grayscale4) { TestFiller<Grayscale4>(PAINT_MODE_BLEND); }
-TEST(BlendFiller, Grayscale8) { TestFiller<Grayscale8>(PAINT_MODE_BLEND); }
-TEST(BlendFiller, Argb8888) { TestFiller<Argb8888>(PAINT_MODE_BLEND); }
-TEST(BlendFiller, Argb6666) { TestFiller<Argb6666>(PAINT_MODE_BLEND); }
-TEST(BlendFiller, Argb4444) { TestFiller<Argb4444>(PAINT_MODE_BLEND); }
-TEST(BlendFiller, Rgb565) { TestFiller<Rgb565>(PAINT_MODE_BLEND); }
+TEST(BlendFiller, Grayscale4) { TestFiller<Grayscale4>(BLENDING_MODE_SOURCE_OVER); }
+TEST(BlendFiller, Grayscale8) { TestFiller<Grayscale8>(BLENDING_MODE_SOURCE_OVER); }
+TEST(BlendFiller, Argb8888) { TestFiller<Argb8888>(BLENDING_MODE_SOURCE_OVER); }
+TEST(BlendFiller, Argb6666) { TestFiller<Argb6666>(BLENDING_MODE_SOURCE_OVER); }
+TEST(BlendFiller, Argb4444) { TestFiller<Argb4444>(BLENDING_MODE_SOURCE_OVER); }
+TEST(BlendFiller, Rgb565) { TestFiller<Rgb565>(BLENDING_MODE_SOURCE_OVER); }
 TEST(BlendFiller, Alpha8) {
-  TestFiller<Alpha8>(PAINT_MODE_BLEND, color::Black);
+  TestFiller<Alpha8>(BLENDING_MODE_SOURCE_OVER, color::Black);
 }
 TEST(BlendFiller, Alpha4) {
-  TestFiller<Alpha4>(PAINT_MODE_BLEND, color::Black);
+  TestFiller<Alpha4>(BLENDING_MODE_SOURCE_OVER, color::Black);
 }
 
 TEST(BlendFiller, Rgb565WithTransparency) {
-  TestWriter<Rgb565WithTransparency>(PAINT_MODE_BLEND,
+  TestWriter<Rgb565WithTransparency>(BLENDING_MODE_SOURCE_OVER,
                                      Rgb565WithTransparency(12));
 }
 
@@ -721,7 +721,7 @@ const Raster<const uint8_t*, ColorMode, pixel_order, byte_order> RasterOf(
 }
 
 class OffscreenTest
-    : public testing::TestWithParam<std::tuple<PaintMode, Orientation>> {};
+    : public testing::TestWithParam<std::tuple<BlendingMode, Orientation>> {};
 
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
@@ -825,7 +825,7 @@ TEST_P(OffscreenTest, WriteRectWindowStress) {
 INSTANTIATE_TEST_CASE_P(
     OffscreenTests, OffscreenTest,
     testing::Combine(
-        testing::Values(PAINT_MODE_REPLACE, PAINT_MODE_BLEND),
+        testing::Values(BLENDING_MODE_SOURCE, BLENDING_MODE_SOURCE_OVER),
         testing::Values(Orientation::RightDown(), Orientation::DownRight(),
                         Orientation::LeftDown(), Orientation::DownLeft(),
                         Orientation::RightUp(), Orientation::UpRight(),

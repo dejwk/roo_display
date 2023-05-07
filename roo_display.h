@@ -217,7 +217,7 @@ class DrawingContext {
         unnest_([&display]() { display.unnest(); }),
         write_once_(display.is_write_once()),
         fill_mode_(FILL_MODE_VISIBLE),
-        paint_mode_(PAINT_MODE_BLEND),
+        blending_mode_(BLENDING_MODE_SOURCE_OVER),
         clip_mask_(nullptr),
         background_(display.getRasterizableBackground()),
         bgcolor_(display.getBackgroundColor()),
@@ -239,8 +239,8 @@ class DrawingContext {
   FillMode fillMode() const { return fill_mode_; }
   void setFillMode(FillMode fill_mode) { fill_mode_ = fill_mode; }
 
-  PaintMode paintMode() const { return paint_mode_; }
-  void setPaintMode(PaintMode paint_mode) { paint_mode_ = paint_mode; }
+  BlendingMode paintMode() const { return blending_mode_; }
+  void setBlendingMode(BlendingMode blending_mode) { blending_mode_ = blending_mode; }
 
   // Clears the display, respecting the clip box, and background settings.
   void clear();
@@ -274,7 +274,7 @@ class DrawingContext {
   void setWriteOnce();
 
   void drawPixels(const std::function<void(ClippingBufferedPixelWriter &)> &fn,
-                  PaintMode paint_mode = PAINT_MODE_BLEND);
+                  BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER);
 
   // Draws the object using its inherent coordinates. The point (0, 0) in the
   // object's coordinates maps to (0, 0) in the context's coordinates.
@@ -348,7 +348,7 @@ class DrawingContext {
   std::unique_ptr<FrontToBackWriter> front_to_back_writer_;
 
   FillMode fill_mode_;
-  PaintMode paint_mode_;
+  BlendingMode blending_mode_;
 
   const ClipMask *clip_mask_;
   const Rasterizable *background_;
@@ -359,7 +359,7 @@ class DrawingContext {
 
 // Fill is an 'infinite' single-color area. When drawn, it will fill the
 // entire clip box with the given color. Fill ignores the surface's paint
-// mode, and always uses PAINT_MODE_REPLACE.
+// mode, and always uses BLENDING_MODE_SOURCE.
 class Fill : public Drawable {
  public:
   Fill(Color color) : color_(color) {}
@@ -369,7 +369,7 @@ class Fill : public Drawable {
  private:
   void drawTo(const Surface &s) const override {
     Color color = AlphaBlend(s.bgcolor(), color_);
-    s.out().fillRect(PAINT_MODE_REPLACE, s.clip_box(), color);
+    s.out().fillRect(BLENDING_MODE_SOURCE, s.clip_box(), color);
   }
 
   Color color_;
@@ -377,7 +377,7 @@ class Fill : public Drawable {
 
 // Clear is an 'infinite' transparent area. When drawn, it will fill the
 // entire clip box with the color implied by background settings. Clear
-// ignores the surface's paint mode, and always uses PAINT_MODE_REPLACE.
+// ignores the surface's paint mode, and always uses BLENDING_MODE_SOURCE.
 class Clear : public Drawable {
  public:
   Clear() {}
@@ -386,7 +386,7 @@ class Clear : public Drawable {
 
  private:
   void drawTo(const Surface &s) const override {
-    s.out().fillRect(PAINT_MODE_REPLACE, s.clip_box(), s.bgcolor());
+    s.out().fillRect(BLENDING_MODE_SOURCE, s.clip_box(), s.bgcolor());
   }
 };
 

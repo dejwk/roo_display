@@ -27,7 +27,7 @@ class PixelStream {
 namespace internal {
 
 inline void fillReplaceRect(DisplayOutput &output, const Box &extents,
-                            PixelStream *stream, PaintMode mode) {
+                            PixelStream *stream, BlendingMode mode) {
   Color buf[kPixelWritingBufferSize];
   output.setAddress(extents, mode);
   uint32_t count = extents.area();
@@ -42,7 +42,7 @@ inline void fillReplaceRect(DisplayOutput &output, const Box &extents,
 
 inline void fillPaintRectOverOpaqueBg(DisplayOutput &output, const Box &extents,
                                       Color bgColor, PixelStream *stream,
-                                      PaintMode mode) {
+                                      BlendingMode mode) {
   Color buf[kPixelWritingBufferSize];
   output.setAddress(extents, mode);
   uint32_t count = extents.area();
@@ -58,7 +58,7 @@ inline void fillPaintRectOverOpaqueBg(DisplayOutput &output, const Box &extents,
 
 inline void fillPaintRectOverBg(DisplayOutput &output, const Box &extents,
                                 Color bgcolor, PixelStream *stream,
-                                PaintMode mode) {
+                                BlendingMode mode) {
   Color buf[kPixelWritingBufferSize];
   output.setAddress(extents, mode);
   uint32_t count = extents.area();
@@ -76,7 +76,7 @@ inline void fillPaintRectOverBg(DisplayOutput &output, const Box &extents,
 
 // Assumes no bgcolor.
 inline void writeRectVisible(DisplayOutput &output, const Box &extents,
-                             PixelStream *stream, PaintMode mode) {
+                             PixelStream *stream, BlendingMode mode) {
   // TODO(dawidk): need to optimize this.
   Color buf[kPixelWritingBufferSize];
   BufferedPixelWriter writer(output, mode);
@@ -101,7 +101,8 @@ inline void writeRectVisible(DisplayOutput &output, const Box &extents,
 
 inline void writeRectVisibleOverOpaqueBg(DisplayOutput &output,
                                          const Box &extents, Color bgcolor,
-                                         PixelStream *stream, PaintMode mode) {
+                                         PixelStream *stream,
+                                         BlendingMode mode) {
   // TODO(dawidk): need to optimize this.
   Color buf[kPixelWritingBufferSize];
   BufferedPixelWriter writer(output, mode);
@@ -125,7 +126,7 @@ inline void writeRectVisibleOverOpaqueBg(DisplayOutput &output,
 
 inline void writeRectVisibleOverBg(DisplayOutput &output, const Box &extents,
                                    Color bgcolor, PixelStream *stream,
-                                   PaintMode mode) {
+                                   BlendingMode mode) {
   // TODO(dawidk): need to optimize this.
   Color buf[kPixelWritingBufferSize];
   BufferedPixelWriter writer(output, mode);
@@ -151,23 +152,25 @@ inline void writeRectVisibleOverBg(DisplayOutput &output, const Box &extents,
 // method given the stream's transparency mode.
 inline void FillRectFromStream(DisplayOutput &output, const Box &extents,
                                PixelStream *stream, Color bgcolor,
-                               FillMode fill_mode, PaintMode mode,
+                               FillMode fill_mode, BlendingMode blending_mode,
                                TransparencyMode transparency) {
   if (fill_mode == FILL_MODE_RECTANGLE || transparency == TRANSPARENCY_NONE) {
     if (bgcolor.a() == 0 || transparency == TRANSPARENCY_NONE) {
-      fillReplaceRect(output, extents, stream, mode);
+      fillReplaceRect(output, extents, stream, blending_mode);
     } else if (bgcolor.a() == 0xFF) {
-      fillPaintRectOverOpaqueBg(output, extents, bgcolor, stream, mode);
+      fillPaintRectOverOpaqueBg(output, extents, bgcolor, stream,
+                                blending_mode);
     } else {
-      fillPaintRectOverBg(output, extents, bgcolor, stream, mode);
+      fillPaintRectOverBg(output, extents, bgcolor, stream, blending_mode);
     }
   } else {
     if (bgcolor.a() == 0) {
-      writeRectVisible(output, extents, stream, mode);
+      writeRectVisible(output, extents, stream, blending_mode);
     } else if (bgcolor.a() == 0xFF) {
-      writeRectVisibleOverOpaqueBg(output, extents, bgcolor, stream, mode);
+      writeRectVisibleOverOpaqueBg(output, extents, bgcolor, stream,
+                                   blending_mode);
     } else {
-      writeRectVisibleOverBg(output, extents, bgcolor, stream, mode);
+      writeRectVisibleOverBg(output, extents, bgcolor, stream, blending_mode);
     }
   }
 };
@@ -448,7 +451,7 @@ class Streamable : public virtual Drawable {
     }
     internal::FillRectFromStream(s.out(), bounds.translate(s.dx(), s.dy()),
                                  stream.get(), s.bgcolor(), s.fill_mode(),
-                                 s.paint_mode(), getTransparencyMode());
+                                 s.blending_mode(), getTransparencyMode());
   }
 };
 

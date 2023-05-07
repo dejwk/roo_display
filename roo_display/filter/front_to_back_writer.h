@@ -18,7 +18,7 @@ class FrontToBackWriter : public DisplayOutput {
         mask_filter_(output, &mask_) {}
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
-                  PaintMode mode) override {
+                  BlendingMode mode) override {
     mask_filter_.setAddress(x0, y0, x1, y1, mode);
     int16_t dx = mask_.bounds().xMin();
     int16_t dy = mask_.bounds().yMin();
@@ -31,7 +31,7 @@ class FrontToBackWriter : public DisplayOutput {
     offscreen_.output().write(color, pixel_count);
   }
 
-  void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
+  void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     for (int i = 0; i < count; i++) {
       Box clipped =
@@ -47,7 +47,7 @@ class FrontToBackWriter : public DisplayOutput {
     }
   }
 
-  void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
+  void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
     for (int i = 0; i < count; i++) {
       Box clipped =
@@ -63,7 +63,7 @@ class FrontToBackWriter : public DisplayOutput {
     }
   }
 
-  void writePixels(PaintMode mode, Color* color, int16_t* x, int16_t* y,
+  void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
                    uint16_t pixel_count) override {
     for (int i = 0; i < pixel_count; ++i) {
       int16_t cx = x[i];
@@ -85,7 +85,7 @@ class FrontToBackWriter : public DisplayOutput {
     // //                                pixel_count);
   }
 
-  void fillPixels(PaintMode mode, Color color, int16_t* x, int16_t* y,
+  void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override {
     for (int i = 0; i < pixel_count; ++i) {
       int16_t cx = x[i];

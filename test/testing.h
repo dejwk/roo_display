@@ -952,7 +952,7 @@ class FakeOffscreen : public DisplayDevice {
       : DisplayDevice(width, height),
         color_mode_(std::move(color_mode)),
         buffer_(new Color[width * height]) {
-    writeRect(PAINT_MODE_REPLACE, 0, 0, width - 1, height - 1, background);
+    writeRect(BLENDING_MODE_SOURCE, 0, 0, width - 1, height - 1, background);
   }
 
   FakeOffscreen(Box extents, Color background = color::Transparent,
@@ -960,7 +960,7 @@ class FakeOffscreen : public DisplayDevice {
       : DisplayDevice(extents.width(), extents.height()),
         color_mode_(std::move(color_mode)),
         buffer_(new Color[extents.width() * extents.height()]) {
-    writeRect(PAINT_MODE_REPLACE, 0, 0, extents.width() - 1,
+    writeRect(BLENDING_MODE_SOURCE, 0, 0, extents.width() - 1,
               extents.height() - 1, background);
   }
 
@@ -988,16 +988,16 @@ class FakeOffscreen : public DisplayDevice {
   }
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
-                  PaintMode mode) override {
+                  BlendingMode mode) override {
     window_ = Box(x0, y0, x1, y1);
-    paint_mode_ = mode;
+    blending_mode_ = mode;
     cursor_x_ = x0;
     cursor_y_ = y0;
   }
 
   void write(Color* color, uint32_t pixel_count) override {
     while (pixel_count-- > 0) {
-      writePixel(paint_mode_, cursor_x_, cursor_y_, *color++);
+      writePixel(blending_mode_, cursor_x_, cursor_y_, *color++);
       ++cursor_x_;
       if (cursor_x_ > window_.xMax()) {
         cursor_x_ = window_.xMin();
@@ -1006,28 +1006,28 @@ class FakeOffscreen : public DisplayDevice {
     }
   }
 
-  void writePixels(PaintMode mode, Color* color, int16_t* x, int16_t* y,
+  void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
                    uint16_t pixel_count) override {
     while (pixel_count-- > 0) {
       writePixel(mode, *x++, *y++, *color++);
     }
   }
 
-  void fillPixels(PaintMode mode, Color color, int16_t* x, int16_t* y,
+  void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override {
     while (pixel_count-- > 0) {
       writePixel(mode, *x++, *y++, color);
     }
   }
 
-  void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
+  void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     while (count-- > 0) {
       writeRect(mode, *x0++, *y0++, *x1++, *y1++, *color++);
     }
   }
 
-  void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
+  void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
     while (count-- > 0) {
       writeRect(mode, *x0++, *y0++, *x1++, *y1++, color);
@@ -1036,7 +1036,7 @@ class FakeOffscreen : public DisplayDevice {
 
   const Color* buffer() { return buffer_.get(); }
 
-  void writeRect(PaintMode mode, int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+  void writeRect(BlendingMode mode, int16_t x0, int16_t y0, int16_t x1, int16_t y1,
                  Color color) {
     for (int16_t y = y0; y <= y1; ++y) {
       for (int16_t x = x0; x <= x1; ++x) {
@@ -1045,7 +1045,7 @@ class FakeOffscreen : public DisplayDevice {
     }
   }
 
-  void writePixel(PaintMode mode, int16_t x, int16_t y, Color color) {
+  void writePixel(BlendingMode mode, int16_t x, int16_t y, Color color) {
     EXPECT_GE(x, 0);
     EXPECT_LT(x, effective_width());
     EXPECT_GE(y, 0);
@@ -1064,9 +1064,7 @@ class FakeOffscreen : public DisplayDevice {
     if (orientation().isBottomToTop()) {
       y = raw_height() - y - 1;
     }
-    if (mode == PAINT_MODE_BLEND) {
-      color = AlphaBlend(buffer_[y * raw_width() + x], color);
-    }
+    color = ApplyBlending(mode, buffer_[y * raw_width() + x], color);
     color = color_mode_.toArgbColor(color_mode_.fromArgbColor(color));
     buffer_[y * raw_width() + x] = color;
   }
@@ -1078,7 +1076,7 @@ class FakeOffscreen : public DisplayDevice {
   ColorMode color_mode_;
   std::unique_ptr<Color[]> buffer_;
   Box window_;
-  PaintMode paint_mode_;
+  BlendingMode blending_mode_;
   int16_t cursor_x_;
   int16_t cursor_y_;
 };
@@ -1117,16 +1115,16 @@ class FakeFilteringOffscreen : public DisplayOutput {
   }
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
-                  PaintMode mode) override {
+                  BlendingMode mode) override {
     window_ = Box(x0, y0, x1, y1);
-    paint_mode_ = mode;
+    blending_mode_ = mode;
     cursor_x_ = x0;
     cursor_y_ = y0;
   }
 
   void write(Color* color, uint32_t pixel_count) override {
     while (pixel_count-- > 0) {
-      writePixel(paint_mode_, cursor_x_, cursor_y_, *color++);
+      writePixel(blending_mode_, cursor_x_, cursor_y_, *color++);
       ++cursor_x_;
       if (cursor_x_ > window_.xMax()) {
         cursor_x_ = window_.xMin();
@@ -1135,28 +1133,28 @@ class FakeFilteringOffscreen : public DisplayOutput {
     }
   }
 
-  void writePixels(PaintMode mode, Color* color, int16_t* x, int16_t* y,
+  void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
                    uint16_t pixel_count) override {
     while (pixel_count-- > 0) {
       writePixel(mode, *x++, *y++, *color++);
     }
   }
 
-  void fillPixels(PaintMode mode, Color color, int16_t* x, int16_t* y,
+  void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override {
     while (pixel_count-- > 0) {
       writePixel(mode, *x++, *y++, color);
     }
   }
 
-  void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
+  void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     while (count-- > 0) {
       writeRect(mode, *x0++, *y0++, *x1++, *y1++, *color++);
     }
   }
 
-  void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
+  void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
     while (count-- > 0) {
       writeRect(mode, *x0++, *y0++, *x1++, *y1++, color);
@@ -1165,7 +1163,7 @@ class FakeFilteringOffscreen : public DisplayOutput {
 
   const FakeOffscreen<ColorMode>& offscreen() const { return offscreen_; }
 
-  void writeRect(PaintMode mode, int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+  void writeRect(BlendingMode mode, int16_t x0, int16_t y0, int16_t x1, int16_t y1,
                  Color color) {
     for (int16_t y = y0; y <= y1; ++y) {
       for (int16_t x = x0; x <= x1; ++x) {
@@ -1174,7 +1172,7 @@ class FakeFilteringOffscreen : public DisplayOutput {
     }
   }
 
-  void writePixel(PaintMode mode, int16_t x, int16_t y, Color color) {
+  void writePixel(BlendingMode mode, int16_t x, int16_t y, Color color) {
     filter_.writePixel(mode, x, y, color, &offscreen_);
   }
 
@@ -1182,7 +1180,7 @@ class FakeFilteringOffscreen : public DisplayOutput {
   FakeOffscreen<ColorMode> offscreen_;
   Filter filter_;
   Box window_;
-  PaintMode paint_mode_;
+  BlendingMode blending_mode_;
   int16_t cursor_x_;
   int16_t cursor_y_;
 };
@@ -1212,7 +1210,7 @@ class FilteredOutput : public DisplayOutput {
   }
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
-                  PaintMode mode) override {
+                  BlendingMode mode) override {
     filter_->setAddress(x0, y0, x1, y1, mode);
   }
 
@@ -1220,22 +1218,22 @@ class FilteredOutput : public DisplayOutput {
     filter_->write(color, pixel_count);
   }
 
-  void writePixels(PaintMode mode, Color* color, int16_t* x, int16_t* y,
+  void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
                    uint16_t pixel_count) override {
     filter_->writePixels(mode, color, x, y, pixel_count);
   }
 
-  void fillPixels(PaintMode mode, Color color, int16_t* x, int16_t* y,
+  void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override {
     filter_->fillPixels(mode, color, x, y, pixel_count);
   }
 
-  void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
+  void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     filter_->writeRects(mode, color, x0, y0, x1, y1, count);
   }
 
-  void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
+  void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
     filter_->fillRects(mode, color, x0, y0, x1, y1, count);
   }

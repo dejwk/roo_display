@@ -81,6 +81,18 @@ cc_test(
 )
 
 cc_test(
+    name = "color_blending_test",
+    srcs = [
+        "test/color_blending_test.cpp",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    deps = [
+        "//lib/roo_display:testing",
+    ],
+)
+
+cc_test(
     name = "clip_mask_test",
     srcs = [
         "test/clip_mask_test.cpp",

@@ -301,14 +301,14 @@ class Raster : public Rasterizable {
       StreamType stream(internal::MemoryPtrStream<PtrType>(ptr_), color_mode_);
       internal::FillRectFromStream(s.out(), bounds.translate(s.dx(), s.dy()),
                                    &stream, s.bgcolor(), s.fill_mode(),
-                                   s.paint_mode(), getTransparencyMode());
+                                   s.blending_mode(), getTransparencyMode());
     } else {
       auto stream = internal::MakeSubRectangle(
           StreamType(internal::MemoryPtrStream<PtrType>(ptr_), color_mode_),
           extents_, bounds);
       internal::FillRectFromStream(s.out(), bounds.translate(s.dx(), s.dy()),
                                    &stream, s.bgcolor(), s.fill_mode(),
-                                   s.paint_mode(), getTransparencyMode());
+                                   s.blending_mode(), getTransparencyMode());
     }
   }
 

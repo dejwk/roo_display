@@ -151,7 +151,7 @@ const TestColorStreamable<ColorMode> RasterOf(
 typedef TestDevice<Rgb565, BYTE_ORDER_BIG_ENDIAN> Rgb565Device;
 
 class AddrWindowDeviceTest
-    : public testing::TestWithParam<std::tuple<PaintMode, Orientation>> {};
+    : public testing::TestWithParam<std::tuple<BlendingMode, Orientation>> {};
 
 TEST_P(AddrWindowDeviceTest, FillRects) {
   TestFillRects<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
@@ -250,7 +250,7 @@ TEST_P(AddrWindowDeviceTest, WriteRectWindowSimpleArgb8888LE) {
 INSTANTIATE_TEST_CASE_P(
     AddrWindowDeviceTests, AddrWindowDeviceTest,
     testing::Combine(
-        testing::Values(PAINT_MODE_REPLACE),
+        testing::Values(BLENDING_MODE_SOURCE),
         testing::Values(Orientation::RightDown(), Orientation::DownRight(),
                         Orientation::LeftDown(), Orientation::DownLeft(),
                         Orientation::RightUp(), Orientation::UpRight(),

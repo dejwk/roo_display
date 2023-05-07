@@ -4,7 +4,6 @@
 
 #include "roo_display/color/blending.h"
 #include "roo_display/color/color.h"
-#include "roo_display/color/transparency_mode.h"
 
 namespace roo_display {
 
@@ -25,6 +24,9 @@ namespace roo_display {
 //   // Returns the value that specifies what are possible values of alpha.
 //   TransparencyMode transparency() const { return TRANSPARENCY_GRADUAL; }
 // };
+//
+// Additionally, when adding a color mode, you may want to implement a
+// specialized version of RawBlender.
 
 class Argb8888 {
  public:
@@ -34,10 +36,6 @@ class Argb8888 {
 
   inline constexpr uint32_t fromArgbColor(Color color) const {
     return color.asArgb();
-  }
-
-  inline uint32_t rawAlphaBlend(uint32_t bg, Color color) const {
-    return AlphaBlend(Color(bg), color).asArgb();
   }
 
   constexpr TransparencyMode transparency() const {
@@ -57,26 +55,26 @@ class Rgba8888 {
     return color.asArgb() << 8 | color.asArgb() >> 24;
   }
 
-  inline uint32_t rawAlphaBlend(uint32_t bg, Color color) const {
-    return AlphaBlend(toArgbColor(bg), color).asArgb();
-  }
-
   constexpr TransparencyMode transparency() const {
     return TRANSPARENCY_GRADUAL;
   }
 };
 
-inline static constexpr uint32_t truncTo4bit(uint8_t c) {
+namespace internal {
+
+inline static constexpr uint32_t TruncTo4bit(uint8_t c) {
   return (c - (c >> 5)) >> 4;
 }
 
-inline static constexpr uint32_t truncTo5bit(uint8_t c) {
+inline static constexpr uint32_t TruncTo5bit(uint8_t c) {
   return (c - (c >> 6)) >> 3;
 }
 
-inline static constexpr uint32_t truncTo6bit(uint8_t c) {
+inline static constexpr uint32_t TruncTo6bit(uint8_t c) {
   return (c - (c >> 7)) >> 2;
 }
+
+}  // namespace internal
 
 class Rgb888 {
  public:
@@ -88,10 +86,6 @@ class Rgb888 {
 
   inline constexpr uint32_t fromArgbColor(Color color) const {
     return color.asArgb() & 0x00FFFFFF;
-  }
-
-  inline uint32_t rawAlphaBlend(uint32_t bg, Color color) const {
-    return fromArgbColor(AlphaBlend(toArgbColor(bg), color));
   }
 
   constexpr TransparencyMode transparency() const { return TRANSPARENCY_NONE; }
@@ -119,12 +113,10 @@ class Argb6666 {
     //        ((color.asArgb() >> 6) & 0x03F000LL) |
     //        ((color.asArgb() >> 4) & 0x000FC0LL) |
     //        ((color.asArgb() >> 2) & 0x00003FLL);
-    return truncTo6bit(color.a()) << 18 | truncTo6bit(color.r()) << 12 |
-           truncTo6bit(color.g()) << 6 | truncTo6bit(color.b());
-  }
-
-  inline uint32_t rawAlphaBlend(uint32_t bg, Color color) const {
-    return fromArgbColor(AlphaBlend(toArgbColor(bg), color));
+    return internal::TruncTo6bit(color.a()) << 18 |
+           internal::TruncTo6bit(color.r()) << 12 |
+           internal::TruncTo6bit(color.g()) << 6 |
+           internal::TruncTo6bit(color.b());
   }
 
   constexpr TransparencyMode transparency() const {
@@ -155,12 +147,10 @@ class Argb4444 {
     //        ((color.asArgb() >> 12) & 0x0F00) |
     //        ((color.asArgb() >> 8) & 0x00F0) | ((color.asArgb() >> 4) &
     //        0x000F);
-    return truncTo4bit(color.a()) << 12 | truncTo4bit(color.r()) << 8 |
-           truncTo4bit(color.g()) << 4 | truncTo4bit(color.b());
-  }
-
-  inline uint16_t rawAlphaBlend(uint16_t bg, Color color) const {
-    return fromArgbColor(AlphaBlend(toArgbColor(bg), color));
+    return internal::TruncTo4bit(color.a()) << 12 |
+           internal::TruncTo4bit(color.r()) << 8 |
+           internal::TruncTo4bit(color.g()) << 4 |
+           internal::TruncTo4bit(color.b());
   }
 
   constexpr TransparencyMode transparency() const {
@@ -187,16 +177,28 @@ class Rgb565 {
     // return ((color.asArgb() >> 8) & 0xF800) |
     //        ((color.asArgb() >> 5) & 0x07E0) |
     //        ((color.asArgb() >> 3) & 0x1F);
-    return truncTo5bit(color.r()) << 11 | truncTo6bit(color.g()) << 5 |
-           truncTo5bit(color.b());
-  }
-
-  inline uint16_t rawAlphaBlend(uint16_t bg, Color color) const {
-    return fromArgbColor(AlphaBlendOverOpaque(toArgbColor(bg), color));
+    return internal::TruncTo5bit(color.r()) << 11 |
+           internal::TruncTo6bit(color.g()) << 5 |
+           internal::TruncTo5bit(color.b());
   }
 
   constexpr TransparencyMode transparency() const { return TRANSPARENCY_NONE; }
 };
+
+template <>
+struct RawBlender<Rgb565, BLENDING_MODE_SOURCE_OVER> {
+  inline uint16_t operator()(uint16_t bg, Color color,
+                             const Rgb565& mode) const {
+    return mode.fromArgbColor(
+        AlphaBlendOverOpaque(mode.toArgbColor(bg), color));
+  }
+};
+
+namespace internal {
+inline constexpr uint16_t Resolve565Transparency(uint16_t c, uint16_t t) {
+  return c == t ? c ^ 0x40 : c;
+}
+}  // namespace internal
 
 // Variant of Rgb565 that reserves one 16-bit value to represent transparent
 // color.
@@ -220,30 +222,33 @@ class Rgb565WithTransparency {
   }
 
   inline constexpr uint16_t fromArgbColor(Color color) const {
-    // if (color.a() <= 127) {
-    //   return transparency_;
-    // }
-    // uint32_t argb = color.asArgb();
-    // return ((argb >> 8) & 0xF800) | ((argb >> 5) & 0x07E0) |
-    //        ((argb >> 3) & 0x1F);
-    return color.a() <= 127
-               ? transparency_
-               : truncTo5bit(color.r()) << 11 | truncTo6bit(color.g()) << 5 |
-                     truncTo5bit(color.b());
-  }
-
-  inline uint16_t rawAlphaBlend(uint16_t bg, Color color) const {
-    return fromArgbColor(bg == transparency_
-                             ? color
-                             : AlphaBlendOverOpaque(toArgbColor(bg), color));
+    return color.a() <= 127 ? transparency_
+                            : internal::Resolve565Transparency(
+                                  internal::TruncTo5bit(color.r()) << 11 |
+                                      internal::TruncTo6bit(color.g()) << 5 |
+                                      internal::TruncTo5bit(color.b()),
+                                  transparency_);
   }
 
   constexpr TransparencyMode transparency() const {
     return TRANSPARENCY_BINARY;
   }
 
+  uint16_t raw_transparency_color() const { return transparency_; }
+
  private:
   uint16_t transparency_;
+};
+
+template <>
+struct RawBlender<Rgb565WithTransparency, BLENDING_MODE_SOURCE_OVER> {
+  inline uint16_t operator()(uint16_t bg, Color color,
+                             const Rgb565WithTransparency& mode) const {
+    return mode.fromArgbColor(
+        bg == mode.transparency()
+            ? color
+            : AlphaBlendOverOpaque(mode.toArgbColor(bg), color));
+  }
 };
 
 // 256 shades of gray.
@@ -262,13 +267,27 @@ class Grayscale8 {
            3;
   }
 
-  inline uint8_t rawAlphaBlend(uint8_t bg, Color fg) const {
-    uint8_t raw = fromArgbColor(fg);
-    uint16_t alpha = fg.a() + 1;
-    return (alpha * raw + (256 - alpha) * bg) >> 8;
-  }
-
   constexpr TransparencyMode transparency() const { return TRANSPARENCY_NONE; }
+};
+
+template <>
+struct RawBlender<Grayscale8, BLENDING_MODE_SOURCE_OVER> {
+  inline uint8_t operator()(uint8_t bg, Color color,
+                            const Grayscale8& mode) const {
+    uint8_t raw = mode.fromArgbColor(color);
+    uint16_t alpha = color.a();
+    return internal::__div_255_rounded(alpha * raw + (255 - alpha) * bg);
+  }
+};
+
+template <>
+struct RawBlender<Grayscale8, BLENDING_MODE_SOURCE_OVER_OPAQUE> {
+  inline uint8_t operator()(uint8_t bg, Color color,
+                            const Grayscale8& mode) const {
+    uint8_t raw = mode.fromArgbColor(color);
+    uint16_t alpha = color.a();
+    return internal::__div_255_rounded(alpha * raw + (255 - alpha) * bg);
+  }
 };
 
 // 256 shades of gray + 8-bit alpha.
@@ -286,10 +305,6 @@ class GrayAlpha8 {
     return color.a() >> 24 |
            ((((int16_t)color.r() * 3) + ((int16_t)color.g() * 4) + color.b()) >>
             3) << 8;
-  }
-
-  inline uint8_t rawAlphaBlend(uint16_t bg, Color fg) const {
-    return fromArgbColor(AlphaBlend(toArgbColor(bg), fg));
   }
 
   constexpr TransparencyMode transparency() const {
@@ -314,13 +329,27 @@ class Grayscale4 {
            7;
   }
 
-  inline uint8_t rawAlphaBlend(uint8_t bg, Color fg) const {
-    uint8_t raw = fromArgbColor(fg);
-    uint16_t alpha = fg.a() + 1;
-    return (alpha * raw + (256 - alpha) * bg) >> 8;
-  }
-
   constexpr TransparencyMode transparency() const { return TRANSPARENCY_NONE; }
+};
+
+template <>
+struct RawBlender<Grayscale4, BLENDING_MODE_SOURCE_OVER> {
+  inline uint8_t operator()(uint8_t bg, Color color,
+                            const Grayscale4& mode) const {
+    uint8_t raw = mode.fromArgbColor(color);
+    uint16_t alpha = color.a();
+    return internal::__div_255_rounded(alpha * raw + (255 - alpha) * bg);
+  }
+};
+
+template <>
+struct RawBlender<Grayscale4, BLENDING_MODE_SOURCE_OVER_OPAQUE> {
+  inline uint8_t operator()(uint8_t bg, Color color,
+                            const Grayscale4& mode) const {
+    uint8_t raw = mode.fromArgbColor(color);
+    uint16_t alpha = color.a();
+    return internal::__div_255_rounded(alpha * raw + (255 - alpha) * bg);
+  }
 };
 
 // Semi-transparent monochrome with 256 transparency levels.
@@ -338,13 +367,6 @@ class Alpha8 {
     return color.a();
   }
 
-  inline uint8_t rawAlphaBlend(uint8_t bg, Color fg) const {
-    uint16_t front_alpha = fg.a();
-    if (front_alpha == 0xFF || bg == 0xFF) return 0xFF;
-    uint16_t tmp = bg * front_alpha;
-    return bg + front_alpha - ((tmp + (tmp >> 8)) >> 8);
-  }
-
   constexpr Color color() const { return color_; }
 
   constexpr TransparencyMode transparency() const {
@@ -353,6 +375,16 @@ class Alpha8 {
 
  private:
   Color color_;
+};
+
+template <>
+struct RawBlender<Alpha8, BLENDING_MODE_SOURCE_OVER> {
+  inline uint8_t operator()(uint8_t bg, Color color, const Alpha8& mode) const {
+    uint16_t front_alpha = color.a();
+    if (front_alpha == 0xFF || bg == 0xFF) return 0xFF;
+    uint16_t tmp = bg * front_alpha;
+    return bg + front_alpha - internal::__div_255_rounded(tmp);
+  }
 };
 
 // Semi-transparent monochrome with 16 transparency levels. Good default
@@ -370,15 +402,7 @@ class Alpha4 {
 
   inline constexpr uint8_t fromArgbColor(Color color) const {
     //    return color.a() >> 4;
-    return truncTo4bit(color.a());
-  }
-
-  inline uint8_t rawAlphaBlend(uint8_t bg, Color fg) const {
-    uint8_t front_alpha = fg.a();
-    if (front_alpha == 0xFF || bg == 0xF) return 0xF;
-    bg |= (bg << 4);
-    uint16_t tmp = bg * front_alpha;
-    return truncTo4bit(bg + front_alpha - ((tmp + (tmp >> 8)) >> 8));
+    return internal::TruncTo4bit(color.a());
   }
 
   constexpr Color color() const { return color_; }
@@ -390,6 +414,18 @@ class Alpha4 {
 
  private:
   Color color_;
+};
+
+template <>
+struct RawBlender<Alpha4, BLENDING_MODE_SOURCE_OVER> {
+  inline uint8_t operator()(uint8_t bg, Color color, const Alpha4& mode) const {
+    uint8_t front_alpha = color.a();
+    if (front_alpha == 0xFF || bg == 0xF) return 0xF;
+    bg |= (bg << 4);
+    uint16_t tmp = bg * front_alpha;
+    return internal::TruncTo4bit(bg + front_alpha -
+                                 internal::__div_255_rounded(tmp));
+  }
 };
 
 // Binary color, wich specified 'foreground' and 'background' values.
@@ -415,10 +451,6 @@ class Monochrome {
   constexpr Color bg() const { return bg_; }
   void setBg(Color bg) { bg_ = bg; }
 
-  inline uint8_t rawAlphaBlend(uint8_t bg, Color fg) const {
-    return fg.a() == 0 ? bg : fromArgbColor(fg);
-  }
-
   constexpr TransparencyMode transparency() const {
     return bg().a() == 0xFF ? (fg().a() == 0xFF   ? TRANSPARENCY_NONE
                                : fg().a() == 0x00 ? TRANSPARENCY_BINARY
@@ -436,6 +468,14 @@ class Monochrome {
  private:
   Color fg_;
   Color bg_;
+};
+
+template <>
+struct RawBlender<Monochrome, BLENDING_MODE_SOURCE_OVER> {
+  inline uint8_t operator()(uint8_t bg, Color color,
+                            const Monochrome& mode) const {
+    return mode.fg().a() == 0 ? bg : mode.fromArgbColor(mode.fg());
+  }
 };
 
 }  // namespace roo_display

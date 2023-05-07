@@ -35,7 +35,7 @@ class TestDisplayDevice : public DisplayDevice {
   }
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
-                  PaintMode mode) override {
+                  BlendingMode mode) override {
     refc_.setAddress(x0, y0, x1, y1, mode);
     test_.setAddress(x0, y0, x1, y1, mode);
   }
@@ -45,25 +45,25 @@ class TestDisplayDevice : public DisplayDevice {
     test_.write(color, pixel_count);
   }
 
-  void writePixels(PaintMode mode, Color* color, int16_t* x, int16_t* y,
+  void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
                    uint16_t pixel_count) override {
     refc_.writePixels(mode, color, x, y, pixel_count);
     test_.writePixels(mode, color, x, y, pixel_count);
   }
 
-  void fillPixels(PaintMode mode, Color color, int16_t* x, int16_t* y,
+  void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override {
     refc_.fillPixels(mode, color, x, y, pixel_count);
     test_.fillPixels(mode, color, x, y, pixel_count);
   }
 
-  void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
+  void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     refc_.writeRects(mode, color, x0, y0, x1, y1, count);
     test_.writeRects(mode, color, x0, y0, x1, y1, count);
   }
 
-  void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
+  void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
     refc_.fillRects(mode, color, x0, y0, x1, y1, count);
     test_.fillRects(mode, color, x0, y0, x1, y1, count);
@@ -83,7 +83,7 @@ class TestDisplayDevice : public DisplayDevice {
 // 'Fill' tests.
 
 template <typename TestedDevice, typename ReferenceDevice>
-void TestFillRects(PaintMode paint_mode, Orientation orientation) {
+void TestFillRects(BlendingMode blending_mode, Orientation orientation) {
   TestDisplayDevice<TestedDevice, ReferenceDevice> screen(32, 35,
                                                           Color(0xFF101050));
   screen.setOrientation(orientation);
@@ -91,59 +91,59 @@ void TestFillRects(PaintMode paint_mode, Orientation orientation) {
   int16_t y0[] = {14, 1, 12};
   int16_t x1[] = {12, 31, 8};
   int16_t y1[] = {18, 14, 30};
-  screen.fillRects(paint_mode, Color(0x77145456), x0, y0, x1, y1, 3);
+  screen.fillRects(blending_mode, Color(0x77145456), x0, y0, x1, y1, 3);
   EXPECT_CONSISTENT(screen);
 }
 
 template <typename TestedDevice, typename ReferenceDevice>
-void TestFillHLines(PaintMode paint_mode, Orientation orientation) {
+void TestFillHLines(BlendingMode blending_mode, Orientation orientation) {
   TestDisplayDevice<TestedDevice, ReferenceDevice> screen(37, 36,
                                                           Color(0xFF101050));
   screen.setOrientation(orientation);
   int16_t x0[] = {4, 14, 7};
   int16_t x1[] = {12, 31, 8};
   int16_t y[] = {14, 1, 12};
-  screen.fillRects(paint_mode, Color(0xF27445A6), x0, y, x1, y, 3);
+  screen.fillRects(blending_mode, Color(0xF27445A6), x0, y, x1, y, 3);
   EXPECT_CONSISTENT(screen);
 }
 
 template <typename TestedDevice, typename ReferenceDevice>
-void TestFillVLines(PaintMode paint_mode, Orientation orientation) {
+void TestFillVLines(BlendingMode blending_mode, Orientation orientation) {
   TestDisplayDevice<TestedDevice, ReferenceDevice> screen(31, 35,
                                                           Color(0xFF101050));
   screen.setOrientation(orientation);
   int16_t x[] = {4, 14, 7};
   int16_t y0[] = {14, 1, 12};
   int16_t y1[] = {18, 1, 30};
-  screen.fillRects(paint_mode, Color(0xDD991133), x, y0, x, y1, 3);
+  screen.fillRects(blending_mode, Color(0xDD991133), x, y0, x, y1, 3);
   EXPECT_CONSISTENT(screen);
 }
 
 template <typename TestedDevice, typename ReferenceDevice>
-void TestFillDegeneratePixels(PaintMode paint_mode, Orientation orientation) {
+void TestFillDegeneratePixels(BlendingMode blending_mode, Orientation orientation) {
   TestDisplayDevice<TestedDevice, ReferenceDevice> screen(30, 33,
                                                           Color(0xFF101050));
   screen.setOrientation(orientation);
   int16_t x[] = {4, 14, 7};
   int16_t y[] = {14, 1, 12};
-  screen.fillRects(paint_mode, Color(0xDD991133), x, y, x, y, 3);
+  screen.fillRects(blending_mode, Color(0xDD991133), x, y, x, y, 3);
   EXPECT_CONSISTENT(screen);
 }
 
 template <typename TestedDevice, typename ColorMode>
-void TestFillPixels(PaintMode paint_mode, Orientation orientation) {
+void TestFillPixels(BlendingMode blending_mode, Orientation orientation) {
   TestDisplayDevice<TestedDevice, ColorMode> screen(34, 30, Color(0xFF101050));
   screen.setOrientation(orientation);
   int16_t x[] = {4, 14, 7};
   int16_t y[] = {14, 1, 12};
-  screen.fillPixels(paint_mode, Color(0xDD991133), x, y, 3);
+  screen.fillPixels(blending_mode, Color(0xDD991133), x, y, 3);
   EXPECT_CONSISTENT(screen);
 }
 
 // 'Write' tests.
 
 template <typename TestedDevice, typename ReferenceDevice>
-void TestWriteRects(PaintMode paint_mode, Orientation orientation) {
+void TestWriteRects(BlendingMode blending_mode, Orientation orientation) {
   TestDisplayDevice<TestedDevice, ReferenceDevice> screen(35, 32,
                                                           Color(0xFF101050));
   screen.setOrientation(orientation);
@@ -152,12 +152,12 @@ void TestWriteRects(PaintMode paint_mode, Orientation orientation) {
   int16_t x1[] = {12, 31, 8};
   int16_t y1[] = {18, 14, 30};
   Color c[] = {Color(0x77145456), Color(0xF27445AE), Color(0xDD991133)};
-  screen.writeRects(paint_mode, c, x0, y0, x1, y1, 3);
+  screen.writeRects(blending_mode, c, x0, y0, x1, y1, 3);
   EXPECT_CONSISTENT(screen);
 }
 
 template <typename TestedDevice, typename ReferenceDevice>
-void TestWriteHLines(PaintMode paint_mode, Orientation orientation) {
+void TestWriteHLines(BlendingMode blending_mode, Orientation orientation) {
   TestDisplayDevice<TestedDevice, ReferenceDevice> screen(35, 27,
                                                           Color(0xFF101050));
   screen.setOrientation(orientation);
@@ -165,12 +165,12 @@ void TestWriteHLines(PaintMode paint_mode, Orientation orientation) {
   int16_t x1[] = {12, 21, 8};
   int16_t y[] = {14, 1, 12};
   Color c[] = {Color(0x77145456), Color(0xF27445AE), Color(0xDD991133)};
-  screen.writeRects(paint_mode, c, x0, y, x1, y, 3);
+  screen.writeRects(blending_mode, c, x0, y, x1, y, 3);
   EXPECT_CONSISTENT(screen);
 }
 
 template <typename TestedDevice, typename ReferenceDevice>
-void TestWriteVLines(PaintMode paint_mode, Orientation orientation) {
+void TestWriteVLines(BlendingMode blending_mode, Orientation orientation) {
   TestDisplayDevice<TestedDevice, ReferenceDevice> screen(36, 32,
                                                           Color(0xFF101050));
   screen.setOrientation(orientation);
@@ -178,36 +178,36 @@ void TestWriteVLines(PaintMode paint_mode, Orientation orientation) {
   int16_t y0[] = {14, 1, 12};
   int16_t y1[] = {18, 1, 30};
   Color c[] = {Color(0x77145456), Color(0xF27445AE), Color(0xDD991133)};
-  screen.writeRects(paint_mode, c, x, y0, x, y1, 3);
+  screen.writeRects(blending_mode, c, x, y0, x, y1, 3);
   EXPECT_CONSISTENT(screen);
 }
 
 template <typename TestedDevice, typename ReferenceDevice>
-void TestWriteDegeneratePixels(PaintMode paint_mode, Orientation orientation) {
+void TestWriteDegeneratePixels(BlendingMode blending_mode, Orientation orientation) {
   TestDisplayDevice<TestedDevice, ReferenceDevice> screen(32, 36,
                                                           Color(0xFF101050));
   screen.setOrientation(orientation);
   int16_t x[] = {4, 14, 7};
   int16_t y[] = {14, 1, 12};
   Color c[] = {Color(0x77145456), Color(0xF27445AE), Color(0xDD991133)};
-  screen.writeRects(paint_mode, c, x, y, x, y, 3);
+  screen.writeRects(blending_mode, c, x, y, x, y, 3);
   EXPECT_CONSISTENT(screen);
 }
 
 template <typename TestedDevice, typename ReferenceDevice>
-void TestWritePixels(PaintMode paint_mode, Orientation orientation) {
+void TestWritePixels(BlendingMode blending_mode, Orientation orientation) {
   TestDisplayDevice<TestedDevice, ReferenceDevice> screen(32, 18,
                                                           Color(0xFF101050));
   screen.setOrientation(orientation);
   int16_t x[] = {4, 14, 7};
   int16_t y[] = {14, 1, 12};
   Color c[] = {Color(0x77145456), Color(0xF27445AE), Color(0xDD991133)};
-  screen.writePixels(paint_mode, c, x, y, 3);
+  screen.writePixels(blending_mode, c, x, y, 3);
   EXPECT_CONSISTENT(screen);
 }
 
 template <typename TestedDevice, typename ReferenceDevice>
-void TestWritePixelsStress(PaintMode paint_mode, Orientation orientation) {
+void TestWritePixelsStress(BlendingMode blending_mode, Orientation orientation) {
   TestDisplayDevice<TestedDevice, ReferenceDevice> screen(50, 90,
                                                           Color(0x12345678));
   screen.setOrientation(orientation);
@@ -236,14 +236,14 @@ void TestWritePixelsStress(PaintMode paint_mode, Orientation orientation) {
     start = end;
     end += batch;
     if (end > kTestSize) end = kTestSize;
-    screen.writePixels(paint_mode, color + start, x + start, y + start,
+    screen.writePixels(blending_mode, color + start, x + start, y + start,
                        end - start);
   }
   EXPECT_CONSISTENT(screen);
 }
 
 template <typename TestedDevice, typename ReferenceDevice>
-void TestWritePixelsSnake(PaintMode paint_mode, Orientation orientation) {
+void TestWritePixelsSnake(BlendingMode blending_mode, Orientation orientation) {
   enum WriteDirection { RIGHT = 0, DOWN = 1, LEFT = 2, UP = 3 };
 
   TestDisplayDevice<TestedDevice, ReferenceDevice> screen(50, 90,
@@ -324,7 +324,7 @@ void TestWritePixelsSnake(PaintMode paint_mode, Orientation orientation) {
     start = end;
     end += batch;
     if (end > kTestSize) end = kTestSize;
-    screen.writePixels(paint_mode, color + start, xs + start, ys + start,
+    screen.writePixels(blending_mode, color + start, xs + start, ys + start,
                        end - start);
   }
   EXPECT_CONSISTENT(screen);
@@ -332,7 +332,7 @@ void TestWritePixelsSnake(PaintMode paint_mode, Orientation orientation) {
 
 template <typename TestedDevice, typename ReferenceDevice>
 void fillRandom(TestDisplayDevice<TestedDevice, ReferenceDevice>* screen,
-                PaintMode mode, int16_t x0, int16_t y0, int16_t x1,
+                BlendingMode mode, int16_t x0, int16_t y0, int16_t x1,
                 int16_t y1) {
   std::uniform_int_distribution<
       ColorStorageType<ColorModeOfDevice<ReferenceDevice>>>
@@ -354,16 +354,16 @@ void fillRandom(TestDisplayDevice<TestedDevice, ReferenceDevice>* screen,
 }
 
 template <typename TestedDevice, typename ReferenceDevice>
-void TestWriteRectWindowSimple(PaintMode paint_mode, Orientation orientation) {
+void TestWriteRectWindowSimple(BlendingMode blending_mode, Orientation orientation) {
   TestDisplayDevice<TestedDevice, ReferenceDevice> screen(8, 12,
                                                           Color(0x00000000));
   screen.setOrientation(orientation);
-  fillRandom(&screen, paint_mode, 2, 3, 6, 7);
+  fillRandom(&screen, blending_mode, 2, 3, 6, 7);
   EXPECT_CONSISTENT(screen);
 }
 
 template <typename TestedDevice, typename ReferenceDevice>
-void TestWriteRectWindowStress(PaintMode paint_mode, Orientation orientation) {
+void TestWriteRectWindowStress(BlendingMode blending_mode, Orientation orientation) {
   TestDisplayDevice<TestedDevice, ReferenceDevice> screen(50, 90,
                                                           Color(0x12345678));
   screen.setOrientation(orientation);
@@ -378,13 +378,13 @@ void TestWriteRectWindowStress(PaintMode paint_mode, Orientation orientation) {
     int16_t y0 = y_distribution(generator);
     int16_t y1 = y_distribution(generator);
     if (y1 < y0) std::swap(y0, y1);
-    fillRandom(&screen, paint_mode, x0, y0, x1, y1);
+    fillRandom(&screen, blending_mode, x0, y0, x1, y1);
   }
   EXPECT_CONSISTENT(screen);
 }
 
 std::ostream& operator<<(std::ostream& os,
-                         const std::tuple<PaintMode, Orientation>& pair) {
+                         const std::tuple<BlendingMode, Orientation>& pair) {
   os << std::get<0>(pair) << ", " << std::get<1>(pair);
   return os;
 }

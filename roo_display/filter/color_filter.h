@@ -22,7 +22,7 @@ class ColorFilter : public DisplayOutput {
   virtual ~ColorFilter() {}
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
-                  PaintMode mode) override {
+                  BlendingMode mode) override {
     output_.setAddress(x0, y0, x1, y1, mode);
   }
 
@@ -31,24 +31,24 @@ class ColorFilter : public DisplayOutput {
     output_.write(color, pixel_count);
   }
 
-  void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
+  void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     transform(color, count);
     output_.writeRects(mode, color, x0, y0, x1, y1, count);
   }
 
-  void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
+  void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
     output_.fillRects(mode, transform(color), x0, y0, x1, y1, count);
   }
 
-  void writePixels(PaintMode mode, Color* color, int16_t* x, int16_t* y,
+  void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
                    uint16_t pixel_count) override {
     transform(color, pixel_count);
     output_.writePixels(mode, color, x, y, pixel_count);
   }
 
-  void fillPixels(PaintMode mode, Color color, int16_t* x, int16_t* y,
+  void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override {
     output_.fillPixels(mode, transform(color), x, y, pixel_count);
   }
@@ -124,7 +124,7 @@ class ColorFilter<Erasure> : public DisplayOutput {
   virtual ~ColorFilter() {}
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
-                  PaintMode mode) override {
+                  BlendingMode mode) override {
     output_.setAddress(x0, y0, x1, y1, mode);
   }
 
@@ -135,22 +135,22 @@ class ColorFilter<Erasure> : public DisplayOutput {
     output_.write(color, pixel_count);
   }
 
-  void writeRects(PaintMode mode, Color* color, int16_t* x0, int16_t* y0,
+  void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     output_.fillRects(mode, bgcolor_, x0, y0, x1, y1, count);
   }
 
-  void fillRects(PaintMode mode, Color color, int16_t* x0, int16_t* y0,
+  void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
     output_.fillRects(mode, bgcolor_, x0, y0, x1, y1, count);
   }
 
-  void writePixels(PaintMode mode, Color* color, int16_t* x, int16_t* y,
+  void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
                    uint16_t pixel_count) override {
     output_.fillPixels(mode, bgcolor_, x, y, pixel_count);
   }
 
-  void fillPixels(PaintMode mode, Color color, int16_t* x, int16_t* y,
+  void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override {
     output_.fillPixels(mode, bgcolor_, x, y, pixel_count);
   }

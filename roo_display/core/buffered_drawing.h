@@ -39,8 +39,8 @@ static const uint8_t kRectWritingBufferSize = 5;
 
 class BufferedPixelWriter {
  public:
-  BufferedPixelWriter(DisplayOutput& device, PaintMode mode)
-      : device_(device), mode_(mode), buffer_size_(0) {}
+  BufferedPixelWriter(DisplayOutput& device, BlendingMode blending_mode)
+      : device_(device), blending_mode_(blending_mode), buffer_size_(0) {}
 
   BufferedPixelWriter(BufferedPixelWriter&) = delete;
   BufferedPixelWriter(const BufferedPixelWriter&) = delete;
@@ -50,7 +50,10 @@ class BufferedPixelWriter {
 
   void writePixel(int16_t x, int16_t y, Color color) {
     if (buffer_size_ == kPixelWritingBufferSize) flush();
-    if (color.asArgb() == 0 && mode_ == PAINT_MODE_BLEND) return;
+    if (color.asArgb() == 0 &&
+        (blending_mode_ == BLENDING_MODE_SOURCE_OVER ||
+         blending_mode_ == BLENDING_MODE_SOURCE_OVER_OPAQUE))
+      return;
     x_buffer_[buffer_size_] = x;
     y_buffer_[buffer_size_] = y;
     color_buffer_[buffer_size_] = color;
@@ -61,14 +64,14 @@ class BufferedPixelWriter {
 
   void flush() {
     if (buffer_size_ == 0) return;
-    device_.writePixels(mode_, color_buffer_, x_buffer_, y_buffer_,
+    device_.writePixels(blending_mode_, color_buffer_, x_buffer_, y_buffer_,
                         buffer_size_);
     buffer_size_ = 0;
   }
 
  private:
   DisplayOutput& device_;
-  PaintMode mode_;
+  BlendingMode blending_mode_;
   int16_t buffer_size_;
   Color color_buffer_[kPixelWritingBufferSize];
   int16_t x_buffer_[kPixelWritingBufferSize];
@@ -91,8 +94,8 @@ class BufferedPixelWriterFillAdapter {
 class ClippingBufferedPixelWriter {
  public:
   ClippingBufferedPixelWriter(DisplayOutput& device, Box clip_box,
-                              PaintMode mode)
-      : writer_(device, mode), clip_box_(std::move(clip_box)) {}
+                              BlendingMode blending_mode)
+      : writer_(device, blending_mode), clip_box_(std::move(clip_box)) {}
 
   ClippingBufferedPixelWriter(ClippingBufferedPixelWriter&) = delete;
   ClippingBufferedPixelWriter(const ClippingBufferedPixelWriter&) = delete;
@@ -118,8 +121,12 @@ using PixelWriter = ClippingBufferedPixelWriter;
 
 class BufferedPixelFiller {
  public:
-  BufferedPixelFiller(DisplayOutput& device, Color color, PaintMode mode)
-      : device_(device), color_(color), mode_(mode), buffer_size_(0) {}
+  BufferedPixelFiller(DisplayOutput& device, Color color,
+                      BlendingMode blending_mode)
+      : device_(device),
+        color_(color),
+        blending_mode_(blending_mode),
+        buffer_size_(0) {}
 
   void fillPixel(int16_t x, int16_t y) {
     if (buffer_size_ == kPixelWritingBufferSize) flush();
@@ -132,14 +139,15 @@ class BufferedPixelFiller {
 
   void flush() {
     if (buffer_size_ == 0) return;
-    device_.fillPixels(mode_, color_, x_buffer_, y_buffer_, buffer_size_);
+    device_.fillPixels(blending_mode_, color_, x_buffer_, y_buffer_,
+                       buffer_size_);
     buffer_size_ = 0;
   }
 
  private:
   DisplayOutput& device_;
   Color color_;
-  PaintMode mode_;
+  BlendingMode blending_mode_;
   int16_t buffer_size_;
   int16_t x_buffer_[kPixelWritingBufferSize];
   int16_t y_buffer_[kPixelWritingBufferSize];
@@ -148,8 +156,8 @@ class BufferedPixelFiller {
 class ClippingBufferedPixelFiller {
  public:
   ClippingBufferedPixelFiller(DisplayOutput& device, Color color, Box clip_box,
-                              PaintMode mode)
-      : filler_(device, color, mode), clip_box_(std::move(clip_box)) {}
+                              BlendingMode blending_mode)
+      : filler_(device, color, blending_mode), clip_box_(std::move(clip_box)) {}
 
   void fillPixel(int16_t x, int16_t y) {
     if (clip_box_.contains(x, y)) {
@@ -284,8 +292,12 @@ class BufferedColorWriter {
 
 class BufferedHLineFiller {
  public:
-  BufferedHLineFiller(DisplayOutput& device, Color color, PaintMode mode)
-      : device_(device), mode_(mode), color_(color), buffer_size_(0) {}
+  BufferedHLineFiller(DisplayOutput& device, Color color,
+                      BlendingMode blending_mode)
+      : device_(device),
+        blending_mode_(blending_mode),
+        color_(color),
+        buffer_size_(0) {}
 
   void fillHLine(int16_t x0, int16_t y0, int16_t x1) {
     if (buffer_size_ == kPixelWritingBufferSize) flush();
@@ -299,14 +311,14 @@ class BufferedHLineFiller {
 
   void flush() {
     if (buffer_size_ == 0) return;
-    device_.fillRects(mode_, color_, x0_buffer_, y0_buffer_, x1_buffer_,
-                      y0_buffer_, buffer_size_);
+    device_.fillRects(blending_mode_, color_, x0_buffer_, y0_buffer_,
+                      x1_buffer_, y0_buffer_, buffer_size_);
     buffer_size_ = 0;
   }
 
  private:
   DisplayOutput& device_;
-  PaintMode mode_;
+  BlendingMode blending_mode_;
   Color color_;
   int16_t buffer_size_;
   int16_t x0_buffer_[kPixelWritingBufferSize];
@@ -317,8 +329,8 @@ class BufferedHLineFiller {
 class ClippingBufferedHLineFiller {
  public:
   ClippingBufferedHLineFiller(DisplayOutput& device, Color color, Box clip_box,
-                              PaintMode mode)
-      : filler_(device, color, mode), clip_box_(std::move(clip_box)) {}
+                              BlendingMode blending_mode)
+      : filler_(device, color, blending_mode), clip_box_(std::move(clip_box)) {}
 
   void fillHLine(int16_t x0, int16_t y0, int16_t x1) {
     if (x0 > clip_box_.xMax() || x1 < clip_box_.xMin() ||
@@ -344,8 +356,12 @@ class ClippingBufferedHLineFiller {
 
 class BufferedVLineFiller {
  public:
-  BufferedVLineFiller(DisplayOutput& device, Color color, PaintMode mode)
-      : device_(device), mode_(mode), color_(color), buffer_size_(0) {}
+  BufferedVLineFiller(DisplayOutput& device, Color color,
+                      BlendingMode blending_mode)
+      : device_(device),
+        blending_mode_(blending_mode),
+        color_(color),
+        buffer_size_(0) {}
 
   void fillVLine(int16_t x0, int16_t y0, int16_t y1) {
     if (buffer_size_ == kPixelWritingBufferSize) flush();
@@ -359,14 +375,14 @@ class BufferedVLineFiller {
 
   void flush() {
     if (buffer_size_ == 0) return;
-    device_.fillRects(mode_, color_, x0_buffer_, y0_buffer_, x0_buffer_,
-                      y1_buffer_, buffer_size_);
+    device_.fillRects(blending_mode_, color_, x0_buffer_, y0_buffer_,
+                      x0_buffer_, y1_buffer_, buffer_size_);
     buffer_size_ = 0;
   }
 
  private:
   DisplayOutput& device_;
-  PaintMode mode_;
+  BlendingMode blending_mode_;
   Color color_;
   int16_t buffer_size_;
   int16_t x0_buffer_[kPixelWritingBufferSize];
@@ -377,8 +393,8 @@ class BufferedVLineFiller {
 class ClippingBufferedVLineFiller {
  public:
   ClippingBufferedVLineFiller(DisplayOutput& device, Color color, Box clip_box,
-                              PaintMode mode)
-      : filler_(device, color, mode), clip_box_(std::move(clip_box)) {}
+                              BlendingMode blending_mode)
+      : filler_(device, color, blending_mode), clip_box_(std::move(clip_box)) {}
 
   void fillVLine(int16_t x0, int16_t y0, int16_t y1) {
     if (x0 > clip_box_.xMax() || x0 < clip_box_.xMin() ||
@@ -404,8 +420,8 @@ class ClippingBufferedVLineFiller {
 
 class BufferedRectWriter {
  public:
-  BufferedRectWriter(DisplayOutput& device, PaintMode mode)
-      : device_(device), mode_(mode), buffer_size_(0) {}
+  BufferedRectWriter(DisplayOutput& device, BlendingMode blending_mode)
+      : device_(device), blending_mode_(blending_mode), buffer_size_(0) {}
 
   inline void writePixel(int16_t x, int16_t y, Color color) {
     writeRect(x, y, x, y, color);
@@ -433,14 +449,14 @@ class BufferedRectWriter {
 
   void flush() {
     if (buffer_size_ == 0) return;
-    device_.writeRects(mode_, color_, x0_buffer_, y0_buffer_, x1_buffer_,
-                       y1_buffer_, buffer_size_);
+    device_.writeRects(blending_mode_, color_, x0_buffer_, y0_buffer_,
+                       x1_buffer_, y1_buffer_, buffer_size_);
     buffer_size_ = 0;
   }
 
  private:
   DisplayOutput& device_;
-  PaintMode mode_;
+  BlendingMode blending_mode_;
   int16_t buffer_size_;
   Color color_[kRectWritingBufferSize];
   int16_t x0_buffer_[kRectWritingBufferSize];
@@ -479,8 +495,8 @@ class BufferedRectWriterFillAdapter {
 class ClippingBufferedRectWriter {
  public:
   ClippingBufferedRectWriter(DisplayOutput& device, Box clip_box,
-                             PaintMode mode)
-      : writer_(device, mode), clip_box_(std::move(clip_box)) {}
+                             BlendingMode blending_mode)
+      : writer_(device, blending_mode), clip_box_(std::move(clip_box)) {}
 
   inline void writePixel(int16_t x, int16_t y, Color color) {
     writeRect(x, y, x, y, color);
@@ -521,8 +537,12 @@ class ClippingBufferedRectWriter {
 
 class BufferedRectFiller {
  public:
-  BufferedRectFiller(DisplayOutput& device, Color color, PaintMode mode)
-      : device_(device), mode_(mode), color_(color), buffer_size_(0) {}
+  BufferedRectFiller(DisplayOutput& device, Color color,
+                     BlendingMode blending_mode)
+      : device_(device),
+        blending_mode_(blending_mode),
+        color_(color),
+        buffer_size_(0) {}
 
   inline void fillPixel(int16_t x, int16_t y) { fillRect(x, y, x, y); }
 
@@ -547,14 +567,14 @@ class BufferedRectFiller {
 
   void flush() {
     if (buffer_size_ == 0) return;
-    device_.fillRects(mode_, color_, x0_buffer_, y0_buffer_, x1_buffer_,
-                      y1_buffer_, buffer_size_);
+    device_.fillRects(blending_mode_, color_, x0_buffer_, y0_buffer_,
+                      x1_buffer_, y1_buffer_, buffer_size_);
     buffer_size_ = 0;
   }
 
  private:
   DisplayOutput& device_;
-  PaintMode mode_;
+  BlendingMode blending_mode_;
   Color color_;
   int16_t buffer_size_;
   int16_t x0_buffer_[kRectWritingBufferSize];
@@ -566,8 +586,8 @@ class BufferedRectFiller {
 class ClippingBufferedRectFiller {
  public:
   ClippingBufferedRectFiller(DisplayOutput& device, Color color, Box clip_box,
-                             PaintMode mode)
-      : filler_(device, color, mode), clip_box_(std::move(clip_box)) {}
+                             BlendingMode blending_mode)
+      : filler_(device, color, blending_mode), clip_box_(std::move(clip_box)) {}
 
   inline void fillPixel(int16_t x, int16_t y) { fillRect(x, y, x, y); }
 

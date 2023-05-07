@@ -15,7 +15,7 @@ class SimpleRoundMask {
   SimpleRoundMask(Box extents) {}
 
   template <typename ColorMode>
-  void writePixel(PaintMode mode, int16_t x, int16_t y, Color color,
+  void writePixel(BlendingMode mode, int16_t x, int16_t y, Color color,
                   FakeOffscreen<ColorMode>* offscreen) {
     static const char mask[] =
         "                "
@@ -45,7 +45,7 @@ class LargeMask {
   LargeMask(Box extents) {}
 
   template <typename ColorMode>
-  void writePixel(PaintMode mode, int16_t x, int16_t y, Color color,
+  void writePixel(BlendingMode mode, int16_t x, int16_t y, Color color,
                   FakeOffscreen<ColorMode>* offscreen) {
     static const char mask[] =
         "                                "
@@ -107,68 +107,68 @@ typedef FakeFilteringOffscreen<Grayscale4, SimpleRoundMask> RefDeviceSimple;
 typedef FilteredOutput<Grayscale4, SimpleRoundMask> TestDeviceSimple;
 
 TEST(ClipMask, SimpleTests) {
-  TestFillRects<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+  TestFillRects<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                    Orientation());
-  TestFillHLines<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+  TestFillHLines<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                     Orientation());
-  TestFillVLines<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+  TestFillVLines<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                     Orientation());
   TestFillDegeneratePixels<TestDeviceSimple, RefDeviceSimple>(
-      PAINT_MODE_REPLACE, Orientation());
-  TestFillPixels<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+      BLENDING_MODE_SOURCE, Orientation());
+  TestFillPixels<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                     Orientation());
 
-  TestWriteRects<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+  TestWriteRects<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                     Orientation());
-  TestWriteHLines<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+  TestWriteHLines<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                      Orientation());
-  TestWriteVLines<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+  TestWriteVLines<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                      Orientation());
   TestWriteDegeneratePixels<TestDeviceSimple, RefDeviceSimple>(
-      PAINT_MODE_REPLACE, Orientation());
-  TestWritePixels<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+      BLENDING_MODE_SOURCE, Orientation());
+  TestWritePixels<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                      Orientation());
-  TestWritePixelsSnake<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+  TestWritePixelsSnake<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                           Orientation());
   TestWriteRectWindowSimple<TestDeviceSimple, RefDeviceSimple>(
-      PAINT_MODE_REPLACE, Orientation());
+      BLENDING_MODE_SOURCE, Orientation());
 }
 
 TEST(ClipMask, StressTests) {
-  TestWritePixelsStress<TestDeviceSimple, RefDeviceSimple>(PAINT_MODE_REPLACE,
+  TestWritePixelsStress<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
                                                            Orientation());
   TestWriteRectWindowStress<TestDeviceSimple, RefDeviceSimple>(
-      PAINT_MODE_REPLACE, Orientation());
+      BLENDING_MODE_SOURCE, Orientation());
 }
 
 typedef FakeFilteringOffscreen<Grayscale4, LargeMask> RefDeviceLarge;
 typedef FilteredOutput<Grayscale4, LargeMask> TestDeviceLarge;
 
 TEST(ClipMask, SimpleLargeTests) {
-  TestFillRects<TestDeviceLarge, RefDeviceLarge>(PAINT_MODE_REPLACE,
+  TestFillRects<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
                                                  Orientation());
-  TestFillHLines<TestDeviceLarge, RefDeviceLarge>(PAINT_MODE_REPLACE,
+  TestFillHLines<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
                                                   Orientation());
-  TestFillVLines<TestDeviceLarge, RefDeviceLarge>(PAINT_MODE_REPLACE,
+  TestFillVLines<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
                                                   Orientation());
-  TestFillDegeneratePixels<TestDeviceLarge, RefDeviceLarge>(PAINT_MODE_REPLACE,
+  TestFillDegeneratePixels<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
                                                             Orientation());
-  TestFillPixels<TestDeviceLarge, RefDeviceLarge>(PAINT_MODE_REPLACE,
+  TestFillPixels<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
                                                   Orientation());
 
-  TestWriteRects<TestDeviceLarge, RefDeviceLarge>(PAINT_MODE_REPLACE,
+  TestWriteRects<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
                                                   Orientation());
-  TestWriteHLines<TestDeviceLarge, RefDeviceLarge>(PAINT_MODE_REPLACE,
+  TestWriteHLines<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
                                                    Orientation());
-  TestWriteVLines<TestDeviceLarge, RefDeviceLarge>(PAINT_MODE_REPLACE,
+  TestWriteVLines<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
                                                    Orientation());
-  TestWriteDegeneratePixels<TestDeviceLarge, RefDeviceLarge>(PAINT_MODE_REPLACE,
+  TestWriteDegeneratePixels<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
                                                              Orientation());
-  TestWritePixels<TestDeviceLarge, RefDeviceLarge>(PAINT_MODE_REPLACE,
+  TestWritePixels<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
                                                    Orientation());
-  TestWritePixelsSnake<TestDeviceLarge, RefDeviceLarge>(PAINT_MODE_REPLACE,
+  TestWritePixelsSnake<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
                                                         Orientation());
-  TestWriteRectWindowSimple<TestDeviceLarge, RefDeviceLarge>(PAINT_MODE_REPLACE,
+  TestWriteRectWindowSimple<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
                                                              Orientation());
 }
 

@@ -48,7 +48,7 @@ void drawSteepLine(VLineFiller *drawer, int16_t x0, int16_t y0, int16_t x1,
 }
 
 void drawHLine(DisplayOutput &device, int16_t x0, int16_t y0, int16_t x1,
-               Color color, const Box &clip_box, PaintMode mode) {
+               Color color, const Box &clip_box, BlendingMode mode) {
   if (x0 > clip_box.xMax() || x1 < clip_box.xMin() || y0 > clip_box.yMax() ||
       y0 < clip_box.yMin() || x1 < x0) {
     return;
@@ -61,7 +61,7 @@ void drawHLine(DisplayOutput &device, int16_t x0, int16_t y0, int16_t x1,
 }
 
 void drawVLine(DisplayOutput &device, int16_t x0, int16_t y0, int16_t y1,
-               Color color, const Box &clip_box, PaintMode mode) {
+               Color color, const Box &clip_box, BlendingMode mode) {
   if (x0 > clip_box.xMax() || x0 < clip_box.xMin() || y0 > clip_box.yMax() ||
       y1 < clip_box.yMin() || y1 < y0) {
     return;
@@ -78,27 +78,27 @@ void Line::drawTo(const Surface &s) const {
   int16_t x1 = x1_ + s.dx(), y1 = y1_ + s.dy();
   Color color = AlphaBlend(s.bgcolor(), this->color());
   if (x0 == x1) {
-    drawVLine(s.out(), x0, y0, y1, color, s.clip_box(), s.paint_mode());
+    drawVLine(s.out(), x0, y0, y1, color, s.clip_box(), s.blending_mode());
   } else if (y0_ == y1_) {
-    drawHLine(s.out(), x0, y0, x1, color, s.clip_box(), s.paint_mode());
+    drawHLine(s.out(), x0, y0, x1, color, s.clip_box(), s.blending_mode());
   } else {
     bool preclipped = s.clip_box().contains(Box(x0, y0, x1, y1));
     if (steep()) {
       if (preclipped) {
-        BufferedVLineFiller drawer(s.out(), color, s.paint_mode());
+        BufferedVLineFiller drawer(s.out(), color, s.blending_mode());
         drawSteepLine(&drawer, x0, y0, x1, y1, diag_);
       } else {
         ClippingBufferedVLineFiller drawer(s.out(), color, s.clip_box(),
-                                           s.paint_mode());
+                                           s.blending_mode());
         drawSteepLine(&drawer, x0, y0, x1, y1, diag_);
       }
     } else {
       if (preclipped) {
-        BufferedHLineFiller drawer(s.out(), color, s.paint_mode());
+        BufferedHLineFiller drawer(s.out(), color, s.blending_mode());
         drawNonSteepLine(&drawer, x0, y0, x1, y1, diag_);
       } else {
         ClippingBufferedHLineFiller drawer(s.out(), color, s.clip_box(),
-                                           s.paint_mode());
+                                           s.blending_mode());
         drawNonSteepLine(&drawer, x0, y0, x1, y1, diag_);
       }
     }
@@ -113,13 +113,14 @@ void Rect::drawTo(const Surface &s) const {
   int16_t y1 = y1_ + s.dy();
   Color color = AlphaBlend(s.bgcolor(), this->color());
   ClippingBufferedRectFiller filler(s.out(), color, s.clip_box(),
-                                    s.paint_mode());
+                                    s.blending_mode());
   filler.fillHLine(x0, y0, x1);
   filler.fillHLine(x0, y1, x1);
   filler.fillVLine(x0, y0 + 1, y1 - 1);
   filler.fillVLine(x1, y0 + 1, y1 - 1);
   if (s.fill_mode() == FILL_MODE_RECTANGLE && x1 - x0 >= 2 && y1 - y0 >= 2) {
-    s.out().fillRect(Box(x0 + 1, y0 + 1, x1 - 1, y1 - 1), s.bgcolor());
+    s.out().fillRect(BLENDING_MODE_SOURCE, Box(x0 + 1, y0 + 1, x1 - 1, y1 - 1),
+                     s.bgcolor());
   }
 }
 
@@ -131,7 +132,7 @@ void Border::drawTo(const Surface &s) const {
   int16_t y1 = y1_ + s.dy();
   Color color = AlphaBlend(s.bgcolor(), this->color());
   ClippingBufferedRectFiller filler(s.out(), color, s.clip_box(),
-                                    s.paint_mode());
+                                    s.blending_mode());
   if (left_ > 0) {
     filler.fillRect(x0, y0, x0 + left_ - 1, y1);
     x0 += left_;
@@ -158,7 +159,7 @@ void FilledRect::drawTo(const Surface &s) const {
   Color color = AlphaBlend(s.bgcolor(), this->color());
   Box box(x0, y0, x1, y1);
   if (box.clip(s.clip_box())) {
-    s.out().fillRect(s.paint_mode(), box, color);
+    s.out().fillRect(s.blending_mode(), box, color);
   }
 }
 
@@ -180,7 +181,7 @@ std::unique_ptr<PixelStream> FilledRect::createStream() const {
   return std::unique_ptr<PixelStream>(new FilledRectStream(color()));
 }
 
-std::unique_ptr<PixelStream> FilledRect::createStream(const Box& bounds) const {
+std::unique_ptr<PixelStream> FilledRect::createStream(const Box &bounds) const {
   return std::unique_ptr<PixelStream>(new FilledRectStream(color()));
 }
 
@@ -291,7 +292,7 @@ void fillRoundRectOutsideCorners(HlineFiller *filler, int16_t x0, int16_t y0,
 // Also used to draw circles, in a special case when radius is half of the box
 // length.
 void drawRoundRect(DisplayOutput &output, const Box &bbox, int16_t radius,
-                   const Box &clip_box, Color color, PaintMode mode) {
+                   const Box &clip_box, Color color, BlendingMode mode) {
   if (Box::Intersect(clip_box, bbox).empty()) return;
   int16_t x0 = bbox.xMin() + radius;
   int16_t y0 = bbox.yMin() + radius;
@@ -331,20 +332,20 @@ void drawRoundRect(DisplayOutput &output, const Box &bbox, int16_t radius,
 void RoundRect::drawInteriorTo(const Surface &s) const {
   Box extents(x0_ + s.dx(), y0_ + s.dy(), x1_ + s.dx(), y1_ + s.dy());
   drawRoundRect(s.out(), extents, radius_, s.clip_box(),
-                AlphaBlend(s.bgcolor(), this->color()), s.paint_mode());
+                AlphaBlend(s.bgcolor(), this->color()), s.blending_mode());
 }
 
 void Circle::drawInteriorTo(const Surface &s) const {
   Box extents(x0_ + s.dx(), y0_ + s.dy(), x0_ + diameter_ - 1 + s.dx(),
               y0_ + diameter_ - 1 + s.dy());
   drawRoundRect(s.out(), extents, diameter_ >> 1, s.clip_box(),
-                AlphaBlend(s.bgcolor(), this->color()), s.paint_mode());
+                AlphaBlend(s.bgcolor(), this->color()), s.blending_mode());
 }
 
 // Also used to draw circles, in a special case when radius is half of the box
 // length.
 void fillRoundRect(DisplayOutput &output, const Box &bbox, int16_t radius,
-                   const Box &clip_box, Color color, PaintMode mode) {
+                   const Box &clip_box, Color color, BlendingMode mode) {
   if (Box::Intersect(clip_box, bbox).empty()) return;
   int16_t x0 = bbox.xMin() + radius;
   int16_t y0 = bbox.yMin() + radius;
@@ -362,7 +363,7 @@ void fillRoundRect(DisplayOutput &output, const Box &bbox, int16_t radius,
 }
 
 void fillRoundRectBg(DisplayOutput &output, const Box &bbox, int16_t radius,
-                     const Box &clip_box, Color bgcolor, PaintMode mode) {
+                     const Box &clip_box, Color bgcolor, BlendingMode mode) {
   if (Box::Intersect(clip_box, bbox).empty()) return;
   int16_t x0 = bbox.xMin() + radius;
   int16_t y0 = bbox.yMin() + radius;
@@ -380,10 +381,10 @@ void fillRoundRectBg(DisplayOutput &output, const Box &bbox, int16_t radius,
 void FilledRoundRect::drawTo(const Surface &s) const {
   Box extents(x0_ + s.dx(), y0_ + s.dy(), x1_ + s.dx(), y1_ + s.dy());
   fillRoundRect(s.out(), extents, radius_, s.clip_box(),
-                AlphaBlend(s.bgcolor(), this->color()), s.paint_mode());
+                AlphaBlend(s.bgcolor(), this->color()), s.blending_mode());
   if (s.fill_mode() == FILL_MODE_RECTANGLE) {
     fillRoundRectBg(s.out(), extents, radius_, s.clip_box(), s.bgcolor(),
-                    s.paint_mode());
+                    s.blending_mode());
   }
 }
 
@@ -391,10 +392,10 @@ void FilledCircle::drawTo(const Surface &s) const {
   Box extents(x0_ + s.dx(), y0_ + s.dy(), x0_ + diameter_ - 1 + s.dx(),
               y0_ + diameter_ - 1 + s.dy());
   fillRoundRect(s.out(), extents, diameter_ >> 1, s.clip_box(),
-                AlphaBlend(s.bgcolor(), this->color()), s.paint_mode());
+                AlphaBlend(s.bgcolor(), this->color()), s.blending_mode());
   if (s.fill_mode() == FILL_MODE_RECTANGLE) {
     fillRoundRectBg(s.out(), extents, diameter_ >> 1, s.clip_box(), s.bgcolor(),
-                    s.paint_mode());
+                    s.blending_mode());
   }
 }
 
@@ -525,11 +526,11 @@ void FilledTriangle::drawInteriorTo(const Surface &s) const {
   int16_t x2 = x2_ + s.dx();
   int16_t y2 = y2_ + s.dy();
   if (s.clip_box().contains(box)) {
-    BufferedHLineFiller drawer(s.out(), color, s.paint_mode());
+    BufferedHLineFiller drawer(s.out(), color, s.blending_mode());
     fillTriangle(&drawer, x0, y0, x1, y1, x2, y2);
   } else {
     ClippingBufferedHLineFiller drawer(s.out(), color, s.clip_box(),
-                                       s.paint_mode());
+                                       s.blending_mode());
     fillTriangle(&drawer, x0, y0, x1, y1, x2, y2);
   }
 }

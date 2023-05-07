@@ -75,16 +75,16 @@ BackgroundFillOptimizer::BackgroundFillOptimizer(DisplayOutput& output,
       cursor_y_(0) {}
 
 void BackgroundFillOptimizer::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
-                                         uint16_t y1, PaintMode mode) {
+                                         uint16_t y1, BlendingMode mode) {
   address_window_ = Box(x0, y0, x1, y1);
-  paint_mode_ = mode;
+  blending_mode_ = mode;
   cursor_x_ = x0;
   cursor_y_ = y0;
 }
 
 void BackgroundFillOptimizer::write(Color* color, uint32_t pixel_count) {
   // Naive implementation, for now.
-  BufferedPixelWriter writer(output_, paint_mode_);
+  BufferedPixelWriter writer(output_, blending_mode_);
   while (pixel_count-- > 0) {
     writePixel(cursor_x_, cursor_y_, *color++, &writer);
     if (++cursor_x_ > address_window_.xMax()) {
@@ -94,7 +94,7 @@ void BackgroundFillOptimizer::write(Color* color, uint32_t pixel_count) {
   }
 }
 
-void BackgroundFillOptimizer::writeRects(PaintMode mode, Color* color,
+void BackgroundFillOptimizer::writeRects(BlendingMode mode, Color* color,
                                          int16_t* x0, int16_t* y0, int16_t* x1,
                                          int16_t* y1, uint16_t count) {
   BufferedRectWriter writer(output_, mode);
@@ -121,7 +121,7 @@ void BackgroundFillOptimizer::writeRects(PaintMode mode, Color* color,
   }
 }
 
-void BackgroundFillOptimizer::fillRects(PaintMode mode, Color color,
+void BackgroundFillOptimizer::fillRects(BlendingMode mode, Color color,
                                         int16_t* x0, int16_t* y0, int16_t* x1,
                                         int16_t* y1, uint16_t count) {
   uint8_t palette_idx = getIdxInPalette(color);
@@ -145,7 +145,7 @@ void BackgroundFillOptimizer::fillRects(PaintMode mode, Color color,
   }
 }
 
-void BackgroundFillOptimizer::writePixels(PaintMode mode, Color* color,
+void BackgroundFillOptimizer::writePixels(BlendingMode mode, Color* color,
                                           int16_t* x, int16_t* y,
                                           uint16_t pixel_count) {
   int16_t* x_out = x;
@@ -176,7 +176,7 @@ void BackgroundFillOptimizer::writePixels(PaintMode mode, Color* color,
   }
 }
 
-void BackgroundFillOptimizer::fillPixels(PaintMode mode, Color color,
+void BackgroundFillOptimizer::fillPixels(BlendingMode mode, Color color,
                                          int16_t* x, int16_t* y,
                                          uint16_t pixel_count) {
   uint8_t palette_idx = getIdxInPalette(color);

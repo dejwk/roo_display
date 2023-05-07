@@ -14,11 +14,11 @@ namespace roo_display {
 template <typename RawStreamable>
 void Draw(DisplayDevice& output, int16_t x, int16_t y, const Box& clip_box,
           const RawStreamable& object, FillMode fill_mode = FILL_MODE_VISIBLE,
-          PaintMode paint_mode = PAINT_MODE_BLEND,
+          BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER,
           Color bgcolor = color::Transparent) {
   output.begin();
   DrawableRawStreamable<RawStreamable> drawable(object);
-  Surface s(output, x, y, clip_box, false, bgcolor, fill_mode, paint_mode);
+  Surface s(output, x, y, clip_box, false, bgcolor, fill_mode, blending_mode);
   s.drawObject(drawable);
   output.end();
 }
@@ -26,11 +26,11 @@ void Draw(DisplayDevice& output, int16_t x, int16_t y, const Box& clip_box,
 template <typename RawStreamable>
 void Draw(DisplayDevice& output, int16_t x, int16_t y,
           const RawStreamable& object, FillMode fill_mode = FILL_MODE_VISIBLE,
-          PaintMode paint_mode = PAINT_MODE_BLEND,
+          BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER,
           Color bgcolor = color::Transparent) {
   Box clip_box(0, 0, output.effective_width() - 1,
                output.effective_height() - 1);
-  Draw(output, x, y, clip_box, object, fill_mode, paint_mode, bgcolor);
+  Draw(output, x, y, clip_box, object, fill_mode, blending_mode, bgcolor);
 }
 
 TEST(Streamable, FilledRect) {
@@ -161,7 +161,7 @@ TEST(Streamable, TransparencyWithBackground) {
                                   "LQD TOL"
                                   "F9F ...");
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
-  Draw(test_screen, 1, 2, input, FILL_MODE_RECTANGLE, PAINT_MODE_BLEND,
+  Draw(test_screen, 1, 2, input, FILL_MODE_RECTANGLE, BLENDING_MODE_SOURCE_OVER,
        color::White);
   EXPECT_THAT(test_screen, MatchesContent(Rgb565(), 5, 6,
                                           "___ ___ ___ ___ ___"
@@ -183,7 +183,7 @@ TEST(Streamable, AlphaTransparency) {
 TEST(Streamable, AlphaTransparencyOverriddenReplace) {
   auto input = MakeTestStreamable(Argb4444(), 4, 1, "4488 F678 F1A3 73E3");
   FakeOffscreen<Argb4444> test_screen(6, 1, color::Black);
-  Draw(test_screen, 1, 0, input, FILL_MODE_VISIBLE, PAINT_MODE_REPLACE);
+  Draw(test_screen, 1, 0, input, FILL_MODE_VISIBLE, BLENDING_MODE_SOURCE);
   EXPECT_THAT(test_screen, MatchesContent(Argb4444(), 6, 1,
                                           "F000 4488 F678 F1A3 73E3 F000"));
 }
@@ -191,7 +191,7 @@ TEST(Streamable, AlphaTransparencyOverriddenReplace) {
 TEST(Streamable, AlphaTransparencyWithTranslucentBackground) {
   auto input = MakeTestStreamable(Argb4444(), 5, 1, "4488 F678 F1A3 73E3 0000");
   FakeOffscreen<Argb4444> test_screen(6, 1, color::Black);
-  Draw(test_screen, 1, 0, input, FILL_MODE_RECTANGLE, PAINT_MODE_BLEND,
+  Draw(test_screen, 1, 0, input, FILL_MODE_RECTANGLE, BLENDING_MODE_SOURCE_OVER,
        Color(0x7FFFFFFF));
   EXPECT_THAT(test_screen, MatchesContent(Argb4444(), 6, 1,
                                           "F000 F677 F678 F1A3 F5A5 F777"));

@@ -169,7 +169,7 @@ void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::write(Color *color,
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::writePixels(PaintMode mode,
+void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::writePixels(BlendingMode mode,
                                                         Color *color,
                                                         int16_t *x, int16_t *y,
                                                         uint16_t pixel_count) {
@@ -177,7 +177,7 @@ void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::writePixels(PaintMode mode,
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::fillPixels(PaintMode mode,
+void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::fillPixels(BlendingMode mode,
                                                        Color color, int16_t *x,
                                                        int16_t *y,
                                                        uint16_t pixel_count) {
@@ -185,7 +185,7 @@ void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::fillPixels(PaintMode mode,
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::writeRects(PaintMode mode,
+void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::writeRects(BlendingMode mode,
                                                        Color *color,
                                                        int16_t *x0, int16_t *y0,
                                                        int16_t *x1, int16_t *y1,
@@ -194,7 +194,7 @@ void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::writeRects(PaintMode mode,
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::fillRects(PaintMode mode,
+void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::fillRects(BlendingMode mode,
                                                       Color color, int16_t *x0,
                                                       int16_t *y0, int16_t *x1,
                                                       int16_t *y1,
@@ -265,7 +265,7 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::write(Color *color,
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_BUFFERED>::writePixels(PaintMode mode,
+void ParallelRgb565<FLUSH_MODE_BUFFERED>::writePixels(BlendingMode mode,
                                                       Color *color, int16_t *x,
                                                       int16_t *y,
                                                       uint16_t pixel_count) {
@@ -277,7 +277,7 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::writePixels(PaintMode mode,
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillPixels(PaintMode mode,
+void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillPixels(BlendingMode mode,
                                                      Color color, int16_t *x,
                                                      int16_t *y,
                                                      uint16_t pixel_count) {
@@ -289,7 +289,7 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillPixels(PaintMode mode,
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_BUFFERED>::writeRects(PaintMode mode,
+void ParallelRgb565<FLUSH_MODE_BUFFERED>::writeRects(BlendingMode mode,
                                                      Color *color, int16_t *x0,
                                                      int16_t *y0, int16_t *x1,
                                                      int16_t *y1,
@@ -302,7 +302,7 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::writeRects(PaintMode mode,
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillRects(PaintMode mode, Color color,
+void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillRects(BlendingMode mode, Color color,
                                                     int16_t *x0, int16_t *y0,
                                                     int16_t *x1, int16_t *y1,
                                                     uint16_t count) {
@@ -335,21 +335,21 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::write(Color *color,
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_LAZY>::writePixels(PaintMode mode, Color *color,
+void ParallelRgb565<FLUSH_MODE_LAZY>::writePixels(BlendingMode mode, Color *color,
                                                   int16_t *x, int16_t *y,
                                                   uint16_t pixel_count) {
   buffer_->writePixels(mode, color, x, y, pixel_count);
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_LAZY>::fillPixels(PaintMode mode, Color color,
+void ParallelRgb565<FLUSH_MODE_LAZY>::fillPixels(BlendingMode mode, Color color,
                                                  int16_t *x, int16_t *y,
                                                  uint16_t pixel_count) {
   buffer_->fillPixels(mode, color, x, y, pixel_count);
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_LAZY>::writeRects(PaintMode mode, Color *color,
+void ParallelRgb565<FLUSH_MODE_LAZY>::writeRects(BlendingMode mode, Color *color,
                                                  int16_t *x0, int16_t *y0,
                                                  int16_t *x1, int16_t *y1,
                                                  uint16_t count) {
@@ -357,7 +357,7 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::writeRects(PaintMode mode, Color *color,
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_LAZY>::fillRects(PaintMode mode, Color color,
+void ParallelRgb565<FLUSH_MODE_LAZY>::fillRects(BlendingMode mode, Color color,
                                                 int16_t *x0, int16_t *y0,
                                                 int16_t *x1, int16_t *y1,
                                                 uint16_t count) {
@@ -367,7 +367,7 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::fillRects(PaintMode mode, Color color,
 // #if FLUSH_MODE == FLUSH_MODE_HARDCODED
 
 // void ParallelRgb565::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
-//                                 uint16_t y1, PaintMode mode) {
+//                                 uint16_t y1, BlendingMode mode) {
 //   window_.setAddress(x0, y0, x1, y1, config.width, config.height,
 //   orientation());
 // }
@@ -386,7 +386,7 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::fillRects(PaintMode mode, Color color,
 //   flush(&xmin, &ymin, &xmax, &ymax, 1);
 // }
 
-// void ParallelRgb565::writePixels(PaintMode mode, Color *color, int16_t *x,
+// void ParallelRgb565::writePixels(BlendingMode mode, Color *color, int16_t *x,
 //                                  int16_t *y, uint16_t pixel_count) {
 //   uint16_t *buf = (uint16_t *)buffer_->buffer();
 //   int16_t w = config.width;
@@ -398,7 +398,7 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::fillRects(PaintMode mode, Color color,
 //   flush(x, y, x, y, 1);
 // }
 
-// void ParallelRgb565::fillPixels(PaintMode mode, Color color, int16_t *x,
+// void ParallelRgb565::fillPixels(BlendingMode mode, Color color, int16_t *x,
 //                                 int16_t *y, uint16_t pixel_count) {
 //   Rgb565 cmode;
 //   uint16_t raw_color = cmode.fromArgbColor(color);
@@ -412,7 +412,7 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::fillRects(PaintMode mode, Color color,
 //   flush(x, y, x, y, 1);
 // }
 
-// void ParallelRgb565::writeRects(PaintMode mode, Color *color, int16_t *x0,
+// void ParallelRgb565::writeRects(BlendingMode mode, Color *color, int16_t *x0,
 //                                 int16_t *y0, int16_t *x1, int16_t *y1,
 //                                 uint16_t count) {
 //   Rgb565 cmode;
@@ -449,7 +449,7 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::fillRects(PaintMode mode, Color color,
 //   flush(x0_orig, y0_orig, x1_orig, y1_orig, count_orig);
 // }
 
-// void ParallelRgb565::fillRects(PaintMode mode, Color color, int16_t *x0,
+// void ParallelRgb565::fillRects(BlendingMode mode, Color color, int16_t *x0,
 //                                int16_t *y0, int16_t *x1, int16_t *y1,
 //                                uint16_t count) {
 //   Rgb565 cmode;

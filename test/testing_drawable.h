@@ -19,23 +19,23 @@ class FakeScreen {
   void Draw(const Drawable& drawable, int16_t dx, int16_t dy,
             Color bgcolor = color::Transparent,
             FillMode fill_mode = FILL_MODE_VISIBLE,
-            PaintMode paint_mode = PAINT_MODE_BLEND) {
+            BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER) {
     DrawingContext dc(display_);
     dc.setBackgroundColor(bgcolor);
     dc.setFillMode(fill_mode);
-    dc.setPaintMode(paint_mode);
+    dc.setBlendingMode(blending_mode);
     dc.draw(drawable, dx, dy);
   }
 
   void Draw(const Drawable& drawable, int16_t x, int16_t y, const Box& clip_box,
             Color bgcolor = color::Transparent,
             FillMode fill_mode = FILL_MODE_VISIBLE,
-            PaintMode paint_mode = PAINT_MODE_BLEND) {
+            BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER) {
     DrawingContext dc(display_);
     dc.setClipBox(clip_box);
     dc.setBackgroundColor(bgcolor);
     dc.setFillMode(fill_mode);
-    dc.setPaintMode(paint_mode);
+    dc.setBlendingMode(blending_mode);
     dc.draw(drawable, x, y);
   }
 

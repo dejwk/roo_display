@@ -7,7 +7,6 @@
 
 #include "roo_display/color/blending.h"
 #include "roo_display/color/color.h"
-#include "roo_display/color/transparency_mode.h"
 #include "roo_display/core/box.h"
 #include "roo_display/core/rasterizable.h"
 #include "roo_display/shape/point.h"

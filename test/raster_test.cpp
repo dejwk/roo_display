@@ -14,21 +14,21 @@ namespace roo_display {
 
 void Draw(DisplayDevice& output, int16_t x, int16_t y, const Box& clip_box,
           const Drawable& object, FillMode fill_mode = FILL_MODE_VISIBLE,
-          PaintMode paint_mode = PAINT_MODE_BLEND,
+          BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER,
           Color bgcolor = color::Transparent) {
   output.begin();
-  Surface s(output, x, y, clip_box, false, bgcolor, fill_mode, paint_mode);
+  Surface s(output, x, y, clip_box, false, bgcolor, fill_mode, blending_mode);
   s.drawObject(object);
   output.end();
 }
 
 void Draw(DisplayDevice& output, int16_t x, int16_t y, const Drawable& object,
           FillMode fill_mode = FILL_MODE_VISIBLE,
-          PaintMode paint_mode = PAINT_MODE_BLEND,
+          BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER,
           Color bgcolor = color::Transparent) {
   Box clip_box(0, 0, output.effective_width() - 1,
                output.effective_height() - 1);
-  Draw(output, x, y, clip_box, object, fill_mode, paint_mode, bgcolor);
+  Draw(output, x, y, clip_box, object, fill_mode, blending_mode, bgcolor);
 }
 
 TEST(Raster, MonochromeMsbFirst) {

@@ -3,7 +3,6 @@
 #include <inttypes.h>
 
 #include <cmath>
-#include <iostream>
 #include <type_traits>
 #include <utility>
 
@@ -20,10 +19,6 @@ enum BlendingMode {
   // Source is placed (alpha-blended) over the destination. This is the
   // default blending mode.
   BLENDING_MODE_SOURCE_OVER,
-
-  // Similar to BLENDING_MODE_SOURCE_OVER, but assumes that the destination is
-  // opaque.
-  BLENDING_MODE_SOURCE_OVER_OPAQUE,
 
   // The source that overlaps the destination, replaces the destination.
   BLENDING_MODE_SOURCE_IN,
@@ -60,6 +55,14 @@ enum BlendingMode {
 
   // The non-overlapping regions of source and destination are combined.
   BLENDING_MODE_EXCLUSIVE_OR,
+
+  // Similar to BLENDING_MODE_SOURCE_OVER, but assumes that the destination is
+  // opaque.
+  //
+  // Don't use it directly. It is used internally by the framework, as an
+  // optimization, when it is detected that source-over is performed over an
+  // opaque background.
+  BLENDING_MODE_SOURCE_OVER_OPAQUE,
 };
 
 enum TransparencyMode {
@@ -403,9 +406,6 @@ struct BlendOp<BLENDING_MODE_EXCLUSIVE_OR> {
         (uint8_t)(internal::__div_255_rounded(cs * src.g() + cd * dst.g()));
     uint8_t b =
         (uint8_t)(internal::__div_255_rounded(cs * src.b() + cd * dst.b()));
-    std::cout << alpha << "\n";
-    std::cout << std::hex << Color(alpha << 24 | r << 16 | g << 8 | b).asArgb()
-              << ", " << (int)alpha << "\n";
     return Color(alpha << 24 | r << 16 | g << 8 | b);
   }
 };
@@ -551,41 +551,52 @@ template <typename ColorMode, BlendingMode blending_mode>
 struct RawBlender {
   ColorStorageType<ColorMode> operator()(ColorStorageType<ColorMode> dst,
                                          Color src,
-                                         const ColorMode& color_mode) {
+                                         const ColorMode& color_mode) const {
     return color_mode.fromArgbColor(
         BlendOp<blending_mode>()(color_mode.toArgbColor(dst), src));
   }
 };
 
-// inline Color CombineColors(Color bgc, Color fgc,
-// BlendingModeoblending_modeodeodet_mode) {
-//   switch (blending_mode) {
-//     case BLENDING_MODE_SOURCE: {
-//       return fgc;
-//     }
-//     case BLENDING_MODE_SOURCE_OVER: {
-//       return AlphaBlend(bgc, fgc);
-//     }
-//     default: {
-//       return Color(0);
-//     }
-//   }
-// }
+template <typename ColorMode>
+struct RawBlender<ColorMode, BLENDING_MODE_SOURCE> {
+  ColorStorageType<ColorMode> operator()(ColorStorageType<ColorMode> dst,
+                                         Color src,
+                                         const ColorMode& color_mode) const {
+    return color_mode.fromArgbColor(src);
+  }
+};
 
-// // Ratio is expected in the range of [0, 128], inclusively.
-// // The resulting color = c1 * (ratio/128) + c2 * (1 - ratio/128).
-// // Use ratio = 64 for the arithmetic average.
-// inline constexpr Color AverageColors(Color c1, Color c2, uint8_t ratio) {
-//   return Color(
-//       (((uint8_t)c1.a() * ratio + (uint8_t)c2.a() * (128 - ratio)) >> 7) <<
-//       24 |
-//       (((uint8_t)c1.r() * ratio + (uint8_t)c2.r() * (128 - ratio)) >> 7) <<
-//       16 |
-//       (((uint8_t)c1.g() * ratio + (uint8_t)c2.g() * (128 - ratio)) >> 7) <<
-//       8
-//       |
-//       (((uint8_t)c1.b() * ratio + (uint8_t)c2.b() * (128 - ratio)) >> 7) <<
-//       0);
-// }
+template <typename ColorMode>
+struct RawBlender<ColorMode, BLENDING_MODE_DESTINATION> {
+  ColorStorageType<ColorMode> operator()(ColorStorageType<ColorMode> dst,
+                                         Color src,
+                                         const ColorMode& color_mode) const {
+    return dst;
+  }
+};
+
+namespace internal {
+
+template <typename ColorMode>
+struct ApplyRawBlendingResolver {
+  template <BlendingMode blending_mode>
+  ColorStorageType<ColorMode> operator()(ColorStorageType<ColorMode> dst,
+                                         Color src,
+                                         const ColorMode& color_mode) const {
+    return RawBlender<ColorMode, blending_mode>()(dst, src, color_mode);
+  }
+};
+
+}  // namespace internal
+
+// Returns the result of blending `src` over `dst` using the specified mode.
+template <typename ColorMode>
+inline ColorStorageType<ColorMode> ApplyRawBlending(
+    BlendingMode blending_mode, ColorStorageType<ColorMode> dst, Color src,
+    const ColorMode& color_mode) {
+  return internal::BlenderSpecialization<
+      internal::ApplyRawBlendingResolver<ColorMode>>(blending_mode, dst, src,
+                                                     color_mode);
+}
 
 }  // namespace roo_display

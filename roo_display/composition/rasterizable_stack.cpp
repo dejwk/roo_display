@@ -18,7 +18,6 @@ void RasterizableStack::readColors(const int16_t* x, const int16_t* y,
     uint32_t offset = 0;
     while (offset < count) {
       int buf_size = 0;
-      uint32_t start_offset = offset;
       do {
         if (bounds.contains(x[offset], y[offset])) {
           newx[buf_size] = x[offset] - r->dx();
@@ -29,14 +28,8 @@ void RasterizableStack::readColors(const int16_t* x, const int16_t* y,
         offset++;
       } while (offset < count && buf_size < kMaxBufSize);
       r->source()->readColors(newx, newy, buf_size, newresult);
-      int buf_idx = 0;
-      for (uint32_t i = start_offset; i < offset; ++i) {
-        if (buf_idx < buf_size && offsets[buf_idx] == i) {
-          // Found point in the bounds for which we have the color.
-          result[i] = AlphaBlend(result[i], newresult[buf_idx]);
-          ++buf_idx;
-        }
-      }
+      ApplyBlendingInPlaceIndexed(r->blending_mode(), result, newresult,
+                                  buf_size, offsets);
     }
   }
 }
@@ -46,7 +39,8 @@ bool RasterizableStack::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
   bool is_uniform_color = true;
   *result = color::Transparent;
   Box box(xMin, yMin, xMax, yMax);
-  Color buffer[box.area()];
+  int32_t pixel_count = box.area();
+  Color buffer[pixel_count];
   for (auto r = inputs_.begin(); r != inputs_.end(); r++) {
     Box bounds = r->extents();
     Box clipped = Box::Intersect(bounds, box);
@@ -57,36 +51,45 @@ bool RasterizableStack::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
     if (is_uniform_color && !clipped.contains(box)) {
       // This rect does not fill the entire box; we can no longer use fast path.
       is_uniform_color = false;
-      FillColor(&result[1], box.area() - 1, *result);
+      FillColor(&result[1], pixel_count - 1, *result);
     }
     if (r->source()->readColorRect(
             clipped.xMin() - r->dx(), clipped.yMin() - r->dy(),
             clipped.xMax() - r->dx(), clipped.yMax() - r->dy(), buffer)) {
       if (is_uniform_color) {
-        *result = AlphaBlend(*result, *buffer);
+        *result = ApplyBlending(r->blending_mode(), *result, *buffer);
       } else {
         for (int16_t y = clipped.yMin(); y <= clipped.yMax(); ++y) {
           Color* row = &result[(y - yMin) * box.width()];
-          for (int16_t x = clipped.xMin(); x <= clipped.xMax(); ++x) {
-            row[x - xMin] = AlphaBlend(row[x - xMin], *buffer);
-          }
+          ApplyBlendingSingleSourceInPlace(r->blending_mode(),
+                                           &row[clipped.xMin() - xMin], *buffer,
+                                           clipped.width());
         }
       }
     } else {
       if (is_uniform_color) {
         is_uniform_color = false;
-        FillColor(&result[1], box.area() - 1, *result);
+        FillColor(&result[1], pixel_count - 1, *result);
       }
       uint32_t i = 0;
       for (int16_t y = clipped.yMin(); y <= clipped.yMax(); ++y) {
         Color* row = &result[(y - yMin) * box.width()];
-        for (int16_t x = clipped.xMin(); x <= clipped.xMax(); ++x) {
-          row[x - xMin] = AlphaBlend(row[x - xMin], buffer[i++]);
-        }
+        ApplyBlendingInPlace(r->blending_mode(), &row[clipped.xMin() - xMin],
+                             &buffer[i], clipped.width());
+        i += clipped.width();
       }
     }
   }
-  return is_uniform_color;
+  if (!is_uniform_color) {
+    // See if maybe it actually is.
+    for (int32_t i = 1; i < pixel_count; ++i) {
+      if (result[i] != result[0]) {
+        // Definitely not uniform.
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 }  // namespace roo_display

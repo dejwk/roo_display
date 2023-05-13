@@ -2039,17 +2039,17 @@ void loop() {
 
 As you can see, clip masks can be useful for drawing complex geometry with minimum RAM footprint. We just need to draw the primitives multiple times, applying different masks. It will be slower than preparing everything in a 'real' Rgb565 offscreen and drawing it out, but it only needs 9600 bytes for the entire 320x200 screen, as opposed to over 153 KB for Rgb565 (that we unlikely to be able to allocate).
 
-#### Offscreens with transparency: PAINT_MODE_REPLACE
+#### Offscreens with transparency: BLENDING_MODE_SOURCE
 
 Ocassionally, you may want to use an Offscreen with an alpha channel, that is, using one of the color modes that support transparency, such as ARGB8888, ARGB6666, ARGB4444, Alpha4, etc. This way you can prepare translucent contents in the offscreen buffer, and later alpha-blend it over something else. It poses an interesting challenge: how do you actually draw translucent contents to such an offscreen? Whatever you draw, will, by default, be alpha-blended over the existing content. The issue is similar to painting on glass: the more paint you put on the glass, the more opaque it becomes, no matter how tranlucent the paint is. How do you _replace_ the underlying color with translucency, effectively 'erasing' the glass before you put the new paint on?
 
-The solution it to call so call `setPaintMode(PAINT_MODE_REPLACE)` on the DrawingContext. When you do so, the default behavior for translucent colors is changed from alpha-blending to simple replacement.
+The solution it to call `setBlendingMode(BLENDING_MODE_SOURCE)` on the DrawingContext, changing from the default `BLENDING_MODE_SOURCE_OVER` (alpha-blending) to simple replacement.
 
-> Note: when drawing an opaque color, PAINT_MODE_REPLACE is effectively identical to PAINT_MODE_BLEND - the new color will replace the previous one.
+> Note: when drawing an opaque color, BLENDING_MODE_SOURCE is effectively identical to BLENDING_MODE_SOURCE_OVER - the new color will replace the previous one.
 
 > Note: you don't need to use alpha channel just to draw translucent content to an offscreen, as long as the result itself can be opaque.
 
-Paint mode can be adjusted for any drawing context, not just for the offscreens. It is rarely relevant for physical devices, though, because they operate in RGB (e.g. RGB565), without alpha, so there is rarely any need to output translucent colors to them and expect anything else than alpha-blending over the background bolor (or existing contents if they support that).
+Blending mode can be adjusted for any drawing context, not just for the offscreens. It is rarely useful for physical devices, though, because they operate in RGB (e.g. RGB565), without alpha, so there is rarely any need to output translucent colors to them and expect anything else than alpha-blending over the background bolor (or existing contents if they support that). We will look at other use cases of blending modes later, in the section on TODO(composition).
 
 #### Extents and alignment
 
@@ -2590,7 +2590,7 @@ If your drawable is drawn frequently and if it consists of many small parts, the
 * any logical coordinates must be adjusted by `(s.dx(), s.dy())`;
 * you must not draw outside of the `s.clip_box()` rectangle, expressed in the device coordinates (i.e. clipping needs to be applied _after_ the coordinate adjustment);
 * if the content contains any transparency, it needs to be alpha-blended over `s.bgcolor()` before drawing;
-* you need to pass `s.paint_mode()` to the underlying device.
+* you need to pass `s.blending_mode()` to the underlying device.
 
 With these in mind, you can call the methods on `s.out()` to output rectangles or pixels via the driver API.
 
@@ -2747,7 +2747,7 @@ Additionally, it is usually necessary to override these virtual methods as well:
 
 All colors are expressed in the 32-bit ARGB. The driver needs to perform the conversion to the hardware color mode.
 
-The `setAddress()` and `{write/fill}x{Pixels/Rects}` methods accept a `PaintMode` argument. In case of PAINT_MODE_BLEND, the driver is expected to alpha-blend any non-opaque colors over the pre-existing content, or, if it is not supported (which is the common case), over the color specified by `setBgColorHint()`. In case of PAINT_MODE_REPLACE, all colors should be written without changes.
+The `setAddress()` and `{write/fill}x{Pixels/Rects}` methods accept a `BlendingMode` argument. Most blending modes expect the driver to mix the provided color with the pre-existing content, or, if it is not supported (which is the common case), over the color specified by `setBgColorHint()`. Drivers should use `ApplyBlending()` and related routines from `roo_display/color/blending.h` to implement that.
 
 If a destination color is non-opaque and the driver does not support the 'alpha' channel, the driver should simply ignore the alpha and treat the color as opaque.
 

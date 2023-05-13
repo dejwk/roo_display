@@ -9,23 +9,32 @@ namespace roo_display {
 // A 'filtering' device, which delegates the actual drawing to another device,
 // but blends pixels with the specified 'rasterizable' image according to
 // the algorithm supplied in the template.
-
+// The Blender template agrees with BlendOp, i.e.:
+//
+// struct T {
+//   Color operator()(Color dst, Color src) const;
+// };
+//
+// where `dst` is the raster color, and `src` is a drawable color.
+//
 template <typename Blender>
 class BlendingFilter : public DisplayOutput {
  public:
-  BlendingFilter(DisplayOutput& output, const Rasterizable* raster)
-      : BlendingFilter(output, Blender(), raster) {}
+  BlendingFilter(DisplayOutput& output, const Rasterizable* raster,
+                 Color bgcolor = color::Transparent)
+      : BlendingFilter(output, Blender(), raster, bgcolor) {}
 
   BlendingFilter(DisplayOutput& output, const Rasterizable* raster, int16_t dx,
-                 int16_t dy)
-      : BlendingFilter(output, Blender(), raster, dx, dy) {}
+                 int16_t dy, Color bgcolor = color::Transparent)
+      : BlendingFilter(output, Blender(), raster, dx, dy, bgcolor) {}
 
   BlendingFilter(DisplayOutput& output, Blender blender,
-                 const Rasterizable* raster)
-      : BlendingFilter(output, std::move(blender), raster, 0, 0) {}
+                 const Rasterizable* raster, Color bgcolor = color::Transparent)
+      : BlendingFilter(output, std::move(blender), raster, 0, 0, bgcolor) {}
 
   BlendingFilter(DisplayOutput& output, Blender blender,
-                 const Rasterizable* raster, int16_t dx, int16_t dy)
+                 const Rasterizable* raster, int16_t dx, int16_t dy,
+                 Color bgcolor = color::Transparent)
       : output_(&output),
         blender_(std::move(blender)),
         raster_(raster),
@@ -33,7 +42,8 @@ class BlendingFilter : public DisplayOutput {
         cursor_x_(0),
         cursor_y_(0),
         dx_(dx),
-        dy_(dy) {}
+        dy_(dy),
+        bgcolor_(bgcolor) {}
 
   virtual ~BlendingFilter() {}
 
@@ -62,7 +72,12 @@ class BlendingFilter : public DisplayOutput {
     }
     read(x, y, pixel_count, newcolor);
     for (uint32_t i = 0; i < pixel_count; ++i) {
-      newcolor[i] = blender_(color[i], newcolor[i]);
+      newcolor[i] = blender_(newcolor[i], color[i]);
+    }
+    if (bgcolor_ != color::Transparent) {
+      for (uint32_t i = 0; i < pixel_count; ++i) {
+        newcolor[i] = AlphaBlend(bgcolor_, newcolor[i]);
+      }
     }
     output_->write(newcolor, pixel_count);
   }
@@ -102,7 +117,12 @@ class BlendingFilter : public DisplayOutput {
     Color newcolor[pixel_count];
     read(x, y, pixel_count, newcolor);
     for (uint32_t i = 0; i < pixel_count; ++i) {
-      newcolor[i] = blender_(color[i], newcolor[i]);
+      newcolor[i] = blender_(newcolor[i], color[i]);
+    }
+    if (bgcolor_ != color::Transparent) {
+      for (uint32_t i = 0; i < pixel_count; ++i) {
+        newcolor[i] = AlphaBlend(bgcolor_, newcolor[i]);
+      }
     }
     output_->writePixels(mode, newcolor, x, y, pixel_count);
   }
@@ -112,7 +132,12 @@ class BlendingFilter : public DisplayOutput {
     Color newcolor[pixel_count];
     read(x, y, pixel_count, newcolor);
     for (uint32_t i = 0; i < pixel_count; ++i) {
-      newcolor[i] = blender_(color, newcolor[i]);
+      newcolor[i] = blender_(newcolor[i], color);
+    }
+    if (bgcolor_ != color::Transparent) {
+      for (uint32_t i = 0; i < pixel_count; ++i) {
+        newcolor[i] = AlphaBlend(bgcolor_, newcolor[i]);
+      }
     }
     output_->writePixels(mode, newcolor, x, y, pixel_count);
   }
@@ -120,8 +145,7 @@ class BlendingFilter : public DisplayOutput {
  private:
   void read(int16_t* x, int16_t* y, uint16_t pixel_count, Color* result) {
     if (dx_ == 0 && dy_ == 0) {
-      raster_->readColorsMaybeOutOfBounds(x, y, pixel_count, result,
-                                          blender_.bgcolor());
+      raster_->readColorsMaybeOutOfBounds(x, y, pixel_count, result);
     } else {
       // NOTE(dawidk): to conserve stack, this could be done in-place and then
       // undone, although it would take 2x longer.
@@ -131,14 +155,13 @@ class BlendingFilter : public DisplayOutput {
         xp[i] = x[i] - dx_;
         yp[i] = y[i] - dy_;
       }
-      raster_->readColorsMaybeOutOfBounds(xp, yp, pixel_count, result,
-                                          blender_.bgcolor());
+      raster_->readColorsMaybeOutOfBounds(xp, yp, pixel_count, result);
     }
   }
 
   void fillRect(BlendingMode mode, int16_t xMin, int16_t yMin, int16_t xMax,
                 int16_t yMax, Color color) {
-    Color out_of_bounds_color = AlphaBlend(blender_.bgcolor(), color);
+    Color out_of_bounds_color = AlphaBlend(bgcolor_, color);
     Box trimmed =
         Box::Intersect(Box(xMin, yMin, xMax, yMax), raster_->extents());
     if (trimmed.empty()) {
@@ -200,10 +223,15 @@ class BlendingFilter : public DisplayOutput {
                                        yMax - dy_, newcolor);
     if (same) {
       output_->fillRect(mode, Box(xMin, yMin, xMax, yMax),
-                        blender_(color, newcolor[0]));
+                        AlphaBlend(bgcolor_, blender_(newcolor[0], color)));
     } else {
       for (uint16_t i = 0; i < pixel_count; ++i) {
-        newcolor[i] = blender_(color, newcolor[i]);
+        newcolor[i] = blender_(newcolor[i], color);
+      }
+      if (bgcolor_ != color::Transparent) {
+        for (uint16_t i = 0; i < pixel_count; ++i) {
+          newcolor[i] = AlphaBlend(bgcolor_, newcolor[i]);
+        }
       }
       output_->setAddress(Box(xMin, yMin, xMax, yMax), mode);
       output_->write(newcolor, pixel_count);
@@ -218,6 +246,7 @@ class BlendingFilter : public DisplayOutput {
   int16_t cursor_y_;
   int16_t dx_;
   int16_t dy_;
+  Color bgcolor_;
 };
 
 }  // namespace roo_display

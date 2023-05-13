@@ -3,7 +3,7 @@
 #include <Arduino.h>
 
 #if !defined(ESP32) || !(CONFIG_IDF_TARGET_ESP32S3)
-#error Compilation target must be ESP32_S3 for this device.
+#warning Compilation target must be ESP32_S3 for this device.
 #else
 
 #include <memory>

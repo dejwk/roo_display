@@ -290,7 +290,8 @@ class WriterTester {
   }
 
   void write(Color* colors, uint32_t offset) {
-    internal::BlendingWriter<ColorMode, pixel_order, byte_order, blending_mode>
+    typename internal::BlendingWriter<
+        ColorMode, pixel_order, byte_order>::template Operator<blending_mode>
         tested_(color_mode_, colors);
     TrivialWriter<ColorMode, blending_mode> tester_(color_mode_, colors);
     tested_(actual_.get(), offset);
@@ -299,7 +300,8 @@ class WriterTester {
   }
 
   void write(Color* colors, uint32_t offset, uint32_t count) {
-    internal::BlendingWriter<ColorMode, pixel_order, byte_order, blending_mode>
+    typename internal::BlendingWriter<
+        ColorMode, pixel_order, byte_order>::template Operator<blending_mode>
         tested_(color_mode_, colors);
     TrivialWriter<ColorMode, blending_mode> tester_(color_mode_, colors);
     tested_(actual_.get(), offset, count);
@@ -308,7 +310,8 @@ class WriterTester {
   }
 
   void fill(Color color, uint32_t offset) {
-    internal::BlendingFiller<ColorMode, pixel_order, byte_order, blending_mode>
+    typename internal::BlendingFiller<
+        ColorMode, pixel_order, byte_order>::template Operator<blending_mode>
         tested_(color_mode_, color);
     TrivialFiller<ColorMode, blending_mode> tester_(color_mode_, color);
     tested_(actual_.get(), offset);
@@ -317,7 +320,8 @@ class WriterTester {
   }
 
   void fill(Color color, uint32_t offset, uint32_t count) {
-    internal::BlendingFiller<ColorMode, pixel_order, byte_order, blending_mode>
+    typename internal::BlendingFiller<
+        ColorMode, pixel_order, byte_order>::template Operator<blending_mode>
         tested_(color_mode_, color);
     TrivialFiller<ColorMode, blending_mode> tester_(color_mode_, color);
     tested_(actual_.get(), offset, count);

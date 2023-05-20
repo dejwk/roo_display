@@ -33,10 +33,6 @@ enum BlendingMode {
   // Destination is placed over the source.
   BLENDING_MODE_DESTINATION_OVER,
 
-  // Similar to BLENDING_MODE_DESTINATION_OVER, but assumes that the source is
-  // opaque.
-  BLENDING_MODE_DESTINATION_OVER_OPAQUE,
-
   // Destination which overlaps the source, replaces the source.
   BLENDING_MODE_DESTINATION_IN,
 
@@ -63,6 +59,10 @@ enum BlendingMode {
   // optimization, when it is detected that source-over is performed over an
   // opaque background.
   BLENDING_MODE_SOURCE_OVER_OPAQUE,
+
+  // Similar to BLENDING_MODE_DESTINATION_OVER, but assumes that the source is
+  // opaque.
+  BLENDING_MODE_DESTINATION_OVER_OPAQUE,
 };
 
 enum TransparencyMode {

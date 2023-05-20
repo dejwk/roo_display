@@ -226,7 +226,7 @@ class BufferingStream {
     }
   }
 
-  void blend(Color *buf, uint16_t count) {
+  void blend(Color *buf, uint16_t count, BlendingMode blending_mode) {
     if (idx_ >= kPixelWritingBufferSize) {
       idx_ = 0;
       fetch();
@@ -236,19 +236,12 @@ class BufferingStream {
     while (true) {
       if (count <= batch) {
         idx_ += count;
-        while (count-- > 0) {
-          *buf = AlphaBlend(*buf, *in);
-          buf++;
-          in++;
-        }
+        ApplyBlendingInPlace(blending_mode, buf, in, count);
         return;
       }
       count -= batch;
-      while (batch-- > 0) {
-        *buf = AlphaBlend(*buf, *in);
-        buf++;
-        in++;
-      }
+      ApplyBlendingInPlace(blending_mode, buf, in, batch);
+      buf += batch;
       idx_ = 0;
       in = buf_;
       batch = fetch();
@@ -269,6 +262,7 @@ class BufferingStream {
         idx_ = count;
         return;
       }
+      count -= n;
     } while (remaining_ > 0);
   }
 

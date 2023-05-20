@@ -115,18 +115,54 @@ class Composition {
     data_.back().AddChunk(bounds.width(), 0);
   }
 
-  // Returns false if it is ignoring the input because extents is entirely
-  // clipped out.
-  bool Add(const Box& extents);
+  // Extents must be pre-intersected with bounds_.
+  bool Add(const Box& extents, BlendingMode blending_mode);
 
   void Compile(Program* prg);
 
  private:
   Box bounds_;
-  std::vector<Box> input_extents_;  // Unclipped.
+  std::vector<Box> input_extents_;
+  std::vector<BlendingMode> blending_modes_;
   std::vector<Block> data_;
   int input_count_;
 };
+
+// Returns true for a blending mode when a transparent source implies
+// transparent result.
+bool IsBlendingModeSourceClearing(BlendingMode blending_mode) {
+  switch (blending_mode) {
+    case BLENDING_MODE_SOURCE:
+    case BLENDING_MODE_SOURCE_IN:
+    case BLENDING_MODE_SOURCE_OUT:
+    case BLENDING_MODE_DESTINATION_IN:
+    case BLENDING_MODE_DESTINATION_ATOP:
+    case BLENDING_MODE_CLEAR: {
+      return true;
+    }
+    default: {
+      return false;
+    }
+  }
+}
+
+// Returns true for a blending mode when a transparent destination implies
+// transparent result.
+bool IsBlendingModeDestinationClearing(BlendingMode blending_mode) {
+  switch (blending_mode) {
+    case BLENDING_MODE_SOURCE_IN:
+    case BLENDING_MODE_SOURCE_ATOP:
+    case BLENDING_MODE_DESTINATION:
+    case BLENDING_MODE_DESTINATION_IN:
+    case BLENDING_MODE_DESTINATION_OUT:
+    case BLENDING_MODE_CLEAR: {
+      return true;
+    }
+    default: {
+      return false;
+    }
+  }
+}
 
 inline void Composition::Compile(Program* prg) {
   std::vector<uint16_t>* code = &prg->prg_;
@@ -142,51 +178,51 @@ inline void Composition::Compile(Program* prg) {
   }
   // Then, go block-by-block.
   for (const auto& block : data_) {
-    if (block.chunks_.size() == 1) {
-      uint32_t total = (uint32_t)block.chunks_[0].width_ * block.height_;
-      if (total <= 65535) {
-        uint16_t mask = block.chunks_[0].input_mask_;
-        // Optimize fully empty blocks.
-        if (mask == 0) {
-          code->push_back(BLANK);
-          code->push_back(total);
-          continue;
-        }
-        // See if we can merge, which is OK if all affected inputs are
-        // non-extending.
-        int i = 0;
-        while (!(mask & 1)) {
-          ++i;
-          mask >>= 1;
-        }
-        int first = i;
-        while (true) {
-          const auto& input = input_extents_[i];
-          if (input.xMin() < bounds_.xMin() || input.xMax() > bounds_.xMax())
-            break;
-          mask >>= 1;
-          if (mask == 0) {
-            // Success. Merge.
-            if (i == first) {
-              code->push_back(WRITE_SINGLE);
-              code->push_back(first);
-              code->push_back(total);
-            } else {
-              code->push_back(WRITE);
-              code->push_back(block.chunks_[0].input_mask_);
-              code->push_back(total);
-            }
-            break;
-          }
-          while (true) {
-            ++i;
-            if (mask & 1) break;
-            mask >>= 1;
-          }
-        }
-        if (mask == 0) continue;
-      }
-    }
+    // if (block.chunks_.size() == 1) {
+    //   uint16_t mask = block.chunks_[0].input_mask_;
+    //   uint32_t total = (uint32_t)block.chunks_[0].width_ * block.height_;
+    //   if (total <= 65535) {
+    //     // Optimize fully empty blocks.
+    //     if (mask == 0) {
+    //       code->push_back(BLANK);
+    //       code->push_back(total);
+    //       continue;
+    //     }
+    //   }
+    //   // See if we can merge, which is OK if all affected inputs are
+    //   // non-extending.
+    //   int i = 0;
+    //   while (!(mask & 1)) {
+    //     ++i;
+    //     mask >>= 1;
+    //   }
+    //   int first = i;
+    //   while (true) {
+    //     const auto& input = input_extents_[i];
+    //     if (input.xMin() < bounds_.xMin() || input.xMax() > bounds_.xMax())
+    //       break;
+    //     mask >>= 1;
+    //     if (mask == 0) {
+    //       // Success. Merge.
+    //       if (i == first) {
+    //         code->push_back(WRITE_SINGLE);
+    //         code->push_back(first);
+    //         code->push_back(total);
+    //       } else {
+    //         code->push_back(WRITE);
+    //         code->push_back(block.chunks_[0].input_mask_);
+    //         code->push_back(total);
+    //       }
+    //       break;
+    //     }
+    //     while (true) {
+    //       ++i;
+    //       if (mask & 1) break;
+    //       mask >>= 1;
+    //     }
+    //   }
+    //   if (mask == 0) continue;
+    // }
 
     // Emit the loop code.
     code->push_back(LOOP);
@@ -203,11 +239,63 @@ inline void Composition::Compile(Program* prg) {
     }
     // Now, the chunks.
     for (const auto& chunk : block.chunks_) {
-      if (chunk.input_mask_ == 0) {
+      uint16_t mask = chunk.input_mask_;
+      // See if some inputs should be skipped because they get completely
+      // overwritten due to blending modes.
+      {
+        uint16_t skip_mask = mask;
+        int index = 0;
+        int max_skipped_index = 0;
+        while (skip_mask != 0) {
+          if ((skip_mask & 1) == 0) {
+            BlendingMode blending_mode = blending_modes_[index];
+            if (IsBlendingModeSourceClearing(blending_mode)) {
+              max_skipped_index = index;
+            }
+          }
+          ++index;
+          skip_mask >>= 1;
+        }
+        int skip_mask_mask = ((1 << max_skipped_index) - 1);
+        skip_mask &= skip_mask_mask;
+        mask &= ~skip_mask_mask;
+        index = 0;
+        while (skip_mask > 0) {
+          if (skip_mask & 1) {
+            code->push_back(SKIP);
+            code->push_back(index);
+            code->push_back(chunk.width_);
+          }
+          skip_mask >>= 1;
+        }
+      }
+      // See if some inputs should be skipped because they are drawn over
+      // transparent destinations in drawing modes that result in clearance.
+      {
+        int index = 0;
+        uint16_t m = mask;
+        bool dst_clear = true;
+        while (m > 0) {
+          if ((m & 1) != 0) {
+            if (dst_clear &&
+                IsBlendingModeDestinationClearing(blending_modes_[index])) {
+              code->push_back(SKIP);
+              code->push_back(index);
+              code->push_back(chunk.width_);
+              mask &= ~(1 << index);
+            } else {
+              dst_clear = false;
+            }
+          }
+          ++index;
+          m >>= 1;
+        }
+      }
+      if (mask == 0) {
         code->push_back(BLANK);
         code->push_back(chunk.width_);
       } else {
-        uint16_t mask_copy = chunk.input_mask_;
+        uint16_t mask_copy = mask;
         int index = 0;
         while (!(mask_copy & 1)) {
           mask_copy >>= 1;
@@ -219,7 +307,7 @@ inline void Composition::Compile(Program* prg) {
           code->push_back(chunk.width_);
         } else {
           code->push_back(WRITE);
-          code->push_back(chunk.input_mask_);
+          code->push_back(mask);
           code->push_back(chunk.width_);
         }
       }
@@ -274,13 +362,14 @@ class Engine {
   uint16_t loop_counter_;
 };
 
-inline bool Composition::Add(const Box& full_extents) {
-  Box extents = Box::Intersect(bounds_, full_extents);
-  if (extents.empty()) return false;
-  input_extents_.push_back(full_extents);
+inline bool Composition::Add(const Box& extents, BlendingMode blending_mode) {
+  input_extents_.push_back(extents);
+  blending_modes_.push_back(blending_mode);
   int input_idx = input_count_;
   uint16_t input_mask = 1 << input_idx;
   input_count_++;
+  // Box extents = Box::Intersect(bounds_, full_extents);
+  // if (extents.empty()) return false;
   std::vector<Block> newdata;
   newdata.reserve(data_.capacity());
   auto i = data_.begin();
@@ -336,7 +425,8 @@ inline bool Composition::Add(const Box& full_extents) {
 }
 
 void WriteRect(Engine* engine, const Box& bounds,
-               internal::BufferingStream* streams, const Surface& s) {
+               internal::BufferingStream* streams,
+               const BlendingMode* blending_modes, const Surface& s) {
   s.out().setAddress(bounds, s.blending_mode());
   BufferedColorWriter writer(s.out());
   while (true) {
@@ -366,7 +456,7 @@ void WriteRect(Engine* engine, const Box& bounds,
             streams[input].read(buf, batch);
           } else {
             FillColor(buf, batch, s.bgcolor());
-            streams[input].blend(buf, batch);
+            streams[input].blend(buf, batch, blending_modes[input]);
           }
           writer.advance_buffer_ptr(batch);
           count -= batch;
@@ -395,7 +485,7 @@ void WriteRect(Engine* engine, const Box& bounds,
             input_mask >>= 1;
             if (input_mask == 0) break;
             if (input_mask & 1) {
-              streams[input].blend(buf, batch);
+              streams[input].blend(buf, batch, blending_modes[input]);
             }
           }
           // NOTE(dawidk): alpha-blending is expensive, and it is usually
@@ -420,7 +510,8 @@ void WriteRect(Engine* engine, const Box& bounds,
 }
 
 void WriteVisible(Engine* engine, const Box& bounds,
-                  internal::BufferingStream* streams, const Surface& s) {
+                  internal::BufferingStream* streams,
+                  const BlendingMode* blending_modes, const Surface& s) {
   BufferedPixelWriter writer(s.out(), s.blending_mode());
   uint16_t x = bounds.xMin();
   uint16_t y = bounds.yMin();
@@ -496,7 +587,7 @@ void WriteVisible(Engine* engine, const Box& bounds,
             input_mask >>= 1;
             if (input_mask == 0) break;
             if (input_mask & 1) {
-              streams[input].blend(buf, batch);
+              streams[input].blend(buf, batch, blending_modes[input]);
             }
           }
           // NOTE(dawidk): alpha-blending is expensive, and it is usually
@@ -540,10 +631,12 @@ void WriteVisible(Engine* engine, const Box& bounds,
 class StreamableComboStream : public PixelStream {
  public:
   StreamableComboStream(Program prg,
-                        std::vector<internal::BufferingStream> streams)
+                        std::vector<internal::BufferingStream> streams,
+                        std::vector<BlendingMode> blending_modes)
       : prg_(std::move(prg)),
         engine_(&prg_),
         streams_(std::move(streams)),
+        blending_modes_(std::move(blending_modes)),
         remaining_count_(0) {}
 
   void Read(Color* buf, uint16_t size) override {
@@ -607,7 +700,7 @@ class StreamableComboStream : public PixelStream {
             input_mask >>= 1;
             if (input_mask == 0) break;
             if (input_mask & 1) {
-              streams_[input].blend(result, batch);
+              streams_[input].blend(result, batch, blending_modes_[input]);
             }
           }
           break;
@@ -627,6 +720,7 @@ class StreamableComboStream : public PixelStream {
   Program prg_;
   Engine engine_;
   std::vector<internal::BufferingStream> streams_;
+  std::vector<BlendingMode> blending_modes_;
   Instruction last_instruction_;
   uint16_t input_;
   uint16_t remaining_count_;
@@ -638,57 +732,72 @@ void StreamableStack::drawTo(const Surface& s) const {
   Box bounds = Box::Intersect(s.clip_box(), extents_.translate(s.dx(), s.dy()));
   if (bounds.empty()) return;
   std::vector<internal::BufferingStream> streams;
+  std::vector<BlendingMode> blending_modes;
   Composition composition(bounds);
   for (const auto& input : inputs_) {
-    const Box& iextents = input.extents();
-    if (composition.Add(iextents.translate(s.dx(), s.dy()))) {
-      streams.emplace_back(input.createStream(), iextents.area());
+    Box extents =
+        Box::Intersect(input.extents(), bounds.translate(-s.dx(), -s.dy()));
+    if (composition.Add(extents.translate(s.dx(), s.dy()),
+                        input.blending_mode())) {
+      streams.emplace_back(input.createStream(extents), extents.area());
+    } else {
+      streams.emplace_back(nullptr, 0);
     }
+    blending_modes.push_back(input.blending_mode());
   }
 
   Program prg;
   composition.Compile(&prg);
   Engine engine(&prg);
   if (s.fill_mode() == FILL_MODE_RECTANGLE) {
-    WriteRect(&engine, bounds, &*streams.begin(), s);
+    WriteRect(&engine, bounds, &*streams.begin(), &*blending_modes.begin(), s);
   } else {
-    WriteVisible(&engine, bounds, &*streams.begin(), s);
+    WriteVisible(&engine, bounds, &*streams.begin(), &*blending_modes.begin(),
+                 s);
   }
 }
 
 std::unique_ptr<PixelStream> StreamableStack::createStream() const {
   Box bounds = extents();
   std::vector<internal::BufferingStream> streams;
+  std::vector<BlendingMode> blending_modes;
   Composition composition(bounds);
   for (const auto& input : inputs_) {
-    const Box& iextents = input.extents();
-    if (composition.Add(iextents)) {
-      streams.emplace_back(input.createStream(), iextents.area());
+    Box extents = Box::Intersect(input.extents(), bounds);
+    if (composition.Add(extents, input.blending_mode())) {
+      streams.emplace_back(input.createStream(extents), extents.area());
+    } else {
+      streams.emplace_back(nullptr, 0);
     }
+    blending_modes.push_back(input.blending_mode());
   }
 
   Program prg;
   composition.Compile(&prg);
-  return std::unique_ptr<PixelStream>(
-      new StreamableComboStream(std::move(prg), std::move(streams)));
+  return std::unique_ptr<PixelStream>(new StreamableComboStream(
+      std::move(prg), std::move(streams), std::move(blending_modes)));
 }
 
 std::unique_ptr<PixelStream> StreamableStack::createStream(
     const Box& clip_box) const {
   Box bounds = Box::Intersect(extents(), clip_box);
   std::vector<internal::BufferingStream> streams;
+  std::vector<BlendingMode> blending_modes;
   Composition composition(bounds);
   for (const auto& input : inputs_) {
-    const Box& iextents = input.extents();
-    if (composition.Add(iextents)) {
-      streams.emplace_back(input.createStream(), iextents.area());
+    Box extents = Box::Intersect(input.extents(), bounds);
+    if (composition.Add(extents, input.blending_mode())) {
+      streams.emplace_back(input.createStream(extents), extents.area());
+    } else {
+      streams.emplace_back(nullptr, 0);
     }
+    blending_modes.push_back(input.blending_mode());
   }
 
   Program prg;
   composition.Compile(&prg);
-  return std::unique_ptr<PixelStream>(
-      new StreamableComboStream(std::move(prg), std::move(streams)));
+  return std::unique_ptr<PixelStream>(new StreamableComboStream(
+      std::move(prg), std::move(streams), std::move(blending_modes)));
 }
 
 }  // namespace roo_display

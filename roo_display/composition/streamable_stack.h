@@ -8,58 +8,77 @@
 
 namespace roo_display {
 
-namespace internal {
-
-class Input {
- public:
-  Input(const Streamable* obj, Box extents)
-      : obj_(obj), extents_(extents), dx_(0), dy_(0) {}
-
-  Input(const Streamable* obj, Box extents, uint16_t dx, uint16_t dy)
-      : obj_(obj), extents_(extents.translate(dx, dy)), dx_(dx), dy_(dy) {}
-
-  const Box& extents() const { return extents_; }
-
-  std::unique_ptr<PixelStream> createStream() const {
-    return obj_->createStream(extents_.translate(-dx_, -dy_));
-  }
-
- private:
-  const Streamable* obj_;
-  Box extents_;
-  int16_t dx_;
-  int16_t dy_;
-};
-
-}  // namespace internal
-
 // StreamableStack represents a multi-layered stack of streamables.
 class StreamableStack : public Streamable {
  public:
+  class Input {
+   public:
+    Input(const Streamable* obj, Box extents)
+        : obj_(obj),
+          extents_(extents),
+          dx_(0),
+          dy_(0),
+          blending_mode_(BLENDING_MODE_SOURCE_OVER) {}
+
+    Input(const Streamable* obj, Box extents, uint16_t dx, uint16_t dy)
+        : obj_(obj),
+          extents_(extents.translate(dx, dy)),
+          dx_(dx),
+          dy_(dy),
+          blending_mode_(BLENDING_MODE_SOURCE_OVER) {}
+
+    const Box& extents() const { return extents_; }
+
+    int16_t dx() const { return dx_; }
+    int16_t dy() const { return dy_; }
+
+    std::unique_ptr<PixelStream> createStream(const Box& extents) const {
+      return obj_->createStream(extents.translate(-dx_, -dy_));
+    }
+
+    Input& withMode(BlendingMode mode) {
+      blending_mode_ = mode;
+      return *this;
+    }
+
+    BlendingMode blending_mode() const { return blending_mode_; }
+
+   private:
+    const Streamable* obj_;
+    Box extents_;  // After translation, i.e. in the stack coordinates.
+    int16_t dx_;
+    int16_t dy_;
+    BlendingMode blending_mode_;
+  };
+
   // creates new Combo with the given extents.
   StreamableStack(const Box& extents)
       : extents_(extents), anchor_extents_(extents) {}
 
   // Adds a new input to the stack.
-  void addInput(const Streamable* input) {
+  Input& addInput(const Streamable* input) {
     inputs_.emplace_back(input, input->extents());
+    return inputs_.back();
   }
 
   // Adds a new clipped input to the stack.
-  void addInput(const Streamable* input, Box clip_box) {
+  Input& addInput(const Streamable* input, Box clip_box) {
     inputs_.emplace_back(input, Box::Intersect(input->extents(), clip_box));
+    return inputs_.back();
   }
 
   // Adds a new input to the stack, with the specified offset.
-  void addInput(const Streamable* input, uint16_t dx, uint16_t dy) {
+  Input& addInput(const Streamable* input, uint16_t dx, uint16_t dy) {
     inputs_.emplace_back(input, input->extents(), dx, dy);
+    return inputs_.back();
   }
 
   // Adds a new clipped input to the stack, with the specified offset.
-  void addInput(const Streamable* input, Box clip_box, uint16_t dx,
-                uint16_t dy) {
+  Input& addInput(const Streamable* input, Box clip_box, uint16_t dx,
+                  uint16_t dy) {
     inputs_.emplace_back(input, Box::Intersect(input->extents(), clip_box), dx,
                          dy);
+    return inputs_.back();
   }
 
   // Returns the overall extents of the stack.
@@ -94,7 +113,7 @@ class StreamableStack : public Streamable {
 
   Box extents_;
   Box anchor_extents_;
-  std::vector<internal::Input> inputs_;
+  std::vector<Input> inputs_;
 };
 
 }  // namespace roo_display

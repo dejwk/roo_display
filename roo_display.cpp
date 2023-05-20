@@ -93,8 +93,25 @@ void Display::clear() {
   dc.clear();
 }
 
-void DrawingContext::fill(Color color) { draw(Fill(color)); }
-void DrawingContext::clear() { draw(Clear()); }
+void DrawingContext::fill(Color color) {
+  BlendingMode bm = blendingMode();
+  FillMode fm = fillMode();
+  setBlendingMode(BLENDING_MODE_SOURCE);
+  setFillMode(FILL_MODE_RECTANGLE);
+  draw(Fill(color));
+  setBlendingMode(bm);
+  setFillMode(fm);
+}
+
+void DrawingContext::clear() {
+  BlendingMode bm = blendingMode();
+  FillMode fm = fillMode();
+  setBlendingMode(BLENDING_MODE_SOURCE);
+  setFillMode(FILL_MODE_RECTANGLE);
+  draw(Clear());
+  setBlendingMode(bm);
+  setFillMode(fm);
+}
 
 namespace {
 
@@ -138,8 +155,8 @@ void DrawingContext::setWriteOnce() {
 void DrawingContext::drawPixels(
     const std::function<void(ClippingBufferedPixelWriter&)>& fn,
     BlendingMode blending_mode) {
-  draw(
-      Pixels(fn, transformation_.smallestEnclosingRect(clip_box_), blending_mode));
+  draw(Pixels(fn, transformation_.smallestEnclosingRect(clip_box_),
+              blending_mode));
 }
 
 void DrawingContext::drawInternal(const Drawable& object, int16_t dx,
@@ -223,6 +240,43 @@ void DrawingContext::erase(const Drawable& object, int16_t dx, int16_t dy) {
 
 void DrawingContext::erase(const Drawable& object, Alignment alignment) {
   draw(ErasedDrawable(&object), alignment);
+}
+
+void Fill::readColors(const int16_t* x, const int16_t* y, uint32_t count,
+                      Color* result) const {
+  FillColor(result, count, color_);
+}
+
+bool Fill::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax,
+                         Color* result) const {
+  *result = color_;
+  return true;
+}
+
+void Fill::drawTo(const Surface& s) const {
+  Color color = AlphaBlend(s.bgcolor(), color_);
+  if (color == color::Transparent && s.fill_mode() == FILL_MODE_VISIBLE) {
+    return;
+  }
+  s.out().fillRect(s.blending_mode(), s.clip_box(), color);
+}
+
+void Clear::readColors(const int16_t* x, const int16_t* y, uint32_t count,
+                       Color* result) const {
+  FillColor(result, count, color::Transparent);
+}
+
+bool Clear::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
+                          int16_t yMax, Color* result) const {
+  *result = color::Transparent;
+  return true;
+}
+
+void Clear::drawTo(const Surface& s) const {
+  if (s.fill_mode() == FILL_MODE_VISIBLE && s.bgcolor() == color::Transparent) {
+    return;
+  }
+  s.out().fillRect(s.blending_mode(), s.clip_box(), s.bgcolor());
 }
 
 }  // namespace roo_display

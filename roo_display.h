@@ -92,7 +92,8 @@ class Display {
 
   // If touch has not been registered, returns zero and does not modify
   // `points'. If k touch points have been registered, sets max(k, max_points)
-  // `points`, and returns k. The points are set using the display's coordinates.
+  // `points`, and returns k. The points are set using the display's
+  // coordinates.
   TouchResult getTouch(TouchPoint *points, int max_points) {
     return touch_.getTouch(points, max_points);
   }
@@ -239,8 +240,10 @@ class DrawingContext {
   FillMode fillMode() const { return fill_mode_; }
   void setFillMode(FillMode fill_mode) { fill_mode_ = fill_mode; }
 
-  BlendingMode paintMode() const { return blending_mode_; }
-  void setBlendingMode(BlendingMode blending_mode) { blending_mode_ = blending_mode; }
+  BlendingMode blendingMode() const { return blending_mode_; }
+  void setBlendingMode(BlendingMode blending_mode) {
+    blending_mode_ = blending_mode;
+  }
 
   // Clears the display, respecting the clip box, and background settings.
   void clear();
@@ -358,36 +361,41 @@ class DrawingContext {
 };
 
 // Fill is an 'infinite' single-color area. When drawn, it will fill the
-// entire clip box with the given color. Fill ignores the surface's paint
-// mode, and always uses BLENDING_MODE_SOURCE.
-class Fill : public Drawable {
+// entire clip box with the given color.
+class Fill : public Rasterizable {
  public:
   Fill(Color color) : color_(color) {}
 
   Box extents() const override { return Box::MaximumBox(); }
 
+  void readColors(const int16_t *x, const int16_t *y, uint32_t count,
+                  Color *result) const override;
+
+  bool readColorRect(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax,
+                     Color *result) const override;
+
  private:
-  void drawTo(const Surface &s) const override {
-    Color color = AlphaBlend(s.bgcolor(), color_);
-    s.out().fillRect(BLENDING_MODE_SOURCE, s.clip_box(), color);
-  }
+  void drawTo(const Surface &s) const override;
 
   Color color_;
 };
 
 // Clear is an 'infinite' transparent area. When drawn, it will fill the
-// entire clip box with the color implied by background settings. Clear
-// ignores the surface's paint mode, and always uses BLENDING_MODE_SOURCE.
-class Clear : public Drawable {
+// entire clip box with the color implied by background settings.
+class Clear : public Rasterizable {
  public:
   Clear() {}
 
   Box extents() const override { return Box::MaximumBox(); }
 
+  void readColors(const int16_t *x, const int16_t *y, uint32_t count,
+                  Color *result) const override;
+
+  bool readColorRect(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax,
+                     Color *result) const override;
+
  private:
-  void drawTo(const Surface &s) const override {
-    s.out().fillRect(BLENDING_MODE_SOURCE, s.clip_box(), s.bgcolor());
-  }
+  void drawTo(const Surface &s) const override;
 };
 
 }  // namespace roo_display

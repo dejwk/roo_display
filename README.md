@@ -2636,6 +2636,120 @@ Checking for clipping at every item adds some overhead, so it is better to optim
 
 ## Part 3: Advanced topics
 
+### Blending modes
+
+By default, when you are drawing to an offscreen, or to a device with a framebuffer, everything you draw is alpha-blended over pre-existing content. In the section TODO(ref offscreens), we saw how to override this behavior by setting the blending mode to `BLENDING_MODE_SOURCE`, causing the new content to simply replace pre-existing content.
+
+What else can you do with blending modes?
+
+As of now, the library supports 12 blending modes, defined in `roo_display/color/blending.h`, corresponding to the [alpha-compositing](https://en.wikipedia.org/wiki/Alpha_compositing) Porter-Duff operators.
+
+There is a lot of excellent resources on Porter-Duff operators (see e.g. [Søren Sandmann Pedersen's blog](http://ssp.impulsetrain.com/porterduff.html), or the [interactive Wolfram's demo](https://demonstrations.wolfram.com/DuffPorterAlphaCompositingOperators/)). Rather than repeat the theory, let's see what we can do with using a couple of new blending modes combined with some basic shapes and gradients:
+
+```cpp
+#include "roo_display/core/offscreen.h"
+#include "roo_display/shape/smooth.h"
+
+void setup() {
+  // ...
+  display.init(color::LightSeaGreen);
+}
+
+void loop() {
+  auto circle = SmoothThickCircle({100, 100}, 71, 42, Color(0xFFEC6D44));
+  auto rect1 =
+      SmoothRotatedFilledRect({100, 100}, 40, 200, M_PI / 4, color::White);
+  auto rect2 =
+      SmoothRotatedFilledRect({100, 100}, 40, 200, -M_PI / 4, color::White);
+  auto gradient = RadialGradientSq(
+      {100, 100}, ColorGradient({{50*50, color::Black.withA(0x60)},
+                                 {65*65, color::Black.withA(0x15)},
+                                 {71*71, color::Transparent},
+                                 {77*77, color::Black.withA(0x15)},
+                                 {92*92, color::Black.withA(0x60)}}));
+  auto shadow =
+      SmoothThickCircle({100 - 5, 100 + 5}, 71, 42,
+      color::Black.withA(0x80));
+
+  Offscreen<Argb4444> offscreen(201, 201);
+  {
+    DrawingContext dc(offscreen);
+    dc.clear();
+    dc.draw(circle);
+    dc.setBlendingMode(BLENDING_MODE_SOURCE_ATOP);
+    dc.draw(rect1);
+    dc.draw(rect2);
+    dc.draw(gradient);
+    dc.setBlendingMode(BLENDING_MODE_DESTINATION_OVER);
+    dc.draw(shadow);
+  }
+
+  DrawingContext dc(display);
+  dc.draw(offscreen, kCenter | kMiddle);
+
+  delay(10000);
+}
+```
+
+![img57](doc/images/img57.png)
+
+We used `BLENDING_MODE_SOURCE_ATOP` to draw two rectangles and a gradient in a way they are 'clipped' to the underlying ring. We then used `BLENDING_MODE_DESTINATION_OVER` to put the rind shadow under the picture.
+
+Note that blending modes behave well on the edges of our (smooth) shapes - everything is nicely anti-aliased.
+
+Note that this example required an offscreen that supported transparency. We used ARGB4444, rather than ARGB6666, to conserve RAM. (The image needs ~80 KB of heap space). It made the gradient look rather coarse. In the next section, we will look at ways to overcome this limitation.
+
+> In the future, more blending modes will be added, e.g. using [ImageMagick](https://imagemagick.org/script/compose.php) as a source of inspiration.
+
+### Dynamic composition
+
+Wouldn't it be great if you could compose drawables using blending modes, as we did in the previous section, but without needing to render the result to a temporary offscreen?
+
+Bad news is that you cannot do that with arbitrary drawables. Good news is that you can do that if your drawables are streamable or rasterizable.
+
+If all the inputs are rasterizables (i.e. if they all extend `Rasterizable`), you can combine them into a logical 'stack' that is itself a rasterizable. During rendering, it needs only a little bit of stack memory (less than 1 KB) - i.e. no more need to preallocate an offscreen.
+
+Smooth shapes happen to all be rasterizable, which means that we can rewrite the previous example (i.e. inheriting from the `Rasterizable` base class):
+
+```cpp
+#include "roo_display/composition/rasterizable_stack.h"
+
+// ...
+
+void loop() {
+  auto circle = SmoothThickCircle({100, 100}, 71, 42, Color(0xFFEC6D44));
+  auto rect1 =
+      SmoothRotatedFilledRect({100, 100}, 40, 200, M_PI / 4, color::White);
+  auto rect2 =
+      SmoothRotatedFilledRect({100, 100}, 40, 200, -M_PI / 4, color::White);
+  auto gradient = RadialGradientSq(
+      {100, 100}, ColorGradient({{50*50, color::Black.withA(0x60)},
+                                 {65*65, color::Black.withA(0x15)},
+                                 {71*71, color::Transparent},
+                                 {77*77, color::Black.withA(0x15)},
+                                 {92*92, color::Black.withA(0x60)}}));
+  auto shadow =
+      SmoothThickCircle({100 - 5, 100 + 5}, 71, 42,
+      color::Black.withA(0x80));
+
+  RasterizableStack stack(Box(0, 0, 200, 200));
+  stack.addInput(&circle);
+  stack.addInput(&rect1).withMode(BLENDING_MODE_SOURCE_ATOP);
+  stack.addInput(&rect2).withMode(BLENDING_MODE_SOURCE_ATOP);
+  stack.addInput(&gradient).withMode(BLENDING_MODE_SOURCE_ATOP);
+  stack.addInput(&shadow).withMode(BLENDING_MODE_DESTINATION_OVER);
+
+  DrawingContext dc(display);
+  dc.draw(stack, kCenter | kMiddle);
+
+  delay(10000);
+}
+```
+
+![img58](doc/images/img58.png)
+
+Not only did we save 80 KB; the quality is now much better, too, because we no longer needed to compromise on bits-per-pixel. And it renders a bit faster, too. (Still somewhat slow, because radial gradients are expensive - calculating the gradient takes about half of the total rendering time).
+
 ### Avoiding flicker and aliasing artifacts
 
 Flicker is an enemy of a slick graphical interface. It gets in the way of smooth animations. Its presence also means that some pixels are drawn more times than necessary, wasting the communication bandwidth.
@@ -2713,8 +2827,6 @@ void loop() {
 ```
 
 ![img55](doc/images/img55.png)
-
-#### Stacking streamables and rasterizables using Combo classes
 
 #### Using 'draw-once' mode
 

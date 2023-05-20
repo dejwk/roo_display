@@ -246,18 +246,17 @@ inline void Composition::Compile(Program* prg) {
         uint16_t skip_mask = mask;
         int index = 0;
         int max_skipped_index = 0;
-        while (skip_mask != 0) {
+        for (int index = 0; index < this->input_count_; ++index) {
           if ((skip_mask & 1) == 0) {
             BlendingMode blending_mode = blending_modes_[index];
             if (IsBlendingModeSourceClearing(blending_mode)) {
               max_skipped_index = index;
             }
           }
-          ++index;
           skip_mask >>= 1;
         }
         int skip_mask_mask = ((1 << max_skipped_index) - 1);
-        skip_mask &= skip_mask_mask;
+        skip_mask = mask & skip_mask_mask;
         mask &= ~skip_mask_mask;
         index = 0;
         while (skip_mask > 0) {

@@ -183,6 +183,8 @@ class SmoothShape : public Rasterizable {
     Color color;
   };
 
+  SmoothShape();
+
   Box extents() const override { return extents_; }
 
   void readColors(const int16_t* x, const int16_t* y, uint32_t count,
@@ -217,7 +219,6 @@ class SmoothShape : public Rasterizable {
 
   enum Kind { EMPTY = 0, WEDGE = 1, ROUND_RECT = 2, ARC = 3, TRIANGLE = 4 };
 
-  SmoothShape();
   SmoothShape(Box extents, Wedge wedge);
   SmoothShape(Box extents, RoundRect round_rect);
   SmoothShape(Box extents, Arc arc);

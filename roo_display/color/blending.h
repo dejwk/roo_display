@@ -443,7 +443,6 @@ struct Blender {
     BlendOp<mode> op;
     while (count-- > 0) {
       dst[*index] = op(dst[*index], *src);
-      ++dst;
       ++src;
       ++index;
     }

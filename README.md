@@ -1685,7 +1685,7 @@ In addition to the general-purpose `RleImage`, the library supports an alternati
 You can use a companion utility [roo_display_image_importer](https://github.com/dejwk/roo_display_image_importer) to convert arbitrary images to the `roo_display`'s built-in image format:
 
 ```
-wget https://github.com/dejwk/roo_display_image_importer/releases/download/1.1/roo_display_image_importer.zip
+wget https://github.com/dejwk/roo_display_image_importer/releases/download/1.2/roo_display_image_importer.zip
 unzip roo_display_image_importer.zip
 ./roo_display_image_importer/bin/roo_display_image_importer -c RLE -e ARGB8888 penguin.png
 ```
@@ -2642,9 +2642,9 @@ By default, when you are drawing to an offscreen, or to a device with a framebuf
 
 What else can you do with blending modes?
 
-As of now, the library supports 12 blending modes, defined in `roo_display/color/blending.h`, corresponding to the [alpha-compositing](https://en.wikipedia.org/wiki/Alpha_compositing) Porter-Duff operators.
+THe `roo_display` library supports 12 blending modes, defined in `roo_display/color/blending.h`, corresponding to the [alpha-compositing](https://en.wikipedia.org/wiki/Alpha_compositing) Porter-Duff operators.
 
-There is a lot of excellent resources on Porter-Duff operators (see e.g. [Søren Sandmann Pedersen's blog](http://ssp.impulsetrain.com/porterduff.html), or the [interactive Wolfram's demo](https://demonstrations.wolfram.com/DuffPorterAlphaCompositingOperators/)). Rather than repeat the theory, let's see what we can do with using a couple of new blending modes combined with some basic shapes and gradients:
+There is a lot of excellent resources on Porter-Duff operators (see e.g. [Søren Sandmann Pedersen's blog](http://ssp.impulsetrain.com/porterduff.html), or the [interactive Wolfram's demo](https://demonstrations.wolfram.com/DuffPorterAlphaCompositingOperators/)). Let's jump right in to see what we can do with using a couple of new blending modes combined with some basic shapes and gradients:
 
 ```cpp
 #include "roo_display/core/offscreen.h"
@@ -2705,7 +2705,9 @@ Note that this example required an offscreen that supported transparency. We use
 
 Wouldn't it be great if you could compose drawables using blending modes, as we did in the previous section, but without needing to render the result to a temporary offscreen?
 
-Bad news is that you cannot do that with arbitrary drawables. Good news is that you can do that if your drawables are streamable or rasterizable.
+Bad news is that you cannot do that with arbitrary drawables. Good news is that you can do that if your drawables are streamables or rasterizables.
+
+Dynamic composition produces a drawable that combines multiple inputs, and is drawn in one pass, without any flicker.
 
 If all the inputs are rasterizables (i.e. if they all extend `Rasterizable`), you can combine them into a logical 'stack' that is itself a rasterizable. During rendering, it needs only a little bit of stack memory (less than 1 KB) - i.e. no more need to preallocate an offscreen.
 
@@ -2750,31 +2752,232 @@ void loop() {
 
 Not only did we save 80 KB; the quality is now much better, too, because we no longer needed to compromise on bits-per-pixel. And it renders a bit faster, too. (Still somewhat slow, because radial gradients are expensive - calculating the gradient takes about half of the total rendering time).
 
-### Avoiding flicker and aliasing artifacts
+The `RasterizableStack` is itself rasterizable, so you can use the result for further composition. Let's now compose several levels of stacks in order to dynamically render temperature gradients in a water heater:
 
-Flicker is an enemy of a slick graphical interface. It gets in the way of smooth animations. Its presence also means that some pixels are drawn more times than necessary, wasting the communication bandwidth.
+```cpp
+class HeatingSpiralContent : public RasterizableStack {
+ public:
+  HeatingSpiralContent()
+      : RasterizableStack(Box(0, 0, 99, 219)), thickness_(8) {
+    for (int i = 0; i < 12; ++i) {
+      elements_r_[i] =
+          SmoothThickLine({10, (float)i * 14 + 32}, {90, (float)i * 14 + 25},
+                          thickness_, color::Black);
+      addInput(&elements_r_[i]);
+    }
+    for (int i = 0; i < 12; ++i) {
+      elements_l_[i] =
+          SmoothThickLine({10, (float)i * 14 + 32}, {90, (float)i * 14 + 39},
+                          thickness_, color::Black, ENDING_FLAT);
+      addInput(&elements_l_[i]);
+    }
+    outlet_ = SmoothThickLine({90, 25}, {100, 25}, thickness_, color::Black);
+    addInput(&outlet_);
+    inlet_ = SmoothThickLine({90, 12 * 14 + 25}, {100, 12 * 14 + 25},
+                             thickness_, color::Black);
+    addInput(&inlet_);
+  }
 
-Anti-aliased graphics look great, but if you use non-solid backgrounds, they can cause headaches (except for the few displays with drivers supporting alpha-blending natively).
+ private:
+  float thickness_;
+  SmoothShape elements_l_[12];
+  SmoothShape elements_r_[12];
+  SmoothShape outlet_;
+  SmoothShape inlet_;
+};
 
-In this section, we discuss tools that help composing the content before drawing it, avoiding both flicker and aliasing artifacts, at the expense of some combination of memory or CPU cost.
+class HeatingSpiralBody : public RasterizableStack {
+ public:
+  HeatingSpiralBody()
+      : RasterizableStack(Box(0, 0, 99, 219)), thickness_outer_(10), thickness_inner_(7) {
+    outlet_ = SmoothThickLine({90, 25}, {100, 25}, thickness_outer_, color::Black);
+    addInput(&outlet_);
+    for (int i = 0; i < 12; ++i) {
+      elements_r_[i] =
+          SmoothThickLine({10, (float)i * 14 + 32}, {90, (float)i * 14 + 25},
+                          thickness_outer_, color::Black);
+      addInput(&elements_r_[i]);
+    }
+    inlet_ = SmoothThickLine({90, 12 * 14 + 25}, {100, 12 * 14 + 25},
+                             thickness_outer_, color::Black);
+    addInput(&inlet_);
+    outlet_i_ = SmoothThickLine({90, 25}, {100, 25}, thickness_inner_, color::Black);
+    addInput(&outlet_i_).withMode(BLENDING_MODE_DESTINATION_OUT);
+    for (int i = 0; i < 12; ++i) {
+      elements_ri_[i] =
+          SmoothThickLine({10, (float)i * 14 + 32}, {90, (float)i * 14 + 25},
+                          thickness_inner_, color::White);
+      addInput(&elements_ri_[i]).withMode(BLENDING_MODE_DESTINATION_OUT);
+    }
+    for (int i = 0; i < 12; ++i) {
+      elements_l_[i] =
+          SmoothThickLine({10, (float)i * 14 + 32}, {90, (float)i * 14 + 39},
+                          thickness_outer_, color::Black, ENDING_FLAT);
+      addInput(&elements_l_[i]);
+      elements_li_[i] =
+          SmoothThickLine({10, (float)i * 14 + 32}, {90, (float)i * 14 + 39},
+                          thickness_inner_, color::White);
+      addInput(&elements_li_[i]).withMode(BLENDING_MODE_DESTINATION_OUT);
+    }
+    inlet_i_ = SmoothThickLine({90, 12 * 14 + 25}, {100, 12 * 14 + 25},
+                             thickness_inner_, color::Black);
+    addInput(&inlet_i_).withMode(BLENDING_MODE_DESTINATION_OUT);
+  }
 
-#### Using Offscreen
+ private:
+  float thickness_outer_;
+  float thickness_inner_;
+  SmoothShape elements_l_[12];
+  SmoothShape elements_li_[12];
+  SmoothShape elements_r_[12];
+  SmoothShape elements_ri_[12];
+  SmoothShape outlet_;
+  SmoothShape outlet_i_;
+  SmoothShape inlet_;
+  SmoothShape inlet_i_;
+};
 
-The simplest way to prepare the content before drawing it to the screen is to use an offscreen buffer, as described in the section TODO(ref). Drawing to an offscreen is about an order of magnitude faster than drawing to a physical screen, and flushing a rectangular area onto the screen is also generally reasonably fast, so it tends to work out well in terms of performance. Offscreens natively support alpha-blending, so the anti-aliased and other translucent content will be handled correctly.
+class Tank : public RasterizableStack {
+ public:
+  Tank()
+      : RasterizableStack(Box(0, 0, 99, 219)),
+        casing_(Box(0, 0, 99, 219)),
+        casing_body_(SmoothFilledRoundRect(0, 0, 99, 219, 23, color::Black)),
+        casing_gradient_({0, 0}, 0, 1, ColorGradient({{0, color::Purple}, {219, color::Blue}})),
+        casing_wall_(SmoothThickRoundRect(0, 0, 99, 219, 23, 1, color::Black)),
+        heated_spiral_(Box(0, 0, 99, 219)),
+        heated_spiral_gradient_(
+            {0, 0}, 0, 1,
+            ColorGradient({{0, color::Blue}, {219, color::Red}})),
+        heated_spiral_content_(),
+        heating_spiral_body_() {
+    casing_.addInput(&casing_body_);
+    casing_.addInput(&casing_gradient_).withMode(BLENDING_MODE_SOURCE_ATOP);
+    casing_.addInput(&casing_wall_);
+    addInput(&casing_);
+    heated_spiral_.addInput(&heated_spiral_content_);
+    heated_spiral_.addInput(&heated_spiral_gradient_)
+        .withMode(BLENDING_MODE_SOURCE_ATOP);
+    addInput(&heated_spiral_);
+    addInput(&heating_spiral_body_);
+  }
 
-The biggest drawback of using offscreens is that they need frame buffer memory. If you have enough memory to spare, give offscreens a try. Otherwise, read on.
+ private:
+  RasterizableStack casing_;
+  SmoothShape casing_body_;
+  LinearGradient casing_gradient_;
+  SmoothShape casing_wall_;
+  RasterizableStack heated_spiral_;
+  LinearGradient heated_spiral_gradient_;
+  HeatingSpiralContent heated_spiral_content_;
+  HeatingSpiralBody heating_spiral_body_;
+};
 
-#### Using clip masks
+void loop() {
+  DrawingContext dc(display);
+  std::unique_ptr<Tank> tank(new Tank());
+  dc.draw(*tank, kCenter | kMiddle);
+}
+```
 
-In the section TODO(ref), you saw how to use clip masks to control the drawing area. Clip masks use just one bit per pixel (e.g., ~19 KB for a 480x320 screen), and are thus often viable when offscreens aren't. Clip masks don't solve the alpha-blending problem, though, and thus may not be appropriate for drawing anti-aliased content.
+![img60](doc/images/img60.png)
 
-#### Using backgrounds
+In practice, it is often desirable to compose objects that are not rasterizable. In particular, you may want to use composition with imported images that use run-length encoding to reduce footprint. In this case, because those images are `Streamable`, you can use a `StreamableStack`, which has an API very similar to the `RasterizableStack`, except that it accepts streamables, not rasterizables (and it produces a streamable, not a rasterizable). As an example, we will use a JPG file, imported as a RLE-enoded image:
 
-In section TODO(ref), we saw how to use rasterizable backgrounds. Drawable contents is combined with the background immediately before drawing, with proper alpha-blending, using a small temporary memory buffer (below 1 KB) allocated on the stack, and it never introduces flicker.
+```
+$ wget https://github.com/dejwk/roo_display_image_importer/releases/download/1.1/roo_display_image_importer.zip
+$ unzip roo_display_image_importer.zip
+$ ./roo_display_image_importer/bin/roo_display_image_importer --output_dir=src -c RLE -e RGB565 roo2.jpg
+```
 
-#### Using rasterizable overlays and color filters
+```cpp
+#include "roo2.h"
+#include "roo_display/composition/streamable_stack.h"
 
-The way backgrounds internally work is by intercepting and augmenting calls to the undelying device driver - in this case, using the `BackgroundFilter` device class. This technique can be used to implement other filters. For example, a `ForegroundFilter` applies a given rasterizable on the _top_ of the content drawn, rather than behind it, which can be useful in drawing overlaid graphics or 'sprites':
+// ...
+
+void loop() {
+  StreamableStack stack(Box(0, 0, 199, 199));
+  auto c = SmoothFilledCircle({100, 100}, 79, color::Black);
+  stack.addInput(&roo2(), Box(0, 0, 177, 177), 11, 11);
+  stack.addInput(&c).withMode(BLENDING_MODE_DESTINATION_ATOP);
+  DrawingContext dc(display);
+  dc.draw(stack, kCenter | kMiddle);
+}
+```
+
+![img59](doc/images/img59.png)
+
+As you can see, compositing with 'destination-atop' is a bit similar to putting a clip mask over a drawn contents - with an important difference that our mask can now have anti-aliased edges. (Note that the circle-cropped image is properly anti-aliased).
+
+> Note: every rasterizable is streamable, so you can use rasterizables with the `StreamableStack`.
+
+> Note: JPG and PNG images cannot be directly used with the `StreamableStack`, because, unfortunately, those formats do not satisfy the `Streamable` interface. Use the image importer to convert your images to a RLE-encoded internal image format.
+
+Going back to the water heater example, if you tried it on a microcontroller, you might have noticed that it renders a bit slow, needing 270 milliseconds on ESP32 + SPI ILI9341 @40 MHz. We could improve upon it by pre-rendering parts of it and storing as an image in PROGMEM. There is no super-easy way of capturing rendered images (yet), but one can do so by using the [roo_testing](https://github.com/dejwk/roo_testing) emulator, outputting the images to a Linux window, and then taking a screenshot and an [image importer](https://github.com/dejwk/roo_display_image_importer).
+
+> In case you were curious, images in this guide has been captured using [roo_testing](https://github.com/dejwk/roo_testing).
+
+```
+$ ./roo_display_image_importer/bin/roo_display_image_importer -c RLE -e ALPHA4 --output-dir=src heater_spiral_content.png heater_spiral_body.png
+```
+
+```cpp
+#include "heater_spiral_content.h"
+#include "heater_spiral_body.h"
+
+// ...
+
+class Tank : public StreamableStack {
+ public:
+  Tank()
+      : StreamableStack(Box(0, 0, 99, 219)),
+        casing_(Box(0, 0, 99, 219)),
+        casing_body_(SmoothFilledRoundRect(0, 0, 99, 219, 23, color::Black)),
+        casing_gradient_(
+            {0, 0}, 0, 1,
+            ColorGradient({{0, color::Purple}, {219, color::Blue}})),
+        casing_wall_(SmoothThickRoundRect(0, 0, 99, 219, 23, 1, color::Black)),
+        heated_spiral_(Box(0, 0, 99, 219)),
+        heated_spiral_gradient_(
+            {0, 0}, 0, 1,
+            ColorGradient({{0, color::Blue}, {219, color::Red}})) {
+    casing_.addInput(&casing_body_);
+    casing_.addInput(&casing_gradient_).withMode(BLENDING_MODE_SOURCE_ATOP);
+    casing_.addInput(&casing_wall_);
+    addInput(&casing_);
+    heated_spiral_.addInput(&heater_spiral_content(), 5, 21);
+    heated_spiral_.addInput(&heated_spiral_gradient_)
+        .withMode(BLENDING_MODE_SOURCE_ATOP);
+    addInput(&heated_spiral_);
+    addInput(&heater_spiral_body(), 5, 21);
+  }
+
+ private:
+  RasterizableStack casing_;
+  SmoothShape casing_body_;
+  LinearGradient casing_gradient_;
+  SmoothShape casing_wall_;
+  StreamableStack heated_spiral_;
+  LinearGradient heated_spiral_gradient_;
+};
+
+void loop() {
+  std::unique_ptr<Tank> tank(new Tank());
+  dc.draw(*tank, kCenter | kMiddle);
+  delay(1000);
+}
+```
+
+This sketch produces the same output as before, but it takes only 160 ms (down from 270 ms), at the expense of about 6 KB PROGMEM space needed to store the pre-rendered images.
+
+### Using rasterizable overlays and color filters
+
+Dynamic composition, discussed in the previous section, requires that your inputs are rasterizables or streamables. If you draw content that is neither (e.g. text), you are not completely out of luck - you can still inject some dynamic composition.
+
+In fact, we have already seen some examples of it, in the form of backgrounds.
+
+The way backgrounds internally work is by intercepting and augmenting calls to the undelying device driver - in this case, using the `BackgroundFilter` device class. This technique can be used to implement other filters. For example, a `ForegroundFilter` applies a given rasterizable on top of the content drawn, rather than behind it, which can be useful in drawing overlaid graphics or 'sprites':
 
 ```cpp
 #include "roo_display/filter/foreground.h"
@@ -2828,11 +3031,19 @@ void loop() {
 
 ![img55](doc/images/img55.png)
 
-#### Using 'draw-once' mode
+If you look at the implementation of the `BackgroundFilter` or the `ForegroundFilter`, you will notice that they are specialization of the `BlendingFilter` class, defined in `roo_display/filter/blender.h`:
 
-#### Example: analog gauge
+```cpp
+using BackgroundFilter = BlendingFilter<BlendOp<BLENDING_MODE_SOURCE_OVER>>;
+```
 
-#### Using the background-fill optimizer
+From this definition, it is clear that you can specialize `BlendingFilter` to use any blending mode you need. You can also chain more than one filter, thus creating complex rasterizable composition stacks.
+
+### Using 'draw-once' mode
+
+### Example: analog gauge
+
+### Using the background-fill optimizer
 
 ### Adding new device drivers
 

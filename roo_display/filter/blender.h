@@ -70,7 +70,7 @@ class BlendingFilter : public DisplayOutput {
         cursor_x_ = address_window_.xMin();
       }
     }
-    read(x, y, pixel_count, newcolor);
+    raster_->readColorsMaybeOutOfBounds(x, y, pixel_count, newcolor);
     for (uint32_t i = 0; i < pixel_count; ++i) {
       newcolor[i] = blender_(newcolor[i], color[i]);
     }
@@ -163,7 +163,7 @@ class BlendingFilter : public DisplayOutput {
                 int16_t yMax, Color color) {
     Color out_of_bounds_color = AlphaBlend(bgcolor_, color);
     Box trimmed =
-        Box::Intersect(Box(xMin, yMin, xMax, yMax), raster_->extents());
+        Box::Intersect(Box(xMin, yMin, xMax, yMax), raster_->extents().translate(dx_, dy_));
     if (trimmed.empty()) {
       output_->fillRect(mode, xMin, yMin, xMax, yMax, out_of_bounds_color);
       return;

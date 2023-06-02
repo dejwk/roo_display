@@ -234,7 +234,9 @@ class Drawable {
 };
 
 inline void Surface::drawObject(const Drawable &object) const {
-  object.drawTo(*this);
+  Surface s = *this;
+  if (s.clipToExtents(object.extents()) == Box::CLIP_RESULT_EMPTY) return;
+  object.drawTo(s);
 }
 
 }  // namespace roo_display

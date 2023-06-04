@@ -276,6 +276,8 @@ class DrawingContext {
 
   void setWriteOnce();
 
+  bool isWriteOnce() const { return write_once_; }
+
   void drawPixels(const std::function<void(ClippingBufferedPixelWriter &)> &fn,
                   BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER);
 

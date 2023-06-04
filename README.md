@@ -2977,7 +2977,7 @@ Dynamic composition, discussed in the previous section, requires that your input
 
 In fact, we have already seen some examples of it, in the form of backgrounds.
 
-The way backgrounds internally work is by intercepting and augmenting calls to the undelying device driver - in this case, using the `BackgroundFilter` device class. This technique can be used to implement other filters. For example, a `ForegroundFilter` applies a given rasterizable on top of the content drawn, rather than behind it, which can be useful in drawing overlaid graphics or 'sprites':
+The way backgrounds internally work is by intercepting and augmenting calls to the undelying device driver - in this case, using the `BackgroundFilter` device class. This technique can be used to implement other filters. For example, a `ForegroundFilter` applies a given rasterizable on top of the content drawn, rather than behind it, which can be useful in drawing overlaid graphics or animations:
 
 ```cpp
 #include "roo_display/filter/foreground.h"
@@ -3031,6 +3031,103 @@ void loop() {
 
 ![img55](doc/images/img55.png)
 
+This technique can also be used to draw 'sprites':
+
+```cpp
+// ...
+
+class JumpingPedroSpriteOverlay : public Drawable {
+ public:
+  JumpingPedroSpriteOverlay(const Drawable *contents)
+      : contents_(contents), xc_(0), yc_(0), jumping_(false) {}
+
+  Box extents() const override { return contents_->extents(); }
+
+  void set(int16_t xc, int16_t yc, bool jumping) {
+    xc_ = xc;
+    yc_ = yc;
+    jumping_ = jumping;
+  }
+
+ private:
+  void drawTo(const Surface &s) const override {
+    static const uint8_t pedro_standing_data[] PROGMEM = {
+        0b00000001, 0b00000000, 0b00000101, 0b01000000, 0b00000101, 0b01000000,
+        0b00000110, 0b01000000, 0b00001001, 0b10000000, 0b00010101, 0b01010000,
+        0b00010101, 0b01010101, 0b01101010, 0b10101010, 0b10010101, 0b01010101,
+        0b01011111, 0b00110100, 0b00011111, 0b11110000, 0b00001111, 0b11000000,
+        0b01100101, 0b01100100, 0b01011001, 0b10010100, 0b11010110, 0b01011100,
+        0b11111101, 0b01011111, 0b11111101, 0b01011111, 0b01111101, 0b01010000,
+        0b01010101, 0b01010000, 0b11110000, 0b11110000, 0b11111100, 0b11111100,
+        0b00111100, 0b11111100,
+    };
+
+    static const uint8_t pedro_jumping_data[] PROGMEM = {
+        0b00000001, 0b00000000, 0b00000101, 0b01000000, 0b00000101, 0b01000000,
+        0b00000110, 0b01000000, 0b00001001, 0b10010000, 0b00000101, 0b01010100,
+        0b00010101, 0b01010100, 0b01011010, 0b10101010, 0b01100101, 0b01010101,
+        0b10011111, 0b00110100, 0b00011111, 0b11110000, 0b11001111, 0b11000011,
+        0b11111001, 0b10011111, 0b11110110, 0b01011111, 0b11110101, 0b01011100,
+        0b01010101, 0b01010000, 0b01010101, 0b01010111, 0b00010101, 0b01011111,
+        0b00010101, 0b00111111, 0b00001111, 0b00001100, 0b00001111, 0b11000000,
+        0b00001111, 0b11000000,
+    };
+
+    static Color colors[] PROGMEM = {color::Transparent, Color(0xFF7A262C),
+                                     Color(0xFFF8C02C), Color(0xFFFAA6AC)};
+
+    static Palette palette = Palette::ReadOnly(colors, 4);
+
+    Surface my_s(s);
+    auto pedro_raster = ProgMemRaster<Indexed2>(
+        8, 22, jumping_ ? pedro_jumping_data : pedro_standing_data, &palette);
+    auto pedro_scaled = MakeRasterizable(
+        Box(0, 0, 8 * 4 - 1, 22 * 2 - 1),
+        [&](int16_t x, int16_t y) { return pedro_raster.get(x / 4, y / 2); });
+    ForegroundFilter fg(s.out(), &pedro_scaled, xc_, yc_);
+    my_s.set_out(&fg);
+    my_s.drawObject(*contents_);
+  }
+
+  const Drawable *contents_;
+  int16_t xc_, yc_;
+  bool jumping_;
+};
+
+Box invalid(display.extents());
+
+void setup() {
+  // ...
+  display.init(color::Black);
+}
+
+void loop() {
+  auto tile = MakeTileOf(
+      TextLabel("Hello, World!", font_NotoSans_Bold_27(), color::SkyBlue),
+      display.extents(), kCenter | kMiddle);
+  JumpingPedroSpriteOverlay overlaid(&tile);
+  int y = 140;
+  bool jumping = (millis() / 500) % 4 == 0;
+  if (jumping) {
+    int progress = millis() % 500;
+    int dy = (progress - 250) / 10;
+    y = 140 - (625 - (dy * dy)) / 13;
+  }
+  overlaid.set(180, y, jumping);
+  Box pedro = Box(0, 0, 8 * 4 - 1, 22 * 2 - 1).translate(180, y);
+  invalid = Box::Extent(invalid, pedro);
+  DrawingContext dc(display);
+  dc.setClipBox(invalid);
+  invalid = pedro;
+  dc.setFillMode(FILL_MODE_RECTANGLE);
+  dc.draw(overlaid, kCenter | kMiddle);
+}
+```
+
+![img61](doc/images/img61.png)
+
+
+
 If you look at the implementation of the `BackgroundFilter` or the `ForegroundFilter`, you will notice that they are specialization of the `BlendingFilter` class, defined in `roo_display/filter/blender.h`:
 
 ```cpp
@@ -3039,11 +3136,62 @@ using BackgroundFilter = BlendingFilter<BlendOp<BLENDING_MODE_SOURCE_OVER>>;
 
 From this definition, it is clear that you can specialize `BlendingFilter` to use any blending mode you need. You can also chain more than one filter, thus creating complex rasterizable composition stacks.
 
-### Using 'draw-once' mode
+### Using 'draw-once' mode (experimental)
 
-### Example: analog gauge
+You can switch a drawing context into a write-once mode, by calling the `setWriteOnce()` method. In the write-once mode, any pixel can be drawn only one time. Subsequent attempts to overdraw it (via the same drawing context, or a descendant context) will do nothing.
+
+The write-once mode can help avoid flicker. For example, rather than drawing a solid background first, and drawing the content later, which normally leads to flicker, you can enable the write-once mode, and then draw the content first, and the solid background later. The background will not touch the previously drawn 'content' pixels.
+
+Once enabled, the 'write-once' mode cannot be turned off - it is active until the drawing context is destroyed.
+
+Implementation-wise, the 'draw-once' mode uses a filter that internally uses a clip mask to 'mask out' pixels that has been drawn to. The clip mask is allocated when `setWriteOnce()` is called for the first time. Consequently, the feature has a memory footprint of 1 bit per pixel of the affected drawing context. 
 
 ### Using the background-fill optimizer
+
+The `BackgroundFillOptimizer` filter can very significantly improve performance of applications in which large solid areas are repetitively redrawn.
+
+A common scenario is like this: you clear a rectangular area to draw some new content in it, paying no attention to whatever content was there before. But it is often the case that many pixels already had the correct (bacgkround) color and didn't really need to be overwritten. If only you knew which those were, you could have skipped them over, saving the SPI bandwidth.
+
+A canonical solution to achieve that would be to use a framebuffer, keeping a copy of each pixel. The problem with framebuffers, however, is that they eat up a lot of precious RAM (e.g. 480x320x2 = 307 KB for a ILI9486 display).
+
+`BackgroundFillOptimizer` is akin to a reduced-resolution framebuffer, using only 1/4 of a bit per pixel, rather than 16 bits per pixel (rounding up to 4.8 KB for the same ILI9486 display). Specifically, the filter assigns 4 bits to each 4x4 rectangle, and uses it to encode whether that rectangle is solid-filled with one of the predefined 15 'fill' colors (which you need to specify when you instantiate the filter). These data are used to optimize out rectangle fills using these predefined colors. Only those 4x4 sub-rectangles are drawn that are not already solid-filled with that given color.
+
+The most natural way to use `BackgroundFillOptimizer` is to put it directly in front of a device driver, as in the following example:
+
+```cpp
+
+// ...
+
+#include "roo_display/filter/background_fill_optimizer.h"
+#include "roo_display/driver/ili9341.h"
+
+using namespace roo_display;
+
+Ili9341spi<5, 17, 27> display_device(Orientation().rotateLeft());
+BackgroundFillOptimizerDevice fill_optimizer(display_device);
+
+Display display(fill_optimizer);
+
+void setup() {
+  // ...
+
+  // For simplicity, only using 1-color palette. (You can use up to 15 colors).
+  fill_optimizer.setPalette({color::White});
+  display.init(color::White);
+}
+
+void loop() {
+  DrawingContext dc(display);
+  dc.fill(color::White);
+  dc.draw(TextLabel("&", font_NotoSerif_Italic_90(), color::Black),
+          rand() % display.width(), rand() % display.height());
+  delay(5);
+}
+```
+
+If you run this example, you will notice that the frame rate is so high that it is hard to believe that you're looking at a single glyph at any given time. (Increase the delay if you need to convince yourself of that.)
+
+### Example: analog gauge
 
 ### Adding new device drivers
 

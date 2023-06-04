@@ -3136,7 +3136,7 @@ using BackgroundFilter = BlendingFilter<BlendOp<BLENDING_MODE_SOURCE_OVER>>;
 
 From this definition, it is clear that you can specialize `BlendingFilter` to use any blending mode you need. You can also chain more than one filter, thus creating complex rasterizable composition stacks.
 
-### Using 'draw-once' mode (experimental)
+### Using 'write-once' mode (experimental)
 
 You can switch a drawing context into a write-once mode, by calling the `setWriteOnce()` method. In the write-once mode, any pixel can be drawn only one time. Subsequent attempts to overdraw it (via the same drawing context, or a descendant context) will do nothing.
 
@@ -3182,7 +3182,7 @@ void setup() {
 
 void loop() {
   DrawingContext dc(display);
-  dc.fill(color::White);
+  dc.clear();
   dc.draw(TextLabel("&", font_NotoSerif_Italic_90(), color::Black),
           rand() % display.width(), rand() % display.height());
   delay(5);

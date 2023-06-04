@@ -33,6 +33,7 @@ BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height,
           buffer, ((((width - 1) / kBgFillOptimizerWindowSize + 1) + 1) / 2),
           ((((height - 1) / kBgFillOptimizerWindowSize + 1) + 1) / 2) * 2),
       palette_size_(0),
+      swap_xy_(false),
       owned_buffer_(owns_buffer ? buffer : nullptr) {}
 
 void BackgroundFillOptimizer::FrameBuffer::setPalette(const Color* palette,
@@ -62,6 +63,15 @@ void BackgroundFillOptimizer::FrameBuffer::invalidateRect(const Box& rect) {
           rect.xMax() / roo_display::kBgFillOptimizerWindowSize,
           rect.yMax() / roo_display::kBgFillOptimizerWindowSize),
       0);
+}
+
+void BackgroundFillOptimizer::FrameBuffer::setSwapXY(bool swap) {
+  if (swap == swap_xy_) return;
+  swap_xy_ = swap;
+  background_mask_ = internal::NibbleRect(background_mask_.buffer(),
+                                          background_mask_.height() / 2,
+                                          background_mask_.width());
+  invalidate();
 }
 
 BackgroundFillOptimizer::BackgroundFillOptimizer(DisplayOutput& output,
@@ -299,6 +309,29 @@ void BackgroundFillOptimizer::fillRectBg(int16_t x0, int16_t y0, int16_t x1,
   if (!inner_filter_box.empty()) {
     background_mask_->fillRect(inner_filter_box, palette_idx);
   }
+}
+
+BackgroundFillOptimizerDevice::BackgroundFillOptimizerDevice(
+    DisplayDevice& device)
+    : DisplayDevice(device.raw_width(), device.raw_height()),
+      device_(device),
+      buffer_(device_.raw_width(), device_.raw_height()),
+      optimizer_(device_, buffer_) {
+  setOrientation(device.orientation());
+}
+
+void BackgroundFillOptimizerDevice::setPalette(const Color* palette,
+                                               uint8_t palette_size) {
+  buffer_.setPalette(palette, palette_size);
+  optimizer_.updatePalette(buffer_.palette(), buffer_.palette_size());
+  buffer_.invalidate();
+}
+
+void BackgroundFillOptimizerDevice::setPalette(
+    std::initializer_list<Color> palette) {
+  uint8_t size = palette.size();
+  const Color* p = size == 0 ? nullptr : &*palette.begin();
+  setPalette(p, size);
 }
 
 }  // namespace roo_display

@@ -89,10 +89,15 @@ class BackgroundFillOptimizer : public DisplayOutput {
     // Clear the entire background mask to zero.
     void invalidate();
 
+    void setSwapXY(bool swap);
+
     // Clears the background mask to zero, for the area that fully covers the
     // specified target rectangle. Useful e.g. if the display has been drawn to
     // out-of-bounds, i.e. directly via the device.
     void invalidateRect(const Box& rect);
+
+    const Color* palette() const { return palette_; }
+    const uint8_t palette_size() const { return palette_size_; }
 
    private:
     friend class BackgroundFillOptimizer;
@@ -103,6 +108,7 @@ class BackgroundFillOptimizer : public DisplayOutput {
     internal::NibbleRect background_mask_;
     Color palette_[15];
     uint8_t palette_size_;
+    bool swap_xy_;
     std::unique_ptr<uint8_t[]> owned_buffer_;
   };
 
@@ -131,6 +137,13 @@ class BackgroundFillOptimizer : public DisplayOutput {
                   uint16_t pixel_count) override;
 
  private:
+  friend class BackgroundFillOptimizerDevice;
+
+  void updatePalette(const Color* palette, uint8_t palette_size) {
+    palette_ = palette;
+    palette_size_ = palette_size;
+  }
+
   // Returns an int from 1 to 15 (inclusive) if the specified color is found in
   // the background palette, and 0 otherwise.
   inline uint8_t getIdxInPalette(Color color);
@@ -144,12 +157,70 @@ class BackgroundFillOptimizer : public DisplayOutput {
   DisplayOutput& output_;
   internal::NibbleRect* background_mask_;
   const Color* palette_;
-  const uint8_t palette_size_;
+  uint8_t palette_size_;
 
   Box address_window_;
   BlendingMode blending_mode_;
   int16_t cursor_x_;
   int16_t cursor_y_;
+};
+
+class BackgroundFillOptimizerDevice : public DisplayDevice {
+ public:
+  BackgroundFillOptimizerDevice(DisplayDevice& device);
+
+  void setPalette(const Color* palette, uint8_t palette_size);
+
+  void setPalette(std::initializer_list<Color> palette);
+
+  void init() override { device_.init(); }
+
+  void orientationUpdated() override {
+    device_.orientationUpdated();
+    buffer_.setSwapXY(orientation().isXYswapped());
+  }
+
+  virtual void setBgColorHint(Color bgcolor) {
+    device_.setBgColorHint(bgcolor);
+  }
+
+  void begin() override { device_.begin(); }
+
+  void end() override { device_.end(); }
+
+  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
+                  BlendingMode mode) override {
+    optimizer_.setAddress(x0, y0, x1, y1, mode);
+  }
+
+  void write(Color* color, uint32_t pixel_count) override {
+    optimizer_.write(color, pixel_count);
+  }
+
+  void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
+                  int16_t* x1, int16_t* y1, uint16_t count) override {
+    optimizer_.writeRects(mode, color, x0, y0, x1, y1, count);
+  }
+
+  void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
+                 int16_t* x1, int16_t* y1, uint16_t count) override {
+    optimizer_.fillRects(mode, color, x0, y0, x1, y1, count);
+  }
+
+  void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
+                   uint16_t pixel_count) override {
+    optimizer_.writePixels(mode, color, x, y, pixel_count);
+  }
+
+  void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
+                  uint16_t pixel_count) override {
+    optimizer_.fillPixels(mode, color, x, y, pixel_count);
+  }
+
+ private:
+  DisplayDevice& device_;
+  BackgroundFillOptimizer::FrameBuffer buffer_;
+  BackgroundFillOptimizer optimizer_;
 };
 
 }  // namespace roo_display

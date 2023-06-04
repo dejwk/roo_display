@@ -3144,7 +3144,7 @@ The write-once mode can help avoid flicker. For example, rather than drawing a s
 
 Once enabled, the 'write-once' mode cannot be turned off - it is active until the drawing context is destroyed.
 
-Implementation-wise, the 'draw-once' mode uses a filter that internally uses a clip mask to 'mask out' pixels that has been drawn to. The clip mask is allocated when `setWriteOnce()` is called for the first time. Consequently, the feature has a memory footprint of 1 bit per pixel of the affected drawing context.
+Implementation-wise, the 'write-once' mode uses a filter that internally uses a clip mask to 'mask out' pixels that has been drawn to. The clip mask is allocated when `setWriteOnce()` is called for the first time. Consequently, the feature has a memory footprint of 1 bit per pixel of the affected drawing context.
 
 ### Advanced example: animated analog gauge
 

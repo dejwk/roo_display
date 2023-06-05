@@ -42,7 +42,7 @@
 //
 // products::noname::ili9341_red::Kmrtm32032Spi<kPinLcdCs, kPinTouchCs, kPinLcdDc,
 //                                              kPinLcdReset>
-//     display_device(Orientation().rotateLeft());
+//     display_device;
 // Display display(display_device);
 //
 // LedcBacklit backlit(kPinLcdBl, kBlLedcChannel);
@@ -81,7 +81,7 @@ template <int8_t pinLcdCs, int8_t pinTouchCs, int8_t pinLcdDc,
           int8_t pinLcdReset = -1>
 class Kmrtm32032Spi : public ComboDevice {
  public:
-  Kmrtm32032Spi(Orientation orientation = Orientation(),
+  Kmrtm32032Spi(Orientation orientation = Orientation().rotateLeft(),
                 decltype(SPI)& spi = SPI)
       : spi_(spi), display_(spi), touch_() {
     display_.setOrientation(orientation);

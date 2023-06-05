@@ -14,6 +14,57 @@
 // full brigtness. You can also connect it to some digital output pin, and use
 // the controller-specific utility (e.g. LedcBacklit on ESP32) to control the
 // intensity.
+//
+// Sample script:
+//
+// #include <Arduino.h>
+//
+// #include "roo_display.h"
+// #include "roo_display/backlit/esp32_ledc.h"
+// #include "roo_display/shape/basic.h"
+// #include "roo_display/products/noname/ili9341_red/kmrtm32032_spi.h"
+//
+// using namespace roo_display;
+//
+// // Override the constants to match your configuration.
+// static const int kPinSpiSck = 18;
+// static const int kPinSpiMiso = 19;
+// static const int kPinSpiMosi = 23;
+//
+// static const int kPinLcdCs = 5;
+// static const int kPinTouchCs = 2;
+// static const int kPinLcdDc = 17;
+// static const int kPinLcdReset = -1;
+//
+// static const int kPinLcdBl = 16;
+//
+// static const int kBlLedcChannel = 1;
+//
+// products::noname::ili9341_red::Kmrtm32032Spi<kPinLcdCs, kPinTouchCs, kPinLcdDc,
+//                                              kPinLcdReset>
+//     display_device(Orientation().rotateLeft());
+// Display display(display_device);
+//
+// LedcBacklit backlit(kPinLcdBl, kBlLedcChannel);
+//
+// void setup() {
+//   display_device.initTransport(kPinSpiSck, kPinSpiMiso, kPinSpiMosi);
+//   display.init(color::White);
+// }
+//
+// void loop() {
+//   {
+//     DrawingContext dc(display);
+//     dc.fill(Color(rand(), rand(), rand()));
+//   }
+//   int16_t x, y;
+//   if (display.getTouch(x, y)) {
+//     DrawingContext dc(display);
+//     dc.draw(Line(0, y, display.width() - 1, y, color::Red));
+//     dc.draw(Line(x, 0, x, display.height() - 1, color::Red));
+//   }
+//   delay(200);
+// }
 
 #include <Arduino.h>
 #include <SPI.h>

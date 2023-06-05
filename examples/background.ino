@@ -31,6 +31,7 @@ struct Emulator {
 
 #include "roo_display.h"
 #include "roo_display/color/hsv.h"
+#include "roo_display/color/named.h"
 #include "roo_display/core/raster.h"
 #include "roo_display/font/font.h"
 #include "roo_display/ui/string_printer.h"
@@ -250,7 +251,8 @@ void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {
   if (benchmark->background) {
     display.setBackground(&slantedGradient);
   } else {
-    display.setBackground(color::LightGray);
+    display.setBackground(nullptr);
+    display.setBackgroundColor(color::LightGray);
   }
   display.clear();
 

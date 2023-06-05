@@ -1,6 +1,6 @@
 #pragma once
 
-// https://http://www.lcdwiki.com/3.2inch_SPI_Module_ILI9341_SKU:MSP3218
+// http://www.lcdwiki.com/3.2inch_SPI_Module_ILI9341_SKU:MSP3218
 // Maker: ???
 // SKU: MSP3218 ?
 //

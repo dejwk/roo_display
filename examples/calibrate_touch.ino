@@ -54,12 +54,9 @@ void calibrate(Display& display);
 int16_t x, y;
 bool was_touched;
 
-struct Point {
-  int16_t x;
-  int16_t y;
-
-  void swapXY() { std::swap(x, y); }
-};
+Point SwapXY(Point p) {
+  return Point{.x = p.y, .y = p.x};
+}
 
 void setup() {
   // SPI.begin(18, 19, 23, -1);
@@ -81,10 +78,10 @@ struct CalibrationInput {
   Point br;
 
   void swapXY() {
-    tl.swapXY();
-    tr.swapXY();
-    bl.swapXY();
-    br.swapXY();
+    tl = SwapXY(tl);
+    tr = SwapXY(tr);
+    bl = SwapXY(bl);
+    br = SwapXY(br);
   }
 
   void flipHorizontally() {
@@ -103,14 +100,13 @@ void readCalibrationData(Display& display, int16_t x, int16_t y, Point& point) {
     DrawingContext dc(display);
     dc.draw(FilledCircle::ByRadius(x, y, 2, color::Blue));
   }
-  int16_t read_x = 0, read_y = 0, read_z = 0;
+  TouchPoint tp;
   int32_t sum_x = 0, sum_y = 0;
   for (int i = 0; i < 128; ++i) {
-    while (!touch.getTouch(read_x, read_y, read_z)) {
-    }
+    while (touch.getTouch(&tp, 1).touch_points == 0) {}
     Serial.println("Registered!");
-    sum_x += read_x;
-    sum_y += read_y;
+    sum_x += tp.x;
+    sum_y += tp.y;
   }
   point.x = sum_x / 128;
   point.y = sum_y / 128;
@@ -119,8 +115,7 @@ void readCalibrationData(Display& display, int16_t x, int16_t y, Point& point) {
     dc.fill(color::Green);
     dc.fill(color::DarkGray);
   }
-  while (touch.getTouch(read_x, read_y, read_z)) {
-  }
+  while (touch.getTouch(&tp, 1).touch_points != 0) {}
   delay(200);
 }
 

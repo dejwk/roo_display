@@ -1,0 +1,36 @@
+Adafruit benchmark results (ILI9431, SPI, 40 MHz):
+
+TFT_eSPI
+
+TFT_eSPI library test!
+Benchmark                Time (microseconds)
+Screen fill              155921
+Text                     13124
+Lines                    67291
+Horiz/Vert Lines         14367
+Rectangles (outline)     8957
+Rectangles (filled)      320118
+Circles (filled)         46756
+Circles (outline)        26521
+Triangles (outline)      16542
+Triangles (filled)       112442
+Rounded rects (outline)  16116
+Rounded rects (filled)   326816
+Done!
+
+roo_display
+
+Benchmark                Time (microseconds)
+Screen fill              157345
+Text                     10827
+Lines                    88389
+Horiz/Vert Lines         13574
+Rectangles (outline)     8936
+Rectangles (filled)      326623
+Circles (filled)         46769
+Circles (outline)        58786
+Triangles (outline)      21560
+Triangles (filled)       115733
+Rounded rects (outline)  23389
+Rounded rects (filled)   327257
+Done!

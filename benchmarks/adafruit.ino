@@ -1,3 +1,66 @@
+// Latest results (ILI9431, SPI, 40 MHz):
+//
+// TFT_eSPI
+// ---------------------------------------------
+// Benchmark                Time (microseconds)
+// Screen fill              155921
+// Text                     13124
+// Lines                    67291
+// Horiz/Vert Lines         14367
+// Rectangles (outline)     8957
+// Rectangles (filled)      320118
+// Circles (filled)         46756
+// Circles (outline)        26521
+// Triangles (outline)      16542
+// Triangles (filled)       112442
+// Rounded rects (outline)  16116
+// Rounded rects (filled)   326816
+//
+// roo_display
+// ---------------------------------------------
+// Benchmark                Time (microseconds)
+// Screen fill              157345
+// Text                     10827
+// Lines                    88389
+// Horiz/Vert Lines         13574
+// Rectangles (outline)     8936
+// Rectangles (filled)      326623
+// Circles (filled)         46769
+// Circles (outline)        58786
+// Triangles (outline)      21560
+// Triangles (filled)       115733
+// Rounded rects (outline)  23389
+// Rounded rects (filled)   327257
+//
+// roo_display via the TFT_eSPI adapter
+// ---------------------------------------------
+// Benchmark                Time (microseconds)
+// Screen fill              156248
+// Text                     9905
+// Lines                    72240
+// Horiz/Vert Lines         13058
+// Rectangles (outline)     8580
+// Rectangles (filled)      323366
+// Circles (filled)         45968
+// Circles (outline)        61343
+// Triangles (outline)      16914
+// Triangles (filled)       112857
+// Rounded rects (outline)  22461
+// Rounded rects (filled)   324565
+//
+// Conclusions:
+// * Text is doing very well.
+// * Outlined circles need some work; they're nearly 2x slower!
+// * Weirdly, horiz/vert lines faster than TFT_eSPI.
+// * Surprisingly, roo_display via the adapter is sometimes the fastest.
+//   (Examples: filled circles, filled round rects, text, horiz/vert lines). It
+//   means that there are still some TFT_eSPI's low-level optimizations that
+//   roo_display drivers don't match - but also, that the algorithms in
+//   roo_display are faster than those in TFT_eSPI in those cases.
+// * In particular, it would be good to optimize lines, as there is clearly an
+//   opportunity.
+// * Generally, though, the results are fairly close.
+
 #include "Arduino.h"
 
 #ifdef ROO_TESTING
@@ -16,8 +79,7 @@ struct Emulator {
 
   FakeIli9341Spi display;
 
-  Emulator()
-      : viewport(), flexViewport(viewport, 1), display(flexViewport) {
+  Emulator() : viewport(), flexViewport(viewport, 1), display(flexViewport) {
     FakeEsp32().attachSpiDevice(display, 18, 19, 23);
     FakeEsp32().gpio.attachOutput(5, display.cs());
     FakeEsp32().gpio.attachOutput(17, display.dc());
@@ -46,12 +108,12 @@ struct Emulator {
 
 #include "Arduino.h"
 #include "roo_display.h"
+#include "roo_display/backlit/esp32_ledc.h"
 #include "roo_display/font/font.h"
 #include "roo_display/font/font_adafruit_fixed_5x7.h"
+#include "roo_display/shape/basic.h"
 #include "roo_display/ui/string_printer.h"
 #include "roo_display/ui/text_label.h"
-#include "roo_display/shape/basic.h"
-#include "roo_display/backlit/esp32_ledc.h"
 
 using namespace roo_display;
 
@@ -59,13 +121,25 @@ using namespace roo_display;
 // drawables are actually getting drawn. And, since a clip mask is simply
 // a bit-array, you can actually use Offscreen<Monochrome> to manage it.
 
+#define MODE_NATIVE 0
+#define MODE_TFT_ESPI_ADAPTER 1
+
+#define MODE MODE_NATIVE
+
+#if MODE == MODE_NATIVE
 // Change these two lines to use a different driver, transport, or pins.
 #include "roo_display/driver/ili9341.h"
 Ili9341spi<5, 17, 27> device;
+#else
+#include "TFT_eSPI.h"
+#include "roo_display/driver/TFT_eSPI_adapter.h"
+TFT_eSPI_Adapter device;
+#endif
+
 LedcBacklit backlit(16, 1);
 
 Display display(device);
-FontAdafruitFixed5x7 font;
+FontAdafruitFixed5x7 adafont;
 
 unsigned long testFillScreen();
 unsigned long testText();
@@ -195,11 +269,11 @@ class ScreenPrinter {
   void println(const std::string& s) {
     DrawingContext dc(display);
     dc.setTransformation(Transformation()
-                             .translate(0, font.metrics().glyphYMax())
+                             .translate(0, adafont.metrics().glyphYMax())
                              .scale(scale_, scale_)
                              .translate(x_, y_));
-    dc.draw(StringViewLabel(s, font, color_));
-    y_ += font.metrics().linespace() * scale_;
+    dc.draw(StringViewLabel(s, adafont, color_));
+    y_ += adafont.metrics().linespace() * scale_;
   }
   void println(double d) {
     std::string s;

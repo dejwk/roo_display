@@ -22,6 +22,8 @@ class SpiTransport {
 
   void beginTransaction(const SPISettings& settings) {
     spi_.beginTransaction(settings);
+    // Enable write-only mode.
+    WRITE_PERI_REG(SPI_USER_REG(spi_port), SPI_USR_MOSI);
   }
   void endTransaction() { spi_.endTransaction(); }
 
@@ -141,34 +143,36 @@ class SpiTransport {
   void fill16be(uint16_t data, uint32_t len) {
     uint32_t d32 = (data << 16) | data;
     len *= 2;
-    if (len >= 64) {
+    bool large = (len >= 64);
+    if (large) {
       WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 511);
-      while (len >= 64) {
-        WRITE_PERI_REG(SPI_W0_REG(spi_port), d32);
-        WRITE_PERI_REG(SPI_W1_REG(spi_port), d32);
-        WRITE_PERI_REG(SPI_W2_REG(spi_port), d32);
-        WRITE_PERI_REG(SPI_W3_REG(spi_port), d32);
-        WRITE_PERI_REG(SPI_W4_REG(spi_port), d32);
-        WRITE_PERI_REG(SPI_W5_REG(spi_port), d32);
-        WRITE_PERI_REG(SPI_W6_REG(spi_port), d32);
-        WRITE_PERI_REG(SPI_W7_REG(spi_port), d32);
-        WRITE_PERI_REG(SPI_W8_REG(spi_port), d32);
-        WRITE_PERI_REG(SPI_W9_REG(spi_port), d32);
-        WRITE_PERI_REG(SPI_W10_REG(spi_port), d32);
-        WRITE_PERI_REG(SPI_W11_REG(spi_port), d32);
-        WRITE_PERI_REG(SPI_W12_REG(spi_port), d32);
-        WRITE_PERI_REG(SPI_W13_REG(spi_port), d32);
-        WRITE_PERI_REG(SPI_W14_REG(spi_port), d32);
-        WRITE_PERI_REG(SPI_W15_REG(spi_port), d32);
-        SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
+      WRITE_PERI_REG(SPI_W0_REG(spi_port), d32);
+      WRITE_PERI_REG(SPI_W1_REG(spi_port), d32);
+      WRITE_PERI_REG(SPI_W2_REG(spi_port), d32);
+      WRITE_PERI_REG(SPI_W3_REG(spi_port), d32);
+      WRITE_PERI_REG(SPI_W4_REG(spi_port), d32);
+      WRITE_PERI_REG(SPI_W5_REG(spi_port), d32);
+      WRITE_PERI_REG(SPI_W6_REG(spi_port), d32);
+      WRITE_PERI_REG(SPI_W7_REG(spi_port), d32);
+      WRITE_PERI_REG(SPI_W8_REG(spi_port), d32);
+      WRITE_PERI_REG(SPI_W9_REG(spi_port), d32);
+      WRITE_PERI_REG(SPI_W10_REG(spi_port), d32);
+      WRITE_PERI_REG(SPI_W11_REG(spi_port), d32);
+      WRITE_PERI_REG(SPI_W12_REG(spi_port), d32);
+      WRITE_PERI_REG(SPI_W13_REG(spi_port), d32);
+      WRITE_PERI_REG(SPI_W14_REG(spi_port), d32);
+      WRITE_PERI_REG(SPI_W15_REG(spi_port), d32);
+      do {
         len -= 64;
+        SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
         while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR)
           ;
-      }
+      } while (len >= 64);
     }
     if (len == 0) return;
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), (len << 3) - 1);
     do {
+      if (large) break;
       WRITE_PERI_REG(SPI_W0_REG(spi_port), d32);
       if (len <= 4) break;
       WRITE_PERI_REG(SPI_W1_REG(spi_port), d32);
@@ -200,7 +204,6 @@ class SpiTransport {
       WRITE_PERI_REG(SPI_W14_REG(spi_port), d32);
       if (len <= 60) break;
       WRITE_PERI_REG(SPI_W15_REG(spi_port), d32);
-
     } while (false);
     SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
     while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR)
@@ -217,33 +220,35 @@ class SpiTransport {
     uint32_t d1 = d2 << 8 | g;
     uint32_t d0 = d1 << 8 | r;
     len *= 3;
-    if (len >= 60) {
+    bool large = (len >= 60);
+    if (large) {
       WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 479);
-      while (len >= 60) {
-        WRITE_PERI_REG(SPI_W0_REG(spi_port), d0);
-        WRITE_PERI_REG(SPI_W1_REG(spi_port), d1);
-        WRITE_PERI_REG(SPI_W2_REG(spi_port), d2);
-        WRITE_PERI_REG(SPI_W3_REG(spi_port), d0);
-        WRITE_PERI_REG(SPI_W4_REG(spi_port), d1);
-        WRITE_PERI_REG(SPI_W5_REG(spi_port), d2);
-        WRITE_PERI_REG(SPI_W6_REG(spi_port), d0);
-        WRITE_PERI_REG(SPI_W7_REG(spi_port), d1);
-        WRITE_PERI_REG(SPI_W8_REG(spi_port), d2);
-        WRITE_PERI_REG(SPI_W9_REG(spi_port), d0);
-        WRITE_PERI_REG(SPI_W10_REG(spi_port), d1);
-        WRITE_PERI_REG(SPI_W11_REG(spi_port), d2);
-        WRITE_PERI_REG(SPI_W12_REG(spi_port), d0);
-        WRITE_PERI_REG(SPI_W13_REG(spi_port), d1);
-        WRITE_PERI_REG(SPI_W14_REG(spi_port), d2);
+      WRITE_PERI_REG(SPI_W0_REG(spi_port), d0);
+      WRITE_PERI_REG(SPI_W1_REG(spi_port), d1);
+      WRITE_PERI_REG(SPI_W2_REG(spi_port), d2);
+      WRITE_PERI_REG(SPI_W3_REG(spi_port), d0);
+      WRITE_PERI_REG(SPI_W4_REG(spi_port), d1);
+      WRITE_PERI_REG(SPI_W5_REG(spi_port), d2);
+      WRITE_PERI_REG(SPI_W6_REG(spi_port), d0);
+      WRITE_PERI_REG(SPI_W7_REG(spi_port), d1);
+      WRITE_PERI_REG(SPI_W8_REG(spi_port), d2);
+      WRITE_PERI_REG(SPI_W9_REG(spi_port), d0);
+      WRITE_PERI_REG(SPI_W10_REG(spi_port), d1);
+      WRITE_PERI_REG(SPI_W11_REG(spi_port), d2);
+      WRITE_PERI_REG(SPI_W12_REG(spi_port), d0);
+      WRITE_PERI_REG(SPI_W13_REG(spi_port), d1);
+      WRITE_PERI_REG(SPI_W14_REG(spi_port), d2);
+      do {
         SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
         len -= 60;
         while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR)
           ;
-      }
+      } while (len >= 60);
     }
     if (len == 0) return;
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), (len << 3) - 1);
     do {
+      if (large) break;
       WRITE_PERI_REG(SPI_W0_REG(spi_port), d0);
       if (len <= 4) break;
       WRITE_PERI_REG(SPI_W1_REG(spi_port), d1);
@@ -273,7 +278,6 @@ class SpiTransport {
       WRITE_PERI_REG(SPI_W13_REG(spi_port), d1);
       if (len <= 56) break;
       WRITE_PERI_REG(SPI_W14_REG(spi_port), d2);
-
     } while (false);
     SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
     while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR)

@@ -47,7 +47,7 @@ class SpiTransport {
     uint32_t* d32 = (uint32_t*)data;
     if (len >= 64) {
       WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 511);
-      while (len >= 64) {
+      do {
         WRITE_PERI_REG(SPI_W0_REG(spi_port), d32[0]);
         WRITE_PERI_REG(SPI_W1_REG(spi_port), d32[1]);
         WRITE_PERI_REG(SPI_W2_REG(spi_port), d32[2]);
@@ -68,7 +68,7 @@ class SpiTransport {
         len -= 64;
         d32 += 16;
         SpiTxWait(spi_port);
-      }
+      } while (len >= 64);
     }
     if (len == 0) return;
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), (len << 3) - 1);

@@ -14,7 +14,7 @@
 * Clipping: clip rectangles, clip masks;
 * Color: internal 32-bit ARGB; transparency, alpha-blending, alpha-compositing, 140 named HTML colors; multi-node color gradients: linear, radial, angular;
 * Compositing: backgrounds, overlays (sprites), zero-flicker, memory-conservative Porter-Duff and blending modes;
-* Touch: excellent quality drivers with noise filtering and smoothing; supports multi-touch for compliant devices;
+* Touch: excellent quality drivers with noise filtering and smoothing; supports multi-touch on compliant devices;
 * Extensibility: clean abstractions, including drawable objects, device drivers, fonts; supports arbitrary extensions (e.g. user-defined drawables, third-party drivers) as first-class entities;
 * Excellent performance: highly optimized SPI transport, vectorized interfaces;
 * Low footprint: memory-conscious implementation;

@@ -30,7 +30,7 @@ class TFT_eSPI_Adapter : public DisplayDevice {
   TFT_eSPI_Adapter(uint16_t width, uint16_t height)
       : TFT_eSPI_Adapter(Orientation(), width, height) {}
 
-  TFT_eSPI_Adapter(Orientation orientation)
+  TFT_eSPI_Adapter(Orientation orientation = Orientation())
       : TFT_eSPI_Adapter(orientation, TFT_WIDTH, TFT_HEIGHT) {}
 
   TFT_eSPI_Adapter(Orientation orientation, uint16_t width, uint16_t height)

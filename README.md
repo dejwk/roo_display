@@ -19,7 +19,7 @@
 * Excellent performance: highly optimized SPI transport, vectorized interfaces;
 * Low footprint: memory-conscious implementation;
 * Documentation: comprehensive [programming guide](doc/programming_guide.md) available;
-* See also: a companion `roo_windows` library for building complex touch-based UI applications with scroll, animation, etc.
+* See also: a companion [roo_windows](https://github.com/dejwk/roo_windows) library for building complex touch-based UI applications with scroll, animation, etc.
 
 ## Compatibility
 

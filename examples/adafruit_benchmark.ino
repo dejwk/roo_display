@@ -2,7 +2,7 @@
 
 #ifdef ROO_TESTING
 
-#include "roo_testing/devices/display/st77xx/st77xx.h"
+#include "roo_testing/devices/display/ili9341/ili9341spi.h"
 #include "roo_testing/devices/microcontroller/esp32/fake_esp32.h"
 #include "roo_testing/transducers/ui/viewport/flex_viewport.h"
 #include "roo_testing/transducers/ui/viewport/fltk/fltk_viewport.h"
@@ -59,8 +59,8 @@ using namespace roo_display;
 // a bit-array, you can actually use Offscreen<Monochrome> to manage it.
 
 // Change these two lines to use a different driver, transport, or pins.
-#include "roo_display/driver/st7789.h"
-St7789spi_240x240<5, 2, 4> device;
+#include "roo_display/driver/ili9341.h"
+Ili9341spi<5, 2, 4> device;
 
 Display display(device);
 FontAdafruitFixed5x7 font;

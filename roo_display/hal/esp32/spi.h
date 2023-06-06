@@ -9,6 +9,17 @@
 namespace roo_display {
 namespace esp32 {
 
+inline void SpiTxWait(uint8_t spi_port) __attribute__((always_inline));
+inline void SpiTxStart(uint8_t spi_port) __attribute__((always_inline));
+
+inline void SpiTxWait(uint8_t spi_port) {
+  while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR) {}
+}
+
+inline void SpiTxStart(uint8_t spi_port) {
+  SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
+}
+
 template <uint8_t spi_port>
 class SpiTransport {
  public:
@@ -25,7 +36,12 @@ class SpiTransport {
     // Enable write-only mode.
     WRITE_PERI_REG(SPI_USER_REG(spi_port), SPI_USR_MOSI);
   }
-  void endTransaction() { spi_.endTransaction(); }
+  void endTransaction() {
+    // Re-enable read-write mode.
+    WRITE_PERI_REG(SPI_USER_REG(spi_port),
+                   SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN);
+    spi_.endTransaction();
+  }
 
   void writeBytes(uint8_t* data, uint32_t len) {
     uint32_t* d32 = (uint32_t*)data;
@@ -48,11 +64,10 @@ class SpiTransport {
         WRITE_PERI_REG(SPI_W13_REG(spi_port), d32[13]);
         WRITE_PERI_REG(SPI_W14_REG(spi_port), d32[14]);
         WRITE_PERI_REG(SPI_W15_REG(spi_port), d32[15]);
-        SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
+        SpiTxStart(spi_port);
         len -= 64;
         d32 += 16;
-        while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR)
-          ;
+        SpiTxWait(spi_port);
       }
     }
     if (len == 0) return;
@@ -91,49 +106,43 @@ class SpiTransport {
       WRITE_PERI_REG(SPI_W15_REG(spi_port), d32[15]);
 
     } while (false);
-    SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
-    while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR)
-      ;
+    SpiTxStart(spi_port);
+    SpiTxWait(spi_port);
   }
 
   void write(uint8_t data) {
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 7);
     WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
-    SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
-    while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR)
-      ;
+    SpiTxStart(spi_port);
+    SpiTxWait(spi_port);
   }
 
   void write16(uint16_t data) {
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 15);
     WRITE_PERI_REG(SPI_W0_REG(spi_port), byte_order::htobe(data));
-    SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
-    while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR)
-      ;
+    SpiTxStart(spi_port);
+    SpiTxWait(spi_port);
   }
 
   void write16be(uint16_t data) {
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 15);
     WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
-    SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
-    while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR)
-      ;
+    SpiTxStart(spi_port);
+    SpiTxWait(spi_port);
   }
 
   void write32(uint32_t data) {
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
     WRITE_PERI_REG(SPI_W0_REG(spi_port), byte_order::htobe(data));
-    SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
-    while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR)
-      ;
+    SpiTxStart(spi_port);
+    SpiTxWait(spi_port);
   }
 
   void write32be(uint32_t data) {
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
     WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
-    SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
-    while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR)
-      ;
+    SpiTxStart(spi_port);
+    SpiTxWait(spi_port);
   }
 
   void fill16(uint16_t data, uint32_t len) {
@@ -164,9 +173,8 @@ class SpiTransport {
       WRITE_PERI_REG(SPI_W15_REG(spi_port), d32);
       do {
         len -= 64;
-        SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
-        while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR)
-          ;
+        SpiTxStart(spi_port);
+        SpiTxWait(spi_port);
       } while (len >= 64);
     }
     if (len == 0) return;
@@ -205,9 +213,8 @@ class SpiTransport {
       if (len <= 60) break;
       WRITE_PERI_REG(SPI_W15_REG(spi_port), d32);
     } while (false);
-    SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
-    while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR)
-      ;
+    SpiTxStart(spi_port);
+    SpiTxWait(spi_port);
   }
 
   void fill24be(uint32_t data, uint32_t len) {
@@ -239,10 +246,9 @@ class SpiTransport {
       WRITE_PERI_REG(SPI_W13_REG(spi_port), d1);
       WRITE_PERI_REG(SPI_W14_REG(spi_port), d2);
       do {
-        SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
+        SpiTxStart(spi_port);
         len -= 60;
-        while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR)
-          ;
+        SpiTxWait(spi_port);
       } while (len >= 60);
     }
     if (len == 0) return;
@@ -279,9 +285,8 @@ class SpiTransport {
       if (len <= 56) break;
       WRITE_PERI_REG(SPI_W14_REG(spi_port), d2);
     } while (false);
-    SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
-    while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR)
-      ;
+    SpiTxStart(spi_port);
+    SpiTxWait(spi_port);
   }
 
   uint8_t transfer(uint8_t data) { return spi_.transfer(data); }

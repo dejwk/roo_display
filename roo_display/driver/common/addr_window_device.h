@@ -233,7 +233,8 @@ class AddrWindowDevice : public DisplayDevice {
 
   void orientationUpdated() override { target_.setOrientation(orientation()); }
 
-  static inline raw_color_type to_raw_color(Color color) {
+  static inline raw_color_type to_raw_color(Color color)
+      __attribute__((always_inline)) {
     typename Target::ColorMode mode;
     return byte_order::hto<raw_color_type, Target::byte_order>(
         mode.fromArgbColor(color));

@@ -174,7 +174,8 @@ class TFT_eSPI_Adapter : public DisplayDevice {
     tft_.setRotation(orientation().getRotationCount());
   }
 
-  static inline uint16_t to_raw_color(Color color) {
+  static inline uint16_t to_raw_color(Color color)
+      __attribute__((always_inline)) {
     return Rgb565().fromArgbColor(color);
   }
 

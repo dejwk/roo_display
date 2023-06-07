@@ -146,7 +146,8 @@ class BufferedAddrWindowDevice : public DisplayDevice {
  private:
   class RectCache {
    public:
-    void setWindow(int16_t x0, int16_t y0, int16_t x1, int16_t y1) {
+    void setWindow(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
+        __attribute__((always_inline)) {
       window_ = Box(x0, y0, x1, y1);
       begin_ = end_ = 0;
     }

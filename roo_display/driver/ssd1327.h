@@ -113,23 +113,23 @@ class Ssd1327Target {
   }
 
  private:
-  void setXaddr(uint16_t x0, uint16_t x1) {
+  void setXaddr(uint16_t x0, uint16_t x1) __attribute__((always_inline)) {
     uint8_t caset[] = {CASET, x0 / 2, x1 / 2};
     writeCommand(caset, 3);
   }
 
-  void setYaddr(uint16_t y0, uint16_t y1) {
+  void setYaddr(uint16_t y0, uint16_t y1) __attribute__((always_inline)) {
     uint8_t raset[] = {RASET, y0, y1};
     writeCommand(raset, 3);
   }
 
-  void writeCommand(uint8_t c) {
+  void writeCommand(uint8_t c) __attribute__((always_inline)) {
     transport_.cmdBegin();
     transport_.write(c);
     transport_.cmdEnd();
   }
 
-  void writeCommand(uint8_t* c, uint32_t size) {
+  void writeCommand(uint8_t* c, uint32_t size) __attribute__((always_inline)) {
     transport_.cmdBegin();
     transport_.writeBytes(c, size);
     transport_.cmdEnd();

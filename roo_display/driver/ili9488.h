@@ -105,12 +105,12 @@ class Ili9488Target {
     transport_.endTransaction();
   }
 
-  void setXaddr(uint16_t x0, uint16_t x1) {
+  void setXaddr(uint16_t x0, uint16_t x1) __attribute__((always_inline)) {
     writeCommand(CASET);
     transport_.write16x2(x0, x1);
   }
 
-  void setYaddr(uint16_t y0, uint16_t y1) {
+  void setYaddr(uint16_t y0, uint16_t y1) __attribute__((always_inline)) {
     writeCommand(PASET);
     transport_.write16x2(y0, y1);
   }
@@ -171,7 +171,7 @@ class Ili9488Target {
     transport_.write(d);
   }
 
-  void beginRamWrite() { writeCommand(RAMWR); }
+  void beginRamWrite() __attribute__((always_inline)) { writeCommand(RAMWR); }
 
   void ramWrite(uint32_t* data, size_t count) {
     // Compact the buffer.
@@ -188,12 +188,12 @@ class Ili9488Target {
     transport_.writeBytes((uint8_t*)data, byte_count);
   }
 
-  void ramFill(uint32_t data, size_t count) {
+  void ramFill(uint32_t data, size_t count) __attribute__((always_inline)) {
     transport_.fill24be(data, count);
   }
 
  private:
-  void writeCommand(uint8_t c) {
+  void writeCommand(uint8_t c) __attribute__((always_inline)) {
     transport_.cmdBegin();
     transport_.write(c);
     transport_.cmdEnd();

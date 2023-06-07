@@ -59,6 +59,11 @@ class GenericSpi {
 
   void write16(uint16_t data) { spi_.write16(data); }
 
+  void write16x2(uint16_t a, uint16_t b) {
+    spi_.write16(a);
+    spi_.write16(b);
+  }
+
   void write16be(uint16_t data) { spi_.writeBytes((uint8_t*)&data, 2); }
 
   void write32(uint32_t data) { spi_.write32(data); }

@@ -125,7 +125,15 @@ class SpiTransport {
     SpiTxWait(spi_port);
   }
 
-  void write16be(uint16_t data) __attribute__((always_inline)) {
+  void write16x2(uint16_t a, uint16_t b) __attribute((always_inline)) {
+    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
+    WRITE_PERI_REG(SPI_W0_REG(spi_port),
+                   byte_order::htobe(a) | (byte_order::htobe(b) << 16));
+    SpiTxStart(spi_port);
+    SpiTxWait(spi_port);
+  }
+
+  void write16be(uint16_t data) __attribute((always_inline)) {
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 15);
     WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
     SpiTxStart(spi_port);

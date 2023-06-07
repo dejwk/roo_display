@@ -99,12 +99,12 @@ class Ili9341Target {
 
   void setXaddr(uint16_t x0, uint16_t x1) {
     writeCommand(CASET);
-    transport_.write32(x0 << 16 | x1);
+    transport_.write16x2(x0, x1);
   }
 
   void setYaddr(uint16_t y0, uint16_t y1) {
     writeCommand(PASET);
-    transport_.write32(y0 << 16 | y1);
+    transport_.write16x2(y0, y1);
   }
 
   void init() {

@@ -64,12 +64,12 @@ class St77xxTarget {
 
   void setXaddr(uint16_t x0, uint16_t x1) {
     writeCommand(CASET);
-    transport_.write32((x0 + x_offset_) << 16 | (x1 + x_offset_));
+    transport_.write16x2((x0 + x_offset_), (x1 + x_offset_));
   }
 
   void setYaddr(uint16_t y0, uint16_t y1) {
     writeCommand(RASET);
-    transport_.write32((y0 + y_offset_) << 16 | (y1 + y_offset_));
+    transport_.write16x2((y0 + y_offset_), (y1 + y_offset_));
   }
 
   void init() {

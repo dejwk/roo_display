@@ -163,6 +163,13 @@ class ParallelLcd8Bit {
     write(data & 0xFF);
   }
 
+  void write16x2(uint16_t a, uint16_t b) {
+    write(a >> 8);
+    write(a & 0xFF);
+    write(b >> 8);
+    write(b & 0xFF);
+  }
+
   // Writes 2-byte word that has been pre-converted to BE if needed.
   void write16be(uint16_t data) { writeBytes((uint8_t*)&data, 2); }
 

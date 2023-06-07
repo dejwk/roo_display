@@ -13,11 +13,19 @@ inline void SpiTxWait(uint8_t spi_port) __attribute__((always_inline));
 inline void SpiTxStart(uint8_t spi_port) __attribute__((always_inline));
 
 inline void SpiTxWait(uint8_t spi_port) {
-  while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR) {}
+  while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR) {
+  }
 }
 
 inline void SpiTxStart(uint8_t spi_port) {
-  SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
+  // SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
+  // The 'correct' way to set the SPI_USR would be to set just the single bit,
+  // as in the commented-out code above. But the remaining bits of this register
+  // are unused (marked 'reserved'; see
+  // https://www.espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf
+  // page 131). Unconditionally setting the entire register brings significant
+  // performance improvements.
+  WRITE_PERI_REG(SPI_CMD_REG(spi_port), SPI_USR);
 }
 
 template <uint8_t spi_port>

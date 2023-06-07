@@ -54,6 +54,9 @@ class BoundSpiTransaction {
 // If pinRST is negative, it is ignored. Otherwise, it is set to HIGH.
 // If pinDC is negative, the methods cmdBegin() and cmdEnd() should not be
 // called.
+//
+// NOTE(dawidk): force-inlining the methods doesn't seem to do anything; they
+// are inlined already.
 template <int pinCS, int pinDC, int pinRST, typename SpiSettings,
           typename Spi = DefaultSpi, typename Gpio = DefaultGpio>
 class SpiTransport : public BoundSpi<Spi, SpiSettings> {

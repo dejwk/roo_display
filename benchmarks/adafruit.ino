@@ -19,18 +19,18 @@
 // roo_display
 // ---------------------------------------------
 // Benchmark                Time (microseconds)
-// Screen fill              157354
-// Text                     10569
-// Lines                    85425
-// Horiz/Vert Lines         13534
-// Rectangles (outline)     8907
-// Rectangles (filled)      326882
-// Circles (filled)         46066
-// Circles (outline)        56844
-// Triangles (outline)      21184
-// Triangles (filled)       115024
-// Rounded rects (outline)  22321
-// Rounded rects (filled)   327018
+// Screen fill              157344
+// Text                     10465
+// Lines                    84231
+// Horiz/Vert Lines         13528
+// Rectangles (outline)     8872
+// Rectangles (filled)      326035
+// Circles (filled)         45801
+// Circles (outline)        56133
+// Triangles (outline)      19838
+// Triangles (filled)       114482
+// Rounded rects (outline)  21854
+// Rounded rects (filled)   326936
 //
 // roo_display via the TFT_eSPI adapter
 // ---------------------------------------------

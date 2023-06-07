@@ -19,34 +19,34 @@
 // roo_display
 // ---------------------------------------------
 // Benchmark                Time (microseconds)
-// Screen fill              157345
-// Text                     10827
-// Lines                    88389
-// Horiz/Vert Lines         13574
-// Rectangles (outline)     8936
-// Rectangles (filled)      326623
-// Circles (filled)         46769
-// Circles (outline)        58786
-// Triangles (outline)      21560
-// Triangles (filled)       115733
-// Rounded rects (outline)  23389
-// Rounded rects (filled)   327257
+// Screen fill              157354
+// Text                     10569
+// Lines                    85425
+// Horiz/Vert Lines         13534
+// Rectangles (outline)     8907
+// Rectangles (filled)      326882
+// Circles (filled)         46066
+// Circles (outline)        56844
+// Triangles (outline)      21184
+// Triangles (filled)       115024
+// Rounded rects (outline)  22321
+// Rounded rects (filled)   327018
 //
 // roo_display via the TFT_eSPI adapter
 // ---------------------------------------------
 // Benchmark                Time (microseconds)
 // Screen fill              156248
-// Text                     9905
-// Lines                    72240
+// Text                     9906
+// Lines                    72241
 // Horiz/Vert Lines         13058
 // Rectangles (outline)     8580
-// Rectangles (filled)      323366
-// Circles (filled)         45968
-// Circles (outline)        61343
+// Rectangles (filled)      323375
+// Circles (filled)         45967
+// Circles (outline)        61342
 // Triangles (outline)      16914
-// Triangles (filled)       112857
+// Triangles (filled)       112856
 // Rounded rects (outline)  22461
-// Rounded rects (filled)   324565
+// Rounded rects (filled)   324564
 //
 // Conclusions:
 // * Text is doing very well.

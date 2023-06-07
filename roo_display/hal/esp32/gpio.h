@@ -11,7 +11,6 @@ struct Gpio {
   template <int pin>
   static void setLow() {
     if (pin < 32) {
-      GPIO.out_w1ts = (1 << pin);
       GPIO.out_w1tc = (1 << pin);
     } else {
       GPIO.out1_w1tc.val = (1 << (pin - 32));
@@ -21,7 +20,6 @@ struct Gpio {
   template <int pin>
   static void setHigh() {
     if (pin < 32) {
-      GPIO.out_w1tc = (1 << pin);
       GPIO.out_w1ts = (1 << pin);
     } else {
       GPIO.out1_w1ts.val = (1 << (pin - 32));

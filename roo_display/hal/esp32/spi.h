@@ -51,6 +51,49 @@ class SpiTransport {
     spi_.endTransaction();
   }
 
+  void write(uint8_t data) __attribute__((always_inline)) {
+    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 7);
+    WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
+    SpiTxStart(spi_port);
+    SpiTxWait(spi_port);
+  }
+
+  void write16(uint16_t data) __attribute__((always_inline)) {
+    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 15);
+    WRITE_PERI_REG(SPI_W0_REG(spi_port), byte_order::htobe(data));
+    SpiTxStart(spi_port);
+    SpiTxWait(spi_port);
+  }
+
+  void write16x2(uint16_t a, uint16_t b) __attribute((always_inline)) {
+    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
+    WRITE_PERI_REG(SPI_W0_REG(spi_port),
+                   byte_order::htobe(a) | (byte_order::htobe(b) << 16));
+    SpiTxStart(spi_port);
+    SpiTxWait(spi_port);
+  }
+
+  void write16be(uint16_t data) __attribute((always_inline)) {
+    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 15);
+    WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
+    SpiTxStart(spi_port);
+    SpiTxWait(spi_port);
+  }
+
+  void write32(uint32_t data) __attribute__((always_inline)) {
+    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
+    WRITE_PERI_REG(SPI_W0_REG(spi_port), byte_order::htobe(data));
+    SpiTxStart(spi_port);
+    SpiTxWait(spi_port);
+  }
+
+  void write32be(uint32_t data) __attribute__((always_inline)) {
+    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
+    WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
+    SpiTxStart(spi_port);
+    SpiTxWait(spi_port);
+  }
+
   void writeBytes(uint8_t* data, uint32_t len) {
     uint32_t* d32 = (uint32_t*)data;
     if (len >= 64) {
@@ -113,51 +156,7 @@ class SpiTransport {
       WRITE_PERI_REG(SPI_W14_REG(spi_port), d32[14]);
       if (len <= 60) break;
       WRITE_PERI_REG(SPI_W15_REG(spi_port), d32[15]);
-
     } while (false);
-    SpiTxStart(spi_port);
-    SpiTxWait(spi_port);
-  }
-
-  void write(uint8_t data) __attribute__((always_inline)) {
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 7);
-    WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
-    SpiTxStart(spi_port);
-    SpiTxWait(spi_port);
-  }
-
-  void write16(uint16_t data) __attribute__((always_inline)) {
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 15);
-    WRITE_PERI_REG(SPI_W0_REG(spi_port), byte_order::htobe(data));
-    SpiTxStart(spi_port);
-    SpiTxWait(spi_port);
-  }
-
-  void write16x2(uint16_t a, uint16_t b) __attribute((always_inline)) {
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
-    WRITE_PERI_REG(SPI_W0_REG(spi_port),
-                   byte_order::htobe(a) | (byte_order::htobe(b) << 16));
-    SpiTxStart(spi_port);
-    SpiTxWait(spi_port);
-  }
-
-  void write16be(uint16_t data) __attribute((always_inline)) {
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 15);
-    WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
-    SpiTxStart(spi_port);
-    SpiTxWait(spi_port);
-  }
-
-  void write32(uint32_t data) __attribute__((always_inline)) {
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
-    WRITE_PERI_REG(SPI_W0_REG(spi_port), byte_order::htobe(data));
-    SpiTxStart(spi_port);
-    SpiTxWait(spi_port);
-  }
-
-  void write32be(uint32_t data) __attribute__((always_inline)) {
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
-    WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
     SpiTxStart(spi_port);
     SpiTxWait(spi_port);
   }
@@ -307,9 +306,9 @@ class SpiTransport {
     SpiTxWait(spi_port);
   }
 
-  uint8_t transfer(uint8_t data) { return spi_.transfer(data); }
-  uint16_t transfer16(uint16_t data) { return spi_.transfer16(data); }
-  uint32_t transfer32(uint32_t data) { return spi_.transfer32(data); }
+  // uint8_t transfer(uint8_t data) { return spi_.transfer(data); }
+  // uint16_t transfer16(uint16_t data) { return spi_.transfer16(data); }
+  // uint32_t transfer32(uint32_t data) { return spi_.transfer32(data); }
 
  private:
   decltype(SPI)& spi_;

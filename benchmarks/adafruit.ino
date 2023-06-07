@@ -19,47 +19,43 @@
 // roo_display
 // ---------------------------------------------
 // Benchmark                Time (microseconds)
-// Screen fill              156343
-// Text                     9776
-// Lines                    76173
-// Horiz/Vert Lines         13437
-// Rectangles (outline)     8754
-// Rectangles (filled)      323992
-// Circles (filled)         43899
-// Circles (outline)        50940
-// Triangles (outline)      18379
-// Triangles (filled)       112836
-// Rounded rects (outline)  20316
-// Rounded rects (filled)   324523
+// Screen fill              156352
+// Text                     9615
+// Lines                    74883
+// Horiz/Vert Lines         13383
+// Rectangles (outline)     8706
+// Rectangles (filled)      323988
+// Circles (filled)         43620
+// Circles (outline)        50240
+// Triangles (outline)      17823
+// Triangles (filled)       112478
+// Rounded rects (outline)  20009
+// Rounded rects (filled)   324410
 //
 // roo_display via the TFT_eSPI adapter
 // ---------------------------------------------
 // Benchmark                Time (microseconds)
 // Screen fill              156248
-// Text                     9906
-// Lines                    72241
+// Text                     9905
+// Lines                    72240
 // Horiz/Vert Lines         13058
 // Rectangles (outline)     8580
-// Rectangles (filled)      323375
-// Circles (filled)         45967
-// Circles (outline)        61342
+// Rectangles (filled)      323366
+// Circles (filled)         45968
+// Circles (outline)        61343
 // Triangles (outline)      16914
-// Triangles (filled)       112856
+// Triangles (filled)       112857
 // Rounded rects (outline)  22461
-// Rounded rects (filled)   324564
+// Rounded rects (filled)   324565
 //
 // Conclusions:
 // * Text is doing very well.
-// * Outlined circles need some work; they're nearly 2x slower!
+// * Outlined circles need some work; they're nearly 2x slower! This also
+//   affects outlined rounded rects, to a lesser degree.
 // * Weirdly, horiz/vert lines faster than TFT_eSPI.
-// * Surprisingly, roo_display via the adapter is sometimes the fastest.
-//   (Examples: filled circles, filled round rects, text, horiz/vert lines). It
-//   means that there are still some TFT_eSPI's low-level optimizations that
-//   roo_display drivers don't match - but also, that the algorithms in
-//   roo_display are faster than those in TFT_eSPI in those cases.
-// * In particular, it would be good to optimize lines, as there is clearly an
-//   opportunity.
 // * Generally, though, the results are fairly close.
+// * The adapter is doing quite close to raw drivers; in some cases still even
+//   faster (which suggests further optimization opportunities).
 
 #include "Arduino.h"
 

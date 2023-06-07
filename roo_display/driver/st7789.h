@@ -54,6 +54,12 @@ using St7789spi_240x240 = St7789spi_Generic<pinCS, pinDC, pinRST, 240, 240, 0,
 template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
           typename SpiSettings = st7789::DefaultSpiSettings,
           typename Gpio = DefaultGpio>
+using St7789spi_240x280 = St7789spi_Generic<pinCS, pinDC, pinRST, 240, 280, 0,
+                                            20, 0, 0, Spi, SpiSettings, Gpio>;
+  
+template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
+          typename SpiSettings = st7789::DefaultSpiSettings,
+          typename Gpio = DefaultGpio>
 using St7789spi_172x320 = St7789spi_Generic<pinCS, pinDC, pinRST, 172, 320, 34,
                                             0, 34, 0, Spi, SpiSettings, DefaultGpio>;
 

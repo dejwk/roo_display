@@ -86,13 +86,26 @@ class Ili9488Target {
 
   Ili9488Target(uint16_t width = kDefaultWidth,
                 uint16_t height = kDefaultHeight)
-      : transport_(), width_(width), height_(height) {}
+      : transport_(),
+        width_(width),
+        height_(height),
+        last_x0_(-1),
+        last_x1_(-1),
+        last_y0_(-1),
+        last_y1_(-1) {}
 
   Ili9488Target(Transport transport, uint16_t width = kDefaultWidth,
                 uint16_t height = kDefaultHeight)
-      : transport_(std::move(transport)), width_(width), height_(height) {}
+      : transport_(std::move(transport)),
+        width_(width),
+        height_(height),
+        last_x0_(-1),
+        last_x1_(-1),
+        last_y0_(-1),
+        last_y1_(-1) {}
 
   int16_t width() const { return width_; }
+
   int16_t height() const { return height_; }
 
   void begin() {
@@ -101,18 +114,9 @@ class Ili9488Target {
   }
 
   void end() {
+    transport_.sync();
     transport_.end();
     transport_.endTransaction();
-  }
-
-  void setXaddr(uint16_t x0, uint16_t x1) __attribute__((always_inline)) {
-    writeCommand(CASET);
-    transport_.write16x2(x0, x1);
-  }
-
-  void setYaddr(uint16_t y0, uint16_t y1) __attribute__((always_inline)) {
-    writeCommand(PASET);
-    transport_.write16x2(y0, y1);
   }
 
   void init() {
@@ -171,7 +175,25 @@ class Ili9488Target {
     transport_.write(d);
   }
 
-  void beginRamWrite() __attribute__((always_inline)) { writeCommand(RAMWR); }
+  void setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
+      __attribute__((always_inline)) {
+    if (last_x0_ != x0 || last_x1_ != x1) {
+      transport_.sync();
+      writeCommand(CASET);
+      transport_.write16x2_async(x0, x1);
+      last_x0_ = x0;
+      last_x1_ = x1;
+    }
+    if (last_y0_ != y0 || last_y1_ != y1) {
+      transport_.sync();
+      writeCommand(PASET);
+      transport_.write16x2_async(y0, y1);
+      last_y0_ = y0;
+      last_y1_ = y1;
+    }
+    transport_.sync();
+    writeCommand(RAMWR);
+  }
 
   void ramWrite(uint32_t* data, size_t count) {
     // Compact the buffer.
@@ -185,11 +207,12 @@ class Ili9488Target {
       *dest++ = *src++;
     }
     // Write the buffer.
-    transport_.writeBytes((uint8_t*)data, byte_count);
+    transport_.sync();
+    transport_.writeBytes_async((uint8_t*)data, byte_count);
   }
 
   void ramFill(uint32_t data, size_t count) __attribute__((always_inline)) {
-    transport_.fill24be(data, count);
+    transport_.fill24be_async(data, count);
   }
 
  private:
@@ -207,6 +230,7 @@ class Ili9488Target {
   Transport transport_;
   int16_t width_;
   int16_t height_;
+  uint16_t last_x0_, last_x1_, last_y0_, last_y1_;
 };
 
 }  // namespace ili9488

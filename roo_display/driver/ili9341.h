@@ -78,11 +78,23 @@ class Ili9341Target {
 
   Ili9341Target(uint16_t width = ili9341::kDefaultWidth,
                 uint16_t height = ili9341::kDefaultHeight)
-      : transport_(), width_(width), height_(height) {}
+      : transport_(),
+        width_(width),
+        height_(height),
+        last_x0_(-1),
+        last_x1_(-1),
+        last_y0_(-1),
+        last_y1_(-1) {}
 
   Ili9341Target(Transport transport, uint16_t width = ili9341::kDefaultWidth,
                 uint16_t height = ili9341::kDefaultHeight)
-      : transport_(std::move(transport)), width_(width), height_(height) {}
+      : transport_(std::move(transport)),
+        width_(width),
+        height_(height),
+        last_x0_(-1),
+        last_x1_(-1),
+        last_y0_(-1),
+        last_y1_(-1) {}
 
   int16_t width() const { return width_; }
   int16_t height() const { return height_; }
@@ -93,18 +105,9 @@ class Ili9341Target {
   }
 
   void end() {
+    transport_.sync();
     transport_.end();
     transport_.endTransaction();
-  }
-
-  void setXaddr(uint16_t x0, uint16_t x1) __attribute__((always_inline)) {
-    writeCommand(CASET);
-    transport_.write16x2(x0, x1);
-  }
-
-  void setYaddr(uint16_t y0, uint16_t y1) __attribute__((always_inline)) {
-    writeCommand(PASET);
-    transport_.write16x2(y0, y1);
   }
 
   void init() {
@@ -155,6 +158,7 @@ class Ili9341Target {
   }
 
   void setOrientation(Orientation orientation) {
+    transport_.sync();
     uint8_t d = BGR | (orientation.isXYswapped() ? MV : 0) |
                 (orientation.isTopToBottom() ? 0 : MY) |
                 (orientation.isRightToLeft() ? 0 : MX);
@@ -162,14 +166,35 @@ class Ili9341Target {
     transport_.write(d);
   }
 
-  void beginRamWrite() __attribute__((always_inline)) { writeCommand(RAMWR); }
+  void setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
+      __attribute__((always_inline)) {
+    if (last_x0_ != x0 || last_x1_ != x1) {
+      transport_.sync();
+      writeCommand(CASET);
+      transport_.write16x2_async(x0, x1);
+      last_x0_ = x0;
+      last_x1_ = x1;
+    }
+    if (last_y0_ != y0 || last_y1_ != y1) {
+      transport_.sync();
+      writeCommand(PASET);
+      transport_.write16x2_async(y0, y1);
+      last_y0_ = y0;
+      last_y1_ = y1;
+    }
+    transport_.sync();
+    writeCommand(RAMWR);
+  }
 
   void ramWrite(uint16_t* data, size_t count) __attribute__((always_inline)) {
-    transport_.writeBytes((uint8_t*)data, count * 2);
+    transport_.sync();
+    transport_.writeBytes_async((uint8_t*)data, count * 2);
   }
 
   void ramFill(uint16_t data, size_t count) __attribute__((always_inline)) {
-    transport_.fill16be(data, count);
+    // ramFill is called only once per addr window, so we can assume we're
+    // synced.
+    transport_.fill16be_async(data, count);
   }
 
  private:
@@ -187,6 +212,7 @@ class Ili9341Target {
   Transport transport_;
   int16_t width_;
   int16_t height_;
+  uint16_t last_x0_, last_x1_, last_y0_, last_y1_;
 };
 
 }  // namespace ili9341

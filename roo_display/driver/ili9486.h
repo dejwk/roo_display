@@ -62,12 +62,26 @@ class Ili9486Target {
 
   Ili9486Target(uint16_t width = kDefaultWidth,
                 uint16_t height = kDefaultHeight)
-      : transport_(), width_(width), height_(height) {}
+      : transport_(),
+        width_(width),
+        height_(height),
+        last_x0_(-1),
+        last_x1_(-1),
+        last_y0_(-1),
+        last_y1_(-1) {}
+
   Ili9486Target(Transport transport, uint16_t width = kDefaultWidth,
                 uint16_t height = kDefaultHeight)
-      : transport_(std::move(transport)), width_(width), height_(height) {}
+      : transport_(std::move(transport)),
+        width_(width),
+        height_(height),
+        last_x0_(-1),
+        last_x1_(-1),
+        last_y0_(-1),
+        last_y1_(-1) {}
 
   int16_t width() const { return width_; }
+
   int16_t height() const { return height_; }
 
   void begin() {
@@ -76,26 +90,9 @@ class Ili9486Target {
   }
 
   void end() {
+    transport_.sync();
     transport_.end();
     transport_.endTransaction();
-  }
-
-  void setXaddr(uint16_t x0, uint16_t x1) __attribute__((always_inline)) {
-    writeCommand(CASET);
-    uint8_t xBin[] = {
-        0, (uint8_t)(x0 >> 8), 0, (uint8_t)(x0 >> 0),
-        0, (uint8_t)(x1 >> 8), 0, (uint8_t)(x1 >> 0),
-    };
-    transport_.writeBytes(&xBin[0], 8);
-  }
-
-  void setYaddr(uint16_t y0, uint16_t y1) __attribute__((always_inline)) {
-    writeCommand(PASET);
-    uint8_t yBin[] = {
-        0, (uint8_t)(y0 >> 8), 0, (uint8_t)(y0 >> 0),
-        0, (uint8_t)(y1 >> 8), 0, (uint8_t)(y1 >> 0),
-    };
-    transport_.writeBytes(&yBin[0], 8);
   }
 
   void init() {
@@ -141,14 +138,41 @@ class Ili9486Target {
                        (orientation.isRightToLeft() ? 0 : MX));
   }
 
-  void beginRamWrite() __attribute__((always_inline)) { writeCommand(RAMWR); }
+  void setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
+      __attribute__((always_inline)) {
+    if (last_x0_ != x0 || last_x1_ != x1) {
+      transport_.sync();
+      writeCommand(CASET);
+      uint8_t xBin[] = {
+          0, (uint8_t)(x0 >> 8), 0, (uint8_t)(x0 >> 0),
+          0, (uint8_t)(x1 >> 8), 0, (uint8_t)(x1 >> 0),
+      };
+      transport_.writeBytes_async(&xBin[0], 8);
+      last_x0_ = x0;
+      last_x1_ = x1;
+    }
+    if (last_y0_ != y0 || last_y1_ != y1) {
+      transport_.sync();
+      writeCommand(PASET);
+      uint8_t yBin[] = {
+          0, (uint8_t)(y0 >> 8), 0, (uint8_t)(y0 >> 0),
+          0, (uint8_t)(y1 >> 8), 0, (uint8_t)(y1 >> 0),
+      };
+      transport_.writeBytes_async(&yBin[0], 8);
+      last_y0_ = y0;
+      last_y1_ = y1;
+    }
+    transport_.sync();
+    writeCommand(RAMWR);
+  }
 
   void ramWrite(uint16_t* data, size_t count) __attribute__((always_inline)) {
-    transport_.writeBytes((uint8_t*)data, count * 2);
+    transport_.sync();
+    transport_.writeBytes_async((uint8_t*)data, count * 2);
   }
 
   void ramFill(uint16_t data, size_t count) __attribute__((always_inline)) {
-    transport_.fill16be(data, count);
+    transport_.fill16be_async(data, count);
   }
 
  private:
@@ -166,6 +190,7 @@ class Ili9486Target {
   Transport transport_;
   int16_t width_;
   int16_t height_;
+  uint16_t last_x0_, last_x1_, last_y0_, last_y1_;
 };
 
 }  // namespace ili9486

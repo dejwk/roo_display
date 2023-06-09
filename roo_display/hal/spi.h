@@ -53,7 +53,7 @@ class GenericSpi {
   }
   void endTransaction() { spi_.endTransaction(); }
 
-  void writeBytes(uint8_t* data, uint32_t len) { spi_.writeBytes(data, len); }
+  void sync() {}
 
   void write(uint8_t data) { spi_.write(data); }
 
@@ -64,17 +64,26 @@ class GenericSpi {
     spi_.write16(b);
   }
 
+  void write16x2_async(uint16_t a, uint16_t b) {
+    spi_.write16(a);
+    spi_.write16(b);
+  }
+
   void write16be(uint16_t data) { spi_.writeBytes((uint8_t*)&data, 2); }
 
   void write32(uint32_t data) { spi_.write32(data); }
 
   void write32be(uint32_t data) { spi_.writeBytes((uint8_t*)&data, 4); }
 
-  void fill16(uint16_t data, uint32_t len) {
-    fill16be(byte_order::htobe(data), len);
+  void writeBytes_async(uint8_t* data, uint32_t len) {
+    spi_.writeBytes(data, len);
   }
 
-  void fill16be(uint16_t data, uint32_t len) {
+  void fill16_async(uint16_t data, uint32_t len) {
+    fill16be_async(byte_order::htobe(data), len);
+  }
+
+  void fill16be_async(uint16_t data, uint32_t len) {
     uint8_t buf[64];
     if (len >= 32) {
       pattern_fill<2>(buf, 32, (uint8_t*)&data);
@@ -89,7 +98,7 @@ class GenericSpi {
     spi_.writeBytes(buf, len * 2);
   }
 
-  void fill24be(uint32_t data, uint32_t len) {
+  void fill24be_async(uint32_t data, uint32_t len) {
     uint8_t buf[96];
     if (len >= 32) {
       pattern_fill<3>(buf, 32, ((uint8_t*)&data + 1));

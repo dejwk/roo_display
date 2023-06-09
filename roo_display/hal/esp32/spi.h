@@ -44,12 +44,15 @@ class SpiTransport {
     // Enable write-only mode.
     WRITE_PERI_REG(SPI_USER_REG(spi_port), SPI_USR_MOSI);
   }
+
   void endTransaction() {
     // Re-enable read-write mode.
     WRITE_PERI_REG(SPI_USER_REG(spi_port),
                    SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN);
     spi_.endTransaction();
   }
+
+  void sync() __attribute__((always_inline)) { SpiTxWait(spi_port); }
 
   void write(uint8_t data) __attribute__((always_inline)) {
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 7);
@@ -73,6 +76,13 @@ class SpiTransport {
     SpiTxWait(spi_port);
   }
 
+  void write16x2_async(uint16_t a, uint16_t b) __attribute((always_inline)) {
+    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
+    WRITE_PERI_REG(SPI_W0_REG(spi_port),
+                   byte_order::htobe(a) | (byte_order::htobe(b) << 16));
+    SpiTxStart(spi_port);
+  }
+
   void write16be(uint16_t data) __attribute((always_inline)) {
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 15);
     WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
@@ -94,7 +104,8 @@ class SpiTransport {
     SpiTxWait(spi_port);
   }
 
-  void writeBytes(uint8_t* data, uint32_t len) {
+  void writeBytes_async(uint8_t* data, uint32_t len) {
+    SpiTxWait(spi_port);
     uint32_t* d32 = (uint32_t*)data;
     if (len >= 64) {
       WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 511);
@@ -158,14 +169,14 @@ class SpiTransport {
       WRITE_PERI_REG(SPI_W15_REG(spi_port), d32[15]);
     } while (false);
     SpiTxStart(spi_port);
-    SpiTxWait(spi_port);
   }
 
-  void fill16(uint16_t data, uint32_t len) __attribute__((always_inline)) {
-    fill16be(byte_order::htobe(data), len);
+  void fill16_async(uint16_t data, uint32_t len)
+      __attribute__((always_inline)) {
+    fill16be_async(byte_order::htobe(data), len);
   }
 
-  void fill16be(uint16_t data, uint32_t len) {
+  void fill16be_async(uint16_t data, uint32_t len) {
     uint32_t d32 = (data << 16) | data;
     len *= 2;
     bool large = (len >= 64);
@@ -231,10 +242,9 @@ class SpiTransport {
       WRITE_PERI_REG(SPI_W15_REG(spi_port), d32);
     } while (false);
     SpiTxStart(spi_port);
-    SpiTxWait(spi_port);
   }
 
-  void fill24be(uint32_t data, uint32_t len) {
+  void fill24be_async(uint32_t data, uint32_t len) {
     const uint8_t* buf = (const uint8_t*)(&data);
     uint32_t r = buf[1];
     uint32_t g = buf[2];
@@ -303,12 +313,11 @@ class SpiTransport {
       WRITE_PERI_REG(SPI_W14_REG(spi_port), d2);
     } while (false);
     SpiTxStart(spi_port);
-    SpiTxWait(spi_port);
   }
 
-  // uint8_t transfer(uint8_t data) { return spi_.transfer(data); }
-  // uint16_t transfer16(uint16_t data) { return spi_.transfer16(data); }
-  // uint32_t transfer32(uint32_t data) { return spi_.transfer32(data); }
+  uint8_t transfer(uint8_t data) { return spi_.transfer(data); }
+  uint16_t transfer16(uint16_t data) { return spi_.transfer16(data); }
+  uint32_t transfer32(uint32_t data) { return spi_.transfer32(data); }
 
  private:
   decltype(SPI)& spi_;

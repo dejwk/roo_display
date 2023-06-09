@@ -33,11 +33,8 @@ namespace roo_display {
 //   void begin();
 //   void end();
 //   void setOrientation(Orientation);
-//   void setXaddr(uint16_t x0, uint16_t x1);
-//   void setYaddr(uint16_t y0, uint16_t y1);
-//   void beginRamWrite();
+//   void setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
 //   void ramWrite(raw_color* data, size_t size);
-//   void ramWrite(raw_color data);
 //   void ramFill(raw_color data, size_t count);
 //};
 //
@@ -76,10 +73,6 @@ class AddrWindowDevice : public DisplayDevice {
       : DisplayDevice(orientation, target.width(), target.height()),
         target_(std::move(target)),
         bgcolor_(0xFF7F7F7F),
-        last_x0_(-1),
-        last_x1_(-1),
-        last_y0_(-1),
-        last_y1_(-1),
         compactor_() {}
 
   ~AddrWindowDevice() override {}
@@ -100,19 +93,7 @@ class AddrWindowDevice : public DisplayDevice {
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
                   BlendingMode mode) override {
     blending_mode_ = mode;
-    if (last_x0_ != x0 || last_x1_ != x1) {
-      target_.setXaddr(x0, x1);
-      last_x0_ = x0;
-      last_x1_ = x1;
-    }
-
-    if (last_y0_ != y0 || last_y1_ != y1) {
-      target_.setYaddr(y0, y1);
-      last_y0_ = y0;
-      last_y1_ = y1;
-    }
-
-    target_.beginRamWrite();
+    target_.setAddrWindow(x0, y0, x1, y1);
   }
 
   void write(Color* color, uint32_t pixel_count) override {
@@ -164,6 +145,7 @@ class AddrWindowDevice : public DisplayDevice {
 
   void writePixels(BlendingMode mode, Color* colors, int16_t* xs, int16_t* ys,
                    uint16_t pixel_count) override {
+    blending_mode_ = mode;
     compactor_.drawPixels(
         xs, ys, pixel_count,
         [this, mode, colors](int16_t offset, int16_t x, int16_t y,
@@ -171,20 +153,20 @@ class AddrWindowDevice : public DisplayDevice {
                              int16_t count) {
           switch (direction) {
             case Compactor::RIGHT: {
-              AddrWindowDevice::setAddress(x, y, x + count - 1, y, mode);
+              target_.setAddrWindow(x, y, x + count - 1, y);
               break;
             }
             case Compactor::DOWN: {
-              AddrWindowDevice::setAddress(x, y, x, y + count - 1, mode);
+              target_.setAddrWindow(x, y, x, y + count - 1);
               break;
             }
             case Compactor::LEFT: {
-              AddrWindowDevice::setAddress(x - count + 1, y, x, y, mode);
+              target_.setAddrWindow(x - count + 1, y, x, y);
               std::reverse(colors + offset, colors + offset + count);
               break;
             }
             case Compactor::UP: {
-              AddrWindowDevice::setAddress(x, y - count + 1, x, y, mode);
+              target_.setAddrWindow(x, y - count + 1, x, y);
               std::reverse(colors + offset, colors + offset + count);
               break;
             }
@@ -207,23 +189,19 @@ class AddrWindowDevice : public DisplayDevice {
                           Compactor::WriteDirection direction, int16_t count) {
           switch (direction) {
             case Compactor::RIGHT: {
-              AddrWindowDevice::setAddress(x, y, x + count - 1, y,
-                                           BLENDING_MODE_SOURCE);
+              target_.setAddrWindow(x, y, x + count - 1, y);
               break;
             }
             case Compactor::DOWN: {
-              AddrWindowDevice::setAddress(x, y, x, y + count - 1,
-                                           BLENDING_MODE_SOURCE);
+              target_.setAddrWindow(x, y, x, y + count - 1);
               break;
             }
             case Compactor::LEFT: {
-              AddrWindowDevice::setAddress(x - count + 1, y, x, y,
-                                           BLENDING_MODE_SOURCE);
+              target_.setAddrWindow(x - count + 1, y, x, y);
               break;
             }
             case Compactor::UP: {
-              AddrWindowDevice::setAddress(x, y - count + 1, x, y,
-                                           BLENDING_MODE_SOURCE);
+              target_.setAddrWindow(x, y - count + 1, x, y);
               break;
             }
           }
@@ -250,26 +228,6 @@ class AddrWindowDevice : public DisplayDevice {
     while (pixel_count-- > 0) {
       *dest++ = to_raw_color(*src++);
     }
-    // switch (blending_mode) {
-    //   case BLENDING_MODE_SOURCE: {
-    //     while (pixel_count-- > 0) {
-    //       *dest++ = to_raw_color(*src++);
-    //     }
-    //     break;
-    //   }
-    //   case BLENDING_MODE_SOURCE_OVER: {
-    //     while (pixel_count-- > 0) {
-    //       *dest++ = to_raw_color(AlphaBlend(bgcolor_, *src++));
-    //     }
-    //   }
-    //   case BLENDING_MODE_SOURCE_OVER_OPAQUE: {
-    //     while (pixel_count-- > 0) {
-    //       *dest++ = to_raw_color(AlphaBlendOverOpaque(bgcolor_, *src++));
-    //     }
-    //   }
-    //   default:
-    //     break;
-    // }
     return src;
   }
 

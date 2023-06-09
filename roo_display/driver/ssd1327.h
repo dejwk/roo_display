@@ -67,7 +67,7 @@ class Ssd1327Target {
           offset = 0;
           for (int16_t y = y0; y <= y1; y += 2) {
             uint8_t datum = (ptr[offset] & 0xF0) + (ptr[offset + 64] >> 4);
-            transport_.writeBytes(&datum, 1);
+            transport_.write(datum);
             offset += 128;
           }
         }
@@ -75,7 +75,7 @@ class Ssd1327Target {
           offset = 0;
           for (int16_t y = y0; y <= y1; y += 2) {
             uint8_t datum = (ptr[offset] << 4) + (ptr[offset + 64] & 0x0F);
-            transport_.writeBytes(&datum, 1);
+            transport_.write(datum);
             offset += 128;
           }
         }
@@ -96,7 +96,7 @@ class Ssd1327Target {
           // source data won't be mutated, so technically we'd need to use an
           // extra buffer, perhaps with zero-buffer specializations for
           // platforms that don't mutate.
-          transport_.writeBytes(&datum, 1);
+          transport_.write(datum);
           offset++;
         }
         ptr += 64;
@@ -131,7 +131,8 @@ class Ssd1327Target {
 
   void writeCommand(uint8_t* c, uint32_t size) __attribute__((always_inline)) {
     transport_.cmdBegin();
-    transport_.writeBytes(c, size);
+    transport_.writeBytes_async(c, size);
+    transport_.sync();
     transport_.cmdEnd();
   }
 

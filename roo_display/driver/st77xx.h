@@ -47,9 +47,14 @@ class St77xxTarget {
         width_(display_width),
         height_(display_height),
         x_offset_(lpad),
-        y_offset_(rpad) {}
+        y_offset_(rpad),
+        last_x0_(-1),
+        last_x1_(-1),
+        last_y0_(-1),
+        last_y1_(-1) {}
 
   int16_t width() const { return width_; }
+
   int16_t height() const { return height_; }
 
   void begin() {
@@ -58,18 +63,9 @@ class St77xxTarget {
   }
 
   void end() {
+    transport_.sync();
     transport_.end();
     transport_.endTransaction();
-  }
-
-  void setXaddr(uint16_t x0, uint16_t x1) __attribute__((always_inline)) {
-    writeCommand(CASET);
-    transport_.write16x2((x0 + x_offset_), (x1 + x_offset_));
-  }
-
-  void setYaddr(uint16_t y0, uint16_t y1) __attribute__((always_inline)) {
-    writeCommand(RASET);
-    transport_.write16x2((y0 + y_offset_), (y1 + y_offset_));
   }
 
   void init() {
@@ -92,18 +88,33 @@ class St77xxTarget {
     y_offset_ = orientation.isXYswapped() ? xoffset : yoffset;
   }
 
-  void beginRamWrite() __attribute__((always_inline)) { writeCommand(RAMWR); }
-
-  void ramWrite(uint16_t data) __attribute__((always_inline)) {
-    transport_.write16be(data);
+  void setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
+      __attribute__((always_inline)) {
+    if (last_x0_ != x0 || last_x1_ != x1) {
+      transport_.sync();
+      writeCommand(CASET);
+      transport_.write16x2_async((x0 + x_offset_), (x1 + x_offset_));
+      last_x0_ = x0;
+      last_x1_ = x1;
+    }
+    if (last_y0_ != y0 || last_y1_ != y1) {
+      transport_.sync();
+      writeCommand(RASET);
+      transport_.write16x2_async((y0 + y_offset_), (y1 + y_offset_));
+      last_y0_ = y0;
+      last_y1_ = y1;
+    }
+    transport_.sync();
+    writeCommand(RAMWR);
   }
 
   void ramWrite(uint16_t* data, size_t count) __attribute__((always_inline)) {
-    transport_.writeBytes((uint8_t*)data, count * 2);
+    transport_.sync();
+    transport_.writeBytes_async((uint8_t*)data, count * 2);
   }
 
   void ramFill(uint16_t data, size_t count) __attribute__((always_inline)) {
-    transport_.fill16be(data, count);
+    transport_.fill16be_async(data, count);
   }
 
   void writeCommand(uint8_t c) __attribute__((always_inline)) {
@@ -125,6 +136,7 @@ class St77xxTarget {
   int16_t height_;
   int16_t x_offset_;
   int16_t y_offset_;
+  uint16_t last_x0_, last_x1_, last_y0_, last_y1_;
 };
 
 }  // namespace st77xx

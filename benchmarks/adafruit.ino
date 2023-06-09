@@ -19,18 +19,18 @@
 // roo_display
 // ---------------------------------------------
 // Benchmark                Time (microseconds)
-// Screen fill              156352
-// Text                     9615
-// Lines                    74883
-// Horiz/Vert Lines         13383
-// Rectangles (outline)     8706
-// Rectangles (filled)      323988
-// Circles (filled)         43620
-// Circles (outline)        50240
-// Triangles (outline)      17823
-// Triangles (filled)       112478
-// Rounded rects (outline)  20009
-// Rounded rects (filled)   324410
+// Screen fill              156356
+// Text                     8887
+// Lines                    71168
+// Horiz/Vert Lines         13105
+// Rectangles (outline)     8529
+// Rectangles (filled)      323855
+// Circles (filled)         41275
+// Circles (outline)        43675
+// Triangles (outline)      16569
+// Triangles (filled)       110874
+// Rounded rects (outline)  18032
+// Rounded rects (filled)   323767
 //
 // roo_display via the TFT_eSPI adapter
 // ---------------------------------------------
@@ -48,14 +48,16 @@
 // Rounded rects (outline)  22461
 // Rounded rects (filled)   324565
 //
+
+
+
 // Conclusions:
 // * Text is doing very well.
 // * Outlined circles need some work; they're nearly 2x slower! This also
 //   affects outlined rounded rects, to a lesser degree.
 // * Weirdly, horiz/vert lines faster than TFT_eSPI.
 // * Generally, though, the results are fairly close.
-// * The adapter is doing quite close to raw drivers; in some cases still even
-//   faster (which suggests further optimization opportunities).
+// * The adapter is doing quite close to raw drivers.
 
 #include "Arduino.h"
 

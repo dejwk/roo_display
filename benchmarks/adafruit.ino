@@ -1,4 +1,22 @@
-// Latest results (ILI9431, SPI, 40 MHz):
+// Latest results:
+//
+// ILI9431, SPI, 40 MHz:
+//
+// roo_display
+// ---------------------------------------------
+// Benchmark                Time (microseconds)
+// Screen fill              156391
+// Text                     8886
+// Lines                    70958
+// Horiz/Vert Lines         13129
+// Rectangles (outline)     8535
+// Rectangles (filled)      323802
+// Circles (filled)         40890
+// Circles (outline)        25099
+// Triangles (outline)      16604
+// Triangles (filled)       111222
+// Rounded rects (outline)  12087
+// Rounded rects (filled)   323704
 //
 // TFT_eSPI
 // ---------------------------------------------
@@ -16,41 +34,124 @@
 // Rounded rects (outline)  16116
 // Rounded rects (filled)   326816
 //
+// roo_display via the TFT_eSPI adapter
+// ---------------------------------------------
+// Benchmark                Time (microseconds)
+// Screen fill              156240
+// Text                     10090
+// Lines                    72032
+// Horiz/Vert Lines         13043
+// Rectangles (outline)     8620
+// Rectangles (filled)      323771
+// Circles (filled)         52080
+// Circles (outline)        44510
+// Triangles (outline)      16856
+// Triangles (filled)       112740
+// Rounded rects (outline)  14459
+// Rounded rects (filled)   325618
+//
+// ST7735S, 128x160, SPI, 20 MHz:
+//
 // roo_display
 // ---------------------------------------------
 // Benchmark                Time (microseconds)
-// Screen fill              156356
-// Text                     8887
-// Lines                    71163
-// Horiz/Vert Lines         13105
-// Rectangles (outline)     8530
-// Rectangles (filled)      323845
-// Circles (filled)         41263
-// Circles (outline)        24512
-// Triangles (outline)      16568
-// Triangles (filled)       110923
-// Rounded rects (outline)  12172
-// Rounded rects (filled)   323767
+// Screen fill              83118
+// Text                     7486
+// Lines                    30452
+// Horiz/Vert Lines         7232
+// Rectangles (outline)     4749
+// Rectangles (filled)      100987
+// Circles (filled)         18260
+// Circles (outline)        10100
+// Triangles (outline)      7733
+// Triangles (filled)       35873
+// Rounded rects (outline)  6537
+// Rounded rects (filled)   100614
+//
+// TFT_eSPI
+// ---------------------------------------------
+// Benchmark                Time (microseconds)
+// Screen fill              82683
+// Text                     6257
+// Lines                    29712
+// Horiz/Vert Lines         7815
+// Rectangles (outline)     5002
+// Rectangles (filled)      98809
+// Circles (filled)         20444
+// Circles (outline)        10994
+// Triangles (outline)      7990
+// Triangles (filled)       36908
+// Rounded rects (outline)  8887
+// Rounded rects (filled)   102241
 //
 // roo_display via the TFT_eSPI adapter
 // ---------------------------------------------
 // Benchmark                Time (microseconds)
-// Screen fill              156248
-// Text                     9906
-// Lines                    72240
-// Horiz/Vert Lines         13057
-// Rectangles (outline)     8580
-// Rectangles (filled)      323366
-// Circles (filled)         45964
-// Circles (outline)        34653
-// Triangles (outline)      16906
-// Triangles (filled)       112854
-// Rounded rects (outline)  14058
-// Rounded rects (filled)   324577
+// Screen fill              82985
+// Text                     8464
+// Lines                    30836
+// Horiz/Vert Lines         7088
+// Rectangles (outline)     4882
+// Rectangles (filled)      100708
+// Circles (filled)         21940
+// Circles (outline)        15769
+// Triangles (outline)      7861
+// Triangles (filled)       36965
+// Rounded rects (outline)  7810
+// Rounded rects (filled)   101655
+//
+// ILI9486, 480x320, SPI, 20 MHz:
+//
+// roo_display
+// ---------------------------------------------
+// Benchmark                Time (microseconds)
+// Screen fill              619915
+// Text                     18682
+// Lines                    359217
+// Horiz/Vert Lines         51600
+// Rectangles (outline)     29135
+// Rectangles (filled)      1510599
+// Circles (filled)         173678
+// Circles (outline)        109563
+// Triangles (outline)      73377
+// Triangles (filled)       509224
+// Rounded rects (outline)  48110
+// Rounded rects (filled)   1507374
+//
+// TFT_eSPI
+// ---------------------------------------------
+// Screen fill              619494
+// Text                     30820
+// Lines                    378762
+// Horiz/Vert Lines         53662
+// Rectangles (outline)     30291
+// Rectangles (filled)      1497032
+// Circles (filled)         211437
+// Circles (outline)        135283
+// Triangles (outline)      77472
+// Triangles (filled)       525403
+// Rounded rects (outline)  64979
+// Rounded rects (filled)   1524179
+//
+// roo_display via the TFT_eSPI adapter
+// ---------------------------------------------
+// Benchmark                Time (microseconds)
+// Screen fill              619846
+// Text                     23060
+// Lines                    380598
+// Horiz/Vert Lines         51672
+// Rectangles (outline)     29723
+// Rectangles (filled)      1509940
+// Circles (filled)         218639
+// Circles (outline)        173067
+// Triangles (outline)      77706
+// Triangles (filled)       526533
+// Rounded rects (outline)  60405
+// Rounded rects (filled)   1516581
 
 // Conclusions:
-// * Generally, performance of roo_display is close to TFT_eSPI. It outperforms
-//   it in some cases.
+// * Generally, performance of roo_display is close to TFT_eSPI; in most
+//   benchmarks slightly better.
 // * Text is doing particularly well.
 // * The adapter is doing quite close to raw drivers, except for outlined
 //   circles maybe.

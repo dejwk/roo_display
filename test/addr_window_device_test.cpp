@@ -51,25 +51,17 @@ class TestTarget {
     inTransaction_ = false;
   }
 
-  void setXaddr(uint16_t x0, uint16_t x1) {
+  void setAddrWindow(int16_t x0, int16_t y0, int16_t x1, int16_t y1) {
     xMin_ = x0;
-    xMax_ = x1;
-    inRamWrite_ = false;
-  }
-
-  void setYaddr(uint16_t y0, uint16_t y1) {
     yMin_ = y0;
+    xMax_ = x1;
     yMax_ = y1;
-    inRamWrite_ = false;
-  }
-
-  void setOrientation(Orientation orientation) { orientation_ = orientation; }
-
-  void beginRamWrite() {
     xCursor_ = xMin_;
     yCursor_ = yMin_;
     inRamWrite_ = true;
   }
+
+  void setOrientation(Orientation orientation) { orientation_ = orientation; }
 
   void ramWrite(ColorStorageType<ColorMode>* raw_color, size_t count) {
     EXPECT_TRUE(inRamWrite_);

@@ -186,39 +186,41 @@ std::unique_ptr<PixelStream> FilledRect::createStream(const Box &bounds) const {
 }
 
 // Also used to draw regular circles.
-template <typename PixelFiller>
-void drawRoundRectCorners(PixelFiller &drawer, int16_t x0, int16_t y0, int x1,
-                          int y1, int16_t r) {
-  // Optimized midpoint circle algorithm.
-  int16_t x = 0;
-  int16_t y = r;
-  int16_t dx = 1;
-  int16_t dy = r + r;
-  int16_t p = -(r >> 1);
+template <typename RectFiller>
+void drawRoundRectTmpl(RectFiller &filler, int16_t x0, int16_t y0, int x1,
+                       int y1, int16_t r) {
+  int32_t f = 2 - r;
+  int32_t ddF_y = -2 * r;
+  int32_t ddF_x = 1;
+  int32_t xe = 0;
 
-  while (x < y) {
-    if (p >= 0) {
-      dy -= 2;
-      p -= dy;
-      y--;
+  while (f < 0) {
+    ++xe;
+    f += (ddF_x += 2);
+  }
+  f += (ddF_y += 2);
+  filler.fillHLine(x0 - xe, y1 + r, x1 + xe);
+  filler.fillHLine(x0 - xe, y0 - r, x1 + xe);
+  filler.fillVLine(x1 + r, y0 - xe, y1 + xe);
+  filler.fillVLine(x0 - r, y0 - xe, y1 + xe);
+
+  while (xe < --r) {
+    int32_t xs = xe + 1;
+    while (f < 0) {
+      ++xe;
+      f += (ddF_x += 2);
     }
+    f += (ddF_y += 2);
 
-    dx += 2;
-    p += dx;
+    filler.fillHLine(x0 - xe, y1 + r, x0 - xs);
+    filler.fillHLine(x0 - xe, y0 - r, x0 - xs);
+    filler.fillHLine(x1 + xs, y0 - r, x1 + xe);
+    filler.fillHLine(x1 + xs, y1 + r, x1 + xe);
 
-    x++;
-
-    // These are ordered to minimise coordinate changes in x or y
-    // drawPixel can then send fewer bounding box commands.
-    drawer.fillPixel(x1 + x, y1 + y);
-    drawer.fillPixel(x0 - x, y1 + y);
-    drawer.fillPixel(x0 - x, y0 - y);
-    drawer.fillPixel(x1 + x, y0 - y);
-
-    drawer.fillPixel(x1 + y, y1 + x);
-    drawer.fillPixel(x0 - y, y1 + x);
-    drawer.fillPixel(x0 - y, y0 - x);
-    drawer.fillPixel(x1 + y, y0 - x);
+    filler.fillVLine(x1 + r, y1 + xs, y1 + xe);
+    filler.fillVLine(x1 + r, y0 - xe, y0 - xs);
+    filler.fillVLine(x0 - r, y0 - xe, y0 - xs);
+    filler.fillVLine(x0 - r, y1 + xs, y1 + xe);
   }
 }
 
@@ -299,33 +301,11 @@ void drawRoundRect(DisplayOutput &output, const Box &bbox, int16_t radius,
   int16_t x1 = bbox.xMax() - radius;
   int16_t y1 = bbox.yMax() - radius;
   if (clip_box.contains(bbox)) {
-    {
-      BufferedPixelFiller drawer(output, color, mode);
-      drawRoundRectCorners(drawer, x0, y0, x1, y1, radius);
-    }
     BufferedRectFiller filler(output, color, mode);
-    if (x0 <= x1) {
-      filler.fillHLine(x0, bbox.yMin(), x1);
-      filler.fillHLine(x0, bbox.yMax(), x1);
-    }
-    if (y0 <= y1) {
-      filler.fillVLine(bbox.xMin(), y0, y1);
-      filler.fillVLine(bbox.xMax(), y0, y1);
-    }
+    drawRoundRectTmpl(filler, x0, y0, x1, y1, radius);
   } else {
-    {
-      ClippingBufferedPixelFiller drawer(output, color, clip_box, mode);
-      drawRoundRectCorners(drawer, x0, y0, x1, y1, radius);
-    }
     ClippingBufferedRectFiller filler(output, color, clip_box, mode);
-    if (x0 <= x1) {
-      filler.fillHLine(x0, bbox.yMin(), x1);
-      filler.fillHLine(x0, bbox.yMax(), x1);
-    }
-    if (y0 <= y1) {
-      filler.fillVLine(bbox.xMin(), y0, y1);
-      filler.fillVLine(bbox.xMax(), y0, y1);
-    }
+    drawRoundRectTmpl(filler, x0, y0, x1, y1, radius);
   }
 }
 

@@ -21,43 +21,39 @@
 // Benchmark                Time (microseconds)
 // Screen fill              156356
 // Text                     8887
-// Lines                    71168
+// Lines                    71163
 // Horiz/Vert Lines         13105
-// Rectangles (outline)     8529
-// Rectangles (filled)      323855
-// Circles (filled)         41275
-// Circles (outline)        43675
-// Triangles (outline)      16569
-// Triangles (filled)       110874
-// Rounded rects (outline)  18032
+// Rectangles (outline)     8530
+// Rectangles (filled)      323845
+// Circles (filled)         41263
+// Circles (outline)        24512
+// Triangles (outline)      16568
+// Triangles (filled)       110923
+// Rounded rects (outline)  12172
 // Rounded rects (filled)   323767
 //
 // roo_display via the TFT_eSPI adapter
 // ---------------------------------------------
 // Benchmark                Time (microseconds)
 // Screen fill              156248
-// Text                     9905
+// Text                     9906
 // Lines                    72240
-// Horiz/Vert Lines         13058
+// Horiz/Vert Lines         13057
 // Rectangles (outline)     8580
 // Rectangles (filled)      323366
-// Circles (filled)         45968
-// Circles (outline)        61343
-// Triangles (outline)      16914
-// Triangles (filled)       112857
-// Rounded rects (outline)  22461
-// Rounded rects (filled)   324565
-//
-
-
+// Circles (filled)         45964
+// Circles (outline)        34653
+// Triangles (outline)      16906
+// Triangles (filled)       112854
+// Rounded rects (outline)  14058
+// Rounded rects (filled)   324577
 
 // Conclusions:
-// * Text is doing very well.
-// * Outlined circles need some work; they're nearly 2x slower! This also
-//   affects outlined rounded rects, to a lesser degree.
-// * Weirdly, horiz/vert lines faster than TFT_eSPI.
-// * Generally, though, the results are fairly close.
-// * The adapter is doing quite close to raw drivers.
+// * Generally, performance of roo_display is close to TFT_eSPI. It outperforms
+//   it in some cases.
+// * Text is doing particularly well.
+// * The adapter is doing quite close to raw drivers, except for outlined
+//   circles maybe.
 
 #include "Arduino.h"
 

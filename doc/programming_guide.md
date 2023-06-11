@@ -2979,6 +2979,9 @@ The way backgrounds internally work is by intercepting and augmenting calls to t
 
 ```cpp
 #include "roo_display/filter/foreground.h"
+#include "roo_display/shape/smooth.h"
+#include "roo_display/ui/text_label.h"
+#include "roo_smooth_fonts/NotoSans_Bold/27.h"
 
 // ...
 
@@ -3050,25 +3053,17 @@ class JumpingPedroSpriteOverlay : public Drawable {
  private:
   void drawTo(const Surface &s) const override {
     static const uint8_t pedro_standing_data[] PROGMEM = {
-        0b00000001, 0b00000000, 0b00000101, 0b01000000, 0b00000101, 0b01000000,
-        0b00000110, 0b01000000, 0b00001001, 0b10000000, 0b00010101, 0b01010000,
-        0b00010101, 0b01010101, 0b01101010, 0b10101010, 0b10010101, 0b01010101,
-        0b01011111, 0b00110100, 0b00011111, 0b11110000, 0b00001111, 0b11000000,
-        0b01100101, 0b01100100, 0b01011001, 0b10010100, 0b11010110, 0b01011100,
-        0b11111101, 0b01011111, 0b11111101, 0b01011111, 0b01111101, 0b01010000,
-        0b01010101, 0b01010000, 0b11110000, 0b11110000, 0b11111100, 0b11111100,
-        0b00111100, 0b11111100,
+        0x01, 0x00, 0x05, 0x40, 0x05, 0x40, 0x06, 0x40, 0x09, 0x80, 0x15,
+        0x50, 0x15, 0x55, 0x6A, 0xAA, 0x95, 0x55, 0x5F, 0x34, 0x1F, 0xF0,
+        0x0F, 0xC0, 0x65, 0x64, 0x59, 0x94, 0xD6, 0x5C, 0xFD, 0x5F, 0xFD,
+        0x5F, 0x7D, 0x50, 0x55, 0x50, 0xF0, 0xF0, 0xFC, 0xFC, 0x3C, 0xFC,
     };
 
     static const uint8_t pedro_jumping_data[] PROGMEM = {
-        0b00000001, 0b00000000, 0b00000101, 0b01000000, 0b00000101, 0b01000000,
-        0b00000110, 0b01000000, 0b00001001, 0b10010000, 0b00000101, 0b01010100,
-        0b00010101, 0b01010100, 0b01011010, 0b10101010, 0b01100101, 0b01010101,
-        0b10011111, 0b00110100, 0b00011111, 0b11110000, 0b11001111, 0b11000011,
-        0b11111001, 0b10011111, 0b11110110, 0b01011111, 0b11110101, 0b01011100,
-        0b01010101, 0b01010000, 0b01010101, 0b01010111, 0b00010101, 0b01011111,
-        0b00010101, 0b00111111, 0b00001111, 0b00001100, 0b00001111, 0b11000000,
-        0b00001111, 0b11000000,
+        0x01, 0x00, 0x05, 0x40, 0x05, 0x40, 0x06, 0x40, 0x09, 0x90, 0x05,
+        0x54, 0x15, 0x54, 0x5A, 0xAA, 0x65, 0x55, 0x9F, 0x34, 0x1F, 0xF0,
+        0xCF, 0xC3, 0xF9, 0x9F, 0xF6, 0x5F, 0xF5, 0x5C, 0x55, 0x50, 0x55,
+        0x57, 0x15, 0x5F, 0x15, 0x3F, 0x0F, 0x0C, 0x0F, 0xC0, 0x0F, 0xC0,
     };
 
     static Color colors[] PROGMEM = {color::Transparent, Color(0xFF7A262C),

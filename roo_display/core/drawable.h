@@ -223,6 +223,10 @@ class Drawable {
   // The implementation must also respect the other surface's parameters,
   // particularly the clip_box - i.e. it is not allowed to draw to output
   // outside of the clip_box.
+  //
+  // The surface's clip-box is always pre-clipped to fit within this drawable's
+  // extents().
+  //
   virtual void drawTo(const Surface &s) const;
 
   // Draws this object's content, ignoring s.fill_mode(). See drawTo().

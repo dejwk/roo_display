@@ -85,7 +85,7 @@ class Ili9486Target {
   int16_t height() const { return height_; }
 
   void begin() {
-    transport_.beginTransaction();
+    transport_.beginWriteOnlyTransaction();
     transport_.begin();
   }
 

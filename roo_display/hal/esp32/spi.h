@@ -39,7 +39,11 @@ class SpiTransport {
 
   SpiTransport(decltype(SPI)& spi) : spi_(spi) {}
 
-  void beginTransaction(const SPISettings& settings) {
+  void beginReadWriteTransaction(const SPISettings& settings) {
+    spi_.beginTransaction(settings);
+  }
+
+  void beginWriteOnlyTransaction(const SPISettings& settings) {
     spi_.beginTransaction(settings);
     // Enable write-only mode.
     WRITE_PERI_REG(SPI_USER_REG(spi_port), SPI_USR_MOSI);

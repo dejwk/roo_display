@@ -25,21 +25,27 @@ class BoundSpi : public Spi {
   template <typename... Args>
   BoundSpi(Args&&... args) : Spi(std::forward<Args>(args)...) {}
 
-  void beginTransaction() {
+  void beginReadWriteTransaction() {
     SPISettings settings(SpiSettings::clock, SpiSettings::bit_order,
                          SpiSettings::data_mode);
-    Spi::beginTransaction(settings);
+    Spi::beginReadWriteTransaction(settings);
+  }
+
+  void beginWriteOnlyTransaction() {
+    SPISettings settings(SpiSettings::clock, SpiSettings::bit_order,
+                         SpiSettings::data_mode);
+    Spi::beginWriteOnlyTransaction(settings);
   }
 };
 
 template <int pinCS, typename BoundSpi, typename Gpio>
-class BoundSpiTransaction {
+class BoundSpiReadWriteTransaction {
  public:
-  BoundSpiTransaction(BoundSpi& spi) : spi_(spi) {
-    spi_.beginTransaction();
+  BoundSpiReadWriteTransaction(BoundSpi& spi) : spi_(spi) {
+    spi_.beginReadWriteTransaction();
     Gpio::template setLow<pinCS>();
   }
-  ~BoundSpiTransaction() {
+  ~BoundSpiReadWriteTransaction() {
     Gpio::template setHigh<pinCS>();
     spi_.endTransaction();
   }

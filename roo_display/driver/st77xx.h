@@ -58,7 +58,7 @@ class St77xxTarget {
   int16_t height() const { return height_; }
 
   void begin() {
-    transport_.beginTransaction();
+    transport_.beginWriteOnlyTransaction();
     transport_.begin();
   }
 

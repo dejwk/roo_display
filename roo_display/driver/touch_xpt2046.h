@@ -138,8 +138,8 @@ int TouchXpt2046<pinCS, Spi, Gpio>::readTouch(TouchPoint* touch_point) {
   //   z_threshold = kSustainedTouchZThreshold;
   // }
 
-  BoundSpiTransaction<pinCS, decltype(spi_transport_), Gpio> transaction(
-      spi_transport_);
+  BoundSpiReadWriteTransaction<pinCS, decltype(spi_transport_), Gpio>
+      transaction(spi_transport_);
 
   int settled_conversions = 0;
   uint16_t x_tmp, y_tmp, z_tmp;

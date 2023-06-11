@@ -44,7 +44,7 @@ class Ssd1327Target {
   int16_t height() const { return kHeight; }
 
   void begin() {
-    transport_.beginTransaction();
+    transport_.beginWriteOnlyTransaction();
     transport_.begin();
   }
 

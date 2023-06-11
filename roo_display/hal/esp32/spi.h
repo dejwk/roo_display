@@ -52,7 +52,11 @@ class SpiTransport {
     spi_.endTransaction();
   }
 
-  void sync() __attribute__((always_inline)) { SpiTxWait(spi_port); }
+  void sync() __attribute__((always_inline)) {
+    // if (need_sync_)
+    SpiTxWait(spi_port);
+    need_sync_ = false;
+  }
 
   void write(uint8_t data) __attribute__((always_inline)) {
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 7);
@@ -81,6 +85,7 @@ class SpiTransport {
     WRITE_PERI_REG(SPI_W0_REG(spi_port),
                    byte_order::htobe(a) | (byte_order::htobe(b) << 16));
     SpiTxStart(spi_port);
+    need_sync_ = true;
   }
 
   void write16be(uint16_t data) __attribute((always_inline)) {
@@ -105,7 +110,6 @@ class SpiTransport {
   }
 
   void writeBytes_async(uint8_t* data, uint32_t len) {
-    SpiTxWait(spi_port);
     uint32_t* d32 = (uint32_t*)data;
     if (len >= 64) {
       WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 511);
@@ -169,6 +173,7 @@ class SpiTransport {
       WRITE_PERI_REG(SPI_W15_REG(spi_port), d32[15]);
     } while (false);
     SpiTxStart(spi_port);
+    need_sync_ = true;
   }
 
   void fill16_async(uint16_t data, uint32_t len)
@@ -242,6 +247,7 @@ class SpiTransport {
       WRITE_PERI_REG(SPI_W15_REG(spi_port), d32);
     } while (false);
     SpiTxStart(spi_port);
+    need_sync_ = true;
   }
 
   void fill24be_async(uint32_t data, uint32_t len) {
@@ -313,6 +319,7 @@ class SpiTransport {
       WRITE_PERI_REG(SPI_W14_REG(spi_port), d2);
     } while (false);
     SpiTxStart(spi_port);
+    need_sync_ = true;
   }
 
   uint8_t transfer(uint8_t data) { return spi_.transfer(data); }
@@ -321,6 +328,7 @@ class SpiTransport {
 
  private:
   decltype(SPI)& spi_;
+  bool need_sync_ = false;
 };
 
 using Vspi = SpiTransport<VSPI>;

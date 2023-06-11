@@ -62,4 +62,4 @@
 ## User documentation
 
 * [Programming guide](doc/programming_guide.md).
-* [Quick start for TFT_eSPI]((doc/for_tft_espi_users.md)) users.
+* [Quick start for TFT_eSPI](doc/for_tft_espi_users.md) users.

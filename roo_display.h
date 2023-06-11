@@ -90,10 +90,11 @@ class Display {
   DisplayOutput &output() { return display_device_; }
   const DisplayOutput &output() const { return display_device_; }
 
-  // If touch has not been registered, returns zero and does not modify
-  // `points'. If k touch points have been registered, sets max(k, max_points)
-  // `points`, and returns k. The points are set using the display's
-  // coordinates.
+  // If touch has not been registered, returns {.touch_points = 0 } and does not
+  // modify `points'. If k touch points have been registered, sets max(k,
+  // max_points) `points`, and returns {.touch_points = k}. In both cases,
+  // returned timestamp_us specifies the micros() corresponding to the
+  // detection time.
   TouchResult getTouch(TouchPoint *points, int max_points) {
     return touch_.getTouch(points, max_points);
   }

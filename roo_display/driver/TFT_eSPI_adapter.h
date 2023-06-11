@@ -62,13 +62,13 @@ class TFT_eSPI_Adapter : public DisplayDevice {
 
   void write(Color* color, uint32_t pixel_count) override {
     uint16_t buffer[64];
+    tft_.setSwapBytes(true);
     while (pixel_count > 64) {
       color = processColorSequence(blending_mode_, color, buffer, 64);
-      tft_.pushBlock(*buffer, 64);
+      tft_.pushPixels(buffer, 64);
       pixel_count -= 64;
     }
     processColorSequence(blending_mode_, color, buffer, pixel_count);
-    tft_.setSwapBytes(true);
     tft_.pushPixels(buffer, pixel_count);
     tft_.setSwapBytes(false);
   }

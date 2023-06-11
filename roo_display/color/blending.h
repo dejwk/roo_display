@@ -554,6 +554,13 @@ struct RawBlender {
     return color_mode.fromArgbColor(
         BlendOp<blending_mode>()(color_mode.toArgbColor(dst), src));
   }
+
+  ColorStorageType<ColorMode> operator()(ColorStorageType<ColorMode> dst,
+                                         Color src,
+                                         ColorMode& color_mode) const {
+    return color_mode.fromArgbColor(
+        BlendOp<blending_mode>()(color_mode.toArgbColor(dst), src));
+  }
 };
 
 template <typename ColorMode>
@@ -561,6 +568,12 @@ struct RawBlender<ColorMode, BLENDING_MODE_SOURCE> {
   ColorStorageType<ColorMode> operator()(ColorStorageType<ColorMode> dst,
                                          Color src,
                                          const ColorMode& color_mode) const {
+    return color_mode.fromArgbColor(src);
+  }
+
+  ColorStorageType<ColorMode> operator()(ColorStorageType<ColorMode> dst,
+                                         Color src,
+                                         ColorMode& color_mode) const {
     return color_mode.fromArgbColor(src);
   }
 };
@@ -584,6 +597,13 @@ struct ApplyRawBlendingResolver {
                                          const ColorMode& color_mode) const {
     return RawBlender<ColorMode, blending_mode>()(dst, src, color_mode);
   }
+
+  template <BlendingMode blending_mode>
+  ColorStorageType<ColorMode> operator()(ColorStorageType<ColorMode> dst,
+                                         Color src,
+                                         ColorMode& color_mode) const {
+    return RawBlender<ColorMode, blending_mode>()(dst, src, color_mode);
+  }
 };
 
 }  // namespace internal
@@ -593,6 +613,16 @@ template <typename ColorMode>
 inline ColorStorageType<ColorMode> ApplyRawBlending(
     BlendingMode blending_mode, ColorStorageType<ColorMode> dst, Color src,
     const ColorMode& color_mode) {
+  return internal::BlenderSpecialization<
+      internal::ApplyRawBlendingResolver<ColorMode>>(blending_mode, dst, src,
+                                                     color_mode);
+}
+
+// As above, for mutable color modes.
+template <typename ColorMode>
+inline ColorStorageType<ColorMode> ApplyRawBlending(
+    BlendingMode blending_mode, ColorStorageType<ColorMode> dst, Color src,
+    ColorMode& color_mode) {
   return internal::BlenderSpecialization<
       internal::ApplyRawBlendingResolver<ColorMode>>(blending_mode, dst, src,
                                                      color_mode);

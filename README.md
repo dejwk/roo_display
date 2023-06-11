@@ -18,7 +18,7 @@
 * Extensibility: clean abstractions, including drawable objects, device drivers, fonts; supports arbitrary extensions (e.g. user-defined drawables, third-party drivers) as first-class entities;
 * Excellent performance: highly optimized SPI transport, vectorized interfaces;
 * Low footprint: memory-conscious implementation;
-* Documentation: comprehensive [programming guide](doc/programming_guide.md) available;
+* Documentation: comprehensive [programming guide](doc/programming_guide.md);
 * See also: a companion [roo_windows](https://github.com/dejwk/roo_windows) library for building complex touch-based UI applications with scroll, animation, etc.
 
 ## Compatibility
@@ -61,4 +61,5 @@
 
 ## User documentation
 
-* See the [programming guide](doc/programming_guide.md).
+* [Programming guide](doc/programming_guide.md).
+* [Quick start for TFT_eSPI]((doc/for_tft_espi_users.md)) users.

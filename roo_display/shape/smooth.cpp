@@ -881,7 +881,7 @@ void DrawRoundRect(SmoothShape::RoundRect rect, const Surface& s,
         Box(box.xMin(), inner.yMin(), inner.xMin() - 1, inner.yMax()));
     if (s.fill_mode() == FILL_MODE_RECTANGLE ||
         rect.interior_color != color::Transparent) {
-      s.out().fillRect(BLENDING_MODE_SOURCE, inner, spec.pre_blended_interior);
+      s.out().fillRect(s.blending_mode(), inner, spec.pre_blended_interior);
     }
     FillSubrectangle(
         rect, spec,

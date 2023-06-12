@@ -81,7 +81,7 @@ Support for drawing to memory buffers is provided by the [Offscreen](https://git
 
 Offscreens are themselves drawable. To draw an offscreen to the screen, you just call `DrawingContext::draw(offscreen)` on the screen's drawing context.
 
-Offscreens support a variety of color modes: `roo_display` understands a large variety of color modes: ARGB 8888, RGBA 8888, RGB 888, ARGB 6666, ARGB 4444, RGB 565, Gray8, Gray4, GrayAlpha8, Alpha8, Alpha4, Indexed8, Indexed4, Indexed2, Indexed1. You can also control byte and bit order.
+Offscreens support a variety of color modes: ARGB 8888, RGBA 8888, RGB 888, ARGB 6666, ARGB 4444, RGB 565, Gray8, Gray4, GrayAlpha8, Alpha8, Alpha4, Indexed8, Indexed4, Indexed2, Indexed1. You can also control byte and bit order.
 
 ### Drawing fast horizontal and vertical lines
 

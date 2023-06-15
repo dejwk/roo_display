@@ -41,8 +41,7 @@
 // static const int kBlLedcChannel = 1;
 //
 // products::noname::ili9341_red::Tjctm24024Spi<kPinLcdCs, kPinTouchCs,
-// kPinLcdDc,
-//                                              kPinLcdReset>
+//                                              kPinLcdDc, kPinLcdReset>
 //     display_device;
 // Display display(display_device);
 //

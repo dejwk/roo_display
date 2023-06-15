@@ -34,11 +34,19 @@ class TouchDisplay {
 
   void init() { touch_device_.initTouch(); }
 
+  // Calibrated, and using the display coordinates.
   TouchResult getTouch(TouchPoint *points, int max_points);
+
+  // Uncalibrated, and using the absolute coordinates: 0-4095.
+  TouchResult getRawTouch(TouchPoint *points, int max_points) {
+    return touch_device_.getTouch(points, max_points);
+  }
 
   void setCalibration(TouchCalibration touch_calibration) {
     touch_calibration_ = touch_calibration;
   }
+
+  const TouchCalibration &calibration() const { return touch_calibration_; }
 
  private:
   DisplayDevice &display_device_;
@@ -87,6 +95,10 @@ class Display {
 
   Orientation orientation() const { return orientation_; }
 
+  const TouchCalibration &touchCalibration() const {
+    return touch_.calibration();
+  }
+
   DisplayOutput &output() { return display_device_; }
   const DisplayOutput &output() const { return display_device_; }
 
@@ -97,6 +109,12 @@ class Display {
   // detection time.
   TouchResult getTouch(TouchPoint *points, int max_points) {
     return touch_.getTouch(points, max_points);
+  }
+
+  // As above, but results use absolute coordinates (0-4095) and ignore
+  // touch calibration settings.
+  TouchResult getRawTouch(TouchPoint *points, int max_points) {
+    return touch_.getRawTouch(points, max_points);
   }
 
   // If touched, returns true and sets the touch (x, y) coordinates (in device

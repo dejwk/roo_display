@@ -9,7 +9,7 @@
 namespace roo_display {
 
 TouchResult TouchDisplay::getTouch(TouchPoint* points, int max_points) {
-  TouchResult result = touch_device_.getTouch(points, max_points);
+  TouchResult result = getRawTouch(points, max_points);
   if (result.touch_points > 0) {
     Orientation orientation = display_device_.orientation();
     for (int i = 0; i < result.touch_points && i < max_points; ++i) {

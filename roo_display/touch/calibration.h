@@ -24,6 +24,9 @@ class TouchCalibration {
   // Augments the touch point according to the calibration spec.
   void Calibrate(TouchPoint& point);
 
+  const Box& bounds() const { return bounds_; }
+  Orientation orientation() const { return orientation_; }
+
  private:
   Box bounds_;
   Orientation orientation_;

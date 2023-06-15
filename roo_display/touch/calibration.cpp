@@ -13,10 +13,12 @@ void TouchCalibration::Calibrate(TouchPoint& p) {
   if (p.x > bounds_.xMax()) p.x = bounds_.xMax();
   if (p.y < bounds_.yMin()) p.y = bounds_.yMin();
   if (p.y > bounds_.yMax()) p.y = bounds_.yMax();
-  p.x = (int32_t)4096 * (p.x - bounds_.xMin()) / bounds_.width();
-  p.y = (int32_t)4096 * (p.y - bounds_.yMin()) / bounds_.height();
-  p.vx = (int32_t)4096 * p.vx / bounds_.width();
-  p.vy = (int32_t)4096 * p.vy / bounds_.height();
+  int16_t w = bounds_.width();
+  int16_t h = bounds_.height();
+  p.x = ((int32_t)4096 * (p.x - bounds_.xMin()) + w / 2) / w;
+  p.y = ((int32_t)4096 * (p.y - bounds_.yMin()) + h / 2) / h;
+  p.vx = ((int32_t)4096 * p.vx + w / 2) / w;
+  p.vy = ((int32_t)4096 * p.vy + h / 2) / h;
   if (orientation_.isRightToLeft()) {
     p.x = 4095 - p.x;
     p.vx = -p.vx;

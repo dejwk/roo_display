@@ -28,7 +28,7 @@
         "type": "git",
         "url": "https://github.com/dejwk/roo_display"
     },
-    "version": "1.0.1",
+    "version": "1.0.2",
     "homepage": "https://github.com/dejwk/roo_display",
     "frameworks": [
         "Arduino"

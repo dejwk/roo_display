@@ -3165,6 +3165,8 @@ void loop() {
 
 ![img61](images/img61.png)
 
+[![sprite_video_snapshot](images/sprite_video_snapshot.png)](https://youtu.be/RyOe2b5x9Q0)
+
 If you look at the implementation of the `BackgroundFilter` or the `ForegroundFilter`, you will notice that they are specialization of the `BlendingFilter` class, defined in `roo_display/filter/blender.h`:
 
 ```cpp

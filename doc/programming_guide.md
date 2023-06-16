@@ -3389,7 +3389,9 @@ void loop() {
 }
 ```
 
-[![img62](images/img62.png)](https://youtu.be/2BlPR9zMhyM)
+![img62](images/img62.png)
+
+[![img62](images/gauge_video_snapshot.png)](https://youtu.be/kkTuxA0qa34)
 
 Note that:
 

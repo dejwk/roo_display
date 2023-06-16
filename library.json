@@ -1,0 +1,47 @@
+{
+    "name": "roo_display",
+    "description": "Arduino-compliant library, targeted at ESP32 and related boards, for driving display devices and touch panels, e.g. ILI9486, ILI9341, or ST7789. Powerful and fast.",
+    "keywords": [
+        "display",
+        "ILI9341",
+        "ILI9486",
+        "ILI9488",
+        "TFT",
+        "touch",
+        "XPT2046",
+        "LilyGo",
+        "ST7735",
+        "ST7789",
+        "SSD1327",
+        "makerfabs",
+        "waveshare",
+        "capacitive"
+    ],
+    "authors": [
+        {
+            "name": "Dawid Kurzyniec",
+            "email": "dawid.kurzyniec@gmail.com",
+            "maintainer": true
+        }
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/dejwk/roo_display"
+    },
+    "version": "1.0",
+    "homepage": "https://github.com/dejwk/roo_display",
+    "frameworks": [
+        "Arduino"
+    ],
+    "build": {
+        "srcDir": ".",
+        "srcFilter": "+<*> -<examples> -<benchmarks> -<doc> -<test>"
+    },
+    "examples": [
+        "examples/**/*.ino"
+    ],
+    "dependencies": [
+        "SPI",
+        "Wire"
+    ]
+}

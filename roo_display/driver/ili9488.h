@@ -10,6 +10,12 @@ namespace roo_display {
 
 namespace ili9488 {
 
+namespace internal {
+inline static constexpr uint32_t TruncTo6bit(uint8_t c) {
+  return (c - (c >> 7)) >> 2;
+}
+}  // namespace internal
+
 // Stores R, G, B components in high bits of 3 subsequent bytes. Two low bits of
 // each byte are unused.
 class Rgb666h {
@@ -23,8 +29,9 @@ class Rgb666h {
   }
 
   inline constexpr uint32_t fromArgbColor(Color color) const {
-    return (truncTo6bit(color.r()) << 18) | (truncTo6bit(color.g()) << 10) |
-           (truncTo6bit(color.b()) << 2);
+    return (internal::TruncTo6bit(color.r()) << 18) |
+           (internal::TruncTo6bit(color.g()) << 10) |
+           (internal::TruncTo6bit(color.b()) << 2);
   }
 
   inline uint16_t rawAlphaBlend(uint32_t bg, Color color) const {

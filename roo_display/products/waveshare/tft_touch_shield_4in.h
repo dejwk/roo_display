@@ -35,8 +35,8 @@ class TftTouchShield4in : public ComboDevice {
   TouchDevice* touch() override { return &touch_; }
 
   TouchCalibration touch_calibration() override {
-    return TouchCalibration(365, 288, 3829, 3819,
-                            roo_display::Orientation::LeftDown());
+    return TouchCalibration(161, 140, 3965, 3837,
+                            roo_display::Orientation::RightDown());
   }
 
  private:

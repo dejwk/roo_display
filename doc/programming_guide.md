@@ -1690,6 +1690,8 @@ This flexibility means that if you happen to have some existing uncompressed ima
 
 In addition to the general-purpose `RleImage`, the library supports an alternative RLE encoding format, `RleImage4bppxBiased`, designed specifically for 4bpp color modes. This format is intended for cases when the 'boundary' colors, encoded as 0x0 and 0xF, occur significantly more frequently than the 'intermediate' colors 0x1 - 0xE. The main application is to compress Alpha4-encoded, monochrome, antialiased content, such as font glyphs and icons. In these cases, 0x0 represents the fully transparent 'background' and 0xF represents the fully opaque 'foreground', and the intermediate values correspond to different grades of translucency, used for antialiased 'edges'.
 
+In fact, use of this format with the Alpha4 color mode is so common that the library defines a convenience typedef `Pictogram` to simplify it.
+
 ##### Importing images
 
 You can use a companion utility [roo_display_image_importer](https://github.com/dejwk/roo_display_image_importer) to convert arbitrary images to the `roo_display`'s built-in image format:
@@ -1709,7 +1711,6 @@ If you want to use modern high-quality icons, try the companion library [roo_mat
 The icons are monochrome, anti-aliased, and represented in the Alpha4 color mode. You can draw them in any color, using any background. Here is a small example:
 
 ```cpp
-#include "roo_material_icons.h"
 #include "roo_material_icons/round/18/device.h"
 #include "roo_material_icons/round/24/device.h"
 #include "roo_material_icons/round/36/device.h"
@@ -1717,8 +1718,8 @@ The icons are monochrome, anti-aliased, and represented in the Alpha4 color mode
 
 // ...
 
-void drawIcon(DrawingContext& dc, const MaterialIcon& icon, int x, int y, Color color) {
-  MaterialIcon my_icon = icon;
+void drawIcon(DrawingContext& dc, const Pictogram& icon, int x, int y, Color color) {
+  Pictogram my_icon = icon;
   my_icon.color_mode().setColor(color);
   dc.draw(Tile(&my_icon, my_icon.anchorExtents(), kNoAlign), x, y);
 }
@@ -2685,6 +2686,7 @@ THe `roo_display` library supports 12 blending modes, defined in `roo_display/co
 There is a lot of excellent resources on Porter-Duff operators (see e.g. [Søren Sandmann Pedersen's blog](http://ssp.impulsetrain.com/porterduff.html), or the [interactive Wolfram's demo](https://demonstrations.wolfram.com/DuffPorterAlphaCompositingOperators/)). Let's jump right in to see what we can do with using a couple of new blending modes combined with some basic shapes and gradients:
 
 ```cpp
+#include "roo_display/color/gradient.h"
 #include "roo_display/core/offscreen.h"
 #include "roo_display/shape/smooth.h"
 
@@ -2780,10 +2782,10 @@ void loop() {
   stack.addInput(&rect2).withMode(BLENDING_MODE_SOURCE_ATOP);
   stack.addInput(&gradient).withMode(BLENDING_MODE_SOURCE_ATOP);
   stack.addInput(&shadow).withMode(BLENDING_MODE_DESTINATION_OVER);
-
-  DrawingContext dc(display);
-  dc.draw(stack, kCenter | kMiddle);
-
+  {
+    DrawingContext dc(display);
+    dc.draw(stack, kCenter | kMiddle);
+  }
   delay(10000);
 }
 ```

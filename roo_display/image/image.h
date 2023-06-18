@@ -57,6 +57,9 @@ using RleImage4bppxBiased =
     SimpleStreamable<Resource, ColorMode,
                      internal::RleStream4bppxBiased<Resource, ColorMode>>;
 
+// Convenience definition for icons and other small anti-aliased mono artwork.
+using Pictogram = RleImage4bppxBiased<Alpha4>;
+
 // Uncompressed image.
 template <typename Resource, typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,

@@ -362,6 +362,7 @@ GlyphMetrics SmoothFont::getHorizontalStringMetrics(const uint8_t *utf8_data,
   int16_t yMin = 32767;
   int16_t yMax = -32768;
   int16_t xMin = glyphs.right_metrics().lsb();
+  int16_t xMax = xMin;
   do {
     unicode_t code = next_code;
     has_more = decoder.has_next();
@@ -383,9 +384,14 @@ GlyphMetrics SmoothFont::getHorizontalStringMetrics(const uint8_t *utf8_data,
     if (yMin > metrics.glyphYMin()) {
       yMin = metrics.glyphYMin();
     }
+    // NOTE: need to do this at every glyph, because of possibly trailing
+    // spaces.
+    int16_t xm = advance - glyphs.left_metrics().rsb() - 1;
+    if (xm > xMax) {
+      xMax = xm;
+    }
   } while (has_more);
-  return GlyphMetrics(xMin, yMin, advance - glyphs.left_metrics().rsb() - 1,
-                      yMax, advance);
+  return GlyphMetrics(xMin, yMin, xMax, yMax, advance);
 }
 
 uint32_t SmoothFont::getHorizontalStringGlyphMetrics(const uint8_t *utf8_data,
@@ -487,14 +493,13 @@ void SmoothFont::drawHorizontalString(const Surface &s,
       int16_t total_rect_width =
           glyphs.left_metrics().glyphXMax() + 1 - preadvanced;
       if (gap < 0) {
-        // Glyphs overlap; need to use the overlay method.
         drawKernedGlyphsModeFill(
             output, x, y, total_rect_width, glyphs.left_metrics(),
             glyphs.left_data(), -preadvanced, glyphs.right_metrics(),
             glyphs.right_data(), advance - preadvanced,
             Box::Intersect(s.clip_box(), Box(x, y - metrics().glyphYMax(),
-                                             x + total_rect_width - 1,
-                                             y - metrics().glyphYMin())),
+                                              x + total_rect_width - 1,
+                                              y - metrics().glyphYMin())),
             color, s.bgcolor(), s.blending_mode());
       } else {
         // Glyphs do not overlap; can draw them one by one.

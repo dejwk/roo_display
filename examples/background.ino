@@ -117,7 +117,7 @@ void simpleBackground() {
   // dimensions, and the spaces add some clear padding.
   auto labelOrig = StringViewLabel(" Afy ", font_NotoSans_Italic_60(),
                                    color::Black, FILL_MODE_RECTANGLE);
-  auto labelScaled = StringViewLabel(" Afy ", font_NotoSans_Italic_12(),
+  auto labelScaled = StringViewLabel("  Afy  ", font_NotoSans_Italic_12(),
                                      color::Black, FILL_MODE_RECTANGLE);
   auto labelScaledMore = StringViewLabel(" Afy ", font_NotoSans_Italic_8(),
                                          color::Black, FILL_MODE_RECTANGLE);
@@ -138,8 +138,8 @@ void simpleBackground() {
   {
     DrawingContext dc(display);
     dc.setFillMode(FILL_MODE_RECTANGLE);
-    dc.setTransformation(Transformation().scale(7, 7));
-    dc.draw(labelScaledMore, kCenter | kMiddle);
+    dc.setTransformation(Transformation().scale(8, 8));
+    dc.draw(labelScaledMore, kCenter | kMiddle.shiftBy(-5));
   }
   delay(2000);
 }

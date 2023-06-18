@@ -31,8 +31,8 @@ struct Emulator {
 
 #include "roo_display.h"
 #include "roo_display/font/font.h"
-#include "roo_display/ui/text_label.h"
 #include "roo_display/shape/basic.h"
+#include "roo_display/ui/text_label.h"
 #include "roo_smooth_fonts/NotoSerif_BoldItalic/15.h"
 #include "roo_smooth_fonts/NotoSerif_BoldItalic/27.h"
 #include "roo_smooth_fonts/NotoSerif_BoldItalic/40.h"
@@ -95,6 +95,9 @@ void simpleAlignmentWithPadding() {
   auto left = kLeft.shiftBy(10);
   auto right = kRight.shiftBy(-10);
 
+  dc.draw(Rect(10, 10, display.width() - 10 - 1, display.height() - 10 - 1,
+               color::Red));
+
   dc.draw(label, top | left);
   dc.draw(label, top | kCenter);
   dc.draw(label, top | right);
@@ -142,12 +145,16 @@ void subregionAlignment() {
                       Box(0, 0, display.width() / 2 - 1, display.height() - 1));
   DrawingContext right(display, Box(display.width() / 2, 0, display.width() - 1,
                                     display.height() - 1));
+  left.setBackgroundColor(color::Bisque);
   left.clear();
+  right.setBackgroundColor(color::Beige);
   right.clear();
-  left.draw(StringViewLabel("L", font_NotoSerif_BoldItalic_40(), color::Black),
-            kMiddle | kCenter);
-  right.draw(StringViewLabel("R", font_NotoSerif_BoldItalic_40(), color::Black),
-             kMiddle | kCenter);
+  left.draw(
+      StringViewLabel("Left", font_NotoSerif_BoldItalic_40(), color::Black),
+      kMiddle | kCenter);
+  right.draw(
+      StringViewLabel("Right", font_NotoSerif_BoldItalic_40(), color::Black),
+      kMiddle | kCenter);
 }
 
 void tile() {

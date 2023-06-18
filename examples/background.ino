@@ -98,11 +98,10 @@ void setup() {
   hashColor1 = color::LightGray;
   hashColor2 = color::DarkGray;
   SPI.begin();  // Use default SPI pins, or specify your own here.
-  display.init();
+  display.init(color::White);
   if (display.height() > display.width()) {
     display.setOrientation(Orientation().rotateRight());
   }
-  display.clear();
 }
 
 void simpleBackground() {
@@ -122,9 +121,6 @@ void simpleBackground() {
                                      color::Black, FILL_MODE_RECTANGLE);
   auto labelScaledMore = StringViewLabel(" Afy ", font_NotoSans_Italic_8(),
                                          color::Black, FILL_MODE_RECTANGLE);
-  int16_t dx = (display.width() - labelOrig.extents().width()) / 2;
-  int16_t dy = labelOrig.metrics().glyphYMax() +
-               (display.height() - labelOrig.metrics().height()) / 2;
   {
     display.setBackground(&slantedGradient);
     DrawingContext dc(display);

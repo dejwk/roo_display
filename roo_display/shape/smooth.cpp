@@ -200,7 +200,6 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
   if (radius <= 0 || thickness <= 0 || angle_end == angle_start) {
     return SmoothShape();
   }
-  radius += thickness * 0.5f;
   if (angle_end < angle_start) {
     std::swap(angle_end, angle_start);
   }
@@ -208,6 +207,7 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
     return SmoothThickCircle(center, radius, thickness, active_color,
                              interior_color);
   }
+  radius += thickness * 0.5f;
   while (angle_start > M_PI) {
     angle_start -= 2 * M_PI;
     angle_end -= 2 * M_PI;

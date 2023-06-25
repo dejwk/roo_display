@@ -197,13 +197,14 @@ class BufferedColorWriter {
     }
     FillColor(color_buffer_ + buffer_size_, batch, color);
     device_.write(color_buffer_, kPixelWritingBufferSize);
-    FillColor(color_buffer_, buffer_size_, color);
     count -= batch;
     while (true) {
       if (count < kPixelWritingBufferSize) {
+        FillColor(color_buffer_, count, color);
         buffer_size_ = count;
         return;
       }
+      FillColor(color_buffer_, kPixelWritingBufferSize, color);
       device_.write(color_buffer_, kPixelWritingBufferSize);
       count -= kPixelWritingBufferSize;
     }

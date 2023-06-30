@@ -141,6 +141,9 @@ auto BlenderSpecialization(const BlendingMode blending_mode, Args&&... args)
       case BLENDING_MODE_EXCLUSIVE_OR:
         return functor.template operator()<BLENDING_MODE_EXCLUSIVE_OR>(
             std::forward<Args>(args)...);
+      default:
+        return functor.template operator()<BLENDING_MODE_SOURCE_OVER>(
+            std::forward<Args>(args)...);
     }
   }
 }

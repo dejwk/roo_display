@@ -34,6 +34,9 @@ SmoothShape SmoothWedgedLine(FpPoint a, float width_a, FpPoint b, float width_b,
                              Color color, EndingStyle ending_style) {
   if (width_a < 0.0f) width_a = 0.0f;
   if (width_b < 0.0f) width_b = 0.0f;
+  if (width_a == 0 && width_b == 0) {
+    return SmoothShape();
+  }
   float ar = width_a / 2.0f;
   float br = width_b / 2.0f;
   if (ending_style == ENDING_ROUNDED) {

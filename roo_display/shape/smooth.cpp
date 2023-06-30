@@ -53,6 +53,8 @@ SmoothShape SmoothWedgedLine(FpPoint a, float width_a, FpPoint b, float width_b,
 
   SmoothShape::Wedge wedge{a.x, a.y, b.x,   b.y,
                            ar,  br,  color, (ending_style == ENDING_ROUNDED)};
+  ar -= 0.5f;
+  br -= 0.5f;
   int16_t x0 = (int32_t)floorf(fminf(a.x - ar, b.x - br));
   int16_t y0 = (int32_t)floorf(fminf(a.y - ar, b.y - br));
   int16_t x1 = (int32_t)ceilf(fmaxf(a.x + ar, b.x + br));

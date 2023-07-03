@@ -56,7 +56,8 @@ SmoothShape SmoothWedgedLine(FpPoint a, float width_a, FpPoint b, float width_b,
   // if (a.y == b.y && ar == br && ar >= 1.0f) {
   //   // Horizontal line.
   //   if (ending_style == ENDING_ROUNDED) {
-  //     return SmoothFilledRoundRect(a.x - ar, a.y - ar, b.x + br, b.y + br, ar, color);
+  //     return SmoothFilledRoundRect(a.x - ar, a.y - ar, b.x + br, b.y + br,
+  //     ar, color);
   //   } else {
   //     // return SmoothFilledRect(a.x, a.y - ar, b.x, b.y + br, color);
   //   }
@@ -203,9 +204,9 @@ SmoothShape SmoothThickArc(FpPoint center, float radius, float thickness,
 
 SmoothShape SmoothPie(FpPoint center, float radius, float angle_start,
                       float angle_end, Color color) {
-  return SmoothThickArcWithBackground(center, radius * 0.5f, radius, angle_start,
-                                      angle_end, color, color::Transparent,
-                                      color::Transparent, ENDING_FLAT);
+  return SmoothThickArcWithBackground(
+      center, radius * 0.5f, radius, angle_start, angle_end, color,
+      color::Transparent, color::Transparent, ENDING_FLAT);
 }
 
 SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
@@ -588,7 +589,7 @@ inline Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& rect,
   float ri = rect.ri;
   Color outline = rect.outline_color;
 
-  if (d_squared <= rect.ri_sq_adj - ri) {
+  if (d_squared <= rect.ri_sq_adj - ri && ri >= 0.5f) {
     // Point fully within the interior.
     return interior;
   }
@@ -615,9 +616,14 @@ inline Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& rect,
   }
   if (fully_within_outer) {
     // On the inner boundary.
-    return AlphaBlend(
-        interior,
-        outline.withA((uint8_t)(outline.a() * (1.0f - (ri - d + 0.5f)))));
+    float opacity = 1.0f - (ri - d + 0.5f);
+    if (ri < 0.5f && (roundf(rect.x0 - ri) == roundf(rect.x1 + ri) ||
+                      roundf(rect.y0 - ri) == roundf(rect.y1 + ri))) {
+      // Pesky corner case: the interior is hair-thin. Approximate.
+      opacity = std::min(1.0f, opacity * 2.0f);
+    }
+    return AlphaBlend(interior,
+                      outline.withA((uint8_t)(outline.a() * opacity)));
   }
   // On both bounderies (e.g. the band is very thin).
   return AlphaBlend(

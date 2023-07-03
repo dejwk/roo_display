@@ -8,14 +8,12 @@ using namespace testing;
 namespace roo_display {
 
 TEST(SmoothShapes, DrawSmallCirclesWholeCenter) {
-//   EXPECT_THAT(CoercedTo<Alpha4>(SmoothCircle({2, 3}, 0.5, color::Black),
-//                                 Alpha4(color::Black)),
-//               // The '7' in the center is questionable; should really be F.
-//               // It is not, because 
-//               MatchesContent(Alpha4(color::Black), Box(1, 2, 3, 4),
-//                              "171"
-//                              "777"
-//                              "171"));
+  EXPECT_THAT(CoercedTo<Alpha4>(SmoothCircle({2, 3}, 0.5, color::Black),
+                                Alpha4(color::Black)),
+              MatchesContent(Alpha4(color::Black), Box(1, 2, 3, 4),
+                             "171"
+                             "7F7"
+                             "171"));
 
   EXPECT_THAT(CoercedTo<Alpha4>(SmoothCircle({2, 3}, 1, color::Black),
                                 Alpha4(color::Black)),

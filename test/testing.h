@@ -1325,10 +1325,13 @@ ForcedFillRect<Obj> ForceFillRect(Obj obj) {
 // input drawable.
 template <typename ColorMode>
 FakeOffscreen<ColorMode> CoercedTo(
-    const Drawable& drawable, Color bgcolor = color::Transparent,
-    ColorMode color_mode = ColorMode(), FillMode fill_mode = FILL_MODE_VISIBLE,
-    BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER) {
-  FakeOffscreen<ColorMode> result(drawable.extents(), bgcolor, color_mode);
+    const Drawable& drawable,
+    ColorMode color_mode = ColorMode(),
+    Color fill = color::Transparent,
+    FillMode fill_mode = FILL_MODE_VISIBLE,
+    BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER,
+    Color bgcolor = color::Transparent) {
+  FakeOffscreen<ColorMode> result(drawable.extents(), fill, color_mode);
   result.begin();
   Box extents = drawable.extents();
   Surface s(result, -extents.xMin(), -extents.yMin(),

@@ -53,6 +53,14 @@ SmoothShape SmoothWedgedLine(FpPoint a, float width_a, FpPoint b, float width_b,
     // Must be ENDING_FLAT. Nothing to draw.
     return SmoothShape();
   }
+  // if (a.y == b.y && ar == br && ar >= 1.0f) {
+  //   // Horizontal line.
+  //   if (ending_style == ENDING_ROUNDED) {
+  //     return SmoothFilledRoundRect(a.x - ar, a.y - ar, b.x + br, b.y + br, ar, color);
+  //   } else {
+  //     // return SmoothFilledRect(a.x, a.y - ar, b.x, b.y + br, color);
+  //   }
+  // }
 
   SmoothShape::Wedge wedge{a.x, a.y, b.x,   b.y,
                            ar,  br,  color, (ending_style == ENDING_ROUNDED)};
@@ -107,14 +115,13 @@ SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
   if (ro < 0) ro = 0;
   float ri = ro - thickness;
   if (ri < 0) ri = 0;
+  Box extents((int16_t)floorf(x0 + 0.5f), (int16_t)floorf(y0 + 0.5f),
+              (int16_t)ceilf(x1 - 0.5f), (int16_t)ceilf(y1 - 0.5f));
   x0 += ro;
   y0 += ro;
   x1 -= ro;
   y1 -= ro;
-
   float d = sqrtf(0.5f) * ri;
-  Box extents((int16_t)roundf(x0 - ro), (int16_t)roundf(y0 - ro),
-              (int16_t)roundf(x1 + ro), (int16_t)roundf(y1 + ro));
   Box inner_mid((int16_t)ceilf(x0 - d + 0.5f), (int16_t)ceilf(y0 - d + 0.5f),
                 (int16_t)floorf(x1 + d - 0.5f), (int16_t)floorf(y1 + d - 0.5f));
   Box inner_wide((int16_t)ceilf(x0 - ri + 0.5f), (int16_t)ceilf(y0 + 0.5f),
@@ -147,6 +154,11 @@ SmoothShape SmoothFilledRoundRect(float x0, float y0, float x1, float y1,
                                   float radius, Color color) {
   return SmoothThickRoundRect(x0, y0, x1, y1, radius, 0, color, color);
 }
+
+// SmoothShape SmoothFilledRect(float x0, float y0, float x1, float y1,
+//                              Color color) {
+//   return SmoothFilledRoundRect(x0, y0, x1, y1, 0.5, color);
+// }
 
 SmoothShape SmoothThickCircle(FpPoint center, float radius, float thickness,
                               Color color, Color interior_color) {
@@ -557,14 +569,16 @@ void ReadWedgeColors(const SmoothShape::Wedge& wedge, const int16_t* x,
 inline Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& rect,
                                           int16_t x, int16_t y) {
   // // This only applies to a handful of pixels and seems to slow things down.
-  // if (spec.inner_mid.contains(x, y) || spec.inner_wide.contains(x, y) ||
-  //     spec.inner_tall.contains(x, y)) {
-  //   return spec.interior;
+  // if (rect.inner_mid.contains(x, y) || rect.inner_wide.contains(x, y) ||
+  //     rect.inner_tall.contains(x, y)) {
+  //   return rect.interior_color;
   // }
   float ref_x = std::min(std::max((float)x, rect.x0), rect.x1);
   float ref_y = std::min(std::max((float)y, rect.y0), rect.y1);
   float dx = x - ref_x;
   float dy = y - ref_y;
+
+  Color interior = rect.interior_color;
   // // This only applies to a handful of pixels and seems to slow things down.
   // if (abs(dx) + abs(dy) < spec.ri - 0.5) {
   //   return spec.interior;
@@ -572,7 +586,6 @@ inline Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& rect,
   float d_squared = dx * dx + dy * dy;
   float ro = rect.ro;
   float ri = rect.ri;
-  Color interior = rect.interior_color;
   Color outline = rect.outline_color;
 
   if (d_squared <= rect.ri_sq_adj - ri) {
@@ -589,6 +602,9 @@ inline Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& rect,
     // Point fully within the outline band.
     return outline;
   }
+  // if (dx == 0 && dy == 0 && rect.inner_mid.contains(x, y)) {
+  //   return interior;
+  // }
   // Point is on either of the boundaries; need anti-aliasing.
   // Note: replacing with integer sqrt (iterative, loop-unrolled, 24-bit) slows
   // things down. At 64-bit not loop-unrolled, does so dramatically.
@@ -618,8 +634,8 @@ enum RectColor {
   OUTLINE_INACTIVE = 4,  // Used by arcs.
 };
 
-inline float CalcDistSqRect(float x0, float y0, float x1, float y1, int16_t xt,
-                            int16_t yt) {
+inline float CalcDistSqRect(float x0, float y0, float x1, float y1, float xt,
+                            float yt) {
   float dx = (xt <= x0 ? xt - x0 : xt >= x1 ? xt - x1 : 0.0f);
   float dy = (yt <= y0 ? yt - y0 : yt >= y1 ? yt - y1 : 0.0f);
   return dx * dx + dy * dy;
@@ -632,10 +648,10 @@ inline RectColor DetermineRectColorForRoundRect(
       rect.inner_tall.contains(box)) {
     return INTERIOR;
   }
-  int16_t xMin = box.xMin();
-  int16_t yMin = box.yMin();
-  int16_t xMax = box.xMax();
-  int16_t yMax = box.yMax();
+  float xMin = box.xMin() - 0.5f;
+  float yMin = box.yMin() - 0.5f;
+  float xMax = box.xMax() + 0.5f;
+  float yMax = box.yMax() + 0.5f;
   float dtl = CalcDistSqRect(rect.x0, rect.y0, rect.x1, rect.y1, xMin, yMin);
   float dtr = CalcDistSqRect(rect.x0, rect.y0, rect.x1, rect.y1, xMax, yMin);
   float dbl = CalcDistSqRect(rect.x0, rect.y0, rect.x1, rect.y1, xMin, yMax);

@@ -48,6 +48,9 @@ SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
 SmoothShape SmoothFilledRoundRect(float x0, float y0, float x1, float y1,
                                   float radius, Color color);
 
+// SmoothShape SmoothFilledRect(float x0, float y0, float x1, float y1,
+//                                   Color color);
+
 // Creates a circle with the specified center, radius, color, and
 // optionally interior color (defaulting to transparent).
 SmoothShape SmoothCircle(FpPoint center, float radius, Color color,

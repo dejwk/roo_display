@@ -207,6 +207,18 @@ cc_test(
 )
 
 cc_test(
+    name = "smooth_shapes_test",
+    srcs = [
+        "test/smooth_shapes_test.cpp",
+        "test/testing.h",
+    ],
+    linkstatic = 1,
+    deps = [
+        "//lib/roo_display:testing",
+    ],
+)
+
+cc_test(
     name = "streamable_test",
     srcs = [
         "test/streamable_test.cpp",

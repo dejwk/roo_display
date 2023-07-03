@@ -183,7 +183,7 @@ TEST(ClipMask, ClipMaskWrite) {
   {
     DrawingContext dc(display);
     dc.setClipMask(&mask);
-    dc.draw(MakeTestStreamable(WhiteOnBlack(), 14, 6,
+    dc.draw(MakeTestStreamable(WhiteOnBlack(), Box(0, 0, 13, 5),
                                "**************"
                                "          ****"
                                "**************"
@@ -214,7 +214,7 @@ TEST(ClipMask, ClipMaskStreamableSemiTransparent) {
   {
     DrawingContext dc(display);
     dc.setClipMask(&mask);
-    dc.draw(MakeTestStreamable(Alpha4(color::White), 14, 6,
+    dc.draw(MakeTestStreamable(Alpha4(color::White), Box(0, 0, 13, 5),
                                "**************"
                                "          ****"
                                "**************"

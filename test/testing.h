@@ -268,15 +268,15 @@ class ParserStream : public PixelStream {
 template <typename ColorMode>
 class ParserStreamable : public Streamable {
  public:
-  ParserStreamable(int16_t width, int16_t height, string data)
-      : ParserStreamable(ColorMode(), width, height, std::move(data)) {}
+  ParserStreamable(Box extents, string data)
+      : ParserStreamable(ColorMode(), std::move(extents), std::move(data)) {}
 
-  ParserStreamable(ColorMode mode, int16_t width, int16_t height, string data)
-      : mode_(mode), width_(width), height_(height), data_(std::move(data)) {}
+  ParserStreamable(ColorMode mode, Box extents, string data)
+      : mode_(mode), extents_(std::move(extents)), data_(std::move(data)) {}
 
-  int16_t width() const { return width_; }
-  int16_t height() const { return height_; }
-  Box extents() const override { return Box(0, 0, width() - 1, height() - 1); }
+  // int16_t width() const { return width_; }
+  // int16_t height() const { return height_; }
+  Box extents() const override { return extents_; }
   const ColorMode& color_mode() const { return mode_; }
 
   TransparencyMode getTransparencyMode() const override {
@@ -300,19 +300,18 @@ class ParserStreamable : public Streamable {
 
  private:
   ColorMode mode_;
-  int16_t width_;
-  int16_t height_;
+  Box extents_;
   string data_;
 };
 
 template <typename ColorMode>
 class ParserDrawable : public Drawable {
  public:
-  ParserDrawable(int16_t width, int16_t height, string data)
-      : streamable_(width, height, data) {}
+  ParserDrawable(Box extents, string data)
+      : streamable_(std::move(extents), data) {}
 
-  ParserDrawable(ColorMode mode, int16_t width, int16_t height, string data)
-      : streamable_(mode, width, height, data) {}
+  ParserDrawable(ColorMode mode, Box extents, string data)
+      : streamable_(mode, std::move(extents), data) {}
 
   Box extents() const override { return streamable_.extents(); }
 
@@ -325,12 +324,12 @@ class ParserDrawable : public Drawable {
 template <typename ColorMode>
 class ParserRasterizable : public Rasterizable {
  public:
-  ParserRasterizable(int16_t width, int16_t height, string data)
-      : ParserRasterizable(ColorMode(), width, height, data) {}
+  ParserRasterizable(Box extents, string data)
+      : ParserRasterizable(ColorMode(), std::move(extents), data) {}
 
-  ParserRasterizable(ColorMode mode, int16_t width, int16_t height, string data)
-      : extents_(0, 0, width - 1, height - 1) {
-    ParserStreamable<ColorMode> streamable(mode, width, height, data);
+  ParserRasterizable(ColorMode mode, Box extents, string data)
+      : extents_(std::move(extents)) {
+    ParserStreamable<ColorMode> streamable(mode, extents_, data);
     auto stream = streamable.createRawStream();
     for (int i = 0; i < extents_.area(); ++i) {
       raster_.push_back(stream->next());
@@ -867,10 +866,17 @@ template <typename ColorMode>
 inline PolymorphicMatcher<
     RawStreamableColorMatcher<internal::ParserStreamable<ColorMode>>>
 MatchesContent(ColorMode mode, int16_t width, int16_t height, string expected) {
+  return MatchesContent(mode, Box(0, 0, width - 1, height - 1),
+                        std::move(expected));
+}
+
+template <typename ColorMode>
+inline PolymorphicMatcher<
+    RawStreamableColorMatcher<internal::ParserStreamable<ColorMode>>>
+MatchesContent(ColorMode mode, Box bounds, string expected) {
   return MakePolymorphicMatcher(
       RawStreamableColorMatcher<internal::ParserStreamable<ColorMode>>(
-          internal::ParserStreamable<ColorMode>(mode, width, height,
-                                                expected)));
+          internal::ParserStreamable<ColorMode>(mode, bounds, expected)));
 }
 
 template <typename RawStreamable>
@@ -914,24 +920,22 @@ class TestColorStreamable {
 
 template <typename ColorMode>
 internal::ParserStreamable<ColorMode> MakeTestStreamable(const ColorMode& mode,
-                                                         int16_t width,
-                                                         int16_t height,
+                                                         Box extents,
                                                          string content) {
-  return internal::ParserStreamable<ColorMode>(mode, width, height, content);
+  return internal::ParserStreamable<ColorMode>(mode, std::move(extents), content);
 }
 
 template <typename ColorMode>
 internal::ParserDrawable<ColorMode> MakeTestDrawable(const ColorMode& mode,
-                                                     int16_t width,
-                                                     int16_t height,
+                                                     Box extents,
                                                      string content) {
-  return internal::ParserDrawable<ColorMode>(mode, width, height, content);
+  return internal::ParserDrawable<ColorMode>(mode, std::move(extents), content);
 }
 
 template <typename ColorMode>
 internal::ParserRasterizable<ColorMode> MakeTestRasterizable(
-    const ColorMode& mode, int16_t width, int16_t height, string content) {
-  return internal::ParserRasterizable<ColorMode>(mode, width, height, content);
+    const ColorMode& mode, Box extents, string content) {
+  return internal::ParserRasterizable<ColorMode>(mode, std::move(extents), content);
 }
 
 DrawableRawStreamable<RawStreamableFilledRect> SolidRect(int16_t x0, int16_t y0,

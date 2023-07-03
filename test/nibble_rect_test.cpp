@@ -81,8 +81,8 @@ void initNibbleRect(NibbleRect* rect, const char* input) {
                                   rect->buffer());
   {
     DrawingContext dc(offscreen);
-    dc.draw(
-        MakeTestStreamable(Grayscale4(), rect->width(), rect->height(), input));
+    dc.draw(MakeTestStreamable(
+        Grayscale4(), Box(0, 0, rect->width() - 1, rect->height() - 1), input));
   }
 }
 

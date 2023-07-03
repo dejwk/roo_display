@@ -31,7 +31,7 @@ void Draw(DisplayDevice& output, int16_t x, int16_t y, const Streamable& object,
 }
 
 TEST(Streamable, DrawingArbitraryStreamable) {
-  auto input = MakeTestStreamable(Rgb565(), 2, 3,
+  auto input = MakeTestStreamable(Rgb565(), Box(0, 0, 1, 2),
                                   "1W3 D1R"
                                   "LQD TOL"
                                   "F9F N_N");
@@ -47,7 +47,7 @@ TEST(Streamable, DrawingArbitraryStreamable) {
 }
 
 TEST(Streamable, ClippingFromTop) {
-  auto input = MakeTestStreamable(Rgb565(), 2, 3,
+  auto input = MakeTestStreamable(Rgb565(), Box(0, 0, 1, 2),
                                   "1W3 D1R"
                                   "LQD TOL"
                                   "F9F N_N");
@@ -63,7 +63,7 @@ TEST(Streamable, ClippingFromTop) {
 }
 
 TEST(Streamable, ClippingFromBottom) {
-  auto input = MakeTestStreamable(Rgb565(), 2, 3,
+  auto input = MakeTestStreamable(Rgb565(), Box(0, 0, 1, 2),
                                   "1W3 D1R"
                                   "LQD TOL"
                                   "F9F N_N");
@@ -79,7 +79,7 @@ TEST(Streamable, ClippingFromBottom) {
 }
 
 TEST(Streamable, ClippingFromSeveralSides) {
-  auto input = MakeTestStreamable(Rgb565(), 4, 3,
+  auto input = MakeTestStreamable(Rgb565(), Box(0, 0, 3, 2),
                                   "1W3 D1R CA4 B11"
                                   "LQD TOL 114 5AF"
                                   "F9F N_N F45 567");
@@ -95,7 +95,7 @@ TEST(Streamable, ClippingFromSeveralSides) {
 }
 
 TEST(Streamable, ClippingFromLeft) {
-  auto input = MakeTestStreamable(Rgb565(), 4, 3,
+  auto input = MakeTestStreamable(Rgb565(), Box(0, 0, 3, 2),
                                   "1W3 D1R CA4 B11"
                                   "LQD TOL 114 5AF"
                                   "F9F N_N F45 567");
@@ -111,7 +111,7 @@ TEST(Streamable, ClippingFromLeft) {
 }
 
 TEST(Streamable, ClippingFromRight) {
-  auto input = MakeTestStreamable(Rgb565(), 3, 3,
+  auto input = MakeTestStreamable(Rgb565(), Box(0, 0, 2, 2),
                                   "1W3 D1R CA4"
                                   "LOD TOL 114"
                                   "F9F N_N F45");
@@ -127,7 +127,7 @@ TEST(Streamable, ClippingFromRight) {
 }
 
 TEST(Streamable, Transparency) {
-  auto input = MakeTestStreamable(Rgb565WithTransparency(1), 2, 3,
+  auto input = MakeTestStreamable(Rgb565WithTransparency(1), Box(0, 0, 1, 2),
                                   "... D1R"
                                   "LQD TOL"
                                   "F9F ...");
@@ -143,7 +143,8 @@ TEST(Streamable, Transparency) {
 }
 
 TEST(Streamable, AlphaTransparency) {
-  auto input = MakeTestStreamable(Argb4444(), 4, 1, "4488 F678 F1A3 73E3");
+  auto input =
+      MakeTestStreamable(Argb4444(), Box(0, 0, 3, 0), "4488 F678 F1A3 73E3");
   FakeOffscreen<Argb4444> test_screen(6, 1, color::Black);
   Draw(test_screen, 1, 0, input);
   EXPECT_THAT(test_screen, MatchesContent(Argb4444(), 6, 1,
@@ -151,7 +152,8 @@ TEST(Streamable, AlphaTransparency) {
 }
 
 TEST(Streamable, AlphaTransparencyOverriddenReplace) {
-  auto input = MakeTestStreamable(Argb4444(), 4, 1, "4488 F678 F1A3 73E3");
+  auto input =
+      MakeTestStreamable(Argb4444(), Box(0, 0, 3, 0), "4488 F678 F1A3 73E3");
   FakeOffscreen<Argb4444> test_screen(6, 1, color::Black);
   Draw(test_screen, 1, 0, input, FILL_MODE_VISIBLE, BLENDING_MODE_SOURCE);
   EXPECT_THAT(test_screen, MatchesContent(Argb4444(), 6, 1,
@@ -159,7 +161,8 @@ TEST(Streamable, AlphaTransparencyOverriddenReplace) {
 }
 
 TEST(Streamable, AlphaTransparencyFillWithOpaqueBackground) {
-  auto input = MakeTestStreamable(Argb4444(), 2, 2, "4488 F678 73E3 0000");
+  auto input =
+      MakeTestStreamable(Argb4444(), Box(0, 0, 1, 1), "4488 F678 73E3 0000");
   FakeOffscreen<Argb4444> test_screen(3, 2, color::Black);
   Draw(test_screen, 1, 0, input, FILL_MODE_RECTANGLE, BLENDING_MODE_SOURCE_OVER,
        color::White);
@@ -169,7 +172,8 @@ TEST(Streamable, AlphaTransparencyFillWithOpaqueBackground) {
 }
 
 TEST(Streamable, AlphaTransparencyFillWithTranslucentBackground) {
-  auto input = MakeTestStreamable(Argb4444(), 2, 2, "4488 F678 73E3 0000");
+  auto input =
+      MakeTestStreamable(Argb4444(), Box(0, 0, 1, 1), "4488 F678 73E3 0000");
   FakeOffscreen<Argb4444> test_screen(3, 2, color::Black);
   Draw(test_screen, 1, 0, input, FILL_MODE_RECTANGLE, BLENDING_MODE_SOURCE_OVER,
        Color(0x7FFFFFFF));
@@ -179,7 +183,8 @@ TEST(Streamable, AlphaTransparencyFillWithTranslucentBackground) {
 }
 
 TEST(Streamable, AlphaTransparencyWriteWithOpaqueBackground) {
-  auto input = MakeTestStreamable(Argb4444(), 2, 2, "4488 F678 73E3 0000");
+  auto input =
+      MakeTestStreamable(Argb4444(), Box(0, 0, 1, 1), "4488 F678 73E3 0000");
   FakeOffscreen<Argb4444> test_screen(3, 2, color::Black);
   Draw(test_screen, 1, 0, input, FILL_MODE_VISIBLE, BLENDING_MODE_SOURCE_OVER,
        color::White);
@@ -189,7 +194,8 @@ TEST(Streamable, AlphaTransparencyWriteWithOpaqueBackground) {
 }
 
 TEST(Streamable, AlphaTransparencyWriteWithTranslucentBackground) {
-  auto input = MakeTestStreamable(Argb4444(), 2, 2, "4488 F678 73E3 0000");
+  auto input =
+      MakeTestStreamable(Argb4444(), Box(0, 0, 1, 1), "4488 F678 73E3 0000");
   FakeOffscreen<Argb4444> test_screen(3, 2, color::Black);
   Draw(test_screen, 1, 0, input, FILL_MODE_VISIBLE, BLENDING_MODE_SOURCE_OVER,
        Color(0x7FFFFFFF));

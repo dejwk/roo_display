@@ -11,7 +11,7 @@ namespace roo_display {
 
 TEST(Transformed, PositiveShift) {
   FakeScreen<Rgb565> screen(5, 5, color::Black);
-  auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
+  auto input = MakeTestDrawable(WhiteOnBlack(), Box(0, 0, 2, 1),
                                 "***"
                                 "*  ");
   TransformedDrawable transformed(Transformation().translate(1, 2), &input);
@@ -26,7 +26,7 @@ TEST(Transformed, PositiveShift) {
 
 TEST(Transformed, NegativeShift) {
   FakeScreen<Rgb565> screen(5, 5, color::Black);
-  auto input = MakeTestDrawable(WhiteOnBlack(), 4, 3,
+  auto input = MakeTestDrawable(WhiteOnBlack(), Box(0, 0, 3, 2),
                                 "****"
                                 "*** "
                                 "****");
@@ -42,7 +42,7 @@ TEST(Transformed, NegativeShift) {
 
 TEST(Transformed, HorizontalFlip) {
   FakeScreen<Rgb565> screen(5, 5, color::Black);
-  auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
+  auto input = MakeTestDrawable(WhiteOnBlack(), Box(0, 0, 2, 1),
                                 "***"
                                 "*  ");
   TransformedDrawable transformed(Transformation().flipX().translate(2, 0),
@@ -58,7 +58,7 @@ TEST(Transformed, HorizontalFlip) {
 
 TEST(Transformed, VerticalFlip) {
   FakeScreen<Rgb565> screen(5, 5, color::Black);
-  auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
+  auto input = MakeTestDrawable(WhiteOnBlack(), Box(0, 0, 2, 1),
                                 "***"
                                 "*  ");
   TransformedDrawable transformed(Transformation().flipY().translate(0, 1),
@@ -74,7 +74,7 @@ TEST(Transformed, VerticalFlip) {
 
 TEST(Transformed, HorizontalScale) {
   FakeScreen<Rgb565> screen(11, 5, color::Black);
-  auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
+  auto input = MakeTestDrawable(WhiteOnBlack(), Box(0, 0, 2, 1),
                                 "***"
                                 "*  ");
   TransformedDrawable transformed(Transformation().scale(3, 1), &input);
@@ -89,7 +89,7 @@ TEST(Transformed, HorizontalScale) {
 
 TEST(Transformed, VerticalScale) {
   FakeScreen<Rgb565> screen(5, 9, color::Black);
-  auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
+  auto input = MakeTestDrawable(WhiteOnBlack(), Box(0, 0, 2, 1),
                                 "***"
                                 "*  ");
   TransformedDrawable transformed(Transformation().scale(1, 3), &input);
@@ -108,7 +108,7 @@ TEST(Transformed, VerticalScale) {
 
 TEST(Transformed, rotateRight) {
   FakeScreen<Rgb565> screen(5, 5, color::Black);
-  auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
+  auto input = MakeTestDrawable(WhiteOnBlack(), Box(0, 0, 2, 1),
                                 "***"
                                 "*  ");
   TransformedDrawable transformed(Transformation().rotateRight(), &input);
@@ -123,7 +123,7 @@ TEST(Transformed, rotateRight) {
 
 TEST(Transformed, rotateLeft) {
   FakeScreen<Rgb565> screen(5, 5, color::Black);
-  auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
+  auto input = MakeTestDrawable(WhiteOnBlack(), Box(0, 0, 2, 1),
                                 "***"
                                 "*  ");
   TransformedDrawable transformed(Transformation().rotateLeft(), &input);
@@ -138,7 +138,7 @@ TEST(Transformed, rotateLeft) {
 
 TEST(Transformed, rotateUpsideDown) {
   FakeScreen<Rgb565> screen(5, 5, color::Black);
-  auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
+  auto input = MakeTestDrawable(WhiteOnBlack(), Box(0, 0, 2, 1),
                                 "***"
                                 "*  ");
   TransformedDrawable transformed(Transformation().rotateUpsideDown(), &input);
@@ -153,7 +153,7 @@ TEST(Transformed, rotateUpsideDown) {
 
 TEST(Transformed, SwapXY) {
   FakeScreen<Rgb565> screen(2, 3, color::Black);
-  auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
+  auto input = MakeTestDrawable(WhiteOnBlack(), Box(0, 0, 2, 1),
                                 "***"
                                 "*  ");
   TransformedDrawable transformed(Transformation().swapXY(), &input);
@@ -166,7 +166,7 @@ TEST(Transformed, SwapXY) {
 
 TEST(Transformed, Complex) {
   FakeScreen<Rgb565> screen(6, 11, color::Black);
-  auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
+  auto input = MakeTestDrawable(WhiteOnBlack(), Box(0, 0, 2, 1),
                                 "***"
                                 "*  ");
   Transformation t =
@@ -189,7 +189,7 @@ TEST(Transformed, Complex) {
 
 TEST(Transformed, ComplexTruncated) {
   FakeScreen<Rgb565> screen(2, 2, color::Black);
-  auto input = MakeTestDrawable(WhiteOnBlack(), 3, 2,
+  auto input = MakeTestDrawable(WhiteOnBlack(), Box(0, 0, 2, 1),
                                 "***"
                                 "*  ");
   Transformation t =

@@ -33,7 +33,7 @@ TEST(RasterizableStack, Empty) {
 }
 
 TEST(RasterizableStack, SingleUnclipped) {
-  auto input = MakeTestRasterizable(Grayscale4(), 4, 4,
+  auto input = MakeTestRasterizable(Grayscale4(), Box(0, 0, 3, 3),
                                     "1234"
                                     "2345"
                                     "3456"
@@ -62,7 +62,7 @@ TEST(RasterizableStack, SingleUnclipped) {
 }
 
 TEST(RasterizableStack, SingleClipped) {
-  auto input = MakeTestRasterizable(Grayscale4(), 4, 4,
+  auto input = MakeTestRasterizable(Grayscale4(), Box(0, 0, 3, 3),
                                     "1234"
                                     "2345"
                                     "3456"
@@ -92,7 +92,7 @@ TEST(RasterizableStack, SingleClipped) {
 }
 
 TEST(RasterizableStack, SingleSelfClipped) {
-  auto input = MakeTestRasterizable(Grayscale4(), 4, 4,
+  auto input = MakeTestRasterizable(Grayscale4(), Box(0, 0, 3, 3),
                                     "1234"
                                     "2345"
                                     "3456"
@@ -121,11 +121,11 @@ TEST(RasterizableStack, SingleSelfClipped) {
 }
 
 TEST(RasterizableStack, TwoDisjoint) {
-  auto input1 = MakeTestRasterizable(Grayscale4(), 3, 3,
+  auto input1 = MakeTestRasterizable(Grayscale4(), Box(0, 0, 2, 2),
                                      "123"
                                      "234"
                                      "345");
-  auto input2 = MakeTestRasterizable(Grayscale4(), 3, 3,
+  auto input2 = MakeTestRasterizable(Grayscale4(), Box(0, 0, 2, 2),
                                      "666"
                                      "777"
                                      "888");
@@ -154,11 +154,11 @@ TEST(RasterizableStack, TwoDisjoint) {
 }
 
 TEST(RasterizableStack, TwoDisjointInherentlyClipped) {
-  auto input1 = MakeTestRasterizable(Grayscale4(), 3, 3,
+  auto input1 = MakeTestRasterizable(Grayscale4(), Box(0, 0, 2, 2),
                                      "123"
                                      "234"
                                      "345");
-  auto input2 = MakeTestRasterizable(Grayscale4(), 3, 3,
+  auto input2 = MakeTestRasterizable(Grayscale4(), Box(0, 0, 2, 2),
                                      "666"
                                      "777"
                                      "888");
@@ -187,11 +187,11 @@ TEST(RasterizableStack, TwoDisjointInherentlyClipped) {
 }
 
 TEST(RasterizableStack, TwoHorizontalOverlap) {
-  auto input1 = MakeTestRasterizable(Grayscale4(), 3, 3,
+  auto input1 = MakeTestRasterizable(Grayscale4(), Box(0, 0, 2, 2),
                                      "123"
                                      "234"
                                      "345");
-  auto input2 = MakeTestRasterizable(Grayscale4(), 3, 3,
+  auto input2 = MakeTestRasterizable(Grayscale4(), Box(0, 0, 2, 2),
                                      "666"
                                      "777"
                                      "888");
@@ -220,11 +220,11 @@ TEST(RasterizableStack, TwoHorizontalOverlap) {
 }
 
 TEST(RasterizableStack, TwoVerticalOverlap) {
-  auto input1 = MakeTestRasterizable(Grayscale4(), 3, 3,
+  auto input1 = MakeTestRasterizable(Grayscale4(), Box(0, 0, 2, 2),
                                      "123"
                                      "234"
                                      "345");
-  auto input2 = MakeTestRasterizable(Grayscale4(), 3, 3,
+  auto input2 = MakeTestRasterizable(Grayscale4(), Box(0, 0, 2, 2),
                                      "666"
                                      "777"
                                      "888");
@@ -253,11 +253,11 @@ TEST(RasterizableStack, TwoVerticalOverlap) {
 }
 
 TEST(RasterizableStack, TwoOverlap) {
-  auto input1 = MakeTestRasterizable(Grayscale4(), 3, 3,
+  auto input1 = MakeTestRasterizable(Grayscale4(), Box(0, 0, 2, 2),
                                      "123"
                                      "234"
                                      "345");
-  auto input2 = MakeTestRasterizable(Grayscale4(), 3, 3,
+  auto input2 = MakeTestRasterizable(Grayscale4(), Box(0, 0, 2, 2),
                                      "666"
                                      "777"
                                      "888");
@@ -286,11 +286,11 @@ TEST(RasterizableStack, TwoOverlap) {
 }
 
 TEST(RasterizableStack, TwoOverlapAlphaBlend) {
-  auto input1 = MakeTestRasterizable(Alpha4(color::White), 3, 3,
+  auto input1 = MakeTestRasterizable(Alpha4(color::White), Box(0, 0, 2, 2),
                                      "567"
                                      "678"
                                      "789");
-  auto input2 = MakeTestRasterizable(Alpha4(color::White), 3, 3,
+  auto input2 = MakeTestRasterizable(Alpha4(color::White), Box(0, 0, 2, 2),
                                      "666"
                                      "777"
                                      "888");

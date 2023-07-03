@@ -186,6 +186,10 @@ class SmoothShape : public Rasterizable {
     Color color;
   };
 
+  struct Pixel {
+    Color color;
+  };
+
   SmoothShape();
 
   Box extents() const override { return extents_; }
@@ -220,12 +224,13 @@ class SmoothShape : public Rasterizable {
 
   void drawTo(const Surface& s) const override;
 
-  enum Kind { EMPTY = 0, WEDGE = 1, ROUND_RECT = 2, ARC = 3, TRIANGLE = 4 };
+  enum Kind { EMPTY = 0, WEDGE = 1, ROUND_RECT = 2, ARC = 3, TRIANGLE = 4, PIXEL = 5 };
 
   SmoothShape(Box extents, Wedge wedge);
   SmoothShape(Box extents, RoundRect round_rect);
   SmoothShape(Box extents, Arc arc);
   SmoothShape(Box extents, Triangle triangle);
+  SmoothShape(int16_t x, int16_t y, Pixel pixel);
 
   Kind kind_;
   Box extents_;
@@ -234,6 +239,7 @@ class SmoothShape : public Rasterizable {
     RoundRect round_rect_;
     Arc arc_;
     Triangle triangle_;
+    Pixel pixel_;
   };
 };
 

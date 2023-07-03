@@ -231,4 +231,20 @@ TEST(SmoothShapes, FillSmallCirclesCenterWhole) {
                              "06CFC60"));
 }
 
+TEST(SmoothShapes, DrawTinyShapes) {
+  EXPECT_THAT(CoercedTo<Alpha8>(SmoothFilledCircle({2, 3}, 0.5, color::Black),
+                                Alpha8(color::Black)),
+              // Pi/4 * 245 = hex(c8).
+              MatchesContent(Alpha8(color::Black), Box(2, 3, 2, 3), "C8"));
+
+  EXPECT_THAT(CoercedTo<Alpha8>(SmoothFilledCircle({2.1, 3.05}, 0.2, color::Black),
+                                Alpha8(color::Black)),
+              // Pi * (0.2)^2 * 245 = hex(20).
+              MatchesContent(Alpha8(color::Black), Box(2, 3, 2, 3), "20"));
+
+  EXPECT_THAT(CoercedTo<Alpha8>(SmoothCircle({2, 3}, 0, color::Black),
+                                Alpha8(color::Black)),
+              MatchesContent(Alpha8(color::Black), Box(2, 3, 2, 3), "C8"));
+}
+
 }  // namespace roo_display

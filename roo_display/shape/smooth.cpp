@@ -30,6 +30,12 @@ SmoothShape::SmoothShape(Box extents, Triangle triangle)
       extents_(std::move(extents)),
       triangle_(std::move(triangle)) {}
 
+// Used for tiny shapes that fit within one pixel.
+SmoothShape::SmoothShape(int16_t x, int16_t y, Pixel pixel)
+    : kind_(SmoothShape::PIXEL),
+      extents_(x, y, x, y),
+      pixel_(std::move(pixel)) {}
+
 SmoothShape SmoothWedgedLine(FpPoint a, float width_a, FpPoint b, float width_b,
                              Color color, EndingStyle ending_style) {
   if (width_a < 0.0f) width_a = 0.0f;
@@ -118,6 +124,21 @@ SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
   if (ri < 0) ri = 0;
   Box extents((int16_t)floorf(x0 + 0.5f), (int16_t)floorf(y0 + 0.5f),
               (int16_t)ceilf(x1 - 0.5f), (int16_t)ceilf(y1 - 0.5f));
+  if (extents.xMin() == extents.xMax() && extents.yMin() == extents.yMax()) {
+    // Special case: the rect fits into a single pixel. Let's just calculate the
+    // color and get it over with.
+    float outer_area = std::min<float>(
+        1.0f, std::max<float>(0.0f, w * h - (4.0f - M_PI) * ro * ro));
+    float inner_area = std::min<float>(
+        1.0f, std::max<float>(0.0f, (w - thickness) * (h - thickness) -
+                                        (4.0f - M_PI) * ri * ri));
+    color = color.withA(color.a() * outer_area);
+    interior_color = interior_color.withA(interior_color.a() * inner_area);
+    Color pixel_color = AlphaBlend(color, interior_color);
+    if (pixel_color.a() == 0) return SmoothShape();
+    return SmoothShape(extents.xMin(), extents.yMin(),
+                       SmoothShape::Pixel{color});
+  }
   x0 += ro;
   y0 += ro;
   x1 -= ro;
@@ -1591,6 +1612,13 @@ void ReadTriangleColors(const SmoothShape::Triangle& triangle, const int16_t* x,
   }
 }
 
+void DrawPixel(SmoothShape::Pixel pixel, const Surface& s, const Box& box) {
+  int16_t x = box.xMin();
+  int16_t y = box.yMin();
+  s.out().fillPixels(s.blending_mode(), AlphaBlend(s.bgcolor(), pixel.color),
+                     &x, &y, 1);
+}
+
 }  // namespace
 
 void SmoothShape::drawTo(const Surface& s) const {
@@ -1614,6 +1642,9 @@ void SmoothShape::drawTo(const Surface& s) const {
     case TRIANGLE: {
       DrawTriangle(triangle_, s, box);
       break;
+    }
+    case PIXEL: {
+      DrawPixel(pixel_, s, box);
     }
     case EMPTY: {
       return;
@@ -1640,6 +1671,12 @@ void SmoothShape::readColors(const int16_t* x, const int16_t* y, uint32_t count,
       ReadTriangleColors(triangle_, x, y, count, result);
       break;
     }
+    case PIXEL: {
+      while (count-- > 0) {
+        *result = pixel_.color;
+      }
+      break;
+    }
     case EMPTY: {
       while (count-- > 0) {
         *result++ = color::Transparent;
@@ -1664,6 +1701,10 @@ bool SmoothShape::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
     }
     case TRIANGLE: {
       return ReadColorRectOfTriangle(triangle_, xMin, yMin, xMax, yMax, result);
+    }
+    case PIXEL: {
+      *result = pixel_.color;
+      return true;
     }
     case EMPTY: {
       *result = color::Transparent;

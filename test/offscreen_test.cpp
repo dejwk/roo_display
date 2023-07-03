@@ -766,7 +766,7 @@ INSTANTIATE_TEST_CASE_P(
 TEST_F(OffscreenTest, OffsetedDrawing) {
   Offscreen<Monochrome> offscreen(Box(-6, -5, 4, 3), color::Black,
                                   WhiteOnBlack());
-  EXPECT_THAT(offscreen.raster(), MatchesContent(WhiteOnBlack(), 11, 9,
+  EXPECT_THAT(offscreen.raster(), MatchesContent(WhiteOnBlack(), Box(-6, -5, 4, 3),
                                                  "           "
                                                  "           "
                                                  "           "
@@ -782,7 +782,7 @@ TEST_F(OffscreenTest, OffsetedDrawing) {
   EXPECT_FALSE(dc.transformation().is_translated());
   EXPECT_EQ(dc.bounds(), Box(-6, -5, 4, 3));
   dc.draw(SolidRect(-4, -3, 2, 1, color::White));
-  EXPECT_THAT(offscreen.raster(), MatchesContent(WhiteOnBlack(), 11, 9,
+  EXPECT_THAT(offscreen.raster(), MatchesContent(WhiteOnBlack(), Box(-6, -5, 4, 3),
                                                  "           "
                                                  "           "
                                                  "  *******  "
@@ -795,7 +795,7 @@ TEST_F(OffscreenTest, OffsetedDrawing) {
   dc.setClipBox(-100, -100, 1, 0);
   EXPECT_EQ(dc.getClipBox(), Box(-6, -5, 1, 0));
   dc.clear();
-  EXPECT_THAT(offscreen.raster(), MatchesContent(WhiteOnBlack(), 11, 9,
+  EXPECT_THAT(offscreen.raster(), MatchesContent(WhiteOnBlack(), Box(-6, -5, 4, 3),
                                                  "           "
                                                  "           "
                                                  "        *  "
@@ -818,7 +818,7 @@ TEST_F(OffscreenTest, DrawingOffscreen) {
     DrawingContext dc(display);
     dc.draw(offscreen, 5, 4);
   }
-  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 13, 9,
+  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), Box(0, 0, 12, 8),
                                           "          ***"
                                           " 4444444  ***"
                                           " 4666664  ***"
@@ -841,7 +841,7 @@ TEST_F(OffscreenTest, DrawingOffscreenStreamable) {
     DrawingContext dc(display);
     dc.draw(ForcedStreamable(&offscreen), 5, 4);
   }
-  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 13, 9,
+  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), Box(0, 0, 12, 8),
                                           "          ***"
                                           " 4444444  ***"
                                           " 4666664  ***"
@@ -864,7 +864,7 @@ TEST_F(OffscreenTest, DrawingOffscreenRasterizable) {
     DrawingContext dc(display);
     dc.draw(ForcedRasterizable(&offscreen), 5, 4);
   }
-  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 13, 9,
+  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), Box(0, 0, 12, 8),
                                           "          ***"
                                           " 4444444  ***"
                                           " 4666664  ***"

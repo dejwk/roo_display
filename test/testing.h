@@ -814,16 +814,10 @@ class RawStreamableColorMatcher {
   bool MatchAndExplain(const T& actual, MatchResultListener* listener) const {
     bool matches = true;
     std::ostringstream mismatch_message;
-    if (actual.extents().width() != expected_.extents().width() ||
-        actual.extents().height() != expected_.extents().height()) {
-      mismatch_message << "\nDimension mismatch: " << actual.extents().width()
-                       << "x" << actual.extents().height();
+    if (actual.extents() != expected_.extents()) {
+      *listener << "Dimension mismatch: " << actual.extents();
       matches = false;
     } else {
-      // if (actual.extents() != expected_.extents()) {
-      //   *listener << "Dimension mismatch: " << actual.extents();
-      //   return false;
-      // }
       int32_t count = actual.extents().width() * actual.extents().height();
       auto actual_stream = actual.createRawStream();
       auto expected_stream = expected_.createRawStream();
@@ -922,7 +916,8 @@ template <typename ColorMode>
 internal::ParserStreamable<ColorMode> MakeTestStreamable(const ColorMode& mode,
                                                          Box extents,
                                                          string content) {
-  return internal::ParserStreamable<ColorMode>(mode, std::move(extents), content);
+  return internal::ParserStreamable<ColorMode>(mode, std::move(extents),
+                                               content);
 }
 
 template <typename ColorMode>
@@ -935,7 +930,8 @@ internal::ParserDrawable<ColorMode> MakeTestDrawable(const ColorMode& mode,
 template <typename ColorMode>
 internal::ParserRasterizable<ColorMode> MakeTestRasterizable(
     const ColorMode& mode, Box extents, string content) {
-  return internal::ParserRasterizable<ColorMode>(mode, std::move(extents), content);
+  return internal::ParserRasterizable<ColorMode>(mode, std::move(extents),
+                                                 content);
 }
 
 DrawableRawStreamable<RawStreamableFilledRect> SolidRect(int16_t x0, int16_t y0,
@@ -959,7 +955,8 @@ class FakeOffscreen : public DisplayDevice {
                 ColorMode color_mode = ColorMode())
       : DisplayDevice(width, height),
         color_mode_(std::move(color_mode)),
-        buffer_(new Color[width * height]) {
+        buffer_(new Color[width * height]),
+        extents_(0, 0, width - 1, height - 1) {
     writeRect(BLENDING_MODE_SOURCE, 0, 0, width - 1, height - 1, background);
   }
 
@@ -967,7 +964,8 @@ class FakeOffscreen : public DisplayDevice {
                 ColorMode color_mode = ColorMode())
       : DisplayDevice(extents.width(), extents.height()),
         color_mode_(std::move(color_mode)),
-        buffer_(new Color[extents.width() * extents.height()]) {
+        buffer_(new Color[extents.width() * extents.height()]),
+        extents_(extents) {
     writeRect(BLENDING_MODE_SOURCE, 0, 0, extents.width() - 1,
               extents.height() - 1, background);
   }
@@ -975,17 +973,15 @@ class FakeOffscreen : public DisplayDevice {
   FakeOffscreen(const FakeOffscreen& other)
       : DisplayDevice(other.raw_width(), other.raw_height()),
         color_mode_(other.color_mode()),
-        buffer_(new Color[other.raw_width() * other.raw_height()]) {
+        buffer_(new Color[other.raw_width() * other.raw_height()]),
+        extents_(other.extents()) {
     memcpy(buffer_.get(), other.buffer_.get(),
            other.raw_width() * other.raw_height() * sizeof(Color));
   }
 
   void orientationUpdated() override {}
 
-  // Required to implement 'Streamable'.
-  Box extents() const {
-    return Box(0, 0, effective_width() - 1, effective_height() - 1);
-  }
+  Box extents() const { return extents_; }
 
   // Required to implement 'Streamable'.
   const ColorMode& color_mode() const { return color_mode_; }
@@ -1083,6 +1079,7 @@ class FakeOffscreen : public DisplayDevice {
 
   ColorMode color_mode_;
   std::unique_ptr<Color[]> buffer_;
+  Box extents_;
   Box window_;
   BlendingMode blending_mode_;
   int16_t cursor_x_;
@@ -1321,6 +1318,25 @@ class ForcedFillRect : public Drawable {
 template <typename Obj>
 ForcedFillRect<Obj> ForceFillRect(Obj obj) {
   return ForcedFillRect<Obj>(std::move(obj));
+}
+
+// Returns a copy of the specified drawable as a fake offscreen with the
+// specified color mode and background. The result has the same extents as the
+// input drawable.
+template <typename ColorMode>
+FakeOffscreen<ColorMode> CoercedTo(
+    const Drawable& drawable, Color bgcolor = color::Transparent,
+    ColorMode color_mode = ColorMode(), FillMode fill_mode = FILL_MODE_VISIBLE,
+    BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER) {
+  FakeOffscreen<ColorMode> result(drawable.extents(), bgcolor, color_mode);
+  result.begin();
+  Box extents = drawable.extents();
+  Surface s(result, -extents.xMin(), -extents.yMin(),
+            Box(0, 0, extents.width() - 1, extents.height() - 1), false,
+            bgcolor, fill_mode, blending_mode);
+  s.drawObject(drawable);
+  result.end();
+  return result;
 }
 
 }  // namespace roo_display

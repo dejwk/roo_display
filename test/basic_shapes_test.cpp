@@ -1,9 +1,7 @@
 
-#include "roo_display/shape/basic.h"
-
 #include "roo_display/color/color.h"
+#include "roo_display/shape/basic.h"
 #include "testing.h"
-// #include "offscreen.h"
 
 using namespace testing;
 
@@ -131,6 +129,11 @@ TEST(BasicShapes, DrawZeroRadiusCircle) {
                                           "  *  "
                                           "     "
                                           "     "));
+}
+
+TEST(BasicShapes, DrawZeroRadiusCircle2) {
+  EXPECT_THAT(CoercedTo<Rgb565>(Circle::ByRadius(2, 3, 0, color::White)),
+              MatchesContent(WhiteOnBlack(), Box(2, 3, 2, 3), "*"));
 }
 
 TEST(BasicShapes, FillTinyCircle) {

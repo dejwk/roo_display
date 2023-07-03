@@ -162,7 +162,7 @@ TEST(NibbleRect, WindowIteratorTopLeftOffset) {
                  "DEF0123456"
                  "789ABCDEF0");
   EXPECT_THAT(NibbleRectWindowStreamable(&nibble_rect, Box(1, 2, 9, 7)),
-              MatchesContent(Grayscale4(), 9, 6,
+              MatchesContent(Grayscale4(), Box(1, 2, 9, 7),
                              "6789ABCDE"
                              "012345678"
                              "ABCDEF012"
@@ -185,7 +185,7 @@ TEST(NibbleRect, WindowIteratorMiddle) {
                  "DEF0123456"
                  "789ABCDEF0");
   EXPECT_THAT(NibbleRectWindowStreamable(&nibble_rect, Box(2, 3, 6, 5)),
-              MatchesContent(Grayscale4(), 5, 3,
+              MatchesContent(Grayscale4(), Box(2, 3, 6, 5),
                              "12345"
                              "BCDEF"
                              "56789"));
@@ -205,7 +205,7 @@ TEST(NibbleRect, WindowIteratorSinglePixel) {
                  "DEF0123456"
                  "789ABCDEF0");
   EXPECT_THAT(NibbleRectWindowStreamable(&nibble_rect, Box(7, 7, 7, 7)),
-              MatchesContent(Grayscale4(), 1, 1, "E"));
+              MatchesContent(Grayscale4(), Box(7, 7, 7, 7), "E"));
 }
 
 }  // namespace internal

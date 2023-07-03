@@ -803,10 +803,13 @@ bool AreColorModesEqual(const mode_a& a, const mode_b& b) {
   return cmp(a, b);
 }
 
+// Verifies a raw-streamable (actual) against an expectation, also raw
+// streamable.
 template <typename ExpectedStreamable>
-class ColorMatcher {
+class RawStreamableColorMatcher {
  public:
-  ColorMatcher(ExpectedStreamable expected) : expected_(std::move(expected)) {}
+  RawStreamableColorMatcher(ExpectedStreamable expected)
+      : expected_(std::move(expected)) {}
 
   template <typename T>
   bool MatchAndExplain(const T& actual, MatchResultListener* listener) const {
@@ -861,19 +864,20 @@ class ColorMatcher {
 };
 
 template <typename ColorMode>
-inline PolymorphicMatcher<ColorMatcher<internal::ParserStreamable<ColorMode>>>
+inline PolymorphicMatcher<
+    RawStreamableColorMatcher<internal::ParserStreamable<ColorMode>>>
 MatchesContent(ColorMode mode, int16_t width, int16_t height, string expected) {
   return MakePolymorphicMatcher(
-      ColorMatcher<internal::ParserStreamable<ColorMode>>(
+      RawStreamableColorMatcher<internal::ParserStreamable<ColorMode>>(
           internal::ParserStreamable<ColorMode>(mode, width, height,
                                                 expected)));
 }
 
 template <typename RawStreamable>
-inline PolymorphicMatcher<ColorMatcher<RawStreamable>> MatchesContent(
-    RawStreamable streamable) {
+inline PolymorphicMatcher<RawStreamableColorMatcher<RawStreamable>>
+MatchesContent(RawStreamable streamable) {
   return MakePolymorphicMatcher(
-      ColorMatcher<RawStreamable>(std::move(streamable)));
+      RawStreamableColorMatcher<RawStreamable>(std::move(streamable)));
 }
 
 class TestColorStream {
@@ -1036,8 +1040,8 @@ class FakeOffscreen : public DisplayDevice {
 
   const Color* buffer() { return buffer_.get(); }
 
-  void writeRect(BlendingMode mode, int16_t x0, int16_t y0, int16_t x1, int16_t y1,
-                 Color color) {
+  void writeRect(BlendingMode mode, int16_t x0, int16_t y0, int16_t x1,
+                 int16_t y1, Color color) {
     for (int16_t y = y0; y <= y1; ++y) {
       for (int16_t x = x0; x <= x1; ++x) {
         writePixel(mode, x, y, color);
@@ -1163,8 +1167,8 @@ class FakeFilteringOffscreen : public DisplayOutput {
 
   const FakeOffscreen<ColorMode>& offscreen() const { return offscreen_; }
 
-  void writeRect(BlendingMode mode, int16_t x0, int16_t y0, int16_t x1, int16_t y1,
-                 Color color) {
+  void writeRect(BlendingMode mode, int16_t x0, int16_t y0, int16_t x1,
+                 int16_t y1, Color color) {
     for (int16_t y = y0; y <= y1; ++y) {
       for (int16_t x = x0; x <= x1; ++x) {
         writePixel(mode, x, y, color);

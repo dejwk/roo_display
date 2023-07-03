@@ -778,10 +778,16 @@ template <typename RawStreamable,
           typename ColorMode = ColorModeOf<RawStreamable>>
 std::ostream& operator<<(std::ostream& os, const RawStreamable& streamable) {
   Box extents = streamable.extents();
-  os << extents.width();
-  os << "x";
-  os << extents.height();
-  os << " " << streamable.color_mode();
+  os << streamable.color_mode();
+  os << " [";
+  os << extents.xMin();
+  os << ", ";
+  os << extents.yMin();
+  os << ", ";
+  os << extents.xMax();
+  os << ", ";
+  os << extents.yMax();
+  os << "]";
   PrintStreamableContent(os, streamable, streamable.color_mode());
   return os;
 }

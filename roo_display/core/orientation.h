@@ -34,20 +34,20 @@ class Orientation {
 
   enum VerticalDirection { TOP_TO_BOTTOM = 0, BOTTOM_TO_TOP = 1 };
 
-  Orientation() : orientation_(0) {}
+  constexpr Orientation() : orientation_(0) {}
 
   // Returns a default orientation, (x, y) -> (left-to-right, top-to-bottom).
-  static Orientation Default() { return RightDown(); }
+  static constexpr Orientation Default() { return RightDown(); }
 
   // Returns a specific orientation.
-  static Orientation RightDown() { return Orientation(0); }
-  static Orientation DownRight() { return Orientation(1); }
-  static Orientation LeftDown() { return Orientation(2); }
-  static Orientation DownLeft() { return Orientation(3); }
-  static Orientation RightUp() { return Orientation(4); }
-  static Orientation UpRight() { return Orientation(5); }
-  static Orientation LeftUp() { return Orientation(6); }
-  static Orientation UpLeft() { return Orientation(7); }
+  static constexpr Orientation RightDown() { return Orientation(0); }
+  static constexpr Orientation DownRight() { return Orientation(1); }
+  static constexpr Orientation LeftDown() { return Orientation(2); }
+  static constexpr Orientation DownLeft() { return Orientation(3); }
+  static constexpr Orientation RightUp() { return Orientation(4); }
+  static constexpr Orientation UpRight() { return Orientation(5); }
+  static constexpr Orientation LeftUp() { return Orientation(6); }
+  static constexpr Orientation UpLeft() { return Orientation(7); }
 
   // Returns an orientation that results from taking a default orientation
   // (RightDown) and rotating it clockwise by 90 degree 'count' times. If count
@@ -190,7 +190,7 @@ class Orientation {
   friend bool operator==(Orientation a, Orientation b);
   friend bool operator!=(Orientation a, Orientation b);
 
-  Orientation(uint8_t orientation) : orientation_(orientation) {}
+  constexpr Orientation(uint8_t orientation) : orientation_(orientation) {}
 
   uint8_t orientation_;
 };

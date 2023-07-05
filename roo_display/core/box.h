@@ -28,11 +28,11 @@ class Box {
     return Box(xMin, yMin, xMax, yMax);
   }
 
-  Box(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax)
-      : xMin_(xMin), yMin_(yMin), xMax_(xMax), yMax_(yMax) {
-    if (xMax_ < xMin_) xMax_ = xMin_ - 1;
-    if (yMax_ < yMin_) yMax_ = yMin_ - 1;
-  }
+  constexpr Box(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax)
+      : xMin_(xMin),
+        yMin_(yMin),
+        xMax_(xMax >= xMin ? xMax : xMin - 1),
+        yMax_(yMax >= yMin ? yMax : yMin - 1) {}
 
   Box(const Box&) = default;
   Box(Box&&) = default;
@@ -139,5 +139,5 @@ inline std::ostream& operator<<(std::ostream& os, const roo_display::Box& box) {
      << box.yMax() << "]";
   return os;
 }
-}
+}  // namespace roo_display
 #endif  // defined(__linux__)

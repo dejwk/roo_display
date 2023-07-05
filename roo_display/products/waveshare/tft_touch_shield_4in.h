@@ -14,6 +14,9 @@
 
 namespace roo_display::products::waveshare {
 
+static constexpr TouchCalibration kTft4inDefaultCalibration = TouchCalibration(
+    161, 140, 3965, 3837, roo_display::Orientation::RightDown());
+
 template <int8_t pinLcdCs, int8_t pinTouchCs, int8_t pinLcdDc,
           int8_t pinLcdReset = -1, int8_t pinLcdBacklit = -1>
 class TftTouchShield4in : public ComboDevice {
@@ -34,10 +37,7 @@ class TftTouchShield4in : public ComboDevice {
 
   TouchDevice* touch() override { return &touch_; }
 
-  TouchCalibration touch_calibration() override {
-    return TouchCalibration(161, 140, 3965, 3837,
-                            roo_display::Orientation::RightDown());
-  }
+  TouchCalibration touch_calibration() override { return kTft4inDefaultCalibration; }
 
  private:
   decltype(SPI)& spi_;

@@ -368,7 +368,7 @@ inline bool Composition::Add(const Box& extents, BlendingMode blending_mode) {
   uint16_t input_mask = 1 << input_idx;
   input_count_++;
   // Box extents = Box::Intersect(bounds_, full_extents);
-  // if (extents.empty()) return false;
+  if (extents.empty()) return false;
   std::vector<Block> newdata;
   newdata.reserve(data_.capacity());
   auto i = data_.begin();

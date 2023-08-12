@@ -125,6 +125,7 @@ class ParallelLcd8Bit {
   }
 
   void beginTransaction() {}
+  void beginWriteOnlyTransaction() {}
   void endTransaction() {}
 
   void begin() {
@@ -133,6 +134,8 @@ class ParallelLcd8Bit {
     LCD_CAM.lcd_user.val = 0;
     LCD_CAM.lcd_user.val = LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG;
   }
+
+  void sync() {}
 
   void end() {
     while (LCD_CAM.lcd_user.val & LCD_CAM_LCD_START) {
@@ -148,6 +151,10 @@ class ParallelLcd8Bit {
 
   void writeBytes(uint8_t* data, uint32_t len) {
     while (len-- > 0) write(*data++);
+  }
+
+  void writeBytes_async(uint8_t* data, uint32_t len) {
+    writeBytes(data, len);
   }
 
   void write(uint8_t data) {
@@ -168,6 +175,10 @@ class ParallelLcd8Bit {
     write(a & 0xFF);
     write(b >> 8);
     write(b & 0xFF);
+  }
+
+  void write16x2_async(uint16_t a, uint16_t b) {
+    write16x2(a, b);
   }
 
   // Writes 2-byte word that has been pre-converted to BE if needed.
@@ -191,6 +202,10 @@ class ParallelLcd8Bit {
     while (len-- > 0) {
       write16be(data);
     }
+  }
+
+  void fill16be_async(uint16_t data, uint32_t len) {
+    fill16be(data, len);
   }
 
  private:

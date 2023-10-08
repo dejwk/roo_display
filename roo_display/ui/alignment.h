@@ -1,5 +1,7 @@
 #pragma once
 
+#include <inttypes.h>
+
 #include "roo_display/core/box.h"
 
 namespace roo_display {

@@ -70,6 +70,7 @@ class BlendingFilter : public DisplayOutput {
         cursor_x_ = address_window_.xMin();
       }
     }
+    // TODO: detect (common) cases when all pixels are out of bounds.
     raster_->readColorsMaybeOutOfBounds(x, y, pixel_count, newcolor);
     for (uint32_t i = 0; i < pixel_count; ++i) {
       newcolor[i] = blender_(newcolor[i], color[i]);

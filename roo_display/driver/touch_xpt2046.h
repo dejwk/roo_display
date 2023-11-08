@@ -4,6 +4,7 @@
 #include "roo_display/driver/common/basic_touch.h"
 #include "roo_display/hal/gpio.h"
 #include "roo_display/hal/spi.h"
+#include "roo_display/transport/spi.h"
 
 namespace roo_display {
 

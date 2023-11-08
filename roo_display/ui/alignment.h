@@ -71,21 +71,27 @@ class HAlign : public internal::AlignBase {
   using AlignBase::AlignBase;
 
   // Applies an extra horizontal shift.
-  constexpr HAlign shiftBy(int16_t shift_by) {
+  constexpr HAlign shiftBy(int16_t shift_by) const {
     return HAlign(dst(), src(), shift() + shift_by);
   }
 
   // Sets the anchor relative to the left of the destination.
-  constexpr HAlign toLeft() { return HAlign(ANCHOR_MIN, src(), shift()); }
+  constexpr HAlign toLeft() const { return HAlign(ANCHOR_MIN, src(), shift()); }
 
   // Sets the anchor relative to the center of the destination.
-  constexpr HAlign toCenter() { return HAlign(ANCHOR_MID, src(), shift()); }
+  constexpr HAlign toCenter() const {
+    return HAlign(ANCHOR_MID, src(), shift());
+  }
 
   // Sets the anchor relative to the right of the destination.
-  constexpr HAlign toRight() { return HAlign(ANCHOR_MAX, src(), shift()); }
+  constexpr HAlign toRight() const {
+    return HAlign(ANCHOR_MAX, src(), shift());
+  }
 
   // Sets the anchor relative to the origin (point zero) of the destination.
-  constexpr HAlign toOrigin() { return HAlign(ANCHOR_ORIGIN, src(), shift()); }
+  constexpr HAlign toOrigin() const {
+    return HAlign(ANCHOR_ORIGIN, src(), shift());
+  }
 };
 
 // Left-to-left with no shift.
@@ -116,22 +122,26 @@ class VAlign : public internal::AlignBase {
  public:
   using AlignBase::AlignBase;
 
-  constexpr VAlign shiftBy(int16_t shift_by) {
+  constexpr VAlign shiftBy(int16_t shift_by) const {
     return VAlign(dst(), src(), shift() + shift_by);
   }
 
   // Sets the anchor relative to the top of the destination.
-  constexpr VAlign toTop() { return VAlign(ANCHOR_MIN, src(), shift()); }
+  constexpr VAlign toTop() const { return VAlign(ANCHOR_MIN, src(), shift()); }
 
   // Sets the anchor relative to the middle of the destination.
-  constexpr VAlign toMiddle() { return VAlign(ANCHOR_MID, src(), shift()); }
+  constexpr VAlign toMiddle() const {
+    return VAlign(ANCHOR_MID, src(), shift());
+  }
 
   // Sets the anchor relative to the bottom of the destination.
-  constexpr VAlign toBottom() { return VAlign(ANCHOR_MAX, src(), shift()); }
+  constexpr VAlign toBottom() const {
+    return VAlign(ANCHOR_MAX, src(), shift());
+  }
 
   // Sets the anchor relative to the baseline (zero coordinate) of the
   // destination.
-  constexpr VAlign toBaseline() {
+  constexpr VAlign toBaseline() const {
     return VAlign(ANCHOR_ORIGIN, src(), shift());
   }
 };

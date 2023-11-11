@@ -92,18 +92,6 @@ auto hashGrid = MakeRasterizable(
     },
     TRANSPARENCY_NONE);
 
-void setup() {
-  Serial.begin(9600);
-  initGradient();
-  hashColor1 = color::LightGray;
-  hashColor2 = color::DarkGray;
-  SPI.begin();  // Use default SPI pins, or specify your own here.
-  display.init(color::White);
-  if (display.height() > display.width()) {
-    display.setOrientation(Orientation().rotateRight());
-  }
-}
-
 void simpleBackground() {
   // This example shows how anti-aliased text gets rendered over arbitrary
   // backgrounds (in this case, a slanted gradient).
@@ -113,8 +101,8 @@ void simpleBackground() {
   // from the background; i.e. it is green-ish when the text falls over green,
   // blue-ish if it falls over blue, etc.
   //
-  // We use leading and trailing spaces, because the rescaled labels have slightly different
-  // dimensions, and the spaces add some clear padding.
+  // We use leading and trailing spaces, because the rescaled labels have
+  // slightly different dimensions, and the spaces add some clear padding.
   auto labelOrig = StringViewLabel(" Afy ", font_NotoSans_Italic_60(),
                                    color::Black, FILL_MODE_RECTANGLE);
   auto labelScaled = StringViewLabel("  Afy  ", font_NotoSans_Italic_12(),
@@ -236,6 +224,8 @@ struct TimerBenchmark {
   bool inplace;
   bool background;
 };
+
+void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds);
 
 void printCentered(const std::string& text, int16_t y) {
   ClippedStringViewLabel label(text, font_NotoSans_Italic_18(), color::Black);
@@ -411,6 +401,18 @@ void scrollingText() {
     delay(40);
   }
   delay(2000);
+}
+
+void setup() {
+  Serial.begin(9600);
+  initGradient();
+  hashColor1 = color::LightGray;
+  hashColor2 = color::DarkGray;
+  SPI.begin();  // Use default SPI pins, or specify your own here.
+  display.init(color::White);
+  if (display.height() > display.width()) {
+    display.setOrientation(Orientation().rotateRight());
+  }
 }
 
 void loop() {

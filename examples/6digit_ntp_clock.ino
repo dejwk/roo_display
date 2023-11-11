@@ -95,7 +95,7 @@ void setup() {
   if (display.height() > display.width()) {
     display.setOrientation(Orientation().rotateRight());
   }
-  display.setBackground(color::BlanchedAlmond);
+  display.setBackgroundColor(color::BlanchedAlmond);
 
   display.clear();
 
@@ -113,7 +113,7 @@ void setup() {
 }
 
 void loop() {
-  display.setBackground(color::BlanchedAlmond);
+  display.setBackgroundColor(color::BlanchedAlmond);
 
   char time[9] = "";
   char date[11] = "";

@@ -111,11 +111,6 @@ void drawImageCentered() {
           (display.height() - kBgHeight) / 2);
 }
 
-struct Point {
-  int16_t x;
-  int16_t y;
-};
-
 Point calculateSpiralXY(double time) {
   double r = 300 * pow((time + 2), -1.2);
   Point p;

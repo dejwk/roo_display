@@ -155,7 +155,7 @@ namespace {
 inline void FillReplaceRect(DisplayOutput &output, const Box &extents,
                             int16_t dx, int16_t dy, const Rasterizable &object,
                             BlendingMode mode) {
-  uint32_t count = extents.area();
+  int32_t count = extents.area();
   Color buf[count];
   bool same =
       object.readColorRect(extents.xMin() - dx, extents.yMin() - dy,
@@ -172,7 +172,7 @@ inline void FillPaintRectOverOpaqueBg(DisplayOutput &output, const Box &extents,
                                       int16_t dx, int16_t dy, Color bgcolor,
                                       const Rasterizable &object,
                                       BlendingMode mode) {
-  uint32_t count = extents.area();
+  int32_t count = extents.area();
   Color buf[count];
   bool same =
       object.readColorRect(extents.xMin() - dx, extents.yMin() - dy,
@@ -191,7 +191,7 @@ inline void FillPaintRectOverOpaqueBg(DisplayOutput &output, const Box &extents,
 inline void FillPaintRectOverBg(DisplayOutput &output, const Box &extents,
                                 int16_t dx, int16_t dy, Color bgcolor,
                                 const Rasterizable &object, BlendingMode mode) {
-  uint32_t count = extents.area();
+  int32_t count = extents.area();
   Color buf[count];
   bool same =
       object.readColorRect(extents.xMin() - dx, extents.yMin() - dy,
@@ -211,7 +211,7 @@ inline void FillPaintRectOverBg(DisplayOutput &output, const Box &extents,
 inline void WriteRectVisible(DisplayOutput &output, const Box &extents,
                              int16_t dx, int16_t dy, const Rasterizable &object,
                              BlendingMode mode) {
-  uint32_t count = extents.area();
+  int32_t count = extents.area();
   Color buf[count];
   bool same =
       object.readColorRect(extents.xMin() - dx, extents.yMin() - dy,
@@ -237,7 +237,7 @@ inline void WriteRectVisibleOverOpaqueBg(DisplayOutput &output,
                                          int16_t dy, Color bgcolor,
                                          const Rasterizable &object,
                                          BlendingMode mode) {
-  uint32_t count = extents.area();
+  int32_t count = extents.area();
   Color buf[count];
   bool same =
       object.readColorRect(extents.xMin() - dx, extents.yMin() - dy,
@@ -262,7 +262,7 @@ inline void WriteRectVisibleOverOpaqueBg(DisplayOutput &output,
 inline void WriteRectVisibleOverBg(DisplayOutput &output, const Box &extents,
                                    int16_t dx, int16_t dy, Color bgcolor,
                                    const Rasterizable &object, BlendingMode mode) {
-  uint32_t count = extents.area();
+  int32_t count = extents.area();
   Color buf[count];
   bool same =
       object.readColorRect(extents.xMin() - dx, extents.yMin() - dy,

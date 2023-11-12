@@ -46,7 +46,7 @@ int TouchFt6x36::readTouch(TouchPoint* point) {
   for (uint8_t i = 0; i < 2; i++) {
     const int base = i * kTouchBufferSize;
     int kind = data[base + kRegBaseXh] >> 6;
-    if (kind & 1 != 0) {
+    if ((kind & 1) != 0) {
       // Lift-up or no-event.
       continue;
     }

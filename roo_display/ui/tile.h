@@ -40,8 +40,8 @@ class TileBase : public Drawable {
  public:
   TileBase(const Drawable &interior, Box extents, Alignment alignment,
            Color bgcolor = color::Background)
-      : border_(std::move(extents), std::move(interior.extents()),
-                std::move(interior.anchorExtents()), alignment),
+      : border_(std::move(extents), interior.extents(),
+                interior.anchorExtents(), alignment),
         bgcolor_(bgcolor),
         background_(nullptr) {}
 

@@ -78,7 +78,7 @@ Color ColorGradient::getColor(float value) const {
       if_c = 0;
     } else {
       float f_c = f_a * right.a() / ((1 - f_a) * left.a() + f_a * right.a());
-      int16_t if_c = (int16_t)(256 * f_c);
+      if_c = (int16_t)(256 * f_c);
     }
     uint32_t r =
         ((uint16_t)left.r() * (256 - if_c) + (uint16_t)right.r() * if_c) / 256;

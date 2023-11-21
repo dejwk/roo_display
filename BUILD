@@ -2,18 +2,19 @@ cc_library(
     name = "roo_display",
     srcs = glob(
         [
-            "**/*.cpp",
-            "**/*.c",
-            "**/*.h",
-            "**/*.inl",
+            "src/**/*.cpp",
+            "src/**/*.c",
+            "src/**/*.h",
+            "src/**/*.inl",
         ],
         exclude = ["test/**"],
     ),
     includes = [
-        ".",
+        "src",
     ],
     visibility = ["//visibility:public"],
     deps = [
+        "//lib/roo_collections",
         "//roo_testing:arduino",
         "//roo_testing/frameworks/arduino-esp32-2.0.4/libraries/FS",
         "//roo_testing/frameworks/arduino-esp32-2.0.4/libraries/Wire"
@@ -24,17 +25,17 @@ cc_library(
     name = "testing",
     srcs = glob(
         [
-            "**/*.cpp",
-            "**/*.c",
-            "**/*.h",
-            "**/*.inl",
+            "src/**/*.cpp",
+            "src/**/*.c",
+            "src/**/*.h",
+            "src/**/*.inl",
         ],
         exclude = ["test/**"],
     ),
     defines = ["ROO_DISPLAY_TESTING"],
     alwayslink = 1,
     includes = [
-        ".",
+        "src",
     ],
     visibility = ["//visibility:public"],
     deps = [

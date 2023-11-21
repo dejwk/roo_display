@@ -2,10 +2,10 @@
 
 #include <inttypes.h>
 
+#include "roo_collections/flat_small_hashtable.h"
 #include "roo_display/color/blending.h"
 #include "roo_display/color/color.h"
 #include "roo_display/color/color_set.h"
-#include "roo_display/internal/hashtable.h"
 
 namespace roo_display {
 
@@ -20,8 +20,9 @@ struct PaletteElementKey {
 
 class PaletteIndex {
  public:
-  using Map = internal::Hashtable<uint8_t, Color, internal::ColorHash,
-                                  internal::PaletteElementKey>;
+  using Map =
+      roo_collections::FlatSmallHashtable<uint8_t, Color, internal::ColorHash,
+                                          internal::PaletteElementKey>;
 
   // For a 'static' index.
   PaletteIndex(const Color* palette, int size)
@@ -43,9 +44,9 @@ class PaletteIndex {
         max_size_(max_size),
         size_(0) {}
 
-  Map::Iterator find(Color color) const { return index_map_.find(color); }
+  Map::ConstIterator find(Color color) const { return index_map_.find(color); }
 
-  Map::Iterator end() const { return index_map_.end(); }
+  Map::ConstIterator end() const { return index_map_.end(); }
 
  private:
   friend class ::roo_display::Palette;

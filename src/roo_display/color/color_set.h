@@ -1,7 +1,7 @@
 #pragma once
 
+#include "roo_collections/flat_small_hash_set.h"
 #include "roo_display/color/color.h"
-#include "roo_display/internal/hashtable.h"
 
 namespace roo_display {
 
@@ -11,7 +11,7 @@ struct ColorHash {
   uint32_t operator()(Color color) const { return color.asArgb(); }
 };
 
-typedef HashSet<Color, ColorHash> ColorSet;
+typedef roo_collections::FlatSmallHashSet<Color, ColorHash> ColorSet;
 
 }  // namespace internal
 

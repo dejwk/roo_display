@@ -28,20 +28,21 @@
         "type": "git",
         "url": "https://github.com/dejwk/roo_display"
     },
-    "version": "1.0.2",
+    "version": "1.2",
     "homepage": "https://github.com/dejwk/roo_display",
     "frameworks": [
         "Arduino"
     ],
     "build": {
-        "srcDir": ".",
+        "srcDir": "src",
         "srcFilter": "+<*> -<examples> -<benchmarks> -<doc> -<test>"
     },
     "examples": [
         "examples/**/*.ino"
     ],
-    "dependencies": [
-        "SPI",
-        "Wire"
-    ]
+    "dependencies": {
+        "SPI": ">0",
+        "Wire": ">0",
+        "dejwk/roo_collections": ">=1.0"
+    }
 }

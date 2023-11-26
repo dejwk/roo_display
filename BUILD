@@ -39,6 +39,7 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
+        "//lib/roo_collections",
         "//roo_testing:arduino_gtest_main",
     ],
 )
@@ -402,18 +403,6 @@ cc_test(
         "test/testing.h",
         "test/testing_display_device.h",
     ],
-    linkstatic = 1,
-    deps = [
-        "//lib/roo_display:testing",
-    ],
-)
-
-cc_test(
-    name = "hashtable_test",
-    srcs = [
-        "test/hashtable_test.cpp",
-    ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
     deps = [
         "//lib/roo_display:testing",

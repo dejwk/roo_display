@@ -1,0 +1,46 @@
+// https://github.com/dejwk/roo_display/blob/master/doc/programming_guide.md#transformations
+
+#include "Arduino.h"
+#include "roo_display.h"
+
+using namespace roo_display;
+
+// Select the driver to match your display device.
+#include "roo_display/driver/ili9341.h"
+
+// Set your configuration for the driver.
+static constexpr int kCsPin = 5;
+static constexpr int kDcPin = 2;
+static constexpr int kRstPin = 4;
+static constexpr int kBlPin = 16;
+
+// Uncomment if you have connected the BL pin to GPIO.
+
+// #include "roo_display/backlit/esp32_ledc.h"
+// LedcBacklit backlit(kBlPin, /* ledc channel */ 0);
+
+Ili9341spi<kCsPin, kDcPin, kRstPin> device(Orientation().rotateLeft());
+Display display(device);
+
+#include "roo_display/filter/transformation.h"
+#include "roo_display/ui/text_label.h"
+#include "roo_smooth_fonts/NotoSerif_Italic/27.h"
+
+void setup() {
+  SPI.begin();
+  display.init(Graylevel(0xF0));
+}
+
+void loop() {
+  DrawingContext dc(display);
+  dc.setTransformation(Transformation().scale(10, 3));
+  dc.draw(TextLabel("F", font_NotoSerif_Italic_27(), color::Black),
+          kCenter | kMiddle);
+  dc.setTransformation(Transformation().rotateLeft());
+  dc.draw(TextLabel("Hello, World!", font_NotoSerif_Italic_27(), color::Black),
+          kLeft | kMiddle);
+  dc.setTransformation(Transformation().rotateRight().flipX());
+  dc.draw(TextLabel("Hello, World!", font_NotoSerif_Italic_27(), color::Black),
+          kRight | kMiddle);
+  delay(10000);
+}

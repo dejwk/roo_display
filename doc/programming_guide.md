@@ -452,7 +452,6 @@ void loop() {
 
   dc.draw(Rect(box.xMin() - 5, box.yMin() - 5, box.xMax() + 5,
                box.yMax() + 5, color::Red));
-
 }
 ```
 
@@ -1053,7 +1052,6 @@ void loop() {
 Speaking of thickness: you are not limited to the 1-pixel-thick outlines. You can specify arbitrary positive floating-point thickness:
 
 ```cpp
-#include "roo_smooth_fonts/NotoSans_Bold/15.h"
 
 // ...
 
@@ -1192,7 +1190,8 @@ void loop() {
       SmoothRotatedFilledRect({160, 120}, 50, 50, M_PI / 4, color::Crimson));
 
   delay(10000);
-}```
+}
+```
 
 ![img48](images/img48.png)
 

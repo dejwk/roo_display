@@ -1,6 +1,6 @@
-#include "roo_display/driver/esp32s3_dma_parallel_rgb565.h"
-
 #if defined(ESP32) && (CONFIG_IDF_TARGET_ESP32S3)
+
+#include "roo_display/driver/esp32s3_dma_parallel_rgb565.h"
 
 #include "esp_heap_caps.h"
 #include "esp_intr_alloc.h"

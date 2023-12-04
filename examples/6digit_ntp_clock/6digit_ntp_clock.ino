@@ -209,10 +209,6 @@ void bootMsg(const std::string& s) {
 void initWiFi(std::string s) {
   bootMsg(s);
 
-  WiFi.begin();
-  while (WiFi.status() == WL_DISCONNECTED) {
-    delay(50);
-  }
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);

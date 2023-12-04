@@ -2,7 +2,7 @@
 
 #include <inttypes.h>
 
-#include "roo_collections/flat_small_hashtable.h"
+#include "roo_collections_flat_small_hashtable.h"
 #include "roo_display/color/blending.h"
 #include "roo_display/color/color.h"
 #include "roo_display/color/color_set.h"

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "roo_collections/flat_small_hash_set.h"
+#include "roo_collections_flat_small_hash_set.h"
 #include "roo_display/color/color.h"
 
 namespace roo_display {

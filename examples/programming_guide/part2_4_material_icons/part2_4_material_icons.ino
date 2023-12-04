@@ -5,6 +5,7 @@
 
 #include "Arduino.h"
 #include "roo_display.h"
+#include "roo_material_icons.h"
 
 using namespace roo_display;
 

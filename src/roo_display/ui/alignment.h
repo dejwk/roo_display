@@ -49,6 +49,15 @@ class AlignBase {
            resolveAnchor<Dim>(src(), first_inner, last_inner) + shift();
   }
 
+  bool operator==(AlignBase other) const {
+    return rep_ == other.rep_;
+  }
+
+  bool operator!=(AlignBase other) const {
+    return rep_ != other.rep_;
+  }
+
+ protected:
   uint16_t rep_;
 };
 
@@ -189,6 +198,14 @@ class Alignment {
 
   Alignment shiftBy(int16_t dx, int16_t dy) {
     return Alignment(h_.shiftBy(dx), v_.shiftBy(dy));
+  }
+
+  bool operator==(Alignment other) const {
+    return h_ == other.h_ && v_ == other.v_;
+  }
+
+  bool operator!=(Alignment other) const {
+    return h_ != other.h_ || v_ != other.v_;
   }
 
  private:

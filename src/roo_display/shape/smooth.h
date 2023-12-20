@@ -148,14 +148,16 @@ class SmoothShape : public Rasterizable {
     float start_x_slope;
     // Y-slope at angle start: (y_ro - y_rc) / |ro - rc|.
     float start_y_slope;
-    // Endpoint of the cut line at the start angle, mid-band.
+    // Endpoint of the cut line at the start angle, mid-band, relative to the
+    // circle center.
     float start_x_rc;
     float start_y_rc;
     // X-slope at angle end: (x_ro - x_rc) / |ro - rc|.
     float end_x_slope;
     // Y-slope at angle end: (y_ro - y_rc) / |ro - rc|.
     float end_y_slope;
-    // Endpoint of the cut line at the end angle, mid-band.
+    // Endpoint of the cut line at the end angle, mid-band, relative to the
+    // circle center.
     float end_x_rc;
     float end_y_rc;
     int start_quadrant;
@@ -224,7 +226,14 @@ class SmoothShape : public Rasterizable {
 
   void drawTo(const Surface& s) const override;
 
-  enum Kind { EMPTY = 0, WEDGE = 1, ROUND_RECT = 2, ARC = 3, TRIANGLE = 4, PIXEL = 5 };
+  enum Kind {
+    EMPTY = 0,
+    WEDGE = 1,
+    ROUND_RECT = 2,
+    ARC = 3,
+    TRIANGLE = 4,
+    PIXEL = 5
+  };
 
   SmoothShape(Box extents, Wedge wedge);
   SmoothShape(Box extents, RoundRect round_rect);

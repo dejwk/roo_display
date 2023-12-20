@@ -201,6 +201,9 @@ SmoothShape SmoothFilledCircle(FpPoint center, float radius, Color color) {
 namespace {
 
 inline constexpr int Quadrant(float x, float y) {
+  // 1 | 0
+  // --+--
+  // 2 | 3
   return (x <= 0 && y > 0)   ? 0
          : (y <= 0 && x < 0) ? 1
          : (x >= 0 && y < 0) ? 2
@@ -247,7 +250,7 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
                              interior_color);
   }
   radius += thickness * 0.5f;
-  while (angle_start > M_PI) {
+  while (angle_start >= M_PI) {
     angle_start -= 2 * M_PI;
     angle_end -= 2 * M_PI;
   }
@@ -287,24 +290,21 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
                 (int16_t)floorf(center.y + d - 0.5f));
 
   // Figure out the extents.
-  bool q1 = (angle_start <= -1.0f * M_PI && angle_end >= -0.5f * M_PI) ||
-            (angle_end >= 1.75f * M_PI);
-  bool q2 = (angle_start <= -0.5f * M_PI && angle_end >= 0) ||
-            (angle_end >= 2.0f * M_PI);
-  bool q3 = (angle_start <= 0 && angle_end >= 0.5f * M_PI) ||
+  // q0-q3, when true, mean that the arc goes through the 'entire' given
+  // quadrant, in which case the bounds are determined simply by the external
+  // radius.
+  bool q0 = (angle_start <= 0 && angle_end >= 0.5f * M_PI) ||
             (angle_end >= 2.5f * M_PI);
-  bool q4 = (angle_start <= 0.5f * M_PI && angle_end >= M_PI) ||
+  bool q1 = (angle_start <= -0.5f * M_PI && angle_end >= 0) ||
+            (angle_end >= 2.0f * M_PI);
+  bool q2 = (angle_start <= -1.0f * M_PI && angle_end >= -0.5f * M_PI) ||
+            (angle_end >= 1.5 * M_PI);
+  bool q3 = (angle_start <= 0.5f * M_PI && angle_end >= M_PI) ||
             (angle_end >= 3.0f * M_PI);
+
   int16_t xMin, yMin, xMax, yMax;
-  if (q1 || q2 || (angle_start <= -0.5f * M_PI && angle_end >= -0.5f * M_PI)) {
-    xMin = (int16_t)floorf(center.x - radius);
-  } else if (ending_style == ENDING_ROUNDED) {
-    xMin = floorf(center.x + std::min(start_x_rc, end_x_rc) - rm);
-  } else {
-    xMin = floorf(center.x + std::min(std::min(start_x_ro, start_x_ri),
-                                      std::min(end_x_ro, end_x_ri)));
-  }
-  if (q2 || q3 || (angle_start <= 0 && angle_end >= 0)) {
+  if (q0 || q1 || (angle_start <= 0 && angle_end >= 0)) {
+    // Arc passes through zero (touches the top).
     yMin = (int16_t)floorf(center.y - radius);
   } else if (ending_style == ENDING_ROUNDED) {
     yMin = floorf(center.y + std::min(start_y_rc, end_y_rc) - rm);
@@ -312,21 +312,32 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
     yMin = floorf(center.y + std::min(std::min(start_y_ro, start_y_ri),
                                       std::min(end_y_ro, end_y_ri)));
   }
-  if (q3 || q4 || (angle_start <= 0.5f * M_PI && angle_end >= 0.5f * M_PI)) {
-    xMax = (int16_t)ceilf(center.x + radius);
+  if (q1 || q2 || (angle_start <= -0.5f * M_PI && angle_end >= -0.5f * M_PI)) {
+    // Arc passes through -M_PI/2 (touches the left).
+    xMin = (int16_t)floorf(center.x - radius);
   } else if (ending_style == ENDING_ROUNDED) {
-    xMax = ceilf(center.x + std::max(start_x_rc, end_x_rc) + rm);
+    xMin = floorf(center.x + std::min(start_x_rc, end_x_rc) - rm);
   } else {
-    xMax = ceilf(center.x + std::max(std::max(start_x_ro, start_x_ri),
-                                     std::max(end_x_ro, end_x_ri)));
+    xMin = floorf(center.x + std::min(std::min(start_x_ro, start_x_ri),
+                                      std::min(end_x_ro, end_x_ri)));
   }
-  if (q4 || q1 || (angle_start <= M_PI && angle_end >= M_PI)) {
+  if (q2 || q3 || (angle_start <= M_PI && angle_end >= M_PI)) {
+    // Arc passes through M_PI (touches the bottom).
     yMax = (int16_t)ceilf(center.y + radius);
   } else if (ending_style == ENDING_ROUNDED) {
     yMax = ceilf(center.y + std::max(start_y_rc, end_y_rc) + rm);
   } else {
     yMax = ceilf(center.y + std::max(std::max(start_y_ro, start_y_ri),
                                      std::max(end_y_ro, end_y_ri)));
+  }
+  if (q3 || q0 || (angle_start <= 0.5f * M_PI && angle_end >= 0.5f * M_PI)) {
+    // Arc passes through M_PI/2 (touches the right).
+    xMax = (int16_t)ceilf(center.x + radius);
+  } else if (ending_style == ENDING_ROUNDED) {
+    xMax = ceilf(center.x + std::max(start_x_rc, end_x_rc) + rm);
+  } else {
+    xMax = ceilf(center.x + std::max(std::max(start_x_ro, start_x_ri),
+                                     std::max(end_x_ro, end_x_ri)));
   }
 
   float cutoff_angle = 2.0f * asinf(rm / (2.0f * (ro - rm)));
@@ -1320,10 +1331,8 @@ void DrawArc(SmoothShape::Arc arc, const Surface& s, const Box& box) {
   if (s.dx() != 0 || s.dy() != 0) {
     arc.xc += s.dx();
     arc.yc += s.dy();
-    arc.start_x_rc += s.dx();
-    arc.start_y_rc += s.dy();
-    arc.end_x_rc += s.dx();
-    arc.end_y_rc += s.dy();
+    // Not adjusting {start,end}_{x,y}_rc, because those are relative to (xc,
+    // yc).
     arc.inner_mid = arc.inner_mid.translate(s.dx(), s.dy());
   }
   int16_t xMin = box.xMin();

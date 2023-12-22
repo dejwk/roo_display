@@ -1087,33 +1087,32 @@ inline float CalcDistSq(float x1, float y1, int16_t x2, int16_t y2) {
   return dx * dx + dy * dy;
 }
 
-inline bool IsPointWithinAngle(float start_x_slope, float start_y_slope,
-                               float end_x_slope, float end_y_slope, bool sharp,
-                               float dx, float dy) {
-  float n1 = start_y_slope * dx - start_x_slope * dy;
-  float n2 = end_x_slope * dy - end_y_slope * dx;
-  if (sharp) {
-    return (n1 <= -0.5f && n2 <= -0.5f);
-  } else {
-    return (n1 <= -0.5f || n2 <= -0.5f);
-  }
-}
-
 inline bool IsRectWithinAngle(float start_x_slope, float start_y_slope,
                               float end_x_slope, float end_y_slope, bool sharp,
                               float cx, float cy, const Box& box) {
-  return IsPointWithinAngle(start_x_slope, start_y_slope, end_x_slope,
-                            end_y_slope, sharp, box.xMin() - cx,
-                            box.yMin() - cy) &&
-         IsPointWithinAngle(start_x_slope, start_y_slope, end_x_slope,
-                            end_y_slope, sharp, box.xMin() - cx,
-                            box.yMax() - cy) &&
-         IsPointWithinAngle(start_x_slope, start_y_slope, end_x_slope,
-                            end_y_slope, sharp, box.xMax() - cx,
-                            box.yMin() - cy) &&
-         IsPointWithinAngle(start_x_slope, start_y_slope, end_x_slope,
-                            end_y_slope, sharp, box.xMax() - cx,
-                            box.yMax() - cy);
+  float dxl = box.xMin() - cx;
+  float dxr = box.xMax() - cx;
+  float dyt = box.yMin() - cy;
+  float dyb = box.yMax() - cy;
+  if (sharp) {
+    return (start_y_slope * dxl - start_x_slope * dyt <= -0.5f &&
+            start_y_slope * dxl - start_x_slope * dyb <= -0.5f &&
+            start_y_slope * dxr - start_x_slope * dyt <= -0.5f &&
+            start_y_slope * dxr - start_x_slope * dyb <= -0.5f) &&
+           (end_x_slope * dyt - end_y_slope * dxl <= -0.5f &&
+            end_x_slope * dyb - end_y_slope * dxl <= -0.5f &&
+            end_x_slope * dyt - end_y_slope * dxr <= -0.5f &&
+            end_x_slope * dyb - end_y_slope * dxr <= -0.5f);
+  } else {
+    return (start_y_slope * dxl - start_x_slope * dyt <= -0.5f &&
+            start_y_slope * dxl - start_x_slope * dyb <= -0.5f &&
+            start_y_slope * dxr - start_x_slope * dyt <= -0.5f &&
+            start_y_slope * dxr - start_x_slope * dyb <= -0.5f) ||
+           (end_x_slope * dyt - end_y_slope * dxl <= -0.5f &&
+            end_x_slope * dyb - end_y_slope * dxl <= -0.5f &&
+            end_x_slope * dyt - end_y_slope * dxr <= -0.5f &&
+            end_x_slope * dyb - end_y_slope * dxr <= -0.5f);
+  }
 }
 
 inline bool IsPointWithinCircle(float cx, float cy, float r_sq, float x,
@@ -1218,7 +1217,7 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
       }
       // Fast-path for the case when the arc contains the entire quadrant.
       if (arc.quadrants_ & 2) {
-         return OUTLINE_ACTIVE;
+        return OUTLINE_ACTIVE;
       }
     } else if (yMin >= arc.yc) {
       float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
@@ -1229,7 +1228,7 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
       }
       // Fast-path for the case when the arc contains the entire quadrant.
       if (arc.quadrants_ & 8) {
-         return OUTLINE_ACTIVE;
+        return OUTLINE_ACTIVE;
       }
     } else {
       return NON_UNIFORM;

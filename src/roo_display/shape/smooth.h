@@ -168,6 +168,10 @@ class SmoothShape : public Rasterizable {
     bool range_angle_sharp;
     bool nonempty_cutoff;
     bool cutoff_angle_sharp;
+
+    // Lower 4 bits: when a bit is set, it means that the arc includes the
+    // entire given quadrant.
+    uint8_t quadrants_;
   };
 
   struct Triangle {

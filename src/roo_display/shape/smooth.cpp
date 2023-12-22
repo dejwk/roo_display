@@ -280,8 +280,8 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
   float end_x_ri = ri * end_sin;
   float end_y_ri = -ri * end_cos;
 
-  int start_quadrant = Quadrant(start_x_ro, start_y_ro);
-  int end_quadrant = Quadrant(end_x_ro, end_y_ro);
+  // int start_quadrant = Quadrant(start_x_ro, start_y_ro);
+  // int end_quadrant = Quadrant(end_x_ro, end_y_ro);
 
   float d = sqrtf(0.5f) * (radius - thickness);
   Box inner_mid((int16_t)ceilf(center.x - d + 0.5f),
@@ -293,10 +293,16 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
   // q0-q3, when true, mean that the arc goes through the 'entire' given
   // quadrant, in which case the bounds are determined simply by the external
   // radius.
-  bool q0 = (angle_start <= 0 && angle_end >= 0.5f * M_PI) ||
-            (angle_end >= 2.5f * M_PI);
-  bool q1 = (angle_start <= -0.5f * M_PI && angle_end >= 0) ||
+  // Quadrants are defined as follows:
+  //
+  // 0 | 1
+  // --+--
+  // 2 | 3
+
+  bool q0 = (angle_start <= -0.5f * M_PI && angle_end >= 0) ||
             (angle_end >= 2.0f * M_PI);
+  bool q1 = (angle_start <= 0 && angle_end >= 0.5f * M_PI) ||
+            (angle_end >= 2.5f * M_PI);
   bool q2 = (angle_start <= -1.0f * M_PI && angle_end >= -0.5f * M_PI) ||
             (angle_end >= 1.5 * M_PI);
   bool q3 = (angle_start <= 0.5f * M_PI && angle_end >= M_PI) ||
@@ -312,7 +318,7 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
     yMin = floorf(center.y + std::min(std::min(start_y_ro, start_y_ri),
                                       std::min(end_y_ro, end_y_ri)));
   }
-  if (q1 || q2 || (angle_start <= -0.5f * M_PI && angle_end >= -0.5f * M_PI)) {
+  if (q0 || q2 || (angle_start <= -0.5f * M_PI && angle_end >= -0.5f * M_PI)) {
     // Arc passes through -M_PI/2 (touches the left).
     xMin = (int16_t)floorf(center.x - radius);
   } else if (ending_style == ENDING_ROUNDED) {
@@ -330,7 +336,7 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
     yMax = ceilf(center.y + std::max(std::max(start_y_ro, start_y_ri),
                                      std::max(end_y_ro, end_y_ri)));
   }
-  if (q3 || q0 || (angle_start <= 0.5f * M_PI && angle_end >= 0.5f * M_PI)) {
+  if (q3 || q1 || (angle_start <= 0.5f * M_PI && angle_end >= 0.5f * M_PI)) {
     // Arc passes through M_PI/2 (touches the right).
     xMax = (int16_t)ceilf(center.x + radius);
   } else if (ending_style == ENDING_ROUNDED) {
@@ -379,7 +385,8 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
                        ending_style == ENDING_ROUNDED,
                        angle_end - angle_start <= M_PI,
                        has_nonempty_cutoff,
-                       angle_end - angle_start + 2.0f * cutoff_angle < M_PI});
+                       angle_end - angle_start + 2.0f * cutoff_angle < M_PI,
+                       (q0 << 0) | (q1 << 1) | (q2 << 2) | (q3 << 3)});
 }
 
 SmoothShape SmoothFilledTriangle(FpPoint a, FpPoint b, FpPoint c, Color color) {
@@ -978,63 +985,72 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
   }
   // We now know that the pixel is somewhere inside the ring.
   Color color = spec.outline_active_color;
-  float n1 = spec.start_y_slope * dx - spec.start_x_slope * dy;
-  float n2 = spec.end_x_slope * dy - spec.end_y_slope * dx;
-  bool within_range = false;
-  if (spec.range_angle_sharp) {
-    within_range = (n1 <= -0.5 && n2 <= -0.5);
+
+  // 0 | 1
+  // --+--
+  // 2 | 3
+  int quadrant = ((dy >= 0) << 1) | (dx >= 0);
+  if ((1 << quadrant) & spec.quadrants_) {
+    // The entire quadrant is within range.
   } else {
-    within_range = (n1 <= -0.5 || n2 <= -0.5);
-  }
-  if (!within_range) {
-    // Not entirely within the angle range. May be close to boundary; may be far
-    // from it. The result depends on ending style.
-    if (spec.round_endings) {
-      float dxs = dx - spec.start_x_rc;
-      float dys = dy - spec.start_y_rc;
-      float dxe = dx - spec.end_x_rc;
-      float dye = dy - spec.end_y_rc;
-      // The endings may overlap, so we need to check the min distance from both
-      // endpoints.
-      float smaller_dist_sq =
-          std::min(dxs * dxs + dys * dys, dxe * dxe + dye * dye);
-      if (smaller_dist_sq > spec.rm_sq_adj + spec.rm) {
-        color = spec.outline_inactive_color;
-      } else if (smaller_dist_sq < spec.rm_sq_adj - spec.rm) {
-        color = spec.outline_active_color;
-      } else {
-        // Round endings boundary - we need to calculate the alpha-blended
-        // color.
-        float d = sqrt(smaller_dist_sq);
-        color = AlphaBlend(spec.outline_inactive_color,
-                           spec.outline_active_color.withA(
-                               (uint8_t)(spec.outline_active_color.a() *
-                                         (spec.rm - d + 0.5f))));
-      }
+    bool within_range = false;
+    float n1 = spec.start_y_slope * dx - spec.start_x_slope * dy;
+    float n2 = spec.end_x_slope * dy - spec.end_y_slope * dx;
+    if (spec.range_angle_sharp) {
+      within_range = (n1 <= -0.5 && n2 <= -0.5);
     } else {
-      // Flat endings.
-      bool outside_range = false;
-      if (spec.range_angle_sharp) {
-        outside_range = (n1 >= 0.5f || n2 >= 0.5f);
-      } else {
-        outside_range = (n1 >= 0.5f && n2 >= 0.5f);
-      }
-      if (outside_range) {
-        color = spec.outline_inactive_color;
-      } else {
-        float alpha = 1.0;
-        if (n1 > -0.5f && n1 < 0.5f) {
-          alpha *= (1 - (n1 + 0.5f));
+      within_range = (n1 <= -0.5 || n2 <= -0.5);
+    }
+    if (!within_range) {
+      // Not entirely within the angle range. May be close to boundary; may be
+      // far from it. The result depends on ending style.
+      if (spec.round_endings) {
+        float dxs = dx - spec.start_x_rc;
+        float dys = dy - spec.start_y_rc;
+        float dxe = dx - spec.end_x_rc;
+        float dye = dy - spec.end_y_rc;
+        // The endings may overlap, so we need to check the min distance from
+        // both endpoints.
+        float smaller_dist_sq =
+            std::min(dxs * dxs + dys * dys, dxe * dxe + dye * dye);
+        if (smaller_dist_sq > spec.rm_sq_adj + spec.rm) {
+          color = spec.outline_inactive_color;
+        } else if (smaller_dist_sq < spec.rm_sq_adj - spec.rm) {
+          color = spec.outline_active_color;
+        } else {
+          // Round endings boundary - we need to calculate the alpha-blended
+          // color.
+          float d = sqrt(smaller_dist_sq);
+          color = AlphaBlend(spec.outline_inactive_color,
+                             spec.outline_active_color.withA(
+                                 (uint8_t)(spec.outline_active_color.a() *
+                                           (spec.rm - d + 0.5f))));
         }
-        if (n2 < 0.5f && n2 > -0.5f) {
-          alpha *= (1 - (n2 + 0.5f));
+      } else {
+        // Flat endings.
+        bool outside_range = false;
+        if (spec.range_angle_sharp) {
+          outside_range = (n1 >= 0.5f || n2 >= 0.5f);
+        } else {
+          outside_range = (n1 >= 0.5f && n2 >= 0.5f);
         }
-        if (alpha > 1.0f) alpha = 1.0f;
-        if (alpha < 0.0f) alpha = 0.0f;
-        color =
-            AlphaBlend(spec.outline_inactive_color,
-                       spec.outline_active_color.withA(
-                           (uint8_t)(spec.outline_active_color.a() * alpha)));
+        if (outside_range) {
+          color = spec.outline_inactive_color;
+        } else {
+          float alpha = 1.0;
+          if (n1 > -0.5f && n1 < 0.5f) {
+            alpha *= (1 - (n1 + 0.5f));
+          }
+          if (n2 < 0.5f && n2 > -0.5f) {
+            alpha *= (1 - (n2 + 0.5f));
+          }
+          if (alpha > 1.0f) alpha = 1.0f;
+          if (alpha < 0.0f) alpha = 0.0f;
+          color =
+              AlphaBlend(spec.outline_inactive_color,
+                         spec.outline_active_color.withA(
+                             (uint8_t)(spec.outline_active_color.a() * alpha)));
+        }
       }
     }
   }

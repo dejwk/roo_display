@@ -372,16 +372,14 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
                        -end_cos,
                        end_x_rc,
                        end_y_rc,
-                       start_quadrant,
-                       end_quadrant,
-                       ending_style == ENDING_ROUNDED,
-                       angle_end - angle_start <= M_PI,
-                       has_nonempty_cutoff,
-                       angle_end - angle_start + 2.0f * cutoff_angle < M_PI,
                        cutoff_start_sin,
                        -cutoff_start_cos,
                        cutoff_end_sin,
-                       -cutoff_end_cos});
+                       -cutoff_end_cos,
+                       ending_style == ENDING_ROUNDED,
+                       angle_end - angle_start <= M_PI,
+                       has_nonempty_cutoff,
+                       angle_end - angle_start + 2.0f * cutoff_angle < M_PI});
 }
 
 SmoothShape SmoothFilledTriangle(FpPoint a, FpPoint b, FpPoint c, Color color) {

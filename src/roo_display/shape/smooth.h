@@ -160,16 +160,14 @@ class SmoothShape : public Rasterizable {
     // circle center.
     float end_x_rc;
     float end_y_rc;
-    int start_quadrant;
-    int end_quadrant;
-    bool round_endings;
-    bool range_angle_sharp;
-    bool nonempty_cutoff;
-    bool cutoff_angle_sharp;
     float start_cutoff_x_slope;
     float start_cutoff_y_slope;
     float end_cutoff_x_slope;
     float end_cutoff_y_slope;
+    bool round_endings;
+    bool range_angle_sharp;
+    bool nonempty_cutoff;
+    bool cutoff_angle_sharp;
   };
 
   struct Triangle {

@@ -999,15 +999,18 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
     return color::Transparent;
   }
   // We now know that the pixel is somewhere inside the ring.
-  Color color = spec.outline_active_color;
+  Color color;
 
   // 0 | 1
   // --+--
   // 2 | 3
-  int quadrant = ((dy >= 0) << 1) | (dx >= 0);
-  if ((1 << quadrant) & spec.quadrants_ &&
-      ((dx >= 0.5 || dx <= -0.5) && (dy >= 0.5 || dy <= -0.5))) {
-    // The entire quadrant is within range.
+
+  int qx = (dx < 0.5) << 0 | (dx > -0.5) << 1;
+  int quadrant = (((dy < 0.5) * 3) & qx) | (((dy > -0.5)) * 3 & qx) << 2;
+
+  if ((quadrant & spec.quadrants_) == quadrant) {
+    // The entire quadrant is (or, all touched quadrants are) within range.
+    color = spec.outline_active_color;
   } else {
     bool within_range = false;
     float n1 = spec.start_y_slope * dx - spec.start_x_slope * dy;
@@ -1017,7 +1020,9 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
     } else {
       within_range = (n1 <= -0.5 || n2 <= -0.5);
     }
-    if (!within_range) {
+    if (within_range) {
+      color = spec.outline_active_color;
+    } else {
       // Not entirely within the angle range. May be close to boundary; may be
       // far from it. The result depends on ending style.
       if (spec.round_endings) {

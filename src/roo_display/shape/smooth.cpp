@@ -990,7 +990,8 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
   // --+--
   // 2 | 3
   int quadrant = ((dy >= 0) << 1) | (dx >= 0);
-  if ((1 << quadrant) & spec.quadrants_) {
+  if ((1 << quadrant) & spec.quadrants_ &&
+      ((dx >= 0.5 || dx <= -0.5) && (dy >= 0.5 || dy <= -0.5))) {
     // The entire quadrant is within range.
   } else {
     bool within_range = false;
@@ -1022,9 +1023,9 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
           // color.
           float d = sqrt(smaller_dist_sq);
           color = AlphaBlend(spec.outline_inactive_color,
-                             spec.outline_active_color.withA(
-                                 (uint8_t)(spec.outline_active_color.a() *
-                                           (spec.rm - d + 0.5f))));
+                             spec.outline_active_color.withA((
+                                 uint8_t)(0.5f + spec.outline_active_color.a() *
+                                                     (spec.rm - d + 0.5f))));
         }
       } else {
         if (spec.range_angle_sharp) {
@@ -1033,16 +1034,22 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
             color = spec.outline_inactive_color;
           } else {
             float alpha = 1.0f;
-            if (n1 > -0.5f && n1 < 0.5f) {
+            if (n1 > -0.5f && n1 < 0.5f &&
+                spec.start_x_slope * dx + spec.start_y_slope * dy > 0) {
+              // To the inner side of the start angle sub-plane (shifted by
+              // 0.5), and pointing towards the start angle (cos < 90).
               alpha *= (1 - (n1 + 0.5f));
             }
-            if (n2 < 0.5f && n2 > -0.5f) {
+            if (n2 < 0.5f && n2 > -0.5f &&
+                spec.end_x_slope * dx + spec.end_y_slope * dy > 0) {
+              // To the inner side of the end angle sub-plane (shifted by 0.5),
+              // and pointing towards the end angle (cos < 90).
               alpha *= (1 - (n2 + 0.5f));
             }
             color = AlphaBlend(
                 spec.outline_inactive_color,
                 spec.outline_active_color.withA(
-                    (uint8_t)(spec.outline_active_color.a() * alpha)));
+                    (uint8_t)(0.5f + spec.outline_active_color.a() * alpha)));
           }
         } else {
           // Equivalent to the 'sharp' case with colors (active vs active)
@@ -1051,18 +1058,24 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
           if (inside_range) {
             color = spec.outline_active_color;
           } else {
-            float alpha = 1.0;
-            if (n1 > -0.5f && n1 < 0.5f) {
+            float alpha = 1.0f;
+            if (n1 > -0.5f && n1 < 0.5f &&
+                spec.start_y_slope * dy + spec.start_x_slope * dx > 0) {
+              // To the inner side of the start angle sub-plane (shifted by
+              // 0.5), and pointing towards the start angle (cos < 90).
               alpha *= (n1 + 0.5f);
             }
-            if (n2 < 0.5f && n2 > -0.5f) {
+            if (n2 < 0.5f && n2 > -0.5f &&
+                spec.end_x_slope * dx + spec.end_y_slope * dy > 0) {
+              // To the inner side of the end angle sub-plane (shifted by 0.5),
+              // and pointing towards the end angle (cos < 90).
               alpha *= (n2 + 0.5f);
             }
             alpha = 1.0f - alpha;
             color = AlphaBlend(
                 spec.outline_inactive_color,
                 spec.outline_active_color.withA(
-                    (uint8_t)(spec.outline_active_color.a() * alpha)));
+                    (uint8_t)(0.5f + spec.outline_active_color.a() * alpha)));
           }
         }
       }

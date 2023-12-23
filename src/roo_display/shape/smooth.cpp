@@ -346,13 +346,28 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
                                      std::max(end_x_ro, end_x_ri)));
   }
 
-  float cutoff_angle = 2.0f * asinf(rm / (2.0f * (ro - rm)));
-  bool has_nonempty_cutoff =
-      (angle_end - angle_start + 2.0f * cutoff_angle) < 2.0f * M_PI;
-  float cutoff_start_sin = sinf(angle_start - cutoff_angle);
-  float cutoff_start_cos = cosf(angle_start - cutoff_angle);
-  float cutoff_end_sin = sinf(angle_end + cutoff_angle);
-  float cutoff_end_cos = cosf(angle_end + cutoff_angle);
+  bool has_nonempty_cutoff;
+  float cutoff_angle;
+  float cutoff_start_sin;
+  float cutoff_start_cos;
+  float cutoff_end_sin;
+  float cutoff_end_cos;
+  if (ending_style == ENDING_ROUNDED) {
+    float cutoff_angle = 2.0f * asinf(rm / (2.0f * (ro - rm)));
+    has_nonempty_cutoff =
+        (angle_end - angle_start + 2.0f * cutoff_angle) < 2.0f * M_PI;
+    cutoff_start_sin = sinf(angle_start - cutoff_angle);
+    cutoff_start_cos = cosf(angle_start - cutoff_angle);
+    cutoff_end_sin = sinf(angle_end + cutoff_angle);
+    cutoff_end_cos = cosf(angle_end + cutoff_angle);
+  } else {
+    has_nonempty_cutoff = true;
+    cutoff_angle = 0.0f;
+    cutoff_start_sin = start_sin;
+    cutoff_start_cos = start_cos;
+    cutoff_end_sin = end_sin;
+    cutoff_end_cos = end_cos;
+  }
 
   return SmoothShape(
       Box(xMin, yMin, xMax, yMax),

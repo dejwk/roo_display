@@ -1027,29 +1027,45 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
                                            (spec.rm - d + 0.5f))));
         }
       } else {
-        // Flat endings.
-        bool outside_range = false;
         if (spec.range_angle_sharp) {
-          outside_range = (n1 >= 0.5f || n2 >= 0.5f);
-        } else {
-          outside_range = (n1 >= 0.5f && n2 >= 0.5f);
-        }
-        if (outside_range) {
-          color = spec.outline_inactive_color;
-        } else {
-          float alpha = 1.0;
-          if (n1 > -0.5f && n1 < 0.5f) {
-            alpha *= (1 - (n1 + 0.5f));
+          bool outside_range = (n1 >= 0.5f || n2 >= 0.5f);
+          if (outside_range) {
+            color = spec.outline_inactive_color;
+          } else {
+            float alpha = 1.0;
+            if (n1 > -0.5f && n1 < 0.5f) {
+              alpha *= (1 - (n1 + 0.5f));
+            }
+            if (n2 < 0.5f && n2 > -0.5f) {
+              alpha *= (1 - (n2 + 0.5f));
+            }
+            if (alpha > 1.0f) alpha = 1.0f;
+            if (alpha < 0.0f) alpha = 0.0f;
+            color = AlphaBlend(
+                spec.outline_inactive_color,
+                spec.outline_active_color.withA(
+                    (uint8_t)(spec.outline_active_color.a() * alpha)));
           }
-          if (n2 < 0.5f && n2 > -0.5f) {
-            alpha *= (1 - (n2 + 0.5f));
+        } else {
+          // Equivalent to the 'sharp' case with colors (active vs active)
+          // flipped.
+          bool inside_range = (n1 <= -0.5f || n2 <= -0.5f);
+          if (inside_range) {
+            color = spec.outline_active_color;
+          } else {
+            float alpha = 1.0;
+            if (n1 > -0.5f && n1 < 0.5f) {
+              alpha *= (n1 + 0.5f);
+            }
+            if (n2 < 0.5f && n2 > -0.5f) {
+              alpha *= (n2 + 0.5f);
+            }
+            alpha = 1.0f - alpha;
+            color = AlphaBlend(
+                spec.outline_inactive_color,
+                spec.outline_active_color.withA(
+                    (uint8_t)(spec.outline_active_color.a() * alpha)));
           }
-          if (alpha > 1.0f) alpha = 1.0f;
-          if (alpha < 0.0f) alpha = 0.0f;
-          color =
-              AlphaBlend(spec.outline_inactive_color,
-                         spec.outline_active_color.withA(
-                             (uint8_t)(spec.outline_active_color.a() * alpha)));
         }
       }
     }

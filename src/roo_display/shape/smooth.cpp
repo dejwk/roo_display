@@ -990,7 +990,7 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
     return spec.interior_color;
   }
   float d_squared = dx * dx + dy * dy;
-  if (d_squared <= spec.ri_sq_adj - spec.ri) {
+  if (spec.ri >= 0.5f && d_squared <= spec.ri_sq_adj - spec.ri) {
     // Pixel fully within the 'inner' ring.
     return spec.interior_color;
   }
@@ -1056,7 +1056,7 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
               alpha *= (1 - (n1 + 0.5f));
             }
             if (n2 < 0.5f && n2 > -0.5f &&
-                spec.end_x_slope * dx + spec.end_y_slope * dy > 0) {
+                spec.end_x_slope * dx + spec.end_y_slope * dy >= 0) {
               // To the inner side of the end angle sub-plane (shifted by 0.5),
               // and pointing towards the end angle (cos < 90).
               alpha *= (1 - (n2 + 0.5f));
@@ -1075,7 +1075,7 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
           } else {
             float alpha = 1.0f;
             if (n1 > -0.5f && n1 < 0.5f &&
-                spec.start_y_slope * dy + spec.start_x_slope * dx > 0) {
+                spec.start_y_slope * dy + spec.start_x_slope * dx >= 0) {
               // To the inner side of the start angle sub-plane (shifted by
               // 0.5), and pointing towards the start angle (cos < 90).
               alpha *= (n1 + 0.5f);

@@ -86,7 +86,7 @@ SmoothShape SmoothThickArc(FpPoint center, float radius, float thickness,
 SmoothShape SmoothPie(FpPoint center, float radius, float angle_start,
                       float angle_end, Color color);
 
-// Creates an arc with the given center, radius, and thickness, start and eng
+// Creates an arc with the given center, radius, and thickness, start and end
 // angles, and color, and additionally, the color of the complement of the arc,
 // the color of the circle inside the arc, and the ending style.
 SmoothShape SmoothThickArcWithBackground(

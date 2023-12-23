@@ -1032,15 +1032,13 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
           if (outside_range) {
             color = spec.outline_inactive_color;
           } else {
-            float alpha = 1.0;
+            float alpha = 1.0f;
             if (n1 > -0.5f && n1 < 0.5f) {
               alpha *= (1 - (n1 + 0.5f));
             }
             if (n2 < 0.5f && n2 > -0.5f) {
               alpha *= (1 - (n2 + 0.5f));
             }
-            if (alpha > 1.0f) alpha = 1.0f;
-            if (alpha < 0.0f) alpha = 0.0f;
             color = AlphaBlend(
                 spec.outline_inactive_color,
                 spec.outline_active_color.withA(

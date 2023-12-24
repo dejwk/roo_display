@@ -6,6 +6,13 @@
 // --------------------------------------------
 // Horizontal lines         113624
 
+// ILI9431, SPI, 40 MHz:
+// --------------------------------------------
+// Benchmark                Time (microseconds)
+// --------------------------------------------
+// Horizontal lines         70869
+// Smooth arcs (large)      361909
+
 #include "Arduino.h"
 
 #ifdef ROO_TESTING
@@ -101,6 +108,23 @@ unsigned long testHorizontalLines() {
   return micros() - start;
 }
 
+unsigned long testLargeSmoothArcs() {
+  DrawingContext dc(display);
+  dc.clear();
+
+  unsigned long start = micros();
+
+  for (int i = 0; i < 15; ++i) {
+    float angle_start = -0.3f - i * 0.13f;
+    float angle_end = 1.0f + i * 0.25f;
+    float thickness = 20 + i * 5.0f;
+
+    dc.draw(SmoothThickArc({160.5, 120.5}, 70, thickness, angle_start,
+                           angle_end, color::BlueViolet, ENDING_ROUNDED));
+  }
+  return micros() - start;
+}
+
 void test() {
   Serial.println("Shapes benchmark");
   Serial.println("--------------------------------------------");
@@ -110,6 +134,9 @@ void test() {
   delay(10);
   Serial.print(F("Horizontal lines         "));
   Serial.println(testHorizontalLines());
+  delay(500);
+  Serial.print(F("Smooth arcs (large)      "));
+  Serial.println(testLargeSmoothArcs());
   delay(500);
 
   Serial.println(F("Done!"));

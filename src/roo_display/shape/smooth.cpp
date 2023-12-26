@@ -312,9 +312,11 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
     cutoff_end_cos = end_cos;
   }
 
-  // qt0-qt3, when true, mean that the arc goes through the 'entire' given
+  // qt0-qt3, when true, mean that the arc goes through the entire given
   // quadrant, in which case the bounds are determined simply by the external
-  // radius.
+  // radius. qf0-qf3 are defined similarly, except they indicate that the arc
+  // goes through none of the quadrant.
+  //
   // Quadrants are defined as follows:
   //
   // 0 | 1
@@ -330,8 +332,27 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
   bool qt3 = (angle_start <= 0.5f * M_PI && angle_end >= M_PI) ||
              (angle_end >= 3.0f * M_PI);
 
-  // Figure out the extents.
+  // bool qf0, qf1, qf2, qf3;
+  // if (!has_nonempty_cutoff) {
+  //   qf0 = qf1 = qf2 = qf3 = false;
+  // } else {
+  //   float cutoff_angle_start = angle_start - cutoff_angle;
+  //   float cutoff_angle_end = angle_end + cutoff_angle;
+  //   qf0 = !qt0 && ((cutoff_angle_end < -0.5f * M_PI) ||
+  //                  (cutoff_angle_start > 0 && cutoff_angle_end < 1.5f * M_PI));
+  //   qf1 =
+  //       !qt1 &&
+  //       ((cutoff_angle_end < 0.0f * M_PI) ||
+  //        (cutoff_angle_start > 0.5f * M_PI && cutoff_angle_end < 2.0f * M_PI));
+  //   qf2 = !qt2 &&
+  //         (cutoff_angle_start > -0.5f * M_PI && cutoff_angle_end < 1.0f * M_PI);
+  //   qf3 =
+  //       !qt3 &&
+  //       (cutoff_angle_end < 0.5f * M_PI ||
+  //        (cutoff_angle_start > 1.0f * M_PI && cutoff_angle_end < 2.5f * M_PI));
+  // }
 
+  // Figure out the extents.
   int16_t xMin, yMin, xMax, yMax;
   if (qt0 || qt1 || (angle_start <= 0 && angle_end >= 0)) {
     // Arc passes through zero (touches the top).
@@ -405,6 +426,10 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
                        angle_end - angle_start + 2.0f * cutoff_angle < M_PI,
                        (uint8_t)(((uint8_t)qt0 << 0) | ((uint8_t)qt1 << 1) |
                                  ((uint8_t)qt2 << 2) | ((uint8_t)qt3 << 3))});
+  //  (uint8_t)(((uint8_t)qt0 << 0) | ((uint8_t)qt1 << 1) |
+  //            ((uint8_t)qt2 << 2) | ((uint8_t)qt3 << 3) |
+  //            ((uint8_t)qf0 << 4) | ((uint8_t)qf1 << 5) |
+  //            ((uint8_t)qf2 << 6) | ((uint8_t)qf3 << 7))});
 }
 
 SmoothShape SmoothFilledTriangle(FpPoint a, FpPoint b, FpPoint c, Color color) {
@@ -1012,8 +1037,11 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
   int quadrant = (((dy < 0.5) * 3) & qx) | (((dy > -0.5)) * 3 & qx) << 2;
 
   if ((quadrant & spec.quadrants_) == quadrant) {
-    // The entire quadrant is (or, all touched quadrants are) within range.
+    // The entire quadrant is within range.
     color = spec.outline_active_color;
+    // } else if ((quadrant & (spec.quadrants_ >> 4)) == quadrant) {
+    //   // The entire quadrant is outside range.
+    //   color = spec.outline_inactive_color;
   } else {
     bool within_range = false;
     float n1 = spec.start_y_slope * dx - spec.start_x_slope * dy;
@@ -1244,6 +1272,10 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
           yMax <= arc.yc - 0.5f) {
         return OUTLINE_ACTIVE;
       }
+      // if ((arc.quadrants_ & 0x10) && xMax <= arc.xc - 0.5f &&
+      //     yMax <= arc.yc - 0.5f) {
+      //   return OUTLINE_INACTIVE;
+      // }
     } else if (yMin >= arc.yc) {
       float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
       float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
@@ -1256,6 +1288,10 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
           yMin >= arc.yc + 0.5f) {
         return OUTLINE_ACTIVE;
       }
+      // if (arc.quadrants_ & 0x40 && xMax <= arc.xc - 0.5f &&
+      //     yMin >= arc.yc + 0.5f) {
+      //   return OUTLINE_INACTIVE;
+      // }
     } else if (xMax <= arc.xc - arc.ri - 0.5f) {
       float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
       float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
@@ -1279,6 +1315,10 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
           yMax <= arc.yc - 0.5f) {
         return OUTLINE_ACTIVE;
       }
+      // if (arc.quadrants_ & 0x20 && xMin >= arc.xc + 0.5f &&
+      //     yMax <= arc.yc - 0.5f) {
+      //   return OUTLINE_INACTIVE;
+      // }
     } else if (yMin >= arc.yc) {
       float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
       float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
@@ -1291,6 +1331,10 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
           yMin >= arc.yc + 0.5f) {
         return OUTLINE_ACTIVE;
       }
+      // if (arc.quadrants_ & 0x80 && xMin >= arc.xc + 0.5f &&
+      //     yMin >= arc.yc + 0.5f) {
+      //   return OUTLINE_INACTIVE;
+      // }
     } else if (xMin >= arc.xc + arc.ri + 0.5f) {
       float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
       float r_ring_min_sq = arc.ri_sq_adj + arc.ri;

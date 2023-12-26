@@ -1251,6 +1251,13 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
       if (arc.quadrants_ & 4) {
         return OUTLINE_ACTIVE;
       }
+    } else if (xMax <= arc.xc - arc.ri - 0.5f) {
+      float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
+      float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
+      if (dtl > r_ring_max_sq || dtl < r_ring_min_sq || dbl > r_ring_max_sq ||
+          dbl < r_ring_min_sq) {
+        return NON_UNIFORM;
+      }
     } else {
       return NON_UNIFORM;
     }
@@ -1277,7 +1284,28 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
       if (arc.quadrants_ & 8) {
         return OUTLINE_ACTIVE;
       }
+    } else if (xMin >= arc.xc + arc.ri + 0.5f) {
+      float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
+      float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
+      if (dtr > r_ring_max_sq || dtr < r_ring_min_sq || dbr > r_ring_max_sq ||
+          dbr < r_ring_min_sq) {
+        return NON_UNIFORM;
+      }
     } else {
+      return NON_UNIFORM;
+    }
+  } else if (yMax <= arc.yc - arc.ri - 0.5f) {
+    float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
+    float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
+    if (dtl > r_ring_max_sq || dtl < r_ring_min_sq || dtr > r_ring_max_sq ||
+        dtr < r_ring_min_sq) {
+      return NON_UNIFORM;
+    }
+  } else if (yMin >= arc.yc + arc.ri + 0.5f) {
+    float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
+    float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
+    if (dbl > r_ring_max_sq || dbl < r_ring_min_sq || dbr > r_ring_max_sq ||
+        dbr < r_ring_min_sq) {
       return NON_UNIFORM;
     }
   } else {

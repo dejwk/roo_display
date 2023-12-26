@@ -1,18 +1,17 @@
 // Latest results:
 //
 // ILI9486, SPI, 20 MHz:
-// --------------------------------------------
-// Benchmark                Time (microseconds)
-// --------------------------------------------
-// Horizontal lines         113624
+// -----------------------------------------------
+// Benchmark                   Time (microseconds)
+// -----------------------------------------------
+// Horizontal lines            113624
 
 // ILI9431, SPI, 40 MHz:
-// --------------------------------------------
-// Benchmark                Time (microseconds)
-// --------------------------------------------
-// Horizontal lines         70869
-// Smooth arcs (large)      361909
-
+// -----------------------------------------------
+// Benchmark                   Time (microseconds)
+// -----------------------------------------------
+// Horizontal lines            71395
+// Smooth arcs (large, round)  323870
 #include "Arduino.h"
 
 #ifdef ROO_TESTING
@@ -127,19 +126,19 @@ unsigned long testLargeSmoothArcs() {
 
 void test() {
   Serial.println("Shapes benchmark");
-  Serial.println("--------------------------------------------");
+  Serial.println("-----------------------------------------------");
 
-  Serial.println(F("Benchmark                Time (microseconds)"));
-  Serial.println("--------------------------------------------");
+  Serial.println("Benchmark                   Time (microseconds)");
+  Serial.println("-----------------------------------------------");
   delay(10);
-  Serial.print(F("Horizontal lines         "));
+  Serial.print("Horizontal lines            ");
   Serial.println(testHorizontalLines());
   delay(500);
-  Serial.print(F("Smooth arcs (large)      "));
+  Serial.print("Smooth arcs (large, round)  ");
   Serial.println(testLargeSmoothArcs());
   delay(500);
 
-  Serial.println(F("Done!"));
+  Serial.println("Done!");
 }
 
 void setup() {

@@ -402,8 +402,8 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
                        angle_end - angle_start <= M_PI,
                        has_nonempty_cutoff,
                        angle_end - angle_start + 2.0f * cutoff_angle < M_PI,
-                       ((uint8_t)qt0 << 0) | ((uint8_t)qt1 << 1) |
-                           ((uint8_t)qt2 << 2) | ((uint8_t)qt3 << 3)});
+                       (uint8_t)(((uint8_t)qt0 << 0) | ((uint8_t)qt1 << 1) |
+                                 ((uint8_t)qt2 << 2) | ((uint8_t)qt3 << 3))});
 }
 
 SmoothShape SmoothFilledTriangle(FpPoint a, FpPoint b, FpPoint c, Color color) {

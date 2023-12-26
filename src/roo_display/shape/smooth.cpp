@@ -290,7 +290,7 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
                 (int16_t)floorf(center.y + d - 0.5f));
 
   // Figure out the extents.
-  // q0-q3, when true, mean that the arc goes through the 'entire' given
+  // qt0-qt3, when true, mean that the arc goes through the 'entire' given
   // quadrant, in which case the bounds are determined simply by the external
   // radius.
   // Quadrants are defined as follows:
@@ -299,17 +299,17 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
   // --+--
   // 2 | 3
 
-  bool q0 = (angle_start <= -0.5f * M_PI && angle_end >= 0) ||
-            (angle_end >= 2.0f * M_PI);
-  bool q1 = (angle_start <= 0 && angle_end >= 0.5f * M_PI) ||
-            (angle_end >= 2.5f * M_PI);
-  bool q2 = (angle_start <= -1.0f * M_PI && angle_end >= -0.5f * M_PI) ||
-            (angle_end >= 1.5 * M_PI);
-  bool q3 = (angle_start <= 0.5f * M_PI && angle_end >= M_PI) ||
-            (angle_end >= 3.0f * M_PI);
+  bool qt0 = (angle_start <= -0.5f * M_PI && angle_end >= 0) ||
+             (angle_end >= 2.0f * M_PI);
+  bool qt1 = (angle_start <= 0 && angle_end >= 0.5f * M_PI) ||
+             (angle_end >= 2.5f * M_PI);
+  bool qt2 = (angle_start <= -1.0f * M_PI && angle_end >= -0.5f * M_PI) ||
+             (angle_end >= 1.5 * M_PI);
+  bool qt3 = (angle_start <= 0.5f * M_PI && angle_end >= M_PI) ||
+             (angle_end >= 3.0f * M_PI);
 
   int16_t xMin, yMin, xMax, yMax;
-  if (q0 || q1 || (angle_start <= 0 && angle_end >= 0)) {
+  if (qt0 || qt1 || (angle_start <= 0 && angle_end >= 0)) {
     // Arc passes through zero (touches the top).
     yMin = (int16_t)floorf(center.y - radius);
   } else if (ending_style == ENDING_ROUNDED) {
@@ -318,7 +318,8 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
     yMin = floorf(center.y + std::min(std::min(start_y_ro, start_y_ri),
                                       std::min(end_y_ro, end_y_ri)));
   }
-  if (q0 || q2 || (angle_start <= -0.5f * M_PI && angle_end >= -0.5f * M_PI)) {
+  if (qt0 || qt2 ||
+      (angle_start <= -0.5f * M_PI && angle_end >= -0.5f * M_PI)) {
     // Arc passes through -M_PI/2 (touches the left).
     xMin = (int16_t)floorf(center.x - radius);
   } else if (ending_style == ENDING_ROUNDED) {
@@ -327,7 +328,7 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
     xMin = floorf(center.x + std::min(std::min(start_x_ro, start_x_ri),
                                       std::min(end_x_ro, end_x_ri)));
   }
-  if (q2 || q3 || (angle_start <= M_PI && angle_end >= M_PI)) {
+  if (qt2 || qt3 || (angle_start <= M_PI && angle_end >= M_PI)) {
     // Arc passes through M_PI (touches the bottom).
     yMax = (int16_t)ceilf(center.y + radius);
   } else if (ending_style == ENDING_ROUNDED) {
@@ -336,7 +337,7 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
     yMax = ceilf(center.y + std::max(std::max(start_y_ro, start_y_ri),
                                      std::max(end_y_ro, end_y_ri)));
   }
-  if (q3 || q1 || (angle_start <= 0.5f * M_PI && angle_end >= 0.5f * M_PI)) {
+  if (qt3 || qt1 || (angle_start <= 0.5f * M_PI && angle_end >= 0.5f * M_PI)) {
     // Arc passes through M_PI/2 (touches the right).
     xMax = (int16_t)ceilf(center.x + radius);
   } else if (ending_style == ENDING_ROUNDED) {
@@ -401,7 +402,8 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
                        angle_end - angle_start <= M_PI,
                        has_nonempty_cutoff,
                        angle_end - angle_start + 2.0f * cutoff_angle < M_PI,
-                       (q0 << 0) | (q1 << 1) | (q2 << 2) | (q3 << 3)});
+                       ((uint8_t)qt0 << 0) | ((uint8_t)qt1 << 1) |
+                           ((uint8_t)qt2 << 2) | ((uint8_t)qt3 << 3)});
 }
 
 SmoothShape SmoothFilledTriangle(FpPoint a, FpPoint b, FpPoint c, Color color) {

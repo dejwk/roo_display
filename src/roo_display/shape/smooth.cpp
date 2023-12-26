@@ -296,7 +296,7 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
   float cutoff_end_sin;
   float cutoff_end_cos;
   if (ending_style == ENDING_ROUNDED) {
-    float cutoff_angle = 2.0f * asinf(rm / (2.0f * (ro - rm)));
+    cutoff_angle = 2.0f * asinf(rm / (2.0f * (ro - rm)));
     has_nonempty_cutoff =
         (angle_end - angle_start + 2.0f * cutoff_angle) < 2.0f * M_PI;
     cutoff_start_sin = sinf(angle_start - cutoff_angle);

@@ -10,8 +10,8 @@
 // -----------------------------------------------
 // Benchmark                   Time (microseconds)
 // -----------------------------------------------
-// Horizontal lines            71395
-// Smooth arcs (large, round)  323870
+// Horizontal lines            71048
+// Smooth arcs (large, round)  324385
 #include "Arduino.h"
 
 #ifdef ROO_TESTING

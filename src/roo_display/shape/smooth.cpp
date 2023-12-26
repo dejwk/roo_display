@@ -1237,7 +1237,8 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
         return NON_UNIFORM;
       }
       // Fast-path for the case when the arc contains the entire quadrant.
-      if (arc.quadrants_ & 1) {
+      if ((arc.quadrants_ & 1) && xMax <= arc.xc - 0.5f &&
+          yMax <= arc.yc - 0.5f) {
         return OUTLINE_ACTIVE;
       }
     } else if (yMin >= arc.yc) {
@@ -1248,7 +1249,8 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
         return NON_UNIFORM;
       }
       // Fast-path for the case when the arc contains the entire quadrant.
-      if (arc.quadrants_ & 4) {
+      if (arc.quadrants_ & 4 && xMax <= arc.xc - 0.5f &&
+          yMin >= arc.yc + 0.5f) {
         return OUTLINE_ACTIVE;
       }
     } else if (xMax <= arc.xc - arc.ri - 0.5f) {
@@ -1270,7 +1272,8 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
         return NON_UNIFORM;
       }
       // Fast-path for the case when the arc contains the entire quadrant.
-      if (arc.quadrants_ & 2) {
+      if (arc.quadrants_ & 2 && xMin >= arc.xc + 0.5f &&
+          yMax <= arc.yc - 0.5f) {
         return OUTLINE_ACTIVE;
       }
     } else if (yMin >= arc.yc) {
@@ -1281,7 +1284,8 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
         return NON_UNIFORM;
       }
       // Fast-path for the case when the arc contains the entire quadrant.
-      if (arc.quadrants_ & 8) {
+      if (arc.quadrants_ & 8 && xMin >= arc.xc + 0.5f &&
+          yMin >= arc.yc + 0.5f) {
         return OUTLINE_ACTIVE;
       }
     } else if (xMin >= arc.xc + arc.ri + 0.5f) {

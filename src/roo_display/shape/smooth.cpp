@@ -289,7 +289,29 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
                 (int16_t)floorf(center.x + d - 0.5f),
                 (int16_t)floorf(center.y + d - 0.5f));
 
-  // Figure out the extents.
+  bool has_nonempty_cutoff;
+  float cutoff_angle;
+  float cutoff_start_sin;
+  float cutoff_start_cos;
+  float cutoff_end_sin;
+  float cutoff_end_cos;
+  if (ending_style == ENDING_ROUNDED) {
+    float cutoff_angle = 2.0f * asinf(rm / (2.0f * (ro - rm)));
+    has_nonempty_cutoff =
+        (angle_end - angle_start + 2.0f * cutoff_angle) < 2.0f * M_PI;
+    cutoff_start_sin = sinf(angle_start - cutoff_angle);
+    cutoff_start_cos = cosf(angle_start - cutoff_angle);
+    cutoff_end_sin = sinf(angle_end + cutoff_angle);
+    cutoff_end_cos = cosf(angle_end + cutoff_angle);
+  } else {
+    has_nonempty_cutoff = true;
+    cutoff_angle = 0.0f;
+    cutoff_start_sin = start_sin;
+    cutoff_start_cos = start_cos;
+    cutoff_end_sin = end_sin;
+    cutoff_end_cos = end_cos;
+  }
+
   // qt0-qt3, when true, mean that the arc goes through the 'entire' given
   // quadrant, in which case the bounds are determined simply by the external
   // radius.
@@ -307,6 +329,8 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
              (angle_end >= 1.5 * M_PI);
   bool qt3 = (angle_start <= 0.5f * M_PI && angle_end >= M_PI) ||
              (angle_end >= 3.0f * M_PI);
+
+  // Figure out the extents.
 
   int16_t xMin, yMin, xMax, yMax;
   if (qt0 || qt1 || (angle_start <= 0 && angle_end >= 0)) {
@@ -345,29 +369,6 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
   } else {
     xMax = ceilf(center.x + std::max(std::max(start_x_ro, start_x_ri),
                                      std::max(end_x_ro, end_x_ri)));
-  }
-
-  bool has_nonempty_cutoff;
-  float cutoff_angle;
-  float cutoff_start_sin;
-  float cutoff_start_cos;
-  float cutoff_end_sin;
-  float cutoff_end_cos;
-  if (ending_style == ENDING_ROUNDED) {
-    float cutoff_angle = 2.0f * asinf(rm / (2.0f * (ro - rm)));
-    has_nonempty_cutoff =
-        (angle_end - angle_start + 2.0f * cutoff_angle) < 2.0f * M_PI;
-    cutoff_start_sin = sinf(angle_start - cutoff_angle);
-    cutoff_start_cos = cosf(angle_start - cutoff_angle);
-    cutoff_end_sin = sinf(angle_end + cutoff_angle);
-    cutoff_end_cos = cosf(angle_end + cutoff_angle);
-  } else {
-    has_nonempty_cutoff = true;
-    cutoff_angle = 0.0f;
-    cutoff_start_sin = start_sin;
-    cutoff_start_cos = start_cos;
-    cutoff_end_sin = end_sin;
-    cutoff_end_cos = end_cos;
   }
 
   return SmoothShape(

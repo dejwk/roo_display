@@ -83,6 +83,10 @@ class BackgroundFillOptimizer : public DisplayOutput {
     // invalidated after a palette change.
     void setPalette(const Color* palette, uint8_t palette_size);
 
+    // Notifies the frame buffer that the underlying screen is prefilled with
+    // the specific color. The buffer is initialized accordingly.
+    void setPrefilled(Color color);
+
     // As above, but using an initializer list.
     void setPalette(std::initializer_list<Color> palette);
 
@@ -101,9 +105,12 @@ class BackgroundFillOptimizer : public DisplayOutput {
 
    private:
     friend class BackgroundFillOptimizer;
+    friend class BackgroundFillOptimizerDevice;
 
     FrameBuffer(int16_t width, int16_t height, uint8_t* buffer,
                 bool owns_buffer);
+
+    void prefilled(uint8_t idx_in_palette);
 
     internal::NibbleRect background_mask_;
     Color palette_[15];
@@ -144,9 +151,9 @@ class BackgroundFillOptimizer : public DisplayOutput {
     palette_size_ = palette_size;
   }
 
-  // Returns an int from 1 to 15 (inclusive) if the specified color is found in
-  // the background palette, and 0 otherwise.
-  inline uint8_t getIdxInPalette(Color color);
+  // // Returns an int from 1 to 15 (inclusive) if the specified color is found in
+  // // the background palette, and 0 otherwise.
+  // inline uint8_t getIdxInPalette(Color color);
 
   void writePixel(int16_t x, int16_t y, Color c, BufferedPixelWriter* writer);
 
@@ -169,9 +176,11 @@ class BackgroundFillOptimizerDevice : public DisplayDevice {
  public:
   BackgroundFillOptimizerDevice(DisplayDevice& device);
 
-  void setPalette(const Color* palette, uint8_t palette_size);
+  void setPalette(const Color* palette, uint8_t palette_size,
+                  Color prefilled = color::Transparent);
 
-  void setPalette(std::initializer_list<Color> palette);
+  void setPalette(std::initializer_list<Color> palette,
+                  Color prefilled = color::Transparent);
 
   void init() override { device_.init(); }
 

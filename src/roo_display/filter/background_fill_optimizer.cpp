@@ -13,6 +13,13 @@ struct RectFillWriter {
   }
 };
 
+inline uint8_t getIdxInPalette(Color color, const Color* palette, uint8_t palette_size) {
+  for (int i = 0; i < palette_size; ++i) {
+    if (color == palette[i]) return i + 1;
+  }
+  return 0;
+}
+
 }  // namespace
 
 BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height)
@@ -50,10 +57,18 @@ void BackgroundFillOptimizer::FrameBuffer::setPalette(
   palette_size_ = palette.size();
 }
 
+void BackgroundFillOptimizer::FrameBuffer::setPrefilled(Color color) {
+  prefilled(getIdxInPalette(color, palette_, palette_size_));
+}
+
 void BackgroundFillOptimizer::FrameBuffer::invalidate() {
+  prefilled(0);
+}
+
+void BackgroundFillOptimizer::FrameBuffer::prefilled(uint8_t idx_in_palette) {
   background_mask_.fillRect(
       Box(0, 0, background_mask_.width() - 1, background_mask_.height() - 1),
-      0);
+      idx_in_palette);
 }
 
 void BackgroundFillOptimizer::FrameBuffer::invalidateRect(const Box& rect) {
@@ -110,7 +125,7 @@ void BackgroundFillOptimizer::writeRects(BlendingMode mode, Color* color,
   BufferedRectWriter writer(output_, mode);
   while (count-- > 0) {
     Color c = *color++;
-    uint8_t palette_idx = getIdxInPalette(c);
+    uint8_t palette_idx = getIdxInPalette(c, palette_, palette_size_);
     if (palette_idx != 0) {
       RectFillWriter adapter{
           .color = c,
@@ -134,7 +149,7 @@ void BackgroundFillOptimizer::writeRects(BlendingMode mode, Color* color,
 void BackgroundFillOptimizer::fillRects(BlendingMode mode, Color color,
                                         int16_t* x0, int16_t* y0, int16_t* x1,
                                         int16_t* y1, uint16_t count) {
-  uint8_t palette_idx = getIdxInPalette(color);
+  uint8_t palette_idx = getIdxInPalette(color, palette_, palette_size_);
   if (palette_idx != 0) {
     BufferedRectFiller filler(output_, color, mode);
     while (count-- > 0) {
@@ -163,7 +178,7 @@ void BackgroundFillOptimizer::writePixels(BlendingMode mode, Color* color,
   Color* color_out = color;
   uint16_t new_pixel_count = 0;
   for (uint16_t i = 0; i < pixel_count; ++i) {
-    uint8_t palette_idx = getIdxInPalette(color[i]);
+    uint8_t palette_idx = getIdxInPalette(color[i], palette_, palette_size_);
     if (palette_idx != 0) {
       // Do not actually draw the background pixel if the corresponding
       // bit-mask rectangle is known to be all-background already.
@@ -189,7 +204,7 @@ void BackgroundFillOptimizer::writePixels(BlendingMode mode, Color* color,
 void BackgroundFillOptimizer::fillPixels(BlendingMode mode, Color color,
                                          int16_t* x, int16_t* y,
                                          uint16_t pixel_count) {
-  uint8_t palette_idx = getIdxInPalette(color);
+  uint8_t palette_idx = getIdxInPalette(color, palette_, palette_size_);
   if (palette_idx != 0) {
     int16_t* x_out = x;
     int16_t* y_out = y;
@@ -222,16 +237,9 @@ void BackgroundFillOptimizer::fillPixels(BlendingMode mode, Color color,
   }
 }
 
-inline uint8_t BackgroundFillOptimizer::getIdxInPalette(Color color) {
-  for (int i = 0; i < palette_size_; ++i) {
-    if (color == palette_[i]) return i + 1;
-  }
-  return 0;
-}
-
 void BackgroundFillOptimizer::writePixel(int16_t x, int16_t y, Color c,
                                          BufferedPixelWriter* writer) {
-  uint8_t palette_idx = getIdxInPalette(c);
+  uint8_t palette_idx = getIdxInPalette(c, palette_, palette_size_);
   if (palette_idx != 0) {
     // Skip writing if the containing bit-mask mapped rectangle
     // is known to be all-background already.
@@ -321,17 +329,18 @@ BackgroundFillOptimizerDevice::BackgroundFillOptimizerDevice(
 }
 
 void BackgroundFillOptimizerDevice::setPalette(const Color* palette,
-                                               uint8_t palette_size) {
+                                               uint8_t palette_size,
+                                               Color prefilled) {
   buffer_.setPalette(palette, palette_size);
   optimizer_.updatePalette(buffer_.palette(), buffer_.palette_size());
-  buffer_.invalidate();
+  buffer_.setPrefilled(prefilled);
 }
 
 void BackgroundFillOptimizerDevice::setPalette(
-    std::initializer_list<Color> palette) {
+    std::initializer_list<Color> palette, Color prefilled) {
   uint8_t size = palette.size();
   const Color* p = size == 0 ? nullptr : &*palette.begin();
-  setPalette(p, size);
+  setPalette(p, size, prefilled);
 }
 
 }  // namespace roo_display

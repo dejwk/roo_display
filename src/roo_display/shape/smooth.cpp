@@ -316,6 +316,10 @@ SmoothShape SmoothThickArcImpl(FpPoint center, float radius, float thickness,
   } else {
     float cutoff_angle_start = angle_start - cutoff_angle;
     float cutoff_angle_end = angle_end + cutoff_angle;
+    if (cutoff_angle_start < -M_PI) {
+      cutoff_angle_start += 2 * M_PI;
+      cutoff_angle_end += 2 * M_PI;
+    }
     qf0 = !qt0 && ((cutoff_angle_end < -0.5f * M_PI) ||
                    (cutoff_angle_start > 0 && cutoff_angle_end < 1.5f * M_PI));
     qf1 =

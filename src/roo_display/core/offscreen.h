@@ -371,6 +371,8 @@ class Offscreen : public Rasterizable {
   int16_t dx() const { return -raster_.extents().xMin(); }
   int16_t dy() const { return -raster_.extents().yMin(); }
   bool is_write_once() const { return false; }
+  FillMode fill_mode() const { return FILL_MODE_VISIBLE; }
+  BlendingMode blending_mode() const { return BLENDING_MODE_SOURCE_OVER; }
 
   OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                   storage_type>

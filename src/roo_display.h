@@ -178,6 +178,8 @@ class Display {
   int16_t dx() const { return 0; }
   int16_t dy() const { return 0; }
   bool is_write_once() const { return false; }
+  FillMode fill_mode() const { return FILL_MODE_VISIBLE; }
+  BlendingMode blending_mode() const { return BLENDING_MODE_SOURCE_OVER; }
 
   DisplayDevice &display_device_;
   TouchDisplay touch_;
@@ -236,8 +238,8 @@ class DrawingContext {
         clip_box_(max_clip_box_),
         unnest_([&display]() { display.unnest(); }),
         write_once_(display.is_write_once()),
-        fill_mode_(FILL_MODE_VISIBLE),
-        blending_mode_(BLENDING_MODE_SOURCE_OVER),
+        fill_mode_(display.fill_mode()),
+        blending_mode_(display.blending_mode()),
         clip_mask_(nullptr),
         background_(display.getRasterizableBackground()),
         bgcolor_(display.getBackgroundColor()),

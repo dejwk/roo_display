@@ -1298,6 +1298,10 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
       if (dtl > r_ring_max_sq || dtl < r_ring_min_sq || dbl > r_ring_max_sq ||
           dbl < r_ring_min_sq) {
         return NON_UNIFORM;
+        // Fast-path for the case when the arc contains the entire half-circle.
+        if ((arc.quadrants_ & 0b0101) == 0b0101) {
+          return OUTLINE_ACTIVE;
+        }
       }
     } else {
       return NON_UNIFORM;
@@ -1342,6 +1346,10 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
           dbr < r_ring_min_sq) {
         return NON_UNIFORM;
       }
+      // Fast-path for the case when the arc contains the entire half-circle.
+      if ((arc.quadrants_ & 0b1010) == 0b1010) {
+        return OUTLINE_ACTIVE;
+      }
     } else {
       return NON_UNIFORM;
     }
@@ -1352,12 +1360,20 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
         dtr < r_ring_min_sq) {
       return NON_UNIFORM;
     }
+    // Fast-path for the case when the arc contains the entire half-circle.
+    if ((arc.quadrants_ & 0b0011) == 0b0011) {
+      return OUTLINE_ACTIVE;
+    }
   } else if (yMin >= arc.yc + arc.ri + 0.5f) {
     float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
     float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
     if (dbl > r_ring_max_sq || dbl < r_ring_min_sq || dbr > r_ring_max_sq ||
         dbr < r_ring_min_sq) {
       return NON_UNIFORM;
+    }
+    // // Fast-path for the case when the arc contains the entire half-circle.
+    if ((arc.quadrants_ & 0b1100) == 0b1100) {
+      return OUTLINE_ACTIVE;
     }
   } else {
     return NON_UNIFORM;

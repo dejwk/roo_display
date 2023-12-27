@@ -274,7 +274,7 @@ SmoothShape SmoothThickArcImpl(FpPoint center, float radius, float thickness,
   float cutoff_end_sin;
   float cutoff_end_cos;
   if (ending_style == ENDING_ROUNDED) {
-    cutoff_angle = 2.0f * asinf(rm / (2.0f * (ro - rm)));
+    cutoff_angle = asinf(rm / rc);
     has_nonempty_cutoff =
         (angle_end - angle_start + 2.0f * cutoff_angle) < 2.0f * M_PI;
     cutoff_start_sin = sinf(angle_start - cutoff_angle);

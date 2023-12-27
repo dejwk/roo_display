@@ -212,33 +212,11 @@ inline constexpr int Quadrant(float x, float y) {
 
 }  // namespace
 
-SmoothShape SmoothArc(FpPoint center, float radius, float angle_start,
-                      float angle_end, Color color) {
-  return SmoothThickArc(center, radius, 1.0f, angle_start, angle_end, color,
-                        ENDING_ROUNDED);
-}
-
-SmoothShape SmoothThickArc(FpPoint center, float radius, float thickness,
-                           float angle_start, float angle_end, Color color,
-                           EndingStyle ending_style) {
-  return SmoothThickArcWithBackground(center, radius, thickness, angle_start,
-                                      angle_end, color, color::Transparent,
-                                      color::Transparent, ending_style);
-}
-
-SmoothShape SmoothPie(FpPoint center, float radius, float angle_start,
-                      float angle_end, Color color) {
-  return SmoothThickArcWithBackground(
-      center, radius * 0.5f, radius, angle_start, angle_end, color,
-      color::Transparent, color::Transparent, ENDING_FLAT);
-}
-
-SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
-                                         float thickness, float angle_start,
-                                         float angle_end, Color active_color,
-                                         Color inactive_color,
-                                         Color interior_color,
-                                         EndingStyle ending_style) {
+SmoothShape SmoothThickArcImpl(FpPoint center, float radius, float thickness,
+                               float angle_start, float angle_end,
+                               Color active_color, Color inactive_color,
+                               Color interior_color, EndingStyle ending_style,
+                               bool trim_to_active) {
   if (radius <= 0 || thickness <= 0 || angle_end == angle_start) {
     return SmoothShape();
   }
@@ -332,64 +310,72 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
   bool qt3 = (angle_start <= 0.5f * M_PI && angle_end >= M_PI) ||
              (angle_end >= 3.0f * M_PI);
 
-  // bool qf0, qf1, qf2, qf3;
-  // if (!has_nonempty_cutoff) {
-  //   qf0 = qf1 = qf2 = qf3 = false;
-  // } else {
-  //   float cutoff_angle_start = angle_start - cutoff_angle;
-  //   float cutoff_angle_end = angle_end + cutoff_angle;
-  //   qf0 = !qt0 && ((cutoff_angle_end < -0.5f * M_PI) ||
-  //                  (cutoff_angle_start > 0 && cutoff_angle_end < 1.5f * M_PI));
-  //   qf1 =
-  //       !qt1 &&
-  //       ((cutoff_angle_end < 0.0f * M_PI) ||
-  //        (cutoff_angle_start > 0.5f * M_PI && cutoff_angle_end < 2.0f * M_PI));
-  //   qf2 = !qt2 &&
-  //         (cutoff_angle_start > -0.5f * M_PI && cutoff_angle_end < 1.0f * M_PI);
-  //   qf3 =
-  //       !qt3 &&
-  //       (cutoff_angle_end < 0.5f * M_PI ||
-  //        (cutoff_angle_start > 1.0f * M_PI && cutoff_angle_end < 2.5f * M_PI));
-  // }
+  bool qf0, qf1, qf2, qf3;
+  if (!has_nonempty_cutoff || trim_to_active) {
+    qf0 = qf1 = qf2 = qf3 = false;
+  } else {
+    float cutoff_angle_start = angle_start - cutoff_angle;
+    float cutoff_angle_end = angle_end + cutoff_angle;
+    qf0 = !qt0 && ((cutoff_angle_end < -0.5f * M_PI) ||
+                   (cutoff_angle_start > 0 && cutoff_angle_end < 1.5f * M_PI));
+    qf1 =
+        !qt1 &&
+        ((cutoff_angle_end < 0.0f * M_PI) ||
+         (cutoff_angle_start > 0.5f * M_PI && cutoff_angle_end < 2.0f * M_PI));
+    qf2 = !qt2 &&
+          (cutoff_angle_start > -0.5f * M_PI && cutoff_angle_end < 1.0f * M_PI);
+    qf3 =
+        !qt3 &&
+        (cutoff_angle_end < 0.5f * M_PI ||
+         (cutoff_angle_start > 1.0f * M_PI && cutoff_angle_end < 2.5f * M_PI));
+  }
 
   // Figure out the extents.
   int16_t xMin, yMin, xMax, yMax;
-  if (qt0 || qt1 || (angle_start <= 0 && angle_end >= 0)) {
-    // Arc passes through zero (touches the top).
-    yMin = (int16_t)floorf(center.y - radius);
-  } else if (ending_style == ENDING_ROUNDED) {
-    yMin = floorf(center.y + std::min(start_y_rc, end_y_rc) - rm);
+  if (trim_to_active) {
+    if (qt0 || qt1 || (angle_start <= 0 && angle_end >= 0)) {
+      // Arc passes through zero (touches the top).
+      yMin = (int16_t)floorf(center.y - radius);
+    } else if (ending_style == ENDING_ROUNDED) {
+      yMin = floorf(center.y + std::min(start_y_rc, end_y_rc) - rm);
+    } else {
+      yMin = floorf(center.y + std::min(std::min(start_y_ro, start_y_ri),
+                                        std::min(end_y_ro, end_y_ri)));
+    }
+    if (qt0 || qt2 ||
+        (angle_start <= -0.5f * M_PI && angle_end >= -0.5f * M_PI)) {
+      // Arc passes through -M_PI/2 (touches the left).
+      xMin = (int16_t)floorf(center.x - radius);
+    } else if (ending_style == ENDING_ROUNDED) {
+      xMin = floorf(center.x + std::min(start_x_rc, end_x_rc) - rm);
+    } else {
+      xMin = floorf(center.x + std::min(std::min(start_x_ro, start_x_ri),
+                                        std::min(end_x_ro, end_x_ri)));
+    }
+    if (qt2 || qt3 || (angle_start <= M_PI && angle_end >= M_PI)) {
+      // Arc passes through M_PI (touches the bottom).
+      yMax = (int16_t)ceilf(center.y + radius);
+    } else if (ending_style == ENDING_ROUNDED) {
+      yMax = ceilf(center.y + std::max(start_y_rc, end_y_rc) + rm);
+    } else {
+      yMax = ceilf(center.y + std::max(std::max(start_y_ro, start_y_ri),
+                                       std::max(end_y_ro, end_y_ri)));
+    }
+    if (qt3 || qt1 ||
+        (angle_start <= 0.5f * M_PI && angle_end >= 0.5f * M_PI)) {
+      // Arc passes through M_PI/2 (touches the right).
+      xMax = (int16_t)ceilf(center.x + radius);
+    } else if (ending_style == ENDING_ROUNDED) {
+      xMax = ceilf(center.x + std::max(start_x_rc, end_x_rc) + rm);
+    } else {
+      xMax = ceilf(center.x + std::max(std::max(start_x_ro, start_x_ri),
+                                       std::max(end_x_ro, end_x_ri)));
+    }
   } else {
-    yMin = floorf(center.y + std::min(std::min(start_y_ro, start_y_ri),
-                                      std::min(end_y_ro, end_y_ri)));
-  }
-  if (qt0 || qt2 ||
-      (angle_start <= -0.5f * M_PI && angle_end >= -0.5f * M_PI)) {
-    // Arc passes through -M_PI/2 (touches the left).
     xMin = (int16_t)floorf(center.x - radius);
-  } else if (ending_style == ENDING_ROUNDED) {
-    xMin = floorf(center.x + std::min(start_x_rc, end_x_rc) - rm);
-  } else {
-    xMin = floorf(center.x + std::min(std::min(start_x_ro, start_x_ri),
-                                      std::min(end_x_ro, end_x_ri)));
-  }
-  if (qt2 || qt3 || (angle_start <= M_PI && angle_end >= M_PI)) {
-    // Arc passes through M_PI (touches the bottom).
-    yMax = (int16_t)ceilf(center.y + radius);
-  } else if (ending_style == ENDING_ROUNDED) {
-    yMax = ceilf(center.y + std::max(start_y_rc, end_y_rc) + rm);
-  } else {
-    yMax = ceilf(center.y + std::max(std::max(start_y_ro, start_y_ri),
-                                     std::max(end_y_ro, end_y_ri)));
-  }
-  if (qt3 || qt1 || (angle_start <= 0.5f * M_PI && angle_end >= 0.5f * M_PI)) {
-    // Arc passes through M_PI/2 (touches the right).
+    yMin = (int16_t)floorf(center.y - radius);
     xMax = (int16_t)ceilf(center.x + radius);
-  } else if (ending_style == ENDING_ROUNDED) {
-    xMax = ceilf(center.x + std::max(start_x_rc, end_x_rc) + rm);
-  } else {
-    xMax = ceilf(center.x + std::max(std::max(start_x_ro, start_x_ri),
-                                     std::max(end_x_ro, end_x_ri)));
+    yMax = (int16_t)ceilf(center.y + radius);
   }
 
   return SmoothShape(
@@ -425,11 +411,41 @@ SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
                        has_nonempty_cutoff,
                        angle_end - angle_start + 2.0f * cutoff_angle < M_PI,
                        (uint8_t)(((uint8_t)qt0 << 0) | ((uint8_t)qt1 << 1) |
-                                 ((uint8_t)qt2 << 2) | ((uint8_t)qt3 << 3))});
-  //  (uint8_t)(((uint8_t)qt0 << 0) | ((uint8_t)qt1 << 1) |
-  //            ((uint8_t)qt2 << 2) | ((uint8_t)qt3 << 3) |
-  //            ((uint8_t)qf0 << 4) | ((uint8_t)qf1 << 5) |
-  //            ((uint8_t)qf2 << 6) | ((uint8_t)qf3 << 7))});
+                                 ((uint8_t)qt2 << 2) | ((uint8_t)qt3 << 3) |
+                                 ((uint8_t)qf0 << 4) | ((uint8_t)qf1 << 5) |
+                                 ((uint8_t)qf2 << 6) | ((uint8_t)qf3 << 7))});
+}
+
+SmoothShape SmoothArc(FpPoint center, float radius, float angle_start,
+                      float angle_end, Color color) {
+  return SmoothThickArc(center, radius, 1.0f, angle_start, angle_end, color,
+                        ENDING_ROUNDED);
+}
+
+SmoothShape SmoothThickArc(FpPoint center, float radius, float thickness,
+                           float angle_start, float angle_end, Color color,
+                           EndingStyle ending_style) {
+  return SmoothThickArcImpl(center, radius, thickness, angle_start, angle_end,
+                            color, color::Transparent, color::Transparent,
+                            ending_style, true);
+}
+
+SmoothShape SmoothPie(FpPoint center, float radius, float angle_start,
+                      float angle_end, Color color) {
+  return SmoothThickArcImpl(center, radius * 0.5f, radius, angle_start,
+                            angle_end, color, color::Transparent,
+                            color::Transparent, ENDING_FLAT, true);
+}
+
+SmoothShape SmoothThickArcWithBackground(FpPoint center, float radius,
+                                         float thickness, float angle_start,
+                                         float angle_end, Color active_color,
+                                         Color inactive_color,
+                                         Color interior_color,
+                                         EndingStyle ending_style) {
+  return SmoothThickArcImpl(center, radius, thickness, angle_start, angle_end,
+                            active_color, inactive_color, interior_color,
+                            ending_style, false);
 }
 
 SmoothShape SmoothFilledTriangle(FpPoint a, FpPoint b, FpPoint c, Color color) {
@@ -1039,9 +1055,9 @@ Color GetSmoothArcPixelColor(const SmoothShape::Arc& spec, int16_t x,
   if ((quadrant & spec.quadrants_) == quadrant) {
     // The entire quadrant is within range.
     color = spec.outline_active_color;
-    // } else if ((quadrant & (spec.quadrants_ >> 4)) == quadrant) {
-    //   // The entire quadrant is outside range.
-    //   color = spec.outline_inactive_color;
+  } else if ((quadrant & (spec.quadrants_ >> 4)) == quadrant) {
+    // The entire quadrant is outside range.
+    color = spec.outline_inactive_color;
   } else {
     bool within_range = false;
     float n1 = spec.start_y_slope * dx - spec.start_x_slope * dy;
@@ -1272,10 +1288,10 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
           yMax <= arc.yc - 0.5f) {
         return OUTLINE_ACTIVE;
       }
-      // if ((arc.quadrants_ & 0x10) && xMax <= arc.xc - 0.5f &&
-      //     yMax <= arc.yc - 0.5f) {
-      //   return OUTLINE_INACTIVE;
-      // }
+      if ((arc.quadrants_ & 0x10) && xMax <= arc.xc - 0.5f &&
+          yMax <= arc.yc - 0.5f) {
+        return OUTLINE_INACTIVE;
+      }
     } else if (yMin >= arc.yc) {
       float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
       float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
@@ -1288,10 +1304,10 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
           yMin >= arc.yc + 0.5f) {
         return OUTLINE_ACTIVE;
       }
-      // if (arc.quadrants_ & 0x40 && xMax <= arc.xc - 0.5f &&
-      //     yMin >= arc.yc + 0.5f) {
-      //   return OUTLINE_INACTIVE;
-      // }
+      if (arc.quadrants_ & 0x40 && xMax <= arc.xc - 0.5f &&
+          yMin >= arc.yc + 0.5f) {
+        return OUTLINE_INACTIVE;
+      }
     } else if (xMax <= arc.xc - arc.ri - 0.5f) {
       float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
       float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
@@ -1319,10 +1335,10 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
           yMax <= arc.yc - 0.5f) {
         return OUTLINE_ACTIVE;
       }
-      // if (arc.quadrants_ & 0x20 && xMin >= arc.xc + 0.5f &&
-      //     yMax <= arc.yc - 0.5f) {
-      //   return OUTLINE_INACTIVE;
-      // }
+      if (arc.quadrants_ & 0x20 && xMin >= arc.xc + 0.5f &&
+          yMax <= arc.yc - 0.5f) {
+        return OUTLINE_INACTIVE;
+      }
     } else if (yMin >= arc.yc) {
       float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
       float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
@@ -1335,10 +1351,10 @@ inline RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
           yMin >= arc.yc + 0.5f) {
         return OUTLINE_ACTIVE;
       }
-      // if (arc.quadrants_ & 0x80 && xMin >= arc.xc + 0.5f &&
-      //     yMin >= arc.yc + 0.5f) {
-      //   return OUTLINE_INACTIVE;
-      // }
+      if (arc.quadrants_ & 0x80 && xMin >= arc.xc + 0.5f &&
+          yMin >= arc.yc + 0.5f) {
+        return OUTLINE_INACTIVE;
+      }
     } else if (xMin >= arc.xc + arc.ri + 0.5f) {
       float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
       float r_ring_min_sq = arc.ri_sq_adj + arc.ri;

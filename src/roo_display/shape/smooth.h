@@ -218,10 +218,10 @@ class SmoothShape : public Rasterizable {
                                              float height, float angle,
                                              Color color);
 
-  friend SmoothShape SmoothThickArcWithBackground(
+  friend SmoothShape SmoothThickArcImpl(
       FpPoint center, float radius, float thickness, float angle_start,
       float angle_end, Color active_color, Color inactive_color,
-      Color interior_color, EndingStyle ending_style);
+      Color interior_color, EndingStyle ending_style, bool trim_to_active);
 
   friend SmoothShape SmoothFilledTriangle(FpPoint a, FpPoint b, FpPoint c,
                                           Color color);

@@ -232,7 +232,7 @@ To draw text, you need to pick a font, and use a ```TextLabel```:
 
 ```cpp
 #include "roo_display/ui/text_label.h"
-#include "roo_smooth_fonts/NotoSans_Regular/27.h"
+#include "roo_fonts/NotoSans_Regular/27.h"
 
 /// ...
 
@@ -406,7 +406,7 @@ For the purpose of alignment, drawables may declare 'anchor extents' that are di
 As we saw in the examples, `kLeft` aligns left anchor of the object to the left side of the screen, `kCenter` aligns the center of the object to the center of the screen, and so on. You can override the 'destination' anchor for more specialized alignments. The following example draws the same text twice, first aligning the _top_ of the text to the middle of the sceen, and then aligning the _bottom_ of the text to the middle of the screen:
 
 ```cpp
-#include "roo_smooth_fonts/NotoSerif_Italic/60.h"
+#include "roo_fonts/NotoSerif_Italic/60.h"
 
 // ...
 
@@ -468,7 +468,7 @@ Tiles redraw their contents without flicker, as long as the contents itself draw
 Tile takes a pointer to the interior drawable when constructed:
 
 ```cpp
-#include "roo_smooth_fonts/NotoSans_Regular/27.h"
+#include "roo_fonts/NotoSans_Regular/27.h"
 
 // ...
 void loop() {
@@ -579,7 +579,7 @@ You can also set a _clip mask_, which is a bit mask allowing to define arbitrary
 #include "roo_display/shape/basic.h"
 
 #include "roo_display/ui/text_label.h"
-#include "roo_smooth_fonts/NotoSerif_Italic/60.h"
+#include "roo_fonts/NotoSerif_Italic/60.h"
 
 using namespace roo_display;
 
@@ -639,7 +639,7 @@ Likely the most important application of transformations is rotated or scaled te
 
 ```cpp
 #include "roo_display/filter/transformation.h"
-#include "roo_smooth_fonts/NotoSerif_Italic/27.h"
+#include "roo_fonts/NotoSerif_Italic/27.h"
 
 // ...
 
@@ -792,7 +792,7 @@ Text alignment can be a little tricky. When optically left- or right-aligned, a 
 Luckily, all these subtleties are captured by the `TextLabel`'s `anchorExtents()`. Let's see what they may look like for some sample text:
 
 ```cpp
-#include "roo_smooth_fonts/NotoSerif_Italic/90.h"
+#include "roo_fonts/NotoSerif_Italic/90.h"
 
 // ...
 
@@ -823,7 +823,7 @@ Here, the gray box is a minimum bounding rectangle, and the blue frame correspon
 When you draw aligned text using the built-in mechanisms, the library will do the right thing. You only need to keep in mind that some left or right padding may be needed (for left-aligned and right-aligned text, respectively) to leave room for overhangs, as they may otherwise get truncated:
 
 ```cpp
-#include "roo_smooth_fonts/NotoSerif_Italic/27.h"
+#include "roo_fonts/NotoSerif_Italic/27.h"
 
 // ...
 
@@ -862,11 +862,11 @@ If you want to know exactly how much padding is needed for a given font so that 
 Text baseline always has y-coordinate zero. Therefore, using `kBaseline` will keep the text aligned at baseline:
 
 ```cpp
-#include "roo_smooth_fonts/NotoSerif_Italic/10.h"
-#include "roo_smooth_fonts/NotoSerif_Italic/15.h"
-#include "roo_smooth_fonts/NotoSerif_Italic/18.h"
-#include "roo_smooth_fonts/NotoSerif_Italic/27.h"
-#include "roo_smooth_fonts/NotoSerif_Italic/40.h"
+#include "roo_fonts/NotoSerif_Italic/10.h"
+#include "roo_fonts/NotoSerif_Italic/15.h"
+#include "roo_fonts/NotoSerif_Italic/18.h"
+#include "roo_fonts/NotoSerif_Italic/27.h"
+#include "roo_fonts/NotoSerif_Italic/40.h"
 
 // ...
 
@@ -1851,7 +1851,7 @@ Let's see a simple example:
 
 ```cpp
 #include "roo_display/core/offscreen.h"
-#include "roo_smooth_fonts/NotoSerif_Italic/27.h"
+#include "roo_fonts/NotoSerif_Italic/27.h"
 #include "roo_display/ui/text_label.h"
 #include "roo_display/shape/smooth.h"
 
@@ -2115,7 +2115,7 @@ Let's look at a simple example of using a stretched raster as a gradient:
 #include "roo_display/core/raster.h"
 #include "roo_display/core/rasterizable.h"
 #include "roo_display/ui/text_label.h"
-#include "roo_smooth_fonts/NotoSerif_Italic/90.h"
+#include "roo_fonts/NotoSerif_Italic/90.h"
 
 /// ...
 
@@ -3028,7 +3028,7 @@ The way backgrounds internally work is by intercepting and augmenting calls to t
 #include "roo_display/filter/foreground.h"
 #include "roo_display/shape/smooth.h"
 #include "roo_display/ui/text_label.h"
-#include "roo_smooth_fonts/NotoSans_Bold/27.h"
+#include "roo_fonts/NotoSans_Bold/27.h"
 
 // ...
 

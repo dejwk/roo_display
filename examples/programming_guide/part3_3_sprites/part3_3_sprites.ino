@@ -25,7 +25,7 @@ Display display(device);
 #include "roo_display/filter/foreground.h"
 #include "roo_display/shape/smooth.h"
 #include "roo_display/ui/text_label.h"
-#include "roo_smooth_fonts/NotoSans_Bold/27.h"
+#include "roo_fonts/NotoSans_Bold/27.h"
 
 void setup() {
   SPI.begin();

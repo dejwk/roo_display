@@ -23,7 +23,7 @@ Ili9341spi<kCsPin, kDcPin, kRstPin> device(Orientation().rotateLeft());
 Display display(device);
 
 #include "roo_display/ui/text_label.h"
-#include "roo_smooth_fonts/NotoSans_Regular/27.h"
+#include "roo_fonts/NotoSans_Regular/27.h"
 
 void setup() {
   SPI.begin();

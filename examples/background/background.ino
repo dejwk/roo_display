@@ -36,14 +36,14 @@ struct Emulator {
 #include "roo_display/font/font.h"
 #include "roo_display/ui/string_printer.h"
 #include "roo_display/ui/text_label.h"
-#include "roo_smooth_fonts/NotoSans_Italic/12.h"
-#include "roo_smooth_fonts/NotoSans_Italic/18.h"
-#include "roo_smooth_fonts/NotoSans_Italic/27.h"
-#include "roo_smooth_fonts/NotoSans_Italic/40.h"
-#include "roo_smooth_fonts/NotoSans_Italic/60.h"
-#include "roo_smooth_fonts/NotoSans_Italic/8.h"
-#include "roo_smooth_fonts/NotoSans_Regular/40.h"
-#include "roo_smooth_fonts/NotoSans_Regular/60.h"
+#include "roo_fonts/NotoSans_Italic/12.h"
+#include "roo_fonts/NotoSans_Italic/18.h"
+#include "roo_fonts/NotoSans_Italic/27.h"
+#include "roo_fonts/NotoSans_Italic/40.h"
+#include "roo_fonts/NotoSans_Italic/60.h"
+#include "roo_fonts/NotoSans_Italic/8.h"
+#include "roo_fonts/NotoSans_Regular/40.h"
+#include "roo_fonts/NotoSans_Regular/60.h"
 
 using namespace roo_display;
 

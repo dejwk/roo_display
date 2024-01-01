@@ -24,7 +24,7 @@ Display display(device);
 
 #include "roo_display/filter/transformation.h"
 #include "roo_display/ui/text_label.h"
-#include "roo_smooth_fonts/NotoSerif_Italic/27.h"
+#include "roo_fonts/NotoSerif_Italic/27.h"
 
 void setup() {
   SPI.begin();

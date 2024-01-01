@@ -24,12 +24,12 @@ Display display(device);
 
 #include "roo_display/shape/basic.h"
 #include "roo_display/ui/text_label.h"
-#include "roo_smooth_fonts/NotoSerif_Italic/10.h"
-#include "roo_smooth_fonts/NotoSerif_Italic/15.h"
-#include "roo_smooth_fonts/NotoSerif_Italic/18.h"
-#include "roo_smooth_fonts/NotoSerif_Italic/27.h"
-#include "roo_smooth_fonts/NotoSerif_Italic/40.h"
-#include "roo_smooth_fonts/NotoSerif_Italic/90.h"
+#include "roo_fonts/NotoSerif_Italic/10.h"
+#include "roo_fonts/NotoSerif_Italic/15.h"
+#include "roo_fonts/NotoSerif_Italic/18.h"
+#include "roo_fonts/NotoSerif_Italic/27.h"
+#include "roo_fonts/NotoSerif_Italic/40.h"
+#include "roo_fonts/NotoSerif_Italic/90.h"
 
 void setup() {
   SPI.begin();

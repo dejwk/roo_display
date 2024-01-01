@@ -26,7 +26,7 @@ Display display(device);
 #include "roo_display/core/raster.h"
 #include "roo_display/core/rasterizable.h"
 #include "roo_display/ui/text_label.h"
-#include "roo_smooth_fonts/NotoSerif_Italic/90.h"
+#include "roo_fonts/NotoSerif_Italic/90.h"
 
 void setup() {
   SPI.begin();

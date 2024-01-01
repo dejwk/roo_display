@@ -2,7 +2,7 @@
 #include "roo_display.h"
 #include "roo_display/color/color.h"
 #include "roo_display/font/font.h"
-#include "roo_smooth_fonts/NotoSans_Italic/12.h"
+#include "roo_fonts/NotoSans_Italic/12.h"
 #include "testing_drawable.h"
 
 using namespace testing;

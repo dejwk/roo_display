@@ -25,7 +25,7 @@ Display display(device);
 #include "roo_display/color/gradient.h"
 #include "roo_display/color/hsv.h"
 #include "roo_display/ui/text_label.h"
-#include "roo_smooth_fonts/NotoSerif_Italic/90.h"
+#include "roo_fonts/NotoSerif_Italic/90.h"
 
 void setup() {
   SPI.begin();

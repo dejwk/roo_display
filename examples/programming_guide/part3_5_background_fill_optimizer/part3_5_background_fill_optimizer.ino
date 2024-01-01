@@ -23,7 +23,7 @@ Ili9341spi<kCsPin, kDcPin, kRstPin> device(Orientation().rotateLeft());
 
 #include "roo_display/filter/background_fill_optimizer.h"
 #include "roo_display/ui/text_label.h"
-#include "roo_smooth_fonts/NotoSerif_Italic/90.h"
+#include "roo_fonts/NotoSerif_Italic/90.h"
 
 BackgroundFillOptimizerDevice fill_optimizer(device);
 Display display(fill_optimizer);

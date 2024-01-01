@@ -1,11 +1,11 @@
 // https://github.com/dejwk/roo_display/blob/master/doc/programming_guide.md#using-the-material-icons-collection
 
-// In order to build this example, import the roo_material_icons library:
-// https://github.com/dejwk/roo_material_icons
+// In order to build this example, import the roo_icons library:
+// https://github.com/dejwk/roo_icons
 
 #include "Arduino.h"
 #include "roo_display.h"
-#include "roo_material_icons.h"
+#include "roo_icons.h"
 
 using namespace roo_display;
 
@@ -27,10 +27,7 @@ Ili9341spi<kCsPin, kDcPin, kRstPin> device(Orientation().rotateLeft());
 Display display(device);
 
 #include "roo_display/ui/tile.h"
-#include "roo_material_icons/round/18/device.h"
-#include "roo_material_icons/round/24/device.h"
-#include "roo_material_icons/round/36/device.h"
-#include "roo_material_icons/round/48/device.h"
+#include "roo_icons/round/device.h"
 
 void setup() {
   SPI.begin();

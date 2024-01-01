@@ -1374,7 +1374,7 @@ The `roo_display` library supports drawing JPEG and PNG images out of the box.
 
 For low-footprint artwork such as icons and small images, the library provides an alternative, highly efficient image format, supporting a wide range of color modes, and featuring a lightweight lossless compression. A companion `roo_display_image_importer` tool allows you to convert your image files to this internal format. In most cases, small images and icons can be embedded directly into your program. You also have an option to store them on SPIFFS or some external file system.
 
-If you just want to use some common icons, there is a companion library of [roo_material_icons](https://github.com/dejwk/roo_material_icons), containing over 34000 Google [Material Design icons](https://fonts.google.com/icons?icon.set=Material+Icons) in various styles and 4 predefined sizes.
+If you just want to use some common icons, there is a companion library of [roo_icons](https://github.com/dejwk/roo_icons), containing over 34000 Google [Material Design icons](https://fonts.google.com/icons?icon.set=Material+Icons) in various styles and 4 predefined sizes.
 
 #### JPEG
 
@@ -1705,15 +1705,12 @@ See the importer's [documentation](https://github.com/dejwk/roo_display_image_im
 
 #### Using the Material Icons collection
 
-If you want to use modern high-quality icons, try the companion library [roo_material_icons](https://github.com/dejwk/roo_material_icons). It contains over 34000 'Material Design' icons, divided into 4 styles, 18 categories, and 4 sizes (18x18, 24x24, 36x36, and 48x48). These free icons are well known from Google products and Android. You can browse them [here](https://fonts.google.com/icons?icon.set=Material+Icons).
+If you want to use modern high-quality icons, try the companion library [roo_icons](https://github.com/dejwk/roo_icons). It contains over 34000 'Material Design' icons, divided into 4 styles, 18 categories, and 4 sizes (18x18, 24x24, 36x36, and 48x48). These free icons are well known from Google products and Android. You can browse them [here](https://fonts.google.com/icons?icon.set=Material+Icons).
 
 The icons are monochrome, anti-aliased, and represented in the Alpha4 color mode. You can draw them in any color, using any background. Here is a small example:
 
 ```cpp
-#include "roo_material_icons/round/18/device.h"
-#include "roo_material_icons/round/24/device.h"
-#include "roo_material_icons/round/36/device.h"
-#include "roo_material_icons/round/48/device.h"
+#include "roo_icons/round/device.h"
 
 // ...
 

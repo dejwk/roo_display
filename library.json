@@ -41,6 +41,7 @@
         "examples/**/*.ino"
     ],
     "dependencies": {
+        "FS": ">0",
         "SPI": ">0",
         "Wire": ">0",
         "dejwk/roo_collections": ">=1.1.4"

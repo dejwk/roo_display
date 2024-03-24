@@ -1,4 +1,5 @@
 #include "roo_display/color/gradient.h"
+#include "roo_display/color/interpolation.h"
 
 namespace roo_display {
 
@@ -66,27 +67,28 @@ Color ColorGradient::getColor(float value) const {
     int16_t if_a = (int16_t)(256 * f_a);
     Color left = gradient_[right_bound - 1].color;
     Color right = gradient_[right_bound].color;
-    uint32_t a =
-        ((uint16_t)left.a() * (256 - if_a) + (uint16_t)right.a() * if_a) / 256;
-    int16_t if_c;
-    if (left.a() == right.a()) {
-      // Common case, e.g. both colors opaque.
-      if_c = if_a;
-    } else if (left.a() == 0) {
-      if_c = 256;
-    } else if (right.a() == 0) {
-      if_c = 0;
-    } else {
-      float f_c = f_a * right.a() / ((1 - f_a) * left.a() + f_a * right.a());
-      if_c = (int16_t)(256 * f_c);
-    }
-    uint32_t r =
-        ((uint16_t)left.r() * (256 - if_c) + (uint16_t)right.r() * if_c) / 256;
-    uint32_t g =
-        ((uint16_t)left.g() * (256 - if_c) + (uint16_t)right.g() * if_c) / 256;
-    uint32_t b =
-        ((uint16_t)left.b() * (256 - if_c) + (uint16_t)right.b() * if_c) / 256;
-    return Color(a << 24 | r << 16 | g << 8 | b);
+    return InterpolateColors(left, right, if_a);
+    // uint32_t a =
+    //     ((uint16_t)left.a() * (256 - if_a) + (uint16_t)right.a() * if_a) / 256;
+    // int16_t if_c;
+    // if (left.a() == right.a()) {
+    //   // Common case, e.g. both colors opaque.
+    //   if_c = if_a;
+    // } else if (left.a() == 0) {
+    //   if_c = 256;
+    // } else if (right.a() == 0) {
+    //   if_c = 0;
+    // } else {
+    //   float f_c = f_a * right.a() / ((1 - f_a) * left.a() + f_a * right.a());
+    //   if_c = (int16_t)(256 * f_c);
+    // }
+    // uint32_t r =
+    //     ((uint16_t)left.r() * (256 - if_c) + (uint16_t)right.r() * if_c) / 256;
+    // uint32_t g =
+    //     ((uint16_t)left.g() * (256 - if_c) + (uint16_t)right.g() * if_c) / 256;
+    // uint32_t b =
+    //     ((uint16_t)left.b() * (256 - if_c) + (uint16_t)right.b() * if_c) / 256;
+    // return Color(a << 24 | r << 16 | g << 8 | b);
   }
 }
 

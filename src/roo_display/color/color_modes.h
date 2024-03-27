@@ -4,6 +4,7 @@
 
 #include "roo_display/color/blending.h"
 #include "roo_display/color/color.h"
+#include "roo_display/color/interpolation.h"
 
 namespace roo_display {
 
@@ -122,8 +123,6 @@ class Argb6666 {
   constexpr TransparencyMode transparency() const {
     return TRANSPARENCY_GRADUAL;
   }
-
- private:
 };
 
 class Argb4444 {
@@ -193,6 +192,15 @@ struct RawBlender<Rgb565, BLENDING_MODE_SOURCE_OVER> {
         AlphaBlendOverOpaque(mode.toArgbColor(bg), color));
   }
 };
+
+// template <>
+// struct RawColorInterpolator<Rgb565> {
+//   inline Color operator()(uint16_t c1, uint16_t c2, uint16_t fraction,
+//                           const Rgb565& mode) const {
+//     return InterpolateOpaqueColors(mode.toArgbColor(c1),
+//                                    mode.toArgbColor(c2), fraction);
+//   }
+// };
 
 namespace internal {
 inline constexpr uint16_t Resolve565Transparency(uint16_t c, uint16_t t) {
@@ -290,6 +298,15 @@ struct RawBlender<Grayscale8, BLENDING_MODE_SOURCE_OVER_OPAQUE> {
   }
 };
 
+template <>
+struct RawColorInterpolator<Grayscale8> {
+  inline Color operator()(uint8_t c1, uint8_t c2, uint16_t fraction,
+                          const Grayscale8& mode) const {
+    return mode.toArgbColor(
+        ((uint16_t)c1 * (256 - fraction) + (uint16_t)c2 * fraction) / 256);
+  }
+};
+
 // 256 shades of gray + 8-bit alpha.
 class GrayAlpha8 {
  public:
@@ -352,6 +369,15 @@ struct RawBlender<Grayscale4, BLENDING_MODE_SOURCE_OVER_OPAQUE> {
   }
 };
 
+template <>
+struct RawColorInterpolator<Grayscale4> {
+  inline Color operator()(uint8_t c1, uint8_t c2, uint16_t fraction,
+                          const Grayscale4& mode) const {
+    return Grayscale8().toArgbColor(
+        ((uint16_t)c1 * (256 - fraction) + (uint16_t)c2 * fraction) * 17 / 256);
+  }
+};
+
 // Semi-transparent monochrome with 256 transparency levels.
 class Alpha8 {
  public:
@@ -384,6 +410,15 @@ struct RawBlender<Alpha8, BLENDING_MODE_SOURCE_OVER> {
     if (front_alpha == 0xFF || bg == 0xFF) return 0xFF;
     uint16_t tmp = bg * front_alpha;
     return bg + front_alpha - internal::__div_255_rounded(tmp);
+  }
+};
+
+template <>
+struct RawColorInterpolator<Alpha8> {
+  inline Color operator()(uint8_t c1, uint8_t c2, uint16_t fraction,
+                          const Alpha8& mode) const {
+    return mode.toArgbColor(
+        ((uint16_t)c1 * (256 - fraction) + (uint16_t)c2 * fraction) / 256);
   }
 };
 
@@ -425,6 +460,17 @@ struct RawBlender<Alpha4, BLENDING_MODE_SOURCE_OVER> {
     uint16_t tmp = bg * front_alpha;
     return internal::TruncTo4bit(bg + front_alpha -
                                  internal::__div_255_rounded(tmp));
+  }
+};
+
+template <>
+struct RawColorInterpolator<Alpha4> {
+  inline Color operator()(uint8_t c1, uint8_t c2, uint16_t fraction,
+                          const Alpha4& mode) const {
+    return Alpha8(mode.color())
+        .toArgbColor(
+            ((uint16_t)c1 * (256 - fraction) + (uint16_t)c2 * fraction) * 17 /
+            256);
   }
 };
 

@@ -246,6 +246,8 @@ template <typename ColorMode,
           typename storage_type = ColorStorageType<ColorMode>>
 class Offscreen : public Rasterizable {
  public:
+  using RasterType = Raster<const uint8_t *, ColorMode, pixel_order, byte_order>;
+
   // Creates an offscreen with specified geometry, using the designated buffer.
   // The buffer must have sufficient capacity, determined as (width * height *
   // ColorMode::bits_per_pixel + 7) / 8. The buffer is not modified; it can
@@ -315,8 +317,7 @@ class Offscreen : public Rasterizable {
     if (owns_buffer_) delete[] output().buffer();
   }
 
-  const Raster<const uint8_t *, ColorMode, pixel_order, byte_order> &raster()
-      const {
+  const RasterType& raster() const {
     return raster_;
   }
 
@@ -378,7 +379,7 @@ class Offscreen : public Rasterizable {
                   storage_type>
       device_;
 
-  const Raster<const uint8_t *, ColorMode, pixel_order, byte_order> raster_;
+  const RasterType raster_;
 
   Box extents_;
   Box anchor_extents_;

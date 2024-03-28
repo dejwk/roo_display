@@ -1,8 +1,8 @@
 #pragma once
 
 #include "roo_display/color/color.h"
-#include "roo_display/color/color_modes.h"
 #include "roo_display/color/color_mode_indexed.h"
+#include "roo_display/color/color_modes.h"
 #include "roo_display/core/drawable.h"
 #include "roo_display/core/rasterizable.h"
 #include "roo_display/core/streamable.h"
@@ -215,14 +215,17 @@ struct Reader<ColorMode, pixel_order, byte_order, 1, storage_type> {
 // The raster does not own its buffer. The representation of a raster it
 // reasonably small (22-26 bytes, depending on the color mode), and can be
 // passed by value.
-template <typename PtrType, typename ColorMode,
+template <typename PtrType, typename ColorModeT,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
 class Raster : public Rasterizable {
  public:
-  typedef RasterPixelStream<MemoryPtr<PtrType>, ColorMode, pixel_order,
-                            byte_order>
-      StreamType;
+  using ColorMode = ColorModeT;
+
+  using StreamType =
+      RasterPixelStream<MemoryPtr<PtrType>, ColorMode, pixel_order, byte_order>;
+
+  using Reader = internal::Reader<ColorMode, pixel_order, byte_order>;
 
   Raster(int16_t width, int16_t height, PtrType ptr,
          const ColorMode& color_mode = ColorMode())
@@ -270,7 +273,7 @@ class Raster : public Rasterizable {
 
   void readColors(const int16_t* x, const int16_t* y, uint32_t count,
                   Color* result) const override {
-    internal::Reader<ColorMode, pixel_order, byte_order> read;
+    Reader read;
     while (count-- > 0) {
       *result++ = color_mode_.toArgbColor(read(
           ptr_, *x++ - extents_.xMin() + (*y++ - extents_.yMin()) * width_));
@@ -284,7 +287,7 @@ class Raster : public Rasterizable {
   TransparencyMode transparency() const { return color_mode_.transparency(); }
 
   Color get(int16_t x, int16_t y) const {
-    internal::Reader<ColorMode, pixel_order, byte_order> read;
+    Reader read;
     return color_mode_.toArgbColor(
         read(ptr_, x - extents_.xMin() + (y - extents_.yMin()) * width_));
   }

@@ -246,7 +246,8 @@ template <typename ColorMode,
           typename storage_type = ColorStorageType<ColorMode>>
 class Offscreen : public Rasterizable {
  public:
-  using RasterType = Raster<const uint8_t *, ColorMode, pixel_order, byte_order>;
+  using RasterType =
+      Raster<const uint8_t *, ColorMode, pixel_order, byte_order>;
 
   // Creates an offscreen with specified geometry, using the designated buffer.
   // The buffer must have sufficient capacity, determined as (width * height *
@@ -301,15 +302,19 @@ class Offscreen : public Rasterizable {
 
   // Convenience constructor that makes a RAM copy of the specified drawable.
   Offscreen(const Drawable &d, ColorMode color_mode = ColorMode())
+      : Offscreen(d, color::Transparent, color_mode) {}
+
+  // Convenience constructor that makes a RAM copy of the specified drawable,
+  // using the specified background color. Useful when drawing translucent
+  // contents (e.g. text) to non-translucent offscreens.
+  Offscreen(const Drawable &d, Color bgColor,
+            ColorMode color_mode = ColorMode())
       : Offscreen(d.extents(), color_mode) {
     setAnchorExtents(d.anchorExtents());
     Box extents = d.extents();
-    if (color_mode.transparency() != TRANSPARENCY_NONE) {
-      device_.fillRect(0, 0, extents.width() - 1, extents.height() - 1,
-                       color::Transparent);
-    }
     Surface s(device_, -extents.xMin(), -extents.yMin(),
-              Box(0, 0, extents.width(), extents.height()), false);
+              Box(0, 0, extents.width(), extents.height()), false, bgColor,
+              FILL_MODE_RECTANGLE);
     s.drawObject(d);
   }
 
@@ -317,9 +322,7 @@ class Offscreen : public Rasterizable {
     if (owns_buffer_) delete[] output().buffer();
   }
 
-  const RasterType& raster() const {
-    return raster_;
-  }
+  const RasterType &raster() const { return raster_; }
 
   Box extents() const override { return extents_; }
   Box anchorExtents() const override { return anchor_extents_; }

@@ -18,8 +18,8 @@ namespace roo_display::products::makerfabs {
 class Esp32TftCapacitive35 : public ComboDevice {
  public:
   Esp32TftCapacitive35(Orientation orientation = Orientation(),
-                       decltype(SPI)& spi = SPI, decltype(Wire)& wire = Wire)
-      : spi_(spi), wire_(wire), display_(spi), touch_() {
+                       decltype(Wire)& wire = Wire)
+      : spi_(HSPI), wire_(wire), display_(spi_), touch_() {
     display_.setOrientation(orientation);
   }
 
@@ -36,10 +36,12 @@ class Esp32TftCapacitive35 : public ComboDevice {
     return TouchCalibration(0, 20, 309, 454, Orientation::RightDown());
   }
 
+  decltype(SPI)& spi() { return spi_; }
+
  private:
-  decltype(SPI)& spi_;
+  decltype(SPI) spi_;
   decltype(Wire)& wire_;
-  roo_display::Ili9488spi<15, 33, 26> display_;
+  roo_display::Ili9488spi<15, 33, 26, esp32::Hspi> display_;
   roo_display::TouchFt6x36 touch_;
 };
 

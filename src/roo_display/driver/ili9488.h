@@ -44,7 +44,7 @@ class Rgb666h {
 static const int16_t kDefaultWidth = 320;
 static const int16_t kDefaultHeight = 480;
 
-static const uint32_t SpiFrequency = 40 * 1000 * 1000;
+static const uint32_t SpiFrequency = 20 * 1000 * 1000;
 
 typedef SpiSettings<SpiFrequency, MSBFIRST, SPI_MODE0> DefaultSpiSettings;
 

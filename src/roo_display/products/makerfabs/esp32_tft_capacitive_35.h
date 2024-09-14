@@ -38,6 +38,8 @@ class Esp32TftCapacitive35 : public ComboDevice {
 
   decltype(SPI)& spi() { return spi_; }
 
+  constexpr int8_t sd_cs() const { return 16; }
+
  private:
   decltype(SPI) spi_;
   decltype(Wire)& wire_;

@@ -79,8 +79,9 @@ class Esp32s3ParallelIpsCapacitive70 : public ComboDevice {
 
  private:
   decltype(Wire)& wire_;
-  // roo_display::esp32s3_dma::ParallelRgb565Buffered display_;
-  roo_display::esp32s3_dma::ParallelRgb565<esp32s3_dma::FLUSH_MODE_AGGRESSIVE> display_;
+  roo_display::esp32s3_dma::ParallelRgb565Buffered display_;
+  // roo_display::esp32s3_dma::ParallelRgb565<esp32s3_dma::FLUSH_MODE_LAZY> display_;
+  // roo_display::esp32s3_dma::ParallelRgb565<esp32s3_dma::FLUSH_MODE_AGGRESSIVE> display_;
   roo_display::TouchGt911 touch_;
   LedcBacklit backlit_;
 };

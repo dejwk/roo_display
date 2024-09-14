@@ -42,17 +42,18 @@ class Rgb565DmaBlendingWriterOperator {
     internal::RawIterator<16, BYTE_ORDER_LITTLE_ENDIAN> itr(p, offset);
     RawBlender<Rgb565Dma, blending_mode> blender;
     itr.write(blender(itr.read(), *color_++, color_mode_));
-    Cache_WriteBack_Addr((uint32_t)(p + offset * 2), 2);
+    Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, 2);
   }
 
   void operator()(uint8_t *p, uint32_t offset, uint32_t count) {
     internal::RawIterator<16, BYTE_ORDER_LITTLE_ENDIAN> itr(p, offset);
     RawBlender<Rgb565Dma, blending_mode> blender;
+    uint32_t orig_count = count;
     while (count-- > 0) {
       itr.write(blender(itr.read(), *color_++, color_mode_));
       ++itr;
     }
-    Cache_WriteBack_Addr((uint32_t)(p + offset * 2), count * 2);
+    Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, orig_count * 2);
   }
 
  private:
@@ -79,14 +80,17 @@ class GenericWriter<Rgb565Dma, COLOR_PIXEL_ORDER_MSB_FIRST,
     internal::RawIterator<16, BYTE_ORDER_LITTLE_ENDIAN> itr(p, offset);
     itr.write(
         ApplyRawBlending(blending_mode_, itr.read(), *color_++, Rgb565Dma()));
+    Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, 2);
   }
 
   void operator()(uint8_t *p, uint32_t offset, uint32_t count) {
     internal::RawIterator<16, BYTE_ORDER_LITTLE_ENDIAN> itr(p, offset);
+    uint32_t orig_count = count;
     while (count-- > 0) {
       itr.write(ApplyRawBlending(blending_mode_, itr.read(), *color_++, Rgb565Dma()));
       ++itr;
     }
+    Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, orig_count * 2);
   }
 
  private:
@@ -104,17 +108,18 @@ class Rgb565DmaBlendingFillerOperator {
     internal::RawIterator<16, BYTE_ORDER_LITTLE_ENDIAN> itr(p, offset);
     RawBlender<Rgb565Dma, blending_mode> blender;
     itr.write(blender(itr.read(), color_, Rgb565Dma()));
-    Cache_WriteBack_Addr((uint32_t)(p + offset * 2), 2);
+    Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, 2);
   }
 
   void operator()(uint8_t *p, uint32_t offset, uint32_t count) const {
     internal::RawIterator<16, BYTE_ORDER_LITTLE_ENDIAN> itr(p, offset);
     RawBlender<Rgb565Dma, blending_mode> blender;
+    uint32_t orig_count = count;
     while (count-- > 0) {
       itr.write(blender(itr.read(), color_, Rgb565Dma()));
       ++itr;
     }
-    Cache_WriteBack_Addr((uint32_t)(p + offset * 2), count * 2);
+    Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, orig_count * 2);
   }
 
  private:
@@ -141,15 +146,18 @@ class GenericFiller<Rgb565Dma, COLOR_PIXEL_ORDER_MSB_FIRST,
     internal::RawIterator<16, BYTE_ORDER_LITTLE_ENDIAN> itr(p, offset);
     itr.write(
         ApplyRawBlending(blending_mode_, itr.read(), color_, Rgb565Dma()));
+    Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, 2);
   }
 
   void operator()(uint8_t *p, uint32_t offset, uint32_t count) const {
     internal::RawIterator<16, BYTE_ORDER_LITTLE_ENDIAN> itr(p, offset);
+    uint32_t orig_count = count;
     while (count-- > 0) {
       itr.write(
           ApplyRawBlending(blending_mode_, itr.read(), color_, Rgb565Dma()));
       ++itr;
     }
+    Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, orig_count * 2);
   }
 
  private:
@@ -266,7 +274,7 @@ class ParallelRgb565 : public DisplayDevice {
 
   void orientationUpdated() override {
     if (buffer_ != nullptr) {
-      buffer_->orientationUpdated();
+      buffer_->setOrientation(orientation());
     }
   }
 

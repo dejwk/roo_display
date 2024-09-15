@@ -62,10 +62,10 @@ class Rgb565DmaBlendingWriterOperator {
 };
 
 template <>
-struct BlendingWriter<Rgb565Dma, COLOR_PIXEL_ORDER_MSB_FIRST, BYTE_ORDER_LITTLE_ENDIAN> {
+struct BlendingWriter<Rgb565Dma, COLOR_PIXEL_ORDER_MSB_FIRST,
+                      BYTE_ORDER_LITTLE_ENDIAN> {
   template <BlendingMode blending_mode>
-  using Operator =
-      Rgb565DmaBlendingWriterOperator<blending_mode>;
+  using Operator = Rgb565DmaBlendingWriterOperator<blending_mode>;
 };
 
 template <>
@@ -87,7 +87,8 @@ class GenericWriter<Rgb565Dma, COLOR_PIXEL_ORDER_MSB_FIRST,
     internal::RawIterator<16, BYTE_ORDER_LITTLE_ENDIAN> itr(p, offset);
     uint32_t orig_count = count;
     while (count-- > 0) {
-      itr.write(ApplyRawBlending(blending_mode_, itr.read(), *color_++, Rgb565Dma()));
+      itr.write(
+          ApplyRawBlending(blending_mode_, itr.read(), *color_++, Rgb565Dma()));
       ++itr;
     }
     Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, orig_count * 2);
@@ -128,10 +129,10 @@ class Rgb565DmaBlendingFillerOperator {
 };
 
 template <>
-struct BlendingFiller<Rgb565Dma, COLOR_PIXEL_ORDER_MSB_FIRST, BYTE_ORDER_LITTLE_ENDIAN> {
+struct BlendingFiller<Rgb565Dma, COLOR_PIXEL_ORDER_MSB_FIRST,
+                      BYTE_ORDER_LITTLE_ENDIAN> {
   template <BlendingMode blending_mode>
-  using Operator =
-      Rgb565DmaBlendingFillerOperator<blending_mode>;
+  using Operator = Rgb565DmaBlendingFillerOperator<blending_mode>;
 };
 
 template <>
@@ -276,6 +277,12 @@ class ParallelRgb565 : public DisplayDevice {
     if (buffer_ != nullptr) {
       buffer_->setOrientation(orientation());
     }
+  }
+
+  inline void flush() const {
+    uint32_t begin = (uint32_t)buffer_->buffer();
+    uint32_t size = cfg_.width * cfg_.height * 2;
+    Cache_WriteBack_Addr(begin, size);
   }
 
  private:

@@ -2,8 +2,6 @@
 
 #if defined(ESP32) && (CONFIG_IDF_TARGET_ESP32S3)
 
-#include "roo_display/driver/esp32s3_dma_parallel_rgb565.h"
-
 #include "esp_heap_caps.h"
 #include "esp_intr_alloc.h"
 #include "esp_lcd_panel_interface.h"
@@ -14,6 +12,7 @@
 #include "esp_private/gdma.h"
 #include "hal/dma_types.h"
 #include "hal/lcd_hal.h"
+#include "roo_display/driver/esp32s3_dma_parallel_rgb565.h"
 #include "roo_display/internal/memfill.h"
 
 namespace roo_display {
@@ -264,7 +263,9 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::write(Color *color,
   //                  .length = (y1 - y0 + 1) * cfg_.width * 2};
   // Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + range.offset,
   //                      range.length);
-  Cache_WriteBack_All();
+  flush();
+  // Cache_WriteBack_Addr((uint32_t)(buffer_->buffer()),
+  //                      cfg_.width * cfg_.height * 2);
 }
 
 template <>
@@ -273,11 +274,14 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::writePixels(BlendingMode mode,
                                                       int16_t *y,
                                                       uint16_t pixel_count) {
   // FlushRange range =
-  //     ResolveFlushRangeForRects(cfg_, orientation(), x, y, x, y, pixel_count);
+  //     ResolveFlushRangeForRects(cfg_, orientation(), x, y, x, y,
+  //     pixel_count);
   buffer_->writePixels(mode, color, x, y, pixel_count);
   // Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + range.offset,
   //                      range.length);
-  Cache_WriteBack_All();
+  flush();
+  // Cache_WriteBack_Addr((uint32_t)(buffer_->buffer()),
+  //                      cfg_.width * cfg_.height * 2);
 }
 
 template <>
@@ -286,11 +290,14 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillPixels(BlendingMode mode,
                                                      int16_t *y,
                                                      uint16_t pixel_count) {
   // FlushRange range =
-  //     ResolveFlushRangeForRects(cfg_, orientation(), x, y, x, y, pixel_count);
+  //     ResolveFlushRangeForRects(cfg_, orientation(), x, y, x, y,
+  //     pixel_count);
   buffer_->fillPixels(mode, color, x, y, pixel_count);
   // Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + range.offset,
   //                      range.length);
-  Cache_WriteBack_All();
+  flush();
+  // Cache_WriteBack_Addr((uint32_t)(buffer_->buffer()),
+  //                      cfg_.width * cfg_.height * 2);
 }
 
 template <>
@@ -304,20 +311,25 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::writeRects(BlendingMode mode,
   buffer_->writeRects(mode, color, x0, y0, x1, y1, count);
   // Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + range.offset,
   //                      range.length);
-  Cache_WriteBack_All();
+  flush();
+  // Cache_WriteBack_Addr((uint32_t)(buffer_->buffer()),
+  //                      cfg_.width * cfg_.height * 2);
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillRects(BlendingMode mode, Color color,
-                                                    int16_t *x0, int16_t *y0,
-                                                    int16_t *x1, int16_t *y1,
+void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillRects(BlendingMode mode,
+                                                    Color color, int16_t *x0,
+                                                    int16_t *y0, int16_t *x1,
+                                                    int16_t *y1,
                                                     uint16_t count) {
   // FlushRange range =
   //     ResolveFlushRangeForRects(cfg_, orientation(), x0, y0, x1, y1, count);
   buffer_->fillRects(mode, color, x0, y0, x1, y1, count);
   // Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + range.offset,
   //                      range.length);
-  Cache_WriteBack_All();
+  flush();
+  // Cache_WriteBack_Addr((uint32_t)(buffer_->buffer()),
+  //                      cfg_.width * cfg_.height * 2);
 }
 
 template <>
@@ -330,8 +342,7 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::init() {
 template <>
 void ParallelRgb565<FLUSH_MODE_LAZY>::end() {
   if (buffer_ != nullptr) {
-    Cache_WriteBack_Addr((uint32_t)(buffer_->buffer()),
-                         cfg_.width * cfg_.height * 2);
+    flush();
   }
 }
 
@@ -342,8 +353,9 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::write(Color *color,
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_LAZY>::writePixels(BlendingMode mode, Color *color,
-                                                  int16_t *x, int16_t *y,
+void ParallelRgb565<FLUSH_MODE_LAZY>::writePixels(BlendingMode mode,
+                                                  Color *color, int16_t *x,
+                                                  int16_t *y,
                                                   uint16_t pixel_count) {
   buffer_->writePixels(mode, color, x, y, pixel_count);
 }
@@ -356,10 +368,10 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::fillPixels(BlendingMode mode, Color color,
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_LAZY>::writeRects(BlendingMode mode, Color *color,
-                                                 int16_t *x0, int16_t *y0,
-                                                 int16_t *x1, int16_t *y1,
-                                                 uint16_t count) {
+void ParallelRgb565<FLUSH_MODE_LAZY>::writeRects(BlendingMode mode,
+                                                 Color *color, int16_t *x0,
+                                                 int16_t *y0, int16_t *x1,
+                                                 int16_t *y1, uint16_t count) {
   buffer_->writeRects(mode, color, x0, y0, x1, y1, count);
 }
 

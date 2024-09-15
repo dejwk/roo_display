@@ -65,7 +65,7 @@ TouchResult BasicTouchDevice<max_touch_points>::getTouch(TouchPoint* points,
     // Immediately return the last result without attempting to scan.
     return pushResult(points, max_points);
   }
-  TouchPoint readout[max_points];
+  TouchPoint readout[max_touch_points];
   int points_touched = readTouch(readout);
   if (points_touched == 0) {
     if (dt < config_.touch_intertia_ms * 1000) {
@@ -87,7 +87,7 @@ TouchResult BasicTouchDevice<max_touch_points>::getTouch(TouchPoint* points,
     p.vy = 0;
     // Identify a previous touch coordinate, if any.
     for (int j = 0; j < points_touched_; ++j) {
-      if (touch_points_[j].id == readout[i].id) {
+      if (touch_points_[j].id == p.id) {
         TouchPoint& prev = touch_points_[j];
         // Match! Smooth out the value, and calculate velocity.
         int16_t x = prev.x * (1 - alpha) + p.x * alpha;
@@ -110,6 +110,6 @@ TouchResult BasicTouchDevice<max_touch_points>::getTouch(TouchPoint* points,
   points_touched_ = points_touched;
   memcpy(touch_points_, &readout, points_touched * sizeof(TouchPoint));
   return pushResult(points, max_points);
-};
+}
 
-};  // namespace roo_display
+}  // namespace roo_display

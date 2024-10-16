@@ -56,16 +56,15 @@ class Esp32s3ParallelIpsCapacitive43 : public ComboDevice {
   Esp32s3ParallelIpsCapacitive43(Orientation orientation = Orientation(),
                                  decltype(Wire)& wire = Wire,
                                  int pwm_channel = 1)
-      : wire_(wire),
+      : spi_(HSPI),
+        wire_(wire),
         display_(kTftConfig),
         touch_(wire, -1, 38),
         backlit_(2, pwm_channel) {
     display_.setOrientation(orientation);
   }
 
-  void initTransport() {
-    wire_.begin(17, 18);
-  }
+  void initTransport() { wire_.begin(17, 18); }
 
   DisplayDevice& display() override { return display_; }
 
@@ -75,9 +74,13 @@ class Esp32s3ParallelIpsCapacitive43 : public ComboDevice {
     return TouchCalibration(0, 0, 800, 480);
   }
 
+  decltype(SPI)& spi() { return spi_; }
+  constexpr int8_t sd_cs() const { return 16; }
+
   Backlit& backlit() { return backlit_; }
 
  private:
+  decltype(SPI) spi_;
   decltype(Wire)& wire_;
   roo_display::esp32s3_dma::ParallelRgb565Buffered display_;
   roo_display::TouchGt911 touch_;

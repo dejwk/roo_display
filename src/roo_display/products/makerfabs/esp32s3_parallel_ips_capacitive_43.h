@@ -5,6 +5,7 @@
 // Product Code: E32S3RGB43
 
 #include <Wire.h>
+#include <SPI.h>
 
 #include "roo_display/backlit/esp32_ledc.h"
 #include "roo_display/core/device.h"

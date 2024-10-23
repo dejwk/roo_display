@@ -91,17 +91,15 @@ class MemoryStream : public ResourceStream {
 
   // Returns true on success.
   bool seek(uint32_t offset) override {
-    if (current_ + offset > end_) {
+    if (begin_ + offset > end_) {
       current_ = end_;
     } else {
-      current_ += offset;
+      current_ = offset;
     }
     return true;
   }
 
-  int size() override {
-    return end_ - begin_;
-  }
+  int size() override { return end_ - begin_; }
 
  private:
   PtrType begin_, end_, current_;

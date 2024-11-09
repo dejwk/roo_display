@@ -11,6 +11,7 @@
 #include "roo_display/core/orientation.h"
 #include "roo_display/driver/ili9488.h"
 #include "roo_display/driver/touch_ft6x36.h"
+#include "roo_display/hal/spi.h"
 #include "roo_display/products/combo_device.h"
 
 namespace roo_display::products::makerfabs {
@@ -38,7 +39,13 @@ class Esp32TftCapacitive35 : public ComboDevice {
 
   decltype(SPI)& spi() { return spi_; }
 
-  constexpr int8_t sd_cs() const { return 16; }
+  constexpr int8_t pin_sck() const { return 14; }
+  constexpr int8_t pin_miso() const { return 12; }
+  constexpr int8_t pin_mosi() const { return 13; }
+  constexpr int8_t pin_sda() const { return 26; }
+  constexpr int8_t pin_scl() const { return 27; }
+
+  constexpr int8_t pin_sd_cs() const { return 4; }
 
  private:
   decltype(SPI) spi_;

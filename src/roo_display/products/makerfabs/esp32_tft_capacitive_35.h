@@ -1,6 +1,6 @@
 #pragma once
 
-// https://www.makerfabs.com/esp32-3.5-inch-tft-touch-capacitive-with-camera.html
+// https://www.makerfabs.com/esp32-3-5-inch-tft-touch-capacitive-with-camera.html
 // Maker: MakerFabs
 // Product Code: ESPTFT35CA
 

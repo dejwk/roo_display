@@ -6,147 +6,15 @@
 #include <cstring>
 #include <ostream>
 
+#include "roo_io/base/string_view.h"
+
 namespace roo_display {
 
 typedef uint16_t unicode_t;
 
 // UTF8-encoded string reference.
 
-class StringView {
- public:
-  using value_type = char;
-  using pointer = const char *;
-  using const_pointer = const char *;
-  using reference = const char &;
-  using const_reference = const char &;
-  using iterator = const char *;
-  using const_iterator = const char *;
-  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-  using reverse_iterator = const_reverse_iterator;
-  using size_type = size_t;
-  using difference_type = ptrdiff_t;
-  static constexpr size_type npos = size_type(-1);
-
-  constexpr StringView() noexcept : len_(0), str_(nullptr) {}
-
-  constexpr StringView(const StringView &) noexcept = default;
-
-  constexpr StringView(const char *str, size_type len) noexcept
-      : len_(len), str_(str) {}
-
-  StringView(const char *str) noexcept : len_(strlen(str)), str_(str) {}
-
-  StringView(const std::string &str) noexcept
-      : len_(str.size()), str_(str.c_str()) {}
-
-  StringView &operator=(const StringView &) noexcept = default;
-
-  constexpr const_iterator begin() const noexcept { return str_; }
-
-  constexpr const_iterator end() const noexcept { return str_ + len_; }
-
-  constexpr const_iterator cbegin() const noexcept { return str_; }
-
-  constexpr const_iterator cend() const noexcept { return str_ + len_; }
-
-  const_reverse_iterator rbegin() const noexcept {
-    return const_reverse_iterator(end());
-  }
-
-  const_reverse_iterator rend() const noexcept {
-    return const_reverse_iterator(begin());
-  }
-
-  const_reverse_iterator crbegin() const noexcept {
-    return const_reverse_iterator(end());
-  }
-
-  const_reverse_iterator crend() const noexcept {
-    return const_reverse_iterator(begin());
-  }
-
-  constexpr size_type size() const noexcept { return len_; }
-
-  constexpr bool empty() const noexcept { return len_ == 0; }
-
-  constexpr const char &operator[](size_type pos) const noexcept {
-    return str_[pos];
-  }
-
-  constexpr const char &at(size_type pos) const { return str_[pos]; }
-
-  constexpr const char &front() const noexcept { return str_[0]; }
-
-  constexpr const char &back() const noexcept { return str_[len_ - 1]; }
-
-  constexpr const char *data() const noexcept { return str_; }
-
-  void remove_prefix(size_type n) noexcept {
-    assert(len_ >= n);
-    str_ += n;
-    len_ -= n;
-  }
-
-  void remove_suffix(size_type n) noexcept {
-    assert(len_ >= n);
-    len_ -= n;
-  }
-
-  void swap(StringView &sv) noexcept {
-    auto tmp = *this;
-    *this = sv;
-    sv = tmp;
-  }
-
-  StringView substr(size_type pos, size_type n = npos) const {
-    assert(pos <= len_);
-    const size_type rlen = std::min(n, len_ - pos);
-    return StringView(str_ + pos, rlen);
-  }
-
-  int compare(StringView str) const noexcept {
-    const size_type rlen = std::min(len_, str.len_);
-    int ret = strncmp(reinterpret_cast<const char *>(str_),
-                      reinterpret_cast<const char *>(str.str_), rlen);
-    if (ret == 0) {
-      ret = (len_ < str.len_) ? -1 : (len_ > str.len_) ? 1 : 0;
-    }
-    return ret;
-  }
-
- private:
-  size_t len_;
-  const char *str_;
-};
-
-inline bool operator==(StringView x, StringView y) noexcept {
-  return x.size() == y.size() && x.compare(y) == 0;
-}
-
-inline bool operator!=(StringView x, StringView y) noexcept {
-  return !(x == y);
-}
-
-inline bool operator<(StringView x, StringView y) noexcept {
-  return x.compare(y) < 0;
-}
-
-inline bool operator>(StringView x, StringView y) noexcept {
-  return x.compare(y) > 0;
-}
-
-inline bool operator<=(StringView x, StringView y) noexcept {
-  return x.compare(y) <= 0;
-}
-
-inline bool operator>=(StringView x, StringView y) noexcept {
-  return x.compare(y) >= 0;
-}
-
-inline std::ostream &operator<<(std::ostream &os, StringView v) {
-  os.write((const char *)v.data(), v.size());
-  return os;
-}
+using StringView = roo_io::string_view;
 
 // Writes the UTF-8 representation of the rune to buf. The `buf` must have
 // sufficient size (4 is always safe). Returns the number of bytes actually

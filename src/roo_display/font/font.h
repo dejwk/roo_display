@@ -139,7 +139,7 @@ class Font {
     drawHorizontalString(s, text.data(), text.size(), color);
   }
 
-  virtual void drawHorizontalString(const Surface &s, const uint8_t *utf8_data,
+  virtual void drawHorizontalString(const Surface &s, const char *utf8_data,
                                     uint32_t size, Color color) const = 0;
 
   // Returns metrics of the specified string, as if it was a single glyph.
@@ -147,7 +147,7 @@ class Font {
     return getHorizontalStringMetrics(text.data(), text.size());
   }
 
-  virtual GlyphMetrics getHorizontalStringMetrics(const uint8_t *utf8_data,
+  virtual GlyphMetrics getHorizontalStringMetrics(const char *utf8_data,
                                                   uint32_t size) const = 0;
 
   // Returns metrics of the consecutive glyphs of the specified string,
@@ -165,7 +165,7 @@ class Font {
   }
 
   virtual uint32_t getHorizontalStringGlyphMetrics(
-      const uint8_t *utf8_data, uint32_t size, GlyphMetrics *result,
+      const char *utf8_data, uint32_t size, GlyphMetrics *result,
       uint32_t offset, uint32_t max_count) const = 0;
 
   virtual ~Font() {}

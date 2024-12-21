@@ -10,16 +10,16 @@ namespace roo_display {
 class SmoothFont : public Font {
  public:
   SmoothFont(const uint8_t *font_data PROGMEM);
-  void drawHorizontalString(const Surface &s, const uint8_t *utf8_data,
+  void drawHorizontalString(const Surface &s, const char *utf8_data,
                             uint32_t size, Color color) const override;
 
   bool getGlyphMetrics(unicode_t code, FontLayout layout,
                        GlyphMetrics *result) const override;
 
-  GlyphMetrics getHorizontalStringMetrics(const uint8_t *utf8_data,
+  GlyphMetrics getHorizontalStringMetrics(const char *utf8_data,
                                           uint32_t size) const override;
 
-  uint32_t getHorizontalStringGlyphMetrics(const uint8_t *utf8_data,
+  uint32_t getHorizontalStringGlyphMetrics(const char *utf8_data,
                                            uint32_t size, GlyphMetrics *result,
                                            uint32_t offset,
                                            uint32_t max_count) const override;

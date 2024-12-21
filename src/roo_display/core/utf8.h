@@ -1,8 +1,9 @@
 #pragma once
 
 #include <assert.h>
-#include <cstring>
 #include <inttypes.h>
+
+#include <cstring>
 #include <ostream>
 
 namespace roo_display {
@@ -10,15 +11,16 @@ namespace roo_display {
 typedef uint16_t unicode_t;
 
 // UTF8-encoded string reference.
+
 class StringView {
  public:
-  using value_type = uint8_t;
-  using pointer = const uint8_t *;
-  using const_pointer = const uint8_t *;
-  using reference = const uint8_t &;
-  using const_reference = const uint8_t &;
-  using iterator = const uint8_t *;
-  using const_iterator = const uint8_t *;
+  using value_type = char;
+  using pointer = const char *;
+  using const_pointer = const char *;
+  using reference = const char &;
+  using const_reference = const char &;
+  using iterator = const char *;
+  using const_iterator = const char *;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
   using reverse_iterator = const_reverse_iterator;
   using size_type = size_t;
@@ -29,15 +31,13 @@ class StringView {
 
   constexpr StringView(const StringView &) noexcept = default;
 
-  constexpr StringView(const uint8_t *str, size_type len) noexcept
+  constexpr StringView(const char *str, size_type len) noexcept
       : len_(len), str_(str) {}
 
-  StringView(const char *str) noexcept
-      : len_(strlen(str)), str_(reinterpret_cast<const uint8_t *>(str)) {}
+  StringView(const char *str) noexcept : len_(strlen(str)), str_(str) {}
 
   StringView(const std::string &str) noexcept
-      : len_(str.size()),
-        str_(reinterpret_cast<const uint8_t *>(str.c_str())) {}
+      : len_(str.size()), str_(str.c_str()) {}
 
   StringView &operator=(const StringView &) noexcept = default;
 
@@ -69,17 +69,17 @@ class StringView {
 
   constexpr bool empty() const noexcept { return len_ == 0; }
 
-  constexpr const uint8_t &operator[](size_type pos) const noexcept {
+  constexpr const char &operator[](size_type pos) const noexcept {
     return str_[pos];
   }
 
-  constexpr const uint8_t &at(size_type pos) const { return str_[pos]; }
+  constexpr const char &at(size_type pos) const { return str_[pos]; }
 
-  constexpr const uint8_t &front() const noexcept { return str_[0]; }
+  constexpr const char &front() const noexcept { return str_[0]; }
 
-  constexpr const uint8_t &back() const noexcept { return str_[len_ - 1]; }
+  constexpr const char &back() const noexcept { return str_[len_ - 1]; }
 
-  constexpr const uint8_t *data() const noexcept { return str_; }
+  constexpr const char *data() const noexcept { return str_; }
 
   void remove_prefix(size_type n) noexcept {
     assert(len_ >= n);
@@ -116,7 +116,7 @@ class StringView {
 
  private:
   size_t len_;
-  const uint8_t *str_;
+  const char *str_;
 };
 
 inline bool operator==(StringView x, StringView y) noexcept {
@@ -185,13 +185,13 @@ class Utf8Decoder {
   Utf8Decoder(StringView v) : Utf8Decoder(v.data(), v.size()) {}
 
   Utf8Decoder(const uint8_t *data, uint32_t size)
-      : data_(data), remaining_(size) {}
+      : Utf8Decoder((const char *)data, size) {}
 
   Utf8Decoder(const char *data, uint32_t size)
-      : data_((const uint8_t *)data), remaining_(size) {}
+      : data_(data), remaining_(size) {}
 
   bool has_next() const { return remaining_ > 0; }
-  const uint8_t *data() const { return data_; }
+  const char *data() const { return data_; }
   uint32_t remaining() const { return remaining_; }
 
   unicode_t next() {
@@ -225,7 +225,7 @@ class Utf8Decoder {
   }
 
  private:
-  const uint8_t *data_;
+  const char *data_;
   uint32_t remaining_;
 };
 
@@ -237,7 +237,7 @@ class Utf8LookAheadDecoder {
   Utf8LookAheadDecoder(StringView v)
       : Utf8LookAheadDecoder(v.data(), v.size()) {}
 
-  Utf8LookAheadDecoder(const uint8_t *data, uint32_t size)
+  Utf8LookAheadDecoder(const char *data, uint32_t size)
       : decoder_(data, size), buffer_offset_(0), buffer_size_(0) {
     // Fill in the lookahead buffer.
     while (decoder_.has_next() && lookahead_buffer_size() < 8) {

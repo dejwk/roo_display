@@ -347,7 +347,7 @@ class GlyphPairIterator {
   long data_offset_2_;
 };
 
-GlyphMetrics SmoothFont::getHorizontalStringMetrics(const uint8_t *utf8_data,
+GlyphMetrics SmoothFont::getHorizontalStringMetrics(const char *utf8_data,
                                                     uint32_t size) const {
   Utf8LookAheadDecoder decoder(utf8_data, size);
   if (!decoder.has_next()) {
@@ -394,7 +394,7 @@ GlyphMetrics SmoothFont::getHorizontalStringMetrics(const uint8_t *utf8_data,
   return GlyphMetrics(xMin, yMin, xMax, yMax, advance);
 }
 
-uint32_t SmoothFont::getHorizontalStringGlyphMetrics(const uint8_t *utf8_data,
+uint32_t SmoothFont::getHorizontalStringGlyphMetrics(const char *utf8_data,
                                                      uint32_t size,
                                                      GlyphMetrics *result,
                                                      uint32_t offset,
@@ -440,7 +440,7 @@ uint32_t SmoothFont::getHorizontalStringGlyphMetrics(const uint8_t *utf8_data,
 }
 
 void SmoothFont::drawHorizontalString(const Surface &s,
-                                      const uint8_t *utf8_data, uint32_t size,
+                                      const char *utf8_data, uint32_t size,
                                       Color color) const {
   Utf8LookAheadDecoder decoder(utf8_data, size);
   if (!decoder.has_next()) {

@@ -166,7 +166,7 @@ void drawGlyph(const Surface& s, unicode_t code, Color color, bool whitespace) {
 }
 
 void FontAdafruitFixed5x7::drawHorizontalString(const Surface& s,
-                                                const uint8_t* utf8_data,
+                                                const char* utf8_data,
                                                 uint32_t size,
                                                 Color color) const {
   Surface news(s);
@@ -185,7 +185,7 @@ bool FontAdafruitFixed5x7::getGlyphMetrics(unicode_t code, FontLayout layout,
 }
 
 GlyphMetrics FontAdafruitFixed5x7::getHorizontalStringMetrics(
-    const uint8_t* utf8_data, uint32_t size) const {
+    const char* utf8_data, uint32_t size) const {
   Utf8Decoder decoder(utf8_data, size);
   int16_t length = 0;
   while (decoder.has_next()) {
@@ -197,7 +197,7 @@ GlyphMetrics FontAdafruitFixed5x7::getHorizontalStringMetrics(
 }
 
 uint32_t FontAdafruitFixed5x7::getHorizontalStringGlyphMetrics(
-    const uint8_t* utf8_data, uint32_t size, GlyphMetrics* result,
+    const char* utf8_data, uint32_t size, GlyphMetrics* result,
     uint32_t offset, uint32_t max_count) const {
   Utf8Decoder decoder(utf8_data, size);
   uint32_t i = 0;

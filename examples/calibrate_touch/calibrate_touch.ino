@@ -43,9 +43,9 @@ struct Emulator {
 #include "roo_display/font/font.h"
 #include "roo_display/shape/basic.h"
 #include "roo_display/shape/smooth.h"
-#include "roo_display/ui/string_printer.h"
 #include "roo_display/ui/text_label.h"
 #include "roo_fonts/NotoSans_Condensed/12.h"
+#include "roo_io/text/string_printf.h"
 
 using namespace roo_display;
 
@@ -337,9 +337,9 @@ class TouchCalibrator {
       DrawingContext dc(s);
       dc.draw(TextLabel("Current:", font_, color::Black), kTop | kCenter);
       const Box& b = current_.bounds();
-      dc.draw(TextLabel(StringPrintf("%d, %d, %d, %d, %s", b.xMin(), b.yMin(),
-                                     b.xMax(), b.yMax(),
-                                     current_.orientation().asString()),
+      dc.draw(TextLabel(roo_io::StringPrintf("%d, %d, %d, %d, %s", b.xMin(),
+                                             b.yMin(), b.xMax(), b.yMax(),
+                                             current_.orientation().asString()),
                         font_, color::Black),
               kTop.shiftBy(line_height_) | kCenter);
       dc.draw(TextLabel("Press to test", font_, color::Black),

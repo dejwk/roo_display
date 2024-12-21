@@ -28,10 +28,10 @@ Display display(device);
 #include "roo_display/shape/basic.h"
 #include "roo_display/shape/point.h"
 #include "roo_display/shape/smooth.h"
-#include "roo_display/ui/string_printer.h"
 #include "roo_display/ui/text_label.h"
 #include "roo_display/ui/tile.h"
 #include "roo_fonts/NotoSans_Bold/27.h"
+#include "roo_io/text/string_printf.h"
 
 void setup() {
   SPI.begin();
@@ -91,7 +91,7 @@ class ValueIndicator : public Drawable {
     auto needle_shape = needle.getShape();
     DrawingContext dc(s);
     dc.setBackground(&needle_shape);
-    dc.draw(MakeTileOf(TextLabel(StringPrintf("%0.1f%%", value_ * 100),
+    dc.draw(MakeTileOf(TextLabel(roo_io::StringPrintf("%0.1f%%", value_ * 100),
                                  font_NotoSans_Bold_27(), color::Black),
                        kTextExtents, kCenter | kMiddle));
     // We're expecting to be called in the write-once mode, when everything else

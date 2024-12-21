@@ -15,6 +15,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//lib/roo_collections",
+        "//lib/roo_io",
         "//roo_testing:arduino",
         "//roo_testing/frameworks/arduino-esp32-2.0.4/libraries/FS",
         "//roo_testing/frameworks/arduino-esp32-2.0.4/libraries/Wire"
@@ -40,6 +41,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//lib/roo_collections",
+        "//lib/roo_io",
         "//roo_testing:arduino_gtest_main",
     ],
 )

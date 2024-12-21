@@ -130,7 +130,7 @@ class Font {
   const FontMetrics &metrics() const { return metrics_; }
   const FontProperties &properties() const { return properties_; }
 
-  virtual bool getGlyphMetrics(unicode_t code, FontLayout layout,
+  virtual bool getGlyphMetrics(char32_t code, FontLayout layout,
                                GlyphMetrics *result) const = 0;
 
   // See https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html

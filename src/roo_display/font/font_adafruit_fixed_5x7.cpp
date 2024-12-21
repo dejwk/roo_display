@@ -3,6 +3,7 @@
 #include <pgmspace.h>
 
 #include "roo_display/core/buffered_drawing.h"
+#include "roo_io/text/unicode.h"
 
 namespace roo_display {
 
@@ -129,7 +130,7 @@ FontAdafruitFixed5x7::FontAdafruitFixed5x7() {
           FontProperties::SMOOTHING_NONE, FontProperties::KERNING_NONE));
 }
 
-void drawGlyph(const Surface& s, unicode_t code, Color color, bool whitespace) {
+void drawGlyph(const Surface& s, char32_t code, Color color, bool whitespace) {
   int16_t x = s.dx();
   int16_t y = s.dy();
   if (!s.clip_box().intersects(
@@ -149,7 +150,8 @@ void drawGlyph(const Surface& s, unicode_t code, Color color, bool whitespace) {
       }
     }
   } else {
-    ClippingBufferedPixelWriter writer(s.out(), s.clip_box(), s.blending_mode());
+    ClippingBufferedPixelWriter writer(s.out(), s.clip_box(),
+                                       s.blending_mode());
     for (int8_t i = 0; i < 5; i++) {
       uint8_t line = pgm_read_byte(font + code * 5 + i);
       for (int8_t j = 0; j < 8; j++) {
@@ -170,15 +172,20 @@ void FontAdafruitFixed5x7::drawHorizontalString(const Surface& s,
                                                 uint32_t size,
                                                 Color color) const {
   Surface news(s);
-  Utf8Decoder decoder(utf8_data, size);
-  while (decoder.has_next()) {
-    uint16_t character = decoder.next();
-    drawGlyph(news, character, color, decoder.has_next());
+  roo_io::Utf8Decoder decoder(utf8_data, size);
+  char32_t ch;
+  if (!decoder.next(ch)) return;
+  while (true) {
+    char32_t next;
+    bool has_next = decoder.next(next);
+    drawGlyph(news, ch, color, has_next);
+    if (!has_next) return;
     news.set_dx(news.dx() + advance);
-  }
+    ch = next;
+  };
 }
 
-bool FontAdafruitFixed5x7::getGlyphMetrics(unicode_t code, FontLayout layout,
+bool FontAdafruitFixed5x7::getGlyphMetrics(char32_t code, FontLayout layout,
                                            GlyphMetrics* result) const {
   *result = GlyphMetrics(0, descent, 4, ascent, advance);
   return true;
@@ -186,25 +193,25 @@ bool FontAdafruitFixed5x7::getGlyphMetrics(unicode_t code, FontLayout layout,
 
 GlyphMetrics FontAdafruitFixed5x7::getHorizontalStringMetrics(
     const char* utf8_data, uint32_t size) const {
-  Utf8Decoder decoder(utf8_data, size);
+  roo_io::Utf8Decoder decoder(utf8_data, size);
   int16_t length = 0;
-  while (decoder.has_next()) {
+  char32_t ignored;
+  while (decoder.next(ignored)) {
     length++;
-    decoder.next();
   }
   return GlyphMetrics(0, descent, advance * length - 2, ascent,
                       advance * length - 1);
 }
 
 uint32_t FontAdafruitFixed5x7::getHorizontalStringGlyphMetrics(
-    const char* utf8_data, uint32_t size, GlyphMetrics* result,
-    uint32_t offset, uint32_t max_count) const {
-  Utf8Decoder decoder(utf8_data, size);
+    const char* utf8_data, uint32_t size, GlyphMetrics* result, uint32_t offset,
+    uint32_t max_count) const {
+  roo_io::Utf8Decoder decoder(utf8_data, size);
   uint32_t i = 0;
   uint32_t count = 0;
-  while (decoder.has_next() && count < max_count) {
+  char32_t ignored;
+  while (decoder.next(ignored) && count < max_count) {
     uint16_t running = 0;
-    decoder.next();
     if (i >= offset) {
       result[count++] = GlyphMetrics(running, descent, running + 4, ascent,
                                      running + advance);

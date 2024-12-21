@@ -906,10 +906,9 @@ Note that for spacing the words, we relied on the fact that `anchorExtents().wid
 
 Text labels, as well as any other routines operating on strings, assume UTF-8 encoding. Most code editors also use UTF-8, which means that you can simply paste Unicode content into your string literals, and things just work (as we saw in the OpenSymbol example above).
 
-The library provides a few utilities to work with UTF-8, in the `"roo_display/core/utf8.h"` header:
+The library inherits a few utilities to work with UTF-8, in the `"roo_io/text/unicode.h"` header:
 
-* `StringView` is a lightweight, immutable pointer to UTF-8 contents, conceptually similar to `std::u8string_view` (introduced in C++20), and used across the library.
-* `EncodeRuneAsUtf8()` is a convenience function that helps converting regular, multi-byte UTF code points to UTF-8.
+* `WriteUtf8Char()` is a convenience function that helps converting regular, multi-byte UTF code points to UTF-8.
 * `Utf8Decoder` is a utility class that does the opposite, i.e. it allows to extract subsequent code points out of UTF-8 content.
 
 #### Formatted text

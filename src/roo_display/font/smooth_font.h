@@ -13,27 +13,27 @@ class SmoothFont : public Font {
   void drawHorizontalString(const Surface &s, const char *utf8_data,
                             uint32_t size, Color color) const override;
 
-  bool getGlyphMetrics(unicode_t code, FontLayout layout,
+  bool getGlyphMetrics(char32_t code, FontLayout layout,
                        GlyphMetrics *result) const override;
 
   GlyphMetrics getHorizontalStringMetrics(const char *utf8_data,
                                           uint32_t size) const override;
 
-  uint32_t getHorizontalStringGlyphMetrics(const char *utf8_data,
-                                           uint32_t size, GlyphMetrics *result,
+  uint32_t getHorizontalStringGlyphMetrics(const char *utf8_data, uint32_t size,
+                                           GlyphMetrics *result,
                                            uint32_t offset,
                                            uint32_t max_count) const override;
 
  private:
   bool rle() const { return compression_method_ > 0; }
-  int16_t kerning(unicode_t left, unicode_t right) const;
+  int16_t kerning(char32_t left, char32_t right) const;
 
   friend class GlyphMetadataReader;
   friend class GlyphPairIterator;
 
   // Binary-search for the glyph data.
-  const uint8_t *PROGMEM findGlyph(unicode_t code) const;
-  const uint8_t *PROGMEM findKernPair(unicode_t left, unicode_t right) const;
+  const uint8_t *PROGMEM findGlyph(char32_t code) const;
+  const uint8_t *PROGMEM findKernPair(char32_t left, char32_t right) const;
 
   // Helper methods for drawing glyphs.
   void drawGlyphModeVisible(DisplayOutput &output, int16_t x, int16_t y,
@@ -69,7 +69,7 @@ class SmoothFont : public Font {
   int compression_method_;
   int kerning_pairs_count_;
   int glyph_kerning_size_;
-  unicode_t default_glyph_;
+  char32_t default_glyph_;
   int default_space_width_;
   const uint8_t *glyph_metadata_begin_ PROGMEM;
   const uint8_t *glyph_kerning_begin_ PROGMEM;

@@ -7,6 +7,7 @@
 #include "roo_display/image/image.h"
 #include "roo_display/internal/raw_streamable_overlay.h"
 #include "roo_display/io/memory.h"
+#include "roo_io/text/unicode.h"
 
 namespace roo_display {
 
@@ -167,7 +168,7 @@ SmoothFont::SmoothFont(const uint8_t *font_data PROGMEM)
   //                " glyphs, size " + (ascent - descent));
 }
 
-bool is_space(unicode_t code) {
+bool is_space(char32_t code) {
   // http://en.cppreference.com/w/cpp/string/wide/iswspace; see POSIX
   return code == 0x0020 || code == 0x00A0 ||
          (code >= 0x0009 && code <= 0x000D) || code == 0x1680 ||
@@ -311,7 +312,7 @@ class GlyphPairIterator {
            (swapped_ ? data_offset_1_ : data_offset_2_);
   }
 
-  void push(unicode_t code) {
+  void push(char32_t code) {
     swapped_ = !swapped_;
     if (is_space(code)) {
       *mutable_right_metrics() =
@@ -353,12 +354,12 @@ class GlyphPairIterator {
 
 GlyphMetrics SmoothFont::getHorizontalStringMetrics(const char *utf8_data,
                                                     uint32_t size) const {
-  Utf8LookAheadDecoder decoder(utf8_data, size);
-  if (!decoder.has_next()) {
+  roo_io::Utf8Decoder decoder(utf8_data, size);
+  char32_t next_code;
+  if (!decoder.next(next_code)) {
     // Nothing to draw.
     return GlyphMetrics(0, 0, -1, -1, 0);
   }
-  unicode_t next_code = decoder.next();
   GlyphPairIterator glyphs(this);
   glyphs.push(next_code);
   bool has_more;
@@ -368,11 +369,10 @@ GlyphMetrics SmoothFont::getHorizontalStringMetrics(const char *utf8_data,
   int16_t xMin = glyphs.right_metrics().lsb();
   int16_t xMax = xMin;
   do {
-    unicode_t code = next_code;
-    has_more = decoder.has_next();
+    char32_t code = next_code;
+    has_more = decoder.next(next_code);
     int16_t kern;
     if (has_more) {
-      next_code = decoder.next();
       glyphs.push(next_code);
       kern = kerning(code, next_code);
     } else {
@@ -403,25 +403,24 @@ uint32_t SmoothFont::getHorizontalStringGlyphMetrics(const char *utf8_data,
                                                      GlyphMetrics *result,
                                                      uint32_t offset,
                                                      uint32_t max_count) const {
-  Utf8LookAheadDecoder decoder(utf8_data, size);
-  if (!decoder.has_next()) {
+  roo_io::Utf8Decoder decoder(utf8_data, size);
+  char32_t next_code;
+  if (!decoder.next(next_code)) {
     // Nothing to measure.
     return 0;
   }
   uint32_t glyph_idx = 0;
   uint32_t glyph_count = 0;
-  unicode_t next_code = decoder.next();
   GlyphPairIterator glyphs(this);
   glyphs.push(next_code);
   bool has_more;
   int16_t advance = 0;
   do {
     if (glyph_count >= max_count) return glyph_count;
-    unicode_t code = next_code;
-    has_more = decoder.has_next();
+    char32_t code = next_code;
+    has_more = decoder.next(next_code);
     int16_t kern;
     if (has_more) {
-      next_code = decoder.next();
       glyphs.push(next_code);
       kern = kerning(code, next_code);
     } else {
@@ -445,12 +444,12 @@ uint32_t SmoothFont::getHorizontalStringGlyphMetrics(const char *utf8_data,
 
 void SmoothFont::drawHorizontalString(const Surface &s, const char *utf8_data,
                                       uint32_t size, Color color) const {
-  Utf8LookAheadDecoder decoder(utf8_data, size);
-  if (!decoder.has_next()) {
+  roo_io::Utf8Decoder decoder(utf8_data, size);
+  char32_t next_code;
+  if (!decoder.next(next_code)) {
     // Nothing to draw.
     return;
   }
-  unicode_t next_code = decoder.next();
   int16_t x = s.dx();
   int16_t y = s.dy();
   DisplayOutput &output = s.out();
@@ -464,11 +463,10 @@ void SmoothFont::drawHorizontalString(const Surface &s, const char *utf8_data,
   }
   bool has_more;
   do {
-    unicode_t code = next_code;
-    has_more = decoder.has_next();
+    char32_t code = next_code;
+    has_more = decoder.next(next_code);
     int16_t kern;
     if (has_more) {
-      next_code = decoder.next();
       glyphs.push(next_code);
       kern = kerning(code, next_code);
     } else {
@@ -529,7 +527,7 @@ void SmoothFont::drawHorizontalString(const Surface &s, const char *utf8_data,
   } while (has_more);
 }
 
-bool SmoothFont::getGlyphMetrics(unicode_t code, FontLayout layout,
+bool SmoothFont::getGlyphMetrics(char32_t code, FontLayout layout,
                                  GlyphMetrics *result) const {
   const uint8_t *PROGMEM glyph = findGlyph(code);
   if (glyph == nullptr) return false;
@@ -539,20 +537,20 @@ bool SmoothFont::getGlyphMetrics(unicode_t code, FontLayout layout,
 }
 
 template <int encoding_bytes>
-unicode_t read_unicode(const uint8_t *PROGMEM address);
+char32_t read_unicode(const uint8_t *PROGMEM address);
 
 template <>
-unicode_t read_unicode<1>(const uint8_t *PROGMEM address) {
+char32_t read_unicode<1>(const uint8_t *PROGMEM address) {
   return pgm_read_byte(address);
 }
 
 template <>
-unicode_t read_unicode<2>(const uint8_t *PROGMEM address) {
-  return ((unicode_t)pgm_read_byte(address) << 8) | pgm_read_byte(address + 1);
+char32_t read_unicode<2>(const uint8_t *PROGMEM address) {
+  return ((char32_t)pgm_read_byte(address) << 8) | pgm_read_byte(address + 1);
 }
 
 template <int encoding_bytes>
-const uint8_t *PROGMEM indexSearch(unicode_t c, const uint8_t *PROGMEM data,
+const uint8_t *PROGMEM indexSearch(char32_t c, const uint8_t *PROGMEM data,
                                    int glyph_size, int start, int stop) {
   int pivot = (start + stop) / 2;
   const uint8_t *PROGMEM pivot_ptr = data + (pivot * glyph_size);
@@ -564,7 +562,7 @@ const uint8_t *PROGMEM indexSearch(unicode_t c, const uint8_t *PROGMEM data,
   return indexSearch<encoding_bytes>(c, data, glyph_size, pivot + 1, stop);
 }
 
-const uint8_t *PROGMEM SmoothFont::findGlyph(unicode_t code) const {
+const uint8_t *PROGMEM SmoothFont::findGlyph(char32_t code) const {
   switch (encoding_bytes_) {
     case 1:
       return indexSearch<1>(code, glyph_metadata_begin_, glyph_metadata_size_,
@@ -599,8 +597,8 @@ const uint8_t *PROGMEM kernIndexSearch(uint32_t lookup,
                                          stop);
 }
 
-const uint8_t *PROGMEM SmoothFont::findKernPair(unicode_t left,
-                                                unicode_t right) const {
+const uint8_t *PROGMEM SmoothFont::findKernPair(char32_t left,
+                                                char32_t right) const {
   uint32_t lookup = left << 16 | right;
   switch (encoding_bytes_) {
     case 1:
@@ -614,7 +612,7 @@ const uint8_t *PROGMEM SmoothFont::findKernPair(unicode_t left,
   }
 }
 
-int16_t SmoothFont::kerning(unicode_t left, unicode_t right) const {
+int16_t SmoothFont::kerning(char32_t left, char32_t right) const {
   const uint8_t *PROGMEM kern = findKernPair(left, right);
   if (kern == 0) {
     return 0;

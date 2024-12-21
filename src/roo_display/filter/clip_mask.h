@@ -21,11 +21,12 @@ class ClipMask {
         inverted_(false),
         line_width_bytes_((bounds.width() + 7) / 8) {}
 
-#if __cplusplus >= 201703L  // byte is distinct from uint8_t.
   // Deprecated, use the constructor accepting the byte buffer.
-  ClipMask(const uint8_t* data, Box bounds)
+  template <typename U = uint8_t,
+            typename std::enable_if<!std::is_same<U, roo_io::byte>::value,
+                                    int>::type = 0>
+  ClipMask(const U* data, Box bounds)
       : ClipMask((const roo_io::byte*)data, bounds) {}
-#endif
 
   const roo_io::byte* data() const { return data_; }
   const Box& bounds() const { return bounds_; }

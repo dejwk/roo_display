@@ -2,6 +2,7 @@
 
 #include <inttypes.h>
 
+#include "roo_io/base/byte.h"
 #include "roo_io/memory/fill.h"
 
 namespace roo_display {

@@ -284,7 +284,13 @@ class Offscreen : public Rasterizable {
         raster_(device_.raster(extents.xMin(), extents.yMin())),
         extents_(extents),
         anchor_extents_(extents),
-        owns_buffer_(true) {}
+        owns_buffer_(true) {
+#ifdef ROO_TESTING
+    // Fill contents with garbage, to make it more likely to come out in tests.
+    memset(this->buffer(), 0x66,
+           (ColorMode::bits_per_pixel * extents.area() + 7) / 8);
+#endif
+  }
 
   // Creates an offscreen with specified geometry, using an internally allocated
   // buffer. The buffer is pre-filled using the specified  color.
@@ -314,7 +320,7 @@ class Offscreen : public Rasterizable {
     Box extents = d.extents();
     Surface s(device_, -extents.xMin(), -extents.yMin(),
               Box(0, 0, extents.width(), extents.height()), false, bgColor,
-              FILL_MODE_RECTANGLE);
+              FILL_MODE_RECTANGLE, BLENDING_MODE_SOURCE);
     s.drawObject(d);
   }
 

@@ -8,7 +8,9 @@
 #include "roo_display.h"
 #include "roo_display/color/color.h"
 #include "roo_display/core/streamable.h"
+#include "roo_display/font/font.h"
 #include "roo_display/internal/color_subpixel.h"
+#include "roo_fonts/NotoSans_Italic/12.h"
 #include "testing_display_device.h"
 
 using namespace testing;
@@ -274,8 +276,7 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           BlendingMode blending_mode>
 class WriterTester {
  public:
-  WriterTester<ColorMode, pixel_order, byte_order, blending_mode>(
-      int16_t width, int16_t height, ColorMode color_mode)
+  WriterTester(int16_t width, int16_t height, ColorMode color_mode)
       : color_mode_(color_mode),
         width_(width),
         height_(height),
@@ -766,45 +767,48 @@ INSTANTIATE_TEST_CASE_P(
 TEST_F(OffscreenTest, OffsetedDrawing) {
   Offscreen<Monochrome> offscreen(Box(-6, -5, 4, 3), color::Black,
                                   WhiteOnBlack());
-  EXPECT_THAT(offscreen.raster(), MatchesContent(WhiteOnBlack(), Box(-6, -5, 4, 3),
-                                                 "           "
-                                                 "           "
-                                                 "           "
-                                                 "           "
-                                                 "           "
-                                                 "           "
-                                                 "           "
-                                                 "           "
-                                                 "           "));
+  EXPECT_THAT(offscreen.raster(),
+              MatchesContent(WhiteOnBlack(), Box(-6, -5, 4, 3),
+                             "           "
+                             "           "
+                             "           "
+                             "           "
+                             "           "
+                             "           "
+                             "           "
+                             "           "
+                             "           "));
 
   DrawingContext dc(offscreen);
   EXPECT_FALSE(dc.transformation().is_rescaled());
   EXPECT_FALSE(dc.transformation().is_translated());
   EXPECT_EQ(dc.bounds(), Box(-6, -5, 4, 3));
   dc.draw(SolidRect(-4, -3, 2, 1, color::White));
-  EXPECT_THAT(offscreen.raster(), MatchesContent(WhiteOnBlack(), Box(-6, -5, 4, 3),
-                                                 "           "
-                                                 "           "
-                                                 "  *******  "
-                                                 "  *******  "
-                                                 "  *******  "
-                                                 "  *******  "
-                                                 "  *******  "
-                                                 "           "
-                                                 "           "));
+  EXPECT_THAT(offscreen.raster(),
+              MatchesContent(WhiteOnBlack(), Box(-6, -5, 4, 3),
+                             "           "
+                             "           "
+                             "  *******  "
+                             "  *******  "
+                             "  *******  "
+                             "  *******  "
+                             "  *******  "
+                             "           "
+                             "           "));
   dc.setClipBox(-100, -100, 1, 0);
   EXPECT_EQ(dc.getClipBox(), Box(-6, -5, 1, 0));
   dc.clear();
-  EXPECT_THAT(offscreen.raster(), MatchesContent(WhiteOnBlack(), Box(-6, -5, 4, 3),
-                                                 "           "
-                                                 "           "
-                                                 "        *  "
-                                                 "        *  "
-                                                 "        *  "
-                                                 "        *  "
-                                                 "  *******  "
-                                                 "           "
-                                                 "           "));
+  EXPECT_THAT(offscreen.raster(),
+              MatchesContent(WhiteOnBlack(), Box(-6, -5, 4, 3),
+                             "           "
+                             "           "
+                             "        *  "
+                             "        *  "
+                             "        *  "
+                             "        *  "
+                             "  *******  "
+                             "           "
+                             "           "));
 }
 
 TEST_F(OffscreenTest, DrawingOffscreen) {
@@ -874,6 +878,44 @@ TEST_F(OffscreenTest, DrawingOffscreenRasterizable) {
                                           "          ***"
                                           "          ***"
                                           "*************"));
+}
+
+const Font& font() { return font_NotoSans_Italic_12(); }
+
+class Label : public Drawable {
+ public:
+  Label(const string& label) : label_(label) {}
+
+ private:
+  void drawTo(const Surface& s) const override {
+    font().drawHorizontalString(s, label_, color::White);
+  }
+
+  Box extents() const override {
+    return font().getHorizontalStringMetrics(label_).screen_extents();
+  }
+
+  std::string label_;
+};
+
+TEST_F(OffscreenTest, OffscreenForTranslucentDrawable) {
+  Offscreen<Alpha4> offscreen(Label(";"), Alpha4(color::Black));
+  DrawingContext dc(offscreen);
+
+  FakeOffscreen<Argb4444> test_screen(10, 7, color::White);
+  Display display(test_screen);
+  {
+    DrawingContext dc(display);
+    dc.draw(offscreen, 5, 4);
+  }
+  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), Box(0, 0, 9, 6),
+                                          "**********"
+                                          "**********"
+                                          "*****EC***"
+                                          "*****58***"
+                                          "****E2****"
+                                          "****AA****"
+                                          "**********"));
 }
 
 }  // namespace roo_display

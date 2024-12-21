@@ -6,10 +6,14 @@ namespace {
 
 template <typename TransformationType>
 Box TransformExtents(const TransformationType& transformation, Box extents) {
-  FpPoint tl = transformation.apply({extents.xMin(), extents.yMin()});
-  FpPoint tr = transformation.apply({extents.xMax(), extents.yMin()});
-  FpPoint bl = transformation.apply({extents.xMin(), extents.yMax()});
-  FpPoint br = transformation.apply({extents.xMax(), extents.yMax()});
+  FpPoint tl =
+      transformation.apply({(float)extents.xMin(), (float)extents.yMin()});
+  FpPoint tr =
+      transformation.apply({(float)extents.xMax(), (float)extents.yMin()});
+  FpPoint bl =
+      transformation.apply({(float)extents.xMin(), (float)extents.yMax()});
+  FpPoint br =
+      transformation.apply({(float)extents.xMax(), (float)extents.yMax()});
   float xMin = std::min(std::min(tl.x, tr.x), std::min(bl.x, br.x));
   float yMin = std::min(std::min(tl.y, tr.y), std::min(bl.y, br.y));
   float xMax = std::max(std::max(tl.x, tr.x), std::max(bl.x, br.x));

@@ -273,7 +273,7 @@ void setup() {
 }
 
 int16_t printLn(DrawingContext& dc, const Font& font, int16_t x, int16_t y,
-                StringView text, Color color) {
+                roo_io::string_view text, Color color) {
   dc.draw(StringViewLabel(text, font, color, FILL_MODE_RECTANGLE), x,
           y + font.metrics().glyphYMax());
   return font.metrics().linespace() + 1;

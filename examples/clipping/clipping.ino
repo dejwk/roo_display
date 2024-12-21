@@ -177,7 +177,7 @@ void pieChart() {
 // Note: graphic primitives are small objects, and it's quite OK to pass them
 // by value, particularly that the compiler can optimize most copying away.
 TileOf<StringViewLabel> centeredStringViewLabel(
-    StringView content, Color color, Color bgcolor = color::Transparent) {
+    roo_io::string_view content, Color color, Color bgcolor = color::Transparent) {
   return MakeTileOf(StringViewLabel(content, font_NotoSerif_Italic_90(), color),
                     display.extents(), kCenter | kMiddle, bgcolor);
 }

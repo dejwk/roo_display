@@ -88,7 +88,7 @@ void png_draw(PNGDRAW *pDraw) {
 PngDecoder::PngDecoder() : pngdec_(new PNGIMAGE()), input_(nullptr) {}
 
 bool PngDecoder::openInternal(int16_t &width, int16_t &height) {
-  memset(pngdec_.get(), 0, sizeof(PNGIMAGE));
+  *pngdec_ = {};
   pngdec_->pfnRead = png_read;
   pngdec_->pfnSeek = png_seek;
   pngdec_->pfnDraw = png_draw;

@@ -105,7 +105,8 @@ class StringViewLabel : public Drawable {
   template <typename String>
   StringViewLabel(String& label, const Font& font, const Color color,
                   FillMode fill_mode = FILL_MODE_VISIBLE)
-      : StringViewLabel(StringView(std::move(label)), font, color, fill_mode) {}
+      : StringViewLabel(roo_io::string_view(std::move(label)), font, color,
+                        fill_mode) {}
 
   StringViewLabel(roo_io::string_view label, const Font& font, Color color,
                   FillMode fill_mode = FILL_MODE_VISIBLE)

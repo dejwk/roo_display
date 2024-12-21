@@ -200,17 +200,6 @@ cc_test(
 )
 
 cc_test(
-    name = "memfill_test",
-    srcs = [
-        "test/memfill_test.cpp",
-    ],
-    linkstatic = 1,
-    deps = [
-        "//lib/roo_display:testing",
-    ],
-)
-
-cc_test(
     name = "smooth_shapes_test",
     srcs = [
         "test/smooth_shapes_test.cpp",

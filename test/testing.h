@@ -220,8 +220,7 @@ Color NextColorFromString<Rgb565WithTransparency>(
 template <typename ColorMode>
 class ParserStream : public PixelStream {
  public:
-  ParserStream<ColorMode>(ColorMode mode, const string& content, Box extents,
-                          Box bounds)
+  ParserStream(ColorMode mode, const string& content, Box extents, Box bounds)
       : mode_(mode),
         stream_(content),
         extents_(extents),
@@ -1331,10 +1330,8 @@ ForcedFillRect<Obj> ForceFillRect(Obj obj) {
 // input drawable.
 template <typename ColorMode>
 FakeOffscreen<ColorMode> CoercedTo(
-    const Drawable& drawable,
-    ColorMode color_mode = ColorMode(),
-    Color fill = color::Transparent,
-    FillMode fill_mode = FILL_MODE_VISIBLE,
+    const Drawable& drawable, ColorMode color_mode = ColorMode(),
+    Color fill = color::Transparent, FillMode fill_mode = FILL_MODE_VISIBLE,
     BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER,
     Color bgcolor = color::Transparent) {
   FakeOffscreen<ColorMode> result(drawable.extents(), fill, color_mode);

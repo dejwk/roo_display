@@ -5,7 +5,6 @@
 
 #include "roo_display/core/device.h"
 #include "roo_display/core/drawable.h"
-#include "roo_display/core/utf8.h"
 #include "roo_io/base/string_view.h"
 
 namespace roo_display {

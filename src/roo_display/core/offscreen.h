@@ -950,13 +950,13 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
   void operator()(uint8_t *p, uint32_t offset) const {
     roo_io::PatternWrite<ColorMode::bits_per_pixel / 8>(
         (roo_io::byte *)(p + offset * ColorMode::bits_per_pixel / 8),
-        raw_color_);
+        (const roo_io::byte*)raw_color_);
   }
 
   void operator()(uint8_t *p, uint32_t offset, uint32_t count) const {
     roo_io::PatternFill<ColorMode::bits_per_pixel / 8>(
         (roo_io::byte *)(p + offset * ColorMode::bits_per_pixel / 8), count,
-        raw_color_);
+        (const roo_io::byte*)raw_color_);
   }
 
  private:

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <type_traits>
+
 #include "roo_display/core/buffered_drawing.h"
 #include "roo_display/core/device.h"
 #include "roo_io/base/byte.h"

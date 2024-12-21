@@ -8,6 +8,7 @@
 #include "roo_display/filter/transformation.h"
 #include "roo_display/font/font.h"
 #include "roo_display/ui/tile.h"
+#include "roo_io/base/string_view.h"
 
 namespace roo_display {
 
@@ -106,7 +107,7 @@ class StringViewLabel : public Drawable {
                   FillMode fill_mode = FILL_MODE_VISIBLE)
       : StringViewLabel(StringView(std::move(label)), font, color, fill_mode) {}
 
-  StringViewLabel(StringView label, const Font& font, Color color,
+  StringViewLabel(roo_io::string_view label, const Font& font, Color color,
                   FillMode fill_mode = FILL_MODE_VISIBLE)
       : font_(&font),
         label_(std::move(label)),
@@ -131,7 +132,7 @@ class StringViewLabel : public Drawable {
 
   const Font& font() const { return *font_; }
   const GlyphMetrics& metrics() const { return metrics_; }
-  const StringView label() const { return label_; }
+  const roo_io::string_view label() const { return label_; }
   const Color color() const { return color_; }
   const FillMode fill_mode() const { return fill_mode_; }
 
@@ -140,7 +141,7 @@ class StringViewLabel : public Drawable {
 
  private:
   const Font* font_;
-  StringView label_;
+  roo_io::string_view label_;
   Color color_;
   FillMode fill_mode_;
   GlyphMetrics metrics_;

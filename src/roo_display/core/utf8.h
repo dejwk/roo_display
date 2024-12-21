@@ -14,6 +14,8 @@ typedef uint16_t unicode_t;
 
 // UTF8-encoded string reference.
 
+// DEPRECATED: use roo_io::string_view directly. This alias may be removed in
+// future versions of the library.
 using StringView = roo_io::string_view;
 
 // Writes the UTF-8 representation of the rune to buf. The `buf` must have

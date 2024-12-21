@@ -6,6 +6,7 @@
 #include "roo_display/core/device.h"
 #include "roo_display/core/drawable.h"
 #include "roo_display/core/utf8.h"
+#include "roo_io/base/string_view.h"
 
 namespace roo_display {
 
@@ -134,7 +135,7 @@ class Font {
 
   // See https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html
 
-  void drawHorizontalString(const Surface &s, StringView text,
+  void drawHorizontalString(const Surface &s, roo_io::string_view text,
                             Color color) const {
     drawHorizontalString(s, text.data(), text.size(), color);
   }
@@ -143,7 +144,7 @@ class Font {
                                     uint32_t size, Color color) const = 0;
 
   // Returns metrics of the specified string, as if it was a single glyph.
-  GlyphMetrics getHorizontalStringMetrics(StringView text) const {
+  GlyphMetrics getHorizontalStringMetrics(roo_io::string_view text) const {
     return getHorizontalStringMetrics(text.data(), text.size());
   }
 
@@ -156,7 +157,7 @@ class Font {
   // result is limited by `max_count`. Returns the number of glyphs actually
   // measured, which may be smaller than `max_count` if the input string is
   // shorter.
-  uint32_t getHorizontalStringGlyphMetrics(StringView text,
+  uint32_t getHorizontalStringGlyphMetrics(roo_io::string_view text,
                                            GlyphMetrics *result,
                                            uint32_t offset,
                                            uint32_t max_count) const {

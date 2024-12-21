@@ -89,7 +89,7 @@ template <typename Transport>
 class Ili9488Target {
  public:
   typedef Rgb666h ColorMode;
-  static constexpr ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN;
+  static constexpr ByteOrder byte_order = roo_io::kBigEndian;
 
   Ili9488Target(uint16_t width = kDefaultWidth,
                 uint16_t height = kDefaultHeight)

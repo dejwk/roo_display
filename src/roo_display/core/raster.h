@@ -6,10 +6,17 @@
 #include "roo_display/core/drawable.h"
 #include "roo_display/core/rasterizable.h"
 #include "roo_display/core/streamable.h"
+#include "roo_display/internal/byte_order.h"
 #include "roo_display/internal/color_subpixel.h"
-#include "roo_display/io/memory.h"
+#include "roo_io/data/byte_order.h"
+#include "roo_io/data/read.h"
+#include "roo_io/memory/load.h"
+#include "roo_io/memory/memory_iterable.h"
 
 namespace roo_display {
+
+template <typename Resource>
+using StreamType = decltype(std::declval<Resource>().iterator());
 
 // Helper to iterate over pixels read from some underlying resource.
 // Default implementation for color modes with multiple pixels per byte.
@@ -21,9 +28,6 @@ template <typename Resource, typename ColorMode, ColorPixelOrder pixel_order,
           int pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte>
 class RasterPixelStream : public PixelStream {
  public:
-  // RasterPixelStream(const Resource& resource, const ColorMode& color_mode)
-  //     : RasterPixelStream(resource.Open(), color_mode) {}
-
   RasterPixelStream(StreamType<Resource> stream, const ColorMode& color_mode)
       : stream_(std::move(stream)),
         pixel_index_(ColorTraits<ColorMode>::pixels_per_byte),
@@ -90,7 +94,7 @@ template <typename ByteStream, typename ColorMode, ColorPixelOrder pixel_order,
           ByteOrder byte_order>
 struct ColorReader<ByteStream, ColorMode, pixel_order, byte_order, 1> {
   Color operator()(ByteStream& in, const ColorMode& color_mode) const {
-    return color_mode.toArgbColor(in.read());
+    return color_mode.toArgbColor(roo_io::ReadU8(in));
   }
 };
 
@@ -98,8 +102,7 @@ template <typename ByteStream, typename ColorMode, ColorPixelOrder pixel_order,
           ByteOrder byte_order>
 struct ColorReader<ByteStream, ColorMode, pixel_order, byte_order, 2> {
   Color operator()(ByteStream& in, const ColorMode& color_mode) const {
-    StreamReader16<byte_order> read;
-    return color_mode.toArgbColor(read(&in));
+    return color_mode.toArgbColor(roo_io::ReadU16<ByteStream, byte_order>(in));
   }
 };
 
@@ -107,8 +110,7 @@ template <typename ByteStream, typename ColorMode, ColorPixelOrder pixel_order,
           ByteOrder byte_order>
 struct ColorReader<ByteStream, ColorMode, pixel_order, byte_order, 3> {
   Color operator()(ByteStream& in, const ColorMode& color_mode) const {
-    StreamReader24<byte_order> read;
-    return color_mode.toArgbColor(read(&in));
+    return color_mode.toArgbColor(roo_io::ReadU24<ByteStream, byte_order>(in));
   }
 };
 
@@ -116,8 +118,7 @@ template <typename ByteStream, typename ColorMode, ColorPixelOrder pixel_order,
           ByteOrder byte_order>
 struct ColorReader<ByteStream, ColorMode, pixel_order, byte_order, 4> {
   Color operator()(ByteStream& in, const ColorMode& color_mode) const {
-    StreamReader32<byte_order> read;
-    return color_mode.toArgbColor(read(&in));
+    return color_mode.toArgbColor(roo_io::ReadU32<ByteStream, byte_order>(in));
   }
 };
 
@@ -127,9 +128,6 @@ template <typename Resource, typename ColorMode, ColorPixelOrder pixel_order,
 class RasterPixelStream<Resource, ColorMode, pixel_order, byte_order, 1>
     : public PixelStream {
  public:
-  // RasterPixelStream(const Resource& resource, const ColorMode& color_mode)
-  //     : PixelStream(resource.Open(), color_mode) {}
-
   RasterPixelStream(StreamType<Resource> stream, const ColorMode& color_mode)
       : stream_(std::move(stream)), color_mode_(color_mode) {}
 
@@ -167,34 +165,35 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           typename storage_type = ColorStorageType<ColorMode>>
 struct Reader {
-  storage_type operator()(const uint8_t* p, uint32_t offset) const {
+  storage_type operator()(const roo_io::byte* p, uint32_t offset) const {
     SubPixelColorHelper<ColorMode, pixel_order> subpixel;
     int pixel_index = offset % pixels_per_byte;
-    const uint8_t* target = p + offset / pixels_per_byte;
+    const roo_io::byte* target = p + offset / pixels_per_byte;
     return subpixel.ReadSubPixelColor(*target, pixel_index);
   }
 };
 
 template <typename RawType, int bits_per_pixel, ByteOrder byte_order>
 struct ConstRawReader {
-  RawType operator()(const uint8_t* ptr, uint32_t offset) const {
-    return byte_order::toh<RawType, byte_order>(((const RawType*)ptr)[offset]);
+  RawType operator()(const roo_io::byte* ptr, uint32_t offset) const {
+    return roo_io::LoadInteger<byte_order, RawType>(ptr +
+                                                    offset * sizeof(RawType));
   }
 };
 
 template <>
-struct ConstRawReader<uint32_t, 24, BYTE_ORDER_BIG_ENDIAN> {
-  uint32_t operator()(const uint8_t* ptr, uint32_t offset) const {
+struct ConstRawReader<uint32_t, 24, roo_io::kBigEndian> {
+  uint32_t operator()(const roo_io::byte* ptr, uint32_t offset) const {
     ptr += 3 * offset;
-    return ptr[0] << 16 | ptr[1] << 8 | ptr[2];
+    return roo_io::LoadBeU24(ptr);
   }
 };
 
 template <>
-struct ConstRawReader<uint32_t, 24, BYTE_ORDER_LITTLE_ENDIAN> {
-  uint32_t operator()(const uint8_t* ptr, uint32_t offset) const {
+struct ConstRawReader<uint32_t, 24, roo_io::kLittleEndian> {
+  uint32_t operator()(const roo_io::byte* ptr, uint32_t offset) const {
     ptr += 3 * offset;
-    return ptr[2] << 16 | ptr[1] << 8 | ptr[0];
+    return roo_io::LoadLeU24(ptr);
   }
 };
 
@@ -202,7 +201,7 @@ struct ConstRawReader<uint32_t, 24, BYTE_ORDER_LITTLE_ENDIAN> {
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           typename storage_type>
 struct Reader<ColorMode, pixel_order, byte_order, 1, storage_type> {
-  storage_type operator()(const uint8_t* p, uint32_t offset) const {
+  storage_type operator()(const roo_io::byte* p, uint32_t offset) const {
     ConstRawReader<ColorStorageType<ColorMode>, ColorMode::bits_per_pixel,
                    byte_order>
         read;
@@ -210,41 +209,57 @@ struct Reader<ColorMode, pixel_order, byte_order, 1, storage_type> {
   }
 };
 
+template <typename PtrTypeT>
+struct PtrTypeResolver {
+  using PtrType = PtrTypeT;
+};
+
+// To accommodate legacy generated raster definitions using uint8_t explicitly.
+template <>
+struct PtrTypeResolver<const uint8_t*> {
+  using PtrType = const roo_io::byte*;
+};
+
 }  // namespace internal
 
 // The raster does not own its buffer. The representation of a raster it
 // reasonably small (22-26 bytes, depending on the color mode), and can be
 // passed by value.
-template <typename PtrType, typename ColorModeT,
+//
+// Don't use explicitly; prefer either of DramRaster, ConstDramRaster, or
+// ProgMemRaster.
+template <typename PtrTypeT, typename ColorModeT,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
-          ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+          ByteOrder byte_order = roo_io::kBigEndian>
 class Raster : public Rasterizable {
  public:
   using ColorMode = ColorModeT;
+  using PtrType = typename internal::PtrTypeResolver<PtrTypeT>::PtrType;
 
   using StreamType =
-      RasterPixelStream<MemoryPtr<PtrType>, ColorMode, pixel_order, byte_order>;
+      RasterPixelStream<roo_io::UnsafeGenericMemoryIterable<PtrType>, ColorMode,
+                        pixel_order, byte_order>;
 
   using Reader = internal::Reader<ColorMode, pixel_order, byte_order>;
 
-  Raster(int16_t width, int16_t height, PtrType ptr,
+  Raster(int16_t width, int16_t height, PtrTypeT ptr,
          const ColorMode& color_mode = ColorMode())
       : Raster(Box(0, 0, width - 1, height - 1),
                Box(0, 0, width - 1, height - 1), ptr, std::move(color_mode)) {}
 
-  Raster(int16_t width, int16_t height, Box extents, PtrType ptr,
+  Raster(int16_t width, int16_t height, Box extents, PtrTypeT ptr,
          const ColorMode& color_mode = ColorMode())
       : Raster(extents, Box(0, 0, width - 1, height - 1), ptr,
                std::move(color_mode)) {}
 
-  Raster(Box extents, PtrType ptr, const ColorMode& color_mode = ColorMode())
+  Raster(Box extents, PtrTypeT ptr, const ColorMode& color_mode = ColorMode())
       : Raster(extents, extents, ptr, std::move(color_mode)) {}
 
-  Raster(Box extents, Box anchor_extents, PtrType ptr,
+  Raster(Box extents, Box anchor_extents, PtrTypeT ptr,
          const ColorMode& color_mode = ColorMode())
       : extents_(std::move(extents)),
         anchor_extents_(std::move(anchor_extents)),
-        ptr_(ptr),
+        ptr_((PtrType)ptr),
         color_mode_(color_mode),
         width_(extents.width()) {}
 
@@ -256,18 +271,19 @@ class Raster : public Rasterizable {
   const ColorMode& color_mode() const { return color_mode_; }
 
   std::unique_ptr<StreamType> createRawStream() const {
-    return std::unique_ptr<StreamType>(
-        new StreamType(internal::MemoryPtrStream<PtrType>(ptr_), color_mode_));
+    return std::unique_ptr<StreamType>(new StreamType(
+        roo_io::UnsafeGenericMemoryIterator<PtrType>(ptr_), color_mode_));
   }
 
   std::unique_ptr<PixelStream> createStream() const override {
-    return std::unique_ptr<PixelStream>(
-        new StreamType(internal::MemoryPtrStream<PtrType>(ptr_), color_mode_));
+    return std::unique_ptr<PixelStream>(new StreamType(
+        roo_io::UnsafeGenericMemoryIterator<PtrType>(ptr_), color_mode_));
   }
 
   std::unique_ptr<PixelStream> createStream(const Box& bounds) const override {
     return SubRectangle(
-        StreamType(internal::MemoryPtrStream<PtrType>(ptr_), color_mode_),
+        StreamType(roo_io::UnsafeGenericMemoryIterator<PtrType>(ptr_),
+                   color_mode_),
         extents(), bounds);
   }
 
@@ -301,13 +317,15 @@ class Raster : public Rasterizable {
     if (bounds.empty()) return;
     if (extents_.width() == bounds.width() &&
         extents_.height() == bounds.height()) {
-      StreamType stream(internal::MemoryPtrStream<PtrType>(ptr_), color_mode_);
+      StreamType stream(roo_io::UnsafeGenericMemoryIterator<PtrType>(ptr_),
+                        color_mode_);
       internal::FillRectFromStream(s.out(), bounds.translate(s.dx(), s.dy()),
                                    &stream, s.bgcolor(), s.fill_mode(),
                                    s.blending_mode(), getTransparencyMode());
     } else {
       auto stream = internal::MakeSubRectangle(
-          StreamType(internal::MemoryPtrStream<PtrType>(ptr_), color_mode_),
+          StreamType(roo_io::UnsafeGenericMemoryIterator<PtrType>(ptr_),
+                     color_mode_),
           extents_, bounds);
       internal::FillRectFromStream(s.out(), bounds.translate(s.dx(), s.dy()),
                                    &stream, s.bgcolor(), s.fill_mode(),
@@ -324,64 +342,58 @@ class Raster : public Rasterizable {
 
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
-          ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
-using DramRaster = Raster<uint8_t*, ColorMode, pixel_order, byte_order>;
+          ByteOrder byte_order = roo_io::kBigEndian>
+using DramRaster = Raster<roo_io::byte*, ColorMode, pixel_order, byte_order>;
 
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
-          ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+          ByteOrder byte_order = roo_io::kBigEndian>
 using ConstDramRaster =
-    Raster<const uint8_t*, ColorMode, pixel_order, byte_order>;
+    Raster<const roo_io::byte*, ColorMode, pixel_order, byte_order>;
 
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
-          ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+          ByteOrder byte_order = roo_io::kBigEndian>
 using ProgMemRaster =
-    Raster<const uint8_t * PROGMEM, ColorMode, pixel_order, byte_order>;
+    Raster<const roo_io::byte * PROGMEM, ColorMode, pixel_order, byte_order>;
 
-template <typename PtrType, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
-using RasterArgb8888 =
-    Raster<PtrType, Argb8888, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
+template <typename ColorMode>
+using DramRasterBE = Raster<roo_io::byte*, ColorMode,
+                            COLOR_PIXEL_ORDER_MSB_FIRST, roo_io::kBigEndian>;
 
-template <typename PtrType, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
-using RasterArgb6666 =
-    Raster<PtrType, Argb6666, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
+template <typename ColorMode>
+using DramRasterLE = Raster<roo_io::byte*, ColorMode,
+                            COLOR_PIXEL_ORDER_MSB_FIRST, roo_io::kLittleEndian>;
 
-template <typename PtrType, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
-using RasterArgb4444 =
-    Raster<PtrType, Argb4444, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
+template <typename ColorMode,
+          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
+          ByteOrder byte_order = roo_io::kBigEndian>
+using ConstDramRaster =
+    Raster<const roo_io::byte*, ColorMode, pixel_order, byte_order>;
 
-template <typename PtrType, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
-using RasterRgb565 =
-    Raster<PtrType, Rgb565, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
+template <typename ColorMode>
+using ConstDramRasterBE =
+    Raster<const roo_io::byte*, ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST,
+           roo_io::kBigEndian>;
 
-template <typename PtrType, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
-using RasterRgb565WithTransparency =
-    Raster<PtrType, Rgb565WithTransparency, COLOR_PIXEL_ORDER_MSB_FIRST,
-           byte_order>;
+template <typename ColorMode>
+using ConstDramRasterLE =
+    Raster<const roo_io::byte*, ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST,
+           roo_io::kLittleEndian>;
 
-template <typename PtrType>
-using RasterGrayscale8 =
-    Raster<PtrType, Grayscale8, COLOR_PIXEL_ORDER_MSB_FIRST,
-           BYTE_ORDER_BIG_ENDIAN>;
+template <typename ColorMode,
+          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
+          ByteOrder byte_order = roo_io::kBigEndian>
+using ProgMemRaster =
+    Raster<const roo_io::byte * PROGMEM, ColorMode, pixel_order, byte_order>;
 
-template <typename PtrType>
-using RasterAlpha8 =
-    Raster<PtrType, Alpha8, COLOR_PIXEL_ORDER_MSB_FIRST, BYTE_ORDER_BIG_ENDIAN>;
+template <typename ColorMode>
+using ProgMemRasterBE = Raster<const roo_io::byte PROGMEM*, ColorMode,
+                               COLOR_PIXEL_ORDER_MSB_FIRST, roo_io::kBigEndian>;
 
-template <typename PtrType,
-          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>
-using RasterGrayscale4 =
-    Raster<PtrType, Grayscale4, pixel_order, BYTE_ORDER_BIG_ENDIAN>;
-
-template <typename PtrType,
-          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>
-using RasterAlpha4 =
-    Raster<PtrType, Alpha4, pixel_order, BYTE_ORDER_BIG_ENDIAN>;
-
-template <typename PtrType,
-          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>
-using RasterMonochrome =
-    Raster<PtrType, Monochrome, pixel_order, BYTE_ORDER_BIG_ENDIAN>;
+template <typename ColorMode>
+using ProgMemRasterLE =
+    Raster<const roo_io::byte PROGMEM*, ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST,
+           roo_io::kLittleEndian>;
 
 }  // namespace roo_display

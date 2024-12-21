@@ -374,9 +374,9 @@ class MyGrayscale {
   constexpr TransparencyMode transparency() const { return TRANSPARENCY_NONE; }
 };
 
-const Raster<const uint8_t PROGMEM*, MyGrayscale>& diamond_plate() {
-  static Raster<const uint8_t PROGMEM*, MyGrayscale> value(
-      20, 20, diamond_plate_data, MyGrayscale());
+const ProgMemRaster<MyGrayscale>& diamond_plate() {
+  static ProgMemRaster<MyGrayscale> value(20, 20, diamond_plate_data,
+                                          MyGrayscale());
   return value;
 }
 

@@ -39,14 +39,14 @@ class Rgb565DmaBlendingWriterOperator {
       : color_mode_(color_mode), color_(color) {}
 
   void operator()(uint8_t *p, uint32_t offset) {
-    internal::RawIterator<16, BYTE_ORDER_LITTLE_ENDIAN> itr(p, offset);
+    internal::RawIterator<16, roo_io::kLittleEndian> itr(p, offset);
     RawBlender<Rgb565Dma, blending_mode> blender;
     itr.write(blender(itr.read(), *color_++, color_mode_));
     Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, 2);
   }
 
   void operator()(uint8_t *p, uint32_t offset, uint32_t count) {
-    internal::RawIterator<16, BYTE_ORDER_LITTLE_ENDIAN> itr(p, offset);
+    internal::RawIterator<16, roo_io::kLittleEndian> itr(p, offset);
     RawBlender<Rgb565Dma, blending_mode> blender;
     uint32_t orig_count = count;
     while (count-- > 0) {
@@ -63,28 +63,28 @@ class Rgb565DmaBlendingWriterOperator {
 
 template <>
 struct BlendingWriter<Rgb565Dma, COLOR_PIXEL_ORDER_MSB_FIRST,
-                      BYTE_ORDER_LITTLE_ENDIAN> {
+                      roo_io::kLittleEndian> {
   template <BlendingMode blending_mode>
   using Operator = Rgb565DmaBlendingWriterOperator<blending_mode>;
 };
 
 template <>
 class GenericWriter<Rgb565Dma, COLOR_PIXEL_ORDER_MSB_FIRST,
-                    BYTE_ORDER_LITTLE_ENDIAN, 1, uint16_t> {
+                    roo_io::kLittleEndian, 1, uint16_t> {
  public:
   GenericWriter(const Rgb565Dma &color_mode, BlendingMode blending_mode,
                 Color *color)
       : color_(color), blending_mode_(blending_mode) {}
 
   void operator()(uint8_t *p, uint32_t offset) {
-    internal::RawIterator<16, BYTE_ORDER_LITTLE_ENDIAN> itr(p, offset);
+    internal::RawIterator<16, roo_io::kLittleEndian> itr(p, offset);
     itr.write(
         ApplyRawBlending(blending_mode_, itr.read(), *color_++, Rgb565Dma()));
     Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, 2);
   }
 
   void operator()(uint8_t *p, uint32_t offset, uint32_t count) {
-    internal::RawIterator<16, BYTE_ORDER_LITTLE_ENDIAN> itr(p, offset);
+    internal::RawIterator<16, roo_io::kLittleEndian> itr(p, offset);
     uint32_t orig_count = count;
     while (count-- > 0) {
       itr.write(
@@ -106,14 +106,14 @@ class Rgb565DmaBlendingFillerOperator {
       : color_(color) {}
 
   void operator()(uint8_t *p, uint32_t offset) const {
-    internal::RawIterator<16, BYTE_ORDER_LITTLE_ENDIAN> itr(p, offset);
+    internal::RawIterator<16, roo_io::kLittleEndian> itr(p, offset);
     RawBlender<Rgb565Dma, blending_mode> blender;
     itr.write(blender(itr.read(), color_, Rgb565Dma()));
     Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, 2);
   }
 
   void operator()(uint8_t *p, uint32_t offset, uint32_t count) const {
-    internal::RawIterator<16, BYTE_ORDER_LITTLE_ENDIAN> itr(p, offset);
+    internal::RawIterator<16, roo_io::kLittleEndian> itr(p, offset);
     RawBlender<Rgb565Dma, blending_mode> blender;
     uint32_t orig_count = count;
     while (count-- > 0) {
@@ -130,28 +130,28 @@ class Rgb565DmaBlendingFillerOperator {
 
 template <>
 struct BlendingFiller<Rgb565Dma, COLOR_PIXEL_ORDER_MSB_FIRST,
-                      BYTE_ORDER_LITTLE_ENDIAN> {
+                      roo_io::kLittleEndian> {
   template <BlendingMode blending_mode>
   using Operator = Rgb565DmaBlendingFillerOperator<blending_mode>;
 };
 
 template <>
 class GenericFiller<Rgb565Dma, COLOR_PIXEL_ORDER_MSB_FIRST,
-                    BYTE_ORDER_LITTLE_ENDIAN, 1, uint16_t> {
+                    roo_io::kLittleEndian, 1, uint16_t> {
  public:
   GenericFiller(const Rgb565Dma &color_mode, BlendingMode blending_mode,
                 Color color)
       : color_(color), blending_mode_(blending_mode) {}
 
   void operator()(uint8_t *p, uint32_t offset) const {
-    internal::RawIterator<16, BYTE_ORDER_LITTLE_ENDIAN> itr(p, offset);
+    internal::RawIterator<16, roo_io::kLittleEndian> itr(p, offset);
     itr.write(
         ApplyRawBlending(blending_mode_, itr.read(), color_, Rgb565Dma()));
     Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, 2);
   }
 
   void operator()(uint8_t *p, uint32_t offset, uint32_t count) const {
-    internal::RawIterator<16, BYTE_ORDER_LITTLE_ENDIAN> itr(p, offset);
+    internal::RawIterator<16, roo_io::kLittleEndian> itr(p, offset);
     uint32_t orig_count = count;
     while (count-- > 0) {
       itr.write(
@@ -288,7 +288,7 @@ class ParallelRgb565 : public DisplayDevice {
  private:
   using Dev =
       OffscreenDevice<typename internal::Traits<flush_mode>::ColorMode,
-                      COLOR_PIXEL_ORDER_MSB_FIRST, BYTE_ORDER_LITTLE_ENDIAN>;
+                      COLOR_PIXEL_ORDER_MSB_FIRST, roo_io::kLittleEndian>;
 
   Config cfg_;
   std::unique_ptr<Dev> buffer_;

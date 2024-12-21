@@ -5,6 +5,7 @@
 #include "roo_display/color/traits.h"
 #include "roo_display/core/device.h"
 #include "roo_display/internal/byte_order.h"
+#include "roo_io/data/byte_order.h"
 
 namespace roo_display {
 
@@ -213,7 +214,7 @@ class AddrWindowDevice : public DisplayDevice {
   static inline raw_color_type to_raw_color(Color color)
       __attribute__((always_inline)) {
     typename Target::ColorMode mode;
-    return byte_order::hto<raw_color_type, Target::byte_order>(
+    return roo_io::hto<raw_color_type, Target::byte_order>(
         mode.fromArgbColor(color));
   }
 

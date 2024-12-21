@@ -16,6 +16,7 @@ cc_library(
     deps = [
         "//lib/roo_collections",
         "//lib/roo_io",
+        "//lib/roo_io_arduino",
         "//roo_testing:arduino",
         "//roo_testing/frameworks/arduino-esp32-2.0.4/libraries/FS",
         "//roo_testing/frameworks/arduino-esp32-2.0.4/libraries/Wire"
@@ -42,6 +43,7 @@ cc_library(
     deps = [
         "//lib/roo_collections",
         "//lib/roo_io",
+        "//lib/roo_io_arduino",
         "//roo_testing:arduino_gtest_main",
     ],
 )
@@ -52,18 +54,6 @@ cc_test(
         "test/background_filter_test.cpp",
         "test/testing.h",
         "test/testing_display_device.h",
-    ],
-    copts = ["-Iexternal/gtest/include"],
-    linkstatic = 1,
-    deps = [
-        "//lib/roo_display:testing",
-    ],
-)
-
-cc_test(
-    name = "byte_order_test",
-    srcs = [
-        "test/byte_order_test.cpp",
     ],
     copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
@@ -181,17 +171,6 @@ cc_test(
     name = "orientation_test",
     srcs = [
         "test/orientation_test.cpp",
-    ],
-    linkstatic = 1,
-    deps = [
-        "//lib/roo_display:testing",
-    ],
-)
-
-cc_test(
-    name = "io_memory_test",
-    srcs = [
-        "test/io_memory_test.cpp",
     ],
     linkstatic = 1,
     deps = [

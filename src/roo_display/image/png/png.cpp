@@ -12,25 +12,27 @@ namespace roo_display {
 
 int32_t png_read(PNGFILE *pFile, uint8_t *pBuf, int32_t iLen) {
   PngDecoder *decoder = (PngDecoder *)pFile->fHandle;
-  return decoder->input_->read(pBuf, iLen);
+  return decoder->input_->read((roo_io::byte *)pBuf, iLen);
 }
 
 int32_t png_seek(PNGFILE *pFile, int32_t iPosition) {
   PngDecoder *decoder = (PngDecoder *)pFile->fHandle;
-  return decoder->input_->seek(iPosition);
+  decoder->input_->seek(iPosition);
+  // The library ignores the return value anyway.
+  return 1;
 }
 
 namespace {
 
 struct User {
-  const Surface* surface;
-  const Palette* palette;
+  const Surface *surface;
+  const Palette *palette;
 };
 
-}
+}  // namespace
 
 void png_draw(PNGDRAW *pDraw) {
-  User& user = *((User*)pDraw->pUser);
+  User &user = *((User *)pDraw->pUser);
   const Surface *surface = user.surface;
   int16_t y = pDraw->y;
   if (y < surface->clip_box().yMin() || y > surface->clip_box().yMax()) return;
@@ -38,44 +40,55 @@ void png_draw(PNGDRAW *pDraw) {
   surface->out().begin();
   switch (pDraw->iPixelType) {
     case PNG_PIXEL_TRUECOLOR_ALPHA: {
-      ConstDramRaster<Rgba8888> raster(box, pDraw->pPixels);
+      ConstDramRaster<Rgba8888> raster(box,
+                                       (const roo_io::byte *)pDraw->pPixels);
       surface->drawObject(raster);
       break;
     }
     case PNG_PIXEL_TRUECOLOR: {
-      ConstDramRaster<Rgb888> raster(box, pDraw->pPixels);
+      ConstDramRaster<Rgb888> raster(box, (const roo_io::byte *)pDraw->pPixels);
       surface->drawObject(raster);
       break;
     }
     case PNG_PIXEL_GRAYSCALE: {
-      ConstDramRaster<Grayscale8> raster(box, pDraw->pPixels);
+      ConstDramRaster<Grayscale8> raster(box,
+                                         (const roo_io::byte *)pDraw->pPixels);
       surface->drawObject(raster);
       break;
     }
     case PNG_PIXEL_GRAY_ALPHA: {
-      ConstDramRaster<GrayAlpha8> raster(box, pDraw->pPixels);
+      ConstDramRaster<GrayAlpha8> raster(box,
+                                         (const roo_io::byte *)pDraw->pPixels);
       surface->drawObject(raster);
       break;
     }
     case PNG_PIXEL_INDEXED: {
       switch (pDraw->iBpp) {
         case 8: {
-          ConstDramRaster<Indexed8> raster(box, pDraw->pPixels, Indexed8(user.palette));
+          ConstDramRaster<Indexed8> raster(box,
+                                           (const roo_io::byte *)pDraw->pPixels,
+                                           Indexed8(user.palette));
           surface->drawObject(raster);
           break;
         }
         case 4: {
-          ConstDramRaster<Indexed4> raster(box, pDraw->pPixels, Indexed4(user.palette));
+          ConstDramRaster<Indexed4> raster(box,
+                                           (const roo_io::byte *)pDraw->pPixels,
+                                           Indexed4(user.palette));
           surface->drawObject(raster);
           break;
         }
         case 2: {
-          ConstDramRaster<Indexed2> raster(box, pDraw->pPixels, Indexed2(user.palette));
+          ConstDramRaster<Indexed2> raster(box,
+                                           (const roo_io::byte *)pDraw->pPixels,
+                                           Indexed2(user.palette));
           surface->drawObject(raster);
           break;
         }
         case 1: {
-          ConstDramRaster<Indexed1> raster(box, pDraw->pPixels, Indexed1(user.palette));
+          ConstDramRaster<Indexed1> raster(box,
+                                           (const roo_io::byte *)pDraw->pPixels,
+                                           Indexed1(user.palette));
           surface->drawObject(raster);
           break;
         }
@@ -105,9 +118,11 @@ bool PngDecoder::openInternal(int16_t &width, int16_t &height) {
 
 void PngDecoder::drawInternal(const Surface &s, uint8_t scale) {
   Box extents(0, 0, pngdec_->iWidth - 1, pngdec_->iHeight - 1);
-  if (Box::Intersect(s.clip_box(), extents.translate(s.dx(), s.dy())).empty()) return;
+  if (Box::Intersect(s.clip_box(), extents.translate(s.dx(), s.dy())).empty())
+    return;
   if (pngdec_->ucPixelType == PNG_PIXEL_INDEXED) {
-    palette_ = Palette::ReadOnly((Color*)pngdec_->ucPalette, 1 << pngdec_->ucBpp);
+    palette_ =
+        Palette::ReadOnly((Color *)pngdec_->ucPalette, 1 << pngdec_->ucBpp);
   }
   User user{.surface = &s, .palette = &palette_};
   s.out().end();

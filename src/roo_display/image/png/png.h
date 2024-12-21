@@ -4,10 +4,9 @@
 #include "roo_display/color/color.h"
 #include "roo_display/color/color_mode_indexed.h"
 #include "roo_display/color/color_modes.h"
-#include "roo_display/io/resource.h"
-#include "roo_display/io/file.h"
-#include "roo_display/io/resource.h"
 #include "roo_display/image/png/lib/PNGdec.h"
+#include "roo_io/core/multipass_input_stream.h"
+#include "roo_io_arduino/fs/arduino_file_resource.h"
 
 namespace roo_display {
 
@@ -18,8 +17,8 @@ class PngDecoder {
  private:
   template <typename Resource>
   friend class PngImage;
-  friend int32_t png_read(PNGFILE *pFile, uint8_t *pBuf, int32_t iLen);
-  friend int32_t png_seek(PNGFILE *pFile, int32_t iPosition);
+  friend int32_t png_read(PNGFILE* pFile, uint8_t* pBuf, int32_t iLen);
+  friend int32_t png_seek(PNGFILE* pFile, int32_t iPosition);
 
   template <typename Resource>
   void getDimensions(Resource& resource, int16_t& width, int16_t& height) {
@@ -59,7 +58,7 @@ class PngDecoder {
 
   std::unique_ptr<PNGIMAGE> pngdec_;
 
-  std::unique_ptr<ResourceStream> input_;
+  std::unique_ptr<roo_io::MultipassInputStream> input_;
 
   // Used for indexed color modes.
   Palette palette_;
@@ -99,6 +98,6 @@ class PngImage : public Drawable {
   mutable int16_t height_;
 };
 
-using PngFile = PngImage<FileResource>;
+using PngFile = PngImage<roo_io::ArduinoFileResource>;
 
 }  // namespace roo_display

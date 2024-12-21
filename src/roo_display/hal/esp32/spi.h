@@ -3,8 +3,10 @@
 #include <Arduino.h>
 #include <SPI.h>
 
-#include "roo_display/internal/byte_order.h"
+#include "roo_io/data/byte_order.h"
 #include "soc/spi_reg.h"
+
+#ifndef ROO_TESTING
 
 namespace roo_display {
 namespace esp32 {
@@ -71,7 +73,7 @@ class SpiTransport {
 
   void write16(uint16_t data) __attribute__((always_inline)) {
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 15);
-    WRITE_PERI_REG(SPI_W0_REG(spi_port), byte_order::htobe(data));
+    WRITE_PERI_REG(SPI_W0_REG(spi_port), roo_io::htobe(data));
     SpiTxStart(spi_port);
     SpiTxWait(spi_port);
   }
@@ -79,7 +81,7 @@ class SpiTransport {
   void write16x2(uint16_t a, uint16_t b) __attribute((always_inline)) {
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
     WRITE_PERI_REG(SPI_W0_REG(spi_port),
-                   byte_order::htobe(a) | (byte_order::htobe(b) << 16));
+                   roo_io::htobe(a) | (roo_io::htobe(b) << 16));
     SpiTxStart(spi_port);
     SpiTxWait(spi_port);
   }
@@ -87,7 +89,7 @@ class SpiTransport {
   void write16x2_async(uint16_t a, uint16_t b) __attribute((always_inline)) {
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
     WRITE_PERI_REG(SPI_W0_REG(spi_port),
-                   byte_order::htobe(a) | (byte_order::htobe(b) << 16));
+                   roo_io::htobe(a) | (roo_io::htobe(b) << 16));
     SpiTxStart(spi_port);
     need_sync_ = true;
   }
@@ -101,7 +103,7 @@ class SpiTransport {
 
   void write32(uint32_t data) __attribute__((always_inline)) {
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
-    WRITE_PERI_REG(SPI_W0_REG(spi_port), byte_order::htobe(data));
+    WRITE_PERI_REG(SPI_W0_REG(spi_port), roo_io::htobe(data));
     SpiTxStart(spi_port);
     SpiTxWait(spi_port);
   }
@@ -182,7 +184,7 @@ class SpiTransport {
 
   void fill16_async(uint16_t data, uint32_t len)
       __attribute__((always_inline)) {
-    fill16be_async(byte_order::htobe(data), len);
+    fill16be_async(roo_io::htobe(data), len);
   }
 
   void fill16be_async(uint16_t data, uint32_t len) {
@@ -340,7 +342,20 @@ using Hspi = SpiTransport<HSPI>;
 using Fspi = SpiTransport<FSPI>;
 
 }  // namespace esp32
-
-using DefaultSpi = esp32::Vspi;
-
 }  // namespace roo_display
+
+#else
+
+#include "roo_display/hal/arduino/spi.h"
+
+namespace roo_display {
+namespace esp32 {
+
+using Vspi = GenericSpi;
+using Hspi = GenericSpi;
+using Fspi = GenericSpi;
+
+}
+}
+
+#endif

@@ -40,7 +40,7 @@ template <typename Transport, typename Initializer, int16_t display_width,
 class St77xxTarget {
  public:
   typedef Rgb565 ColorMode;
-  static constexpr ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN;
+  static constexpr ByteOrder byte_order = roo_io::kBigEndian;
 
   St77xxTarget(Transport transport = Transport())
       : transport_(std::move(transport)),

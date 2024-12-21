@@ -13,7 +13,8 @@ struct RectFillWriter {
   }
 };
 
-inline uint8_t getIdxInPalette(Color color, const Color* palette, uint8_t palette_size) {
+inline uint8_t getIdxInPalette(Color color, const Color* palette,
+                               uint8_t palette_size) {
   for (int i = 0; i < palette_size; ++i) {
     if (color == palette[i]) return i + 1;
   }
@@ -23,18 +24,19 @@ inline uint8_t getIdxInPalette(Color color, const Color* palette, uint8_t palett
 }  // namespace
 
 BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height)
-    : FrameBuffer(width, height,
-                  new uint8_t[FrameBuffer::SizeForDimensions(width, height)],
-                  true) {
+    : FrameBuffer(
+          width, height,
+          new roo_io::byte[FrameBuffer::SizeForDimensions(width, height)],
+          true) {
   invalidate();
 }
 
 BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height,
-                                                  uint8_t* buffer)
+                                                  roo_io::byte* buffer)
     : FrameBuffer(width, height, buffer, false) {}
 
 BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height,
-                                                  uint8_t* buffer,
+                                                  roo_io::byte* buffer,
                                                   bool owns_buffer)
     : background_mask_(
           buffer, ((((width - 1) / kBgFillOptimizerWindowSize + 1) + 1) / 2),
@@ -61,9 +63,7 @@ void BackgroundFillOptimizer::FrameBuffer::setPrefilled(Color color) {
   prefilled(getIdxInPalette(color, palette_, palette_size_));
 }
 
-void BackgroundFillOptimizer::FrameBuffer::invalidate() {
-  prefilled(0);
-}
+void BackgroundFillOptimizer::FrameBuffer::invalidate() { prefilled(0); }
 
 void BackgroundFillOptimizer::FrameBuffer::prefilled(uint8_t idx_in_palette) {
   background_mask_.fillRect(

@@ -7,6 +7,7 @@
 #include "roo_display/core/streamable.h"
 #include "roo_display/image/image_stream.h"
 #include "roo_display/internal/raw_streamable.h"
+#include "roo_display/io/memory.h"
 
 // Images are drawables that render a rectangular area based on data from some
 // underlying immutable data source. Image classes are templated on Resource,
@@ -63,28 +64,28 @@ using Pictogram = RleImage4bppxBiased<Alpha4>;
 // Uncompressed image.
 template <typename Resource, typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
-          ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+          ByteOrder byte_order = roo_io::kBigEndian>
 using SimpleImage = SimpleStreamable<
     Resource, ColorMode,
     RasterPixelStream<Resource, ColorMode, pixel_order, byte_order>>;
 
-template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+template <typename Resource, ByteOrder byte_order = roo_io::kBigEndian>
 using SimpleImageArgb8888 =
     SimpleImage<Resource, Argb8888, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
 
-template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+template <typename Resource, ByteOrder byte_order = roo_io::kBigEndian>
 using SimpleImageArgb6666 =
     SimpleImage<Resource, Argb6666, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
 
-template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+template <typename Resource, ByteOrder byte_order = roo_io::kBigEndian>
 using SimpleImageArgb4444 =
     SimpleImage<Resource, Argb4444, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
 
-template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+template <typename Resource, ByteOrder byte_order = roo_io::kBigEndian>
 using SimpleImageRgb565 =
     SimpleImage<Resource, Rgb565, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
 
-template <typename Resource, ByteOrder byte_order = BYTE_ORDER_BIG_ENDIAN>
+template <typename Resource, ByteOrder byte_order = roo_io::kBigEndian>
 using SimpleImageRgb565WithTransparency =
     SimpleImage<Resource, Rgb565WithTransparency, COLOR_PIXEL_ORDER_MSB_FIRST,
                 byte_order>;
@@ -92,37 +93,37 @@ using SimpleImageRgb565WithTransparency =
 template <typename Resource>
 using SimpleImageGrayscale8 =
     SimpleImage<Resource, Grayscale8, COLOR_PIXEL_ORDER_MSB_FIRST,
-                BYTE_ORDER_BIG_ENDIAN>;
+                roo_io::kBigEndian>;
 
 template <typename Resource>
 using SimpleImageAlpha8 =
     SimpleImage<Resource, Alpha8, COLOR_PIXEL_ORDER_MSB_FIRST,
-                BYTE_ORDER_BIG_ENDIAN>;
+                roo_io::kBigEndian>;
 
 template <typename Resource,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>
 using SimpleImageGrayscale4 =
-    SimpleImage<Resource, Grayscale4, pixel_order, BYTE_ORDER_BIG_ENDIAN>;
+    SimpleImage<Resource, Grayscale4, pixel_order, roo_io::kBigEndian>;
 
 template <typename Resource,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>
 using SimpleImageAlpha4 =
-    SimpleImage<Resource, Alpha4, pixel_order, BYTE_ORDER_BIG_ENDIAN>;
+    SimpleImage<Resource, Alpha4, pixel_order, roo_io::kBigEndian>;
 
 template <typename Resource,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>
 using SimpleImageMonochrome =
-    SimpleImage<Resource, Monochrome, pixel_order, BYTE_ORDER_BIG_ENDIAN>;
+    SimpleImage<Resource, Monochrome, pixel_order, roo_io::kBigEndian>;
 
 // A simple monochrome bit raster. Lines rounded to 8 pixel width.
 template <typename Resource = ProgMemPtr>
 class XBitmap
     : public Clipping<
           SimpleImage<Resource, Monochrome, COLOR_PIXEL_ORDER_LSB_FIRST,
-                      BYTE_ORDER_NATIVE>> {
+                      roo_io::kBigEndian>> {
  public:
   typedef Clipping<SimpleImage<Resource, Monochrome,
-                               COLOR_PIXEL_ORDER_LSB_FIRST, BYTE_ORDER_NATIVE>>
+                               COLOR_PIXEL_ORDER_LSB_FIRST, roo_io::kBigEndian>>
       Base;
 
   XBitmap(int16_t width, int16_t height, const Resource& input, Color fg,

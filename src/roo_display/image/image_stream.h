@@ -27,26 +27,32 @@ struct RawColorReader<StreamType, 8> {
 
 template <typename StreamType>
 struct RawColorReader<StreamType, 16> {
-  uint16_t operator()(StreamType& in) const { return read_uint16_be(&in); }
+  uint16_t operator()(StreamType& in) const {
+    return roo_io::ReadBeU16(in);
+  }
 };
 
 template <typename StreamType>
 struct RawColorReader<StreamType, 24> {
-  uint32_t operator()(StreamType& in) const { return read_uint24_be(&in); }
+  uint32_t operator()(StreamType& in) const {
+    return roo_io::ReadBeU24(in);
+  }
 };
 
 template <typename StreamType>
 struct RawColorReader<StreamType, 32> {
-  uint32_t operator()(StreamType& in) const { return read_uint32_be(&in); }
+  uint32_t operator()(StreamType& in) const {
+    return roo_io::ReadBeU32(in);
+  }
 };
 
 template <typename StreamType>
 uint32_t read_varint(StreamType& in, uint32_t result) {
   while (true) {
     result <<= 7;
-    uint8_t datum = in.read();
-    result |= (datum & 0x7F);
-    if ((datum & 0x80) == 0) return result;
+    roo_io::byte datum = in.read();
+    result |= (uint8_t)(datum & roo_io::byte{0x7F});
+    if ((datum & roo_io::byte{0x80}) == roo_io::byte{0}) return result;
   }
 }
 
@@ -86,12 +92,12 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, false>
   Color next() {
     if (remaining_items_ == 0) {
       // No remaining items; need to decode the next group.
-      uint8_t data = input_.read();
-      run_ = ((data & 0x80) != 0);
-      if ((data & 0x40) == 0) {
-        remaining_items_ = (data & 0x3F) + 1;
+      roo_io::byte data = input_.read();
+      run_ = ((data & roo_io::byte{0x80}) != roo_io::byte{0});
+      if ((data & roo_io::byte{0x40}) == roo_io::byte{0}) {
+        remaining_items_ = (int)(data & roo_io::byte{0x3F}) + 1;
       } else {
-        remaining_items_ = read_varint(input_, data & 0x3F) + 1;
+        remaining_items_ = read_varint(input_, (int)(data & roo_io::byte{0x3F})) + 1;
       }
       if (run_) {
         run_value_ = read_color();
@@ -288,7 +294,9 @@ class RleStreamRgb565Alpha4 : public PixelStream {
   }
 
  private:
-  Color read_color() { return Rgb565().toArgbColor(read_uint16_be(&input_)); }
+  Color read_color() {
+    return Rgb565().toArgbColor(roo_io::ReadBeU16(&input_));
+  }
 
   uint32_t read_varint(uint32_t result) {
     while (true) {
@@ -316,17 +324,17 @@ class NibbleReader {
   uint8_t next() {
     if (half_byte_) {
       half_byte_ = false;
-      return buffer_ & 0x0F;
+      return (uint8_t)(buffer_ & roo_io::byte{0x0F});
     } else {
       buffer_ = input_.read();
       half_byte_ = true;
-      return buffer_ >> 4;
+      return (uint8_t)(buffer_ >> 4);
     }
   }
 
  private:
   StreamType input_;
-  uint8_t buffer_;
+  roo_io::byte buffer_;
   bool half_byte_;
 };
 
@@ -365,10 +373,10 @@ class RleStream4bppxBiased<Resource, ColorMode, 4> : public PixelStream {
   Color next() {
     if (remaining_items_ == 0) {
       // No remaining items; need to decode the next group.
-      uint8_t nibble = reader_.next();
+      uint8_t nibble = (uint8_t)reader_.next();
       if (nibble == 0x0) {
         run_ = true;
-        uint8_t operand = reader_.next();
+        uint8_t operand = (uint8_t)reader_.next();
         if (operand == 0) {
           remaining_items_ = 2;
           run_value_ = color(reader_.next());

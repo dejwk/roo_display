@@ -4,6 +4,7 @@
 #include "roo_display.h"
 #include "roo_display/color/color.h"
 #include "roo_display/core/offscreen.h"
+#include "roo_io/base/byte.h"
 #include "testing.h"
 #include "testing_display_device.h"
 
@@ -13,9 +14,9 @@ namespace roo_display {
 namespace internal {
 
 TEST(NibbleRect, Basics) {
-  uint8_t buffer[40];
+  roo_io::byte buffer[40];
   memset(buffer, 0, 40);
-  RasterGrayscale4<const uint8_t*> raster(10, 8, buffer);
+  ConstDramRaster<Grayscale4> raster(10, 8, buffer);
   NibbleRect nibble_rect(buffer, 5, 8);
   EXPECT_EQ(5, nibble_rect.width_bytes());
   EXPECT_EQ(10, nibble_rect.width());
@@ -23,9 +24,9 @@ TEST(NibbleRect, Basics) {
 }
 
 TEST(NibbleRect, SetGet) {
-  uint8_t buffer[40];
+  roo_io::byte buffer[40];
   memset(buffer, 0, 40);
-  RasterGrayscale4<const uint8_t*> raster(10, 8, buffer);
+  ConstDramRaster<Grayscale4> raster(10, 8, buffer);
   NibbleRect nibble_rect(buffer, 5, 8);
   EXPECT_THAT(raster, MatchesContent(Grayscale4(), 10, 8,
                                      "          "
@@ -57,9 +58,9 @@ TEST(NibbleRect, SetGet) {
 }
 
 TEST(NibbleRect, FillRect) {
-  uint8_t buffer[40];
+  roo_io::byte buffer[40];
   memset(buffer, 0, 40);
-  RasterGrayscale4<const uint8_t*> raster(10, 8, buffer);
+  ConstDramRaster<Grayscale4> raster(10, 8, buffer);
   NibbleRect nibble_rect(buffer, 5, 8);
   nibble_rect.fillRect(Box(1, 6, 9, 7), 1);
   nibble_rect.fillRect(Box(2, 0, 5, 6), 13);
@@ -124,7 +125,7 @@ class NibbleRectWindowStreamable {
 };
 
 TEST(NibbleRect, WindowIteratorFull) {
-  uint8_t buffer[40];
+  roo_io::byte buffer[40];
   memset(buffer, 0, 40);
   NibbleRect nibble_rect(buffer, 5, 8);
   initNibbleRect(&nibble_rect,
@@ -149,7 +150,7 @@ TEST(NibbleRect, WindowIteratorFull) {
 }
 
 TEST(NibbleRect, WindowIteratorTopLeftOffset) {
-  uint8_t buffer[40];
+  roo_io::byte buffer[40];
   memset(buffer, 0, 40);
   NibbleRect nibble_rect(buffer, 5, 8);
   initNibbleRect(&nibble_rect,
@@ -172,7 +173,7 @@ TEST(NibbleRect, WindowIteratorTopLeftOffset) {
 }
 
 TEST(NibbleRect, WindowIteratorMiddle) {
-  uint8_t buffer[40];
+  roo_io::byte buffer[40];
   memset(buffer, 0, 40);
   NibbleRect nibble_rect(buffer, 5, 8);
   initNibbleRect(&nibble_rect,
@@ -192,7 +193,7 @@ TEST(NibbleRect, WindowIteratorMiddle) {
 }
 
 TEST(NibbleRect, WindowIteratorSinglePixel) {
-  uint8_t buffer[40];
+  roo_io::byte buffer[40];
   memset(buffer, 0, 40);
   NibbleRect nibble_rect(buffer, 5, 8);
   initNibbleRect(&nibble_rect,

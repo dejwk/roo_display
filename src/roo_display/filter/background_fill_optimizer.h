@@ -3,6 +3,7 @@
 #include "roo_display/core/buffered_drawing.h"
 #include "roo_display/core/device.h"
 #include "roo_display/internal/nibble_rect.h"
+#include "roo_io/base/byte.h"
 
 namespace roo_display {
 
@@ -74,7 +75,7 @@ class BackgroundFillOptimizer : public DisplayOutput {
     // for the purpose of byte buffer size calculations).
     // Before the framebuffer is used, its palette should be initialized by
     // calling setPalette().
-    FrameBuffer(int16_t width, int16_t height, uint8_t* buffer);
+    FrameBuffer(int16_t width, int16_t height, roo_io::byte* buffer);
 
     // Makes this framebuffer use the specified palette. The palette size
     // is expected to be <= 15.
@@ -106,7 +107,7 @@ class BackgroundFillOptimizer : public DisplayOutput {
     friend class BackgroundFillOptimizer;
     friend class BackgroundFillOptimizerDevice;
 
-    FrameBuffer(int16_t width, int16_t height, uint8_t* buffer,
+    FrameBuffer(int16_t width, int16_t height, roo_io::byte* buffer,
                 bool owns_buffer);
 
     void prefilled(uint8_t idx_in_palette);
@@ -115,7 +116,7 @@ class BackgroundFillOptimizer : public DisplayOutput {
     Color palette_[15];
     uint8_t palette_size_;
     bool swap_xy_;
-    std::unique_ptr<uint8_t[]> owned_buffer_;
+    std::unique_ptr<roo_io::byte[]> owned_buffer_;
   };
 
   // Creates the instance of a background fill optimizer filter, delegating to
@@ -150,8 +151,8 @@ class BackgroundFillOptimizer : public DisplayOutput {
     palette_size_ = palette_size;
   }
 
-  // // Returns an int from 1 to 15 (inclusive) if the specified color is found in
-  // // the background palette, and 0 otherwise.
+  // // Returns an int from 1 to 15 (inclusive) if the specified color is found
+  // // in the background palette, and 0 otherwise.
   // inline uint8_t getIdxInPalette(Color color);
 
   void writePixel(int16_t x, int16_t y, Color c, BufferedPixelWriter* writer);

@@ -3,8 +3,8 @@
 #include "roo_display/core/drawable.h"
 #include "roo_display/image/jpeg/lib/tjpgd.h"
 #include "roo_display/image/jpeg/lib/tjpgdcnf.h"
-#include "roo_display/io/file.h"
-#include "roo_display/io/resource.h"
+#include "roo_io/core/multipass_input_stream.h"
+#include "roo_io_arduino/fs/arduino_file_resource.h"
 
 namespace roo_display {
 
@@ -56,7 +56,7 @@ class JpegDecoder {
   std::unique_ptr<uint8_t[]> workspace_;
   JDEC jdec_;
 
-  std::unique_ptr<ResourceStream> input_;
+  std::unique_ptr<roo_io::MultipassInputStream> input_;
   const Surface* surface_;
 };
 
@@ -94,6 +94,6 @@ class JpegImage : public Drawable {
   mutable int16_t height_;
 };
 
-using JpegFile = JpegImage<FileResource>;
+using JpegFile = JpegImage<roo_io::ArduinoFileResource>;
 
 }  // namespace roo_display

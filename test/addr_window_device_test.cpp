@@ -5,6 +5,7 @@
 #include <random>
 
 #include "gtest/gtest-param-test.h"
+#include "roo_io/data/byte_order.h"
 #include "testing_display_device.h"
 
 using namespace testing;
@@ -68,8 +69,7 @@ class TestTarget {
     ColorMode color_mode;
     while (count-- > 0) {
       Color color = color_mode.toArgbColor(
-          byte_order::toh<ColorStorageType<ColorMode>, byte_order>(
-              *raw_color++));
+          roo_io::toh<ColorStorageType<ColorMode>, byte_order>(*raw_color++));
       setPixel(xCursor_, yCursor_, color);
       xCursor_++;
       if (xCursor_ > xMax_) {
@@ -83,7 +83,7 @@ class TestTarget {
     EXPECT_TRUE(inRamWrite_);
     ColorMode color_mode;
     Color color = color_mode.toArgbColor(
-        byte_order::toh<ColorStorageType<ColorMode>, byte_order>(raw_color));
+        roo_io::toh<ColorStorageType<ColorMode>, byte_order>(raw_color));
     while (count-- > 0) {
       setPixel(xCursor_, yCursor_, color);
       xCursor_++;
@@ -140,7 +140,7 @@ const TestColorStreamable<ColorMode> RasterOf(
                                         device.data());
 }
 
-typedef TestDevice<Rgb565, BYTE_ORDER_BIG_ENDIAN> Rgb565Device;
+typedef TestDevice<Rgb565, roo_io::kBigEndian> Rgb565Device;
 
 class AddrWindowDeviceTest
     : public testing::TestWithParam<std::tuple<BlendingMode, Orientation>> {};
@@ -216,25 +216,25 @@ TEST_P(AddrWindowDeviceTest, WriteRectWindowStress) {
 }
 
 TEST_P(AddrWindowDeviceTest, WriteRectWindowGrayscale8) {
-  TestWriteRectWindowSimple<TestDevice<Grayscale8, BYTE_ORDER_BIG_ENDIAN>,
+  TestWriteRectWindowSimple<TestDevice<Grayscale8, roo_io::kBigEndian>,
                             FakeOffscreen<Grayscale8>>(std::get<0>(GetParam()),
                                                        std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteRectWindowSimpleLE) {
-  TestWriteRectWindowSimple<TestDevice<Rgb565, BYTE_ORDER_LITTLE_ENDIAN>,
+  TestWriteRectWindowSimple<TestDevice<Rgb565, roo_io::kLittleEndian>,
                             FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
                                                    std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteRectWindowSimpleArgb4444LE) {
-  TestWriteRectWindowSimple<TestDevice<Argb4444, BYTE_ORDER_LITTLE_ENDIAN>,
+  TestWriteRectWindowSimple<TestDevice<Argb4444, roo_io::kLittleEndian>,
                             FakeOffscreen<Argb4444>>(std::get<0>(GetParam()),
                                                      std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteRectWindowSimpleArgb8888LE) {
-  TestWriteRectWindowSimple<TestDevice<Argb8888, BYTE_ORDER_LITTLE_ENDIAN>,
+  TestWriteRectWindowSimple<TestDevice<Argb8888, roo_io::kLittleEndian>,
                             FakeOffscreen<Argb8888>>(std::get<0>(GetParam()),
                                                      std::get<1>(GetParam()));
 }

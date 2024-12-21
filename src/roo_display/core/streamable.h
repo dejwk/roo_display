@@ -451,19 +451,19 @@ class Streamable : public virtual Drawable {
 
 // Convenience wrapper for image classes that are read from a byte stream
 // (as opposed to e.g. generated on the fly).
-template <typename Resource, typename ColorMode, typename StreamType>
+template <typename Iterable, typename ColorMode, typename StreamType>
 class SimpleStreamable : public Streamable {
  public:
-  SimpleStreamable(int16_t width, int16_t height, Resource resource,
+  SimpleStreamable(int16_t width, int16_t height, Iterable resource,
                    const ColorMode &color_mode = ColorMode())
       : SimpleStreamable(Box(0, 0, width - 1, height - 1), std::move(resource),
                          std::move(color_mode)) {}
 
-  SimpleStreamable(Box extents, Resource resource,
+  SimpleStreamable(Box extents, Iterable resource,
                    const ColorMode &color_mode = ColorMode())
       : SimpleStreamable(extents, extents, std::move(resource), color_mode) {}
 
-  SimpleStreamable(Box extents, Box anchor_extents, Resource resource,
+  SimpleStreamable(Box extents, Box anchor_extents, Iterable resource,
                    const ColorMode &color_mode = ColorMode())
       : extents_(std::move(extents)),
         anchor_extents_(anchor_extents),
@@ -476,23 +476,23 @@ class SimpleStreamable : public Streamable {
 
   Box anchorExtents() const override { return anchor_extents_; }
 
-  const Resource &resource() const { return resource_; }
+  const Iterable &resource() const { return resource_; }
   const ColorMode &color_mode() const { return color_mode_; }
   ColorMode &color_mode() { return color_mode_; }
 
   std::unique_ptr<PixelStream> createStream() const override {
     return std::unique_ptr<PixelStream>(
-        new StreamType(resource_.createRawStream(), color_mode_));
+        new StreamType(resource_.iterator(), color_mode_));
   }
 
   std::unique_ptr<PixelStream> createStream(const Box &bounds) const override {
-    return SubRectangle(StreamType(resource_.createRawStream(), color_mode_),
+    return SubRectangle(StreamType(resource_.iterator(), color_mode_),
                         extents(), bounds);
   }
 
   std::unique_ptr<StreamType> createRawStream() const {
     return std::unique_ptr<StreamType>(
-        new StreamType(resource_.createRawStream(), color_mode_));
+        new StreamType(resource_.iterator(), color_mode_));
   }
 
   TransparencyMode getTransparencyMode() const override {
@@ -503,7 +503,7 @@ class SimpleStreamable : public Streamable {
   Box extents_;
   Box anchor_extents_;
 
-  Resource resource_;
+  Iterable resource_;
   ColorMode color_mode_;
 };
 

@@ -195,8 +195,7 @@ void SmoothFont::drawGlyphModeVisible(DisplayOutput &output, int16_t x,
     streamToSurface(s, std::move(glyph));
   } else {
     // Identical as above, but using Raster<> instead of MonoAlpha4RleImage.
-    Raster<const roo_io::byte PROGMEM *, Alpha4> glyph(
-        metrics.width(), metrics.height(), data, color);
+    ProgMemRaster<Alpha4> glyph(metrics.width(), metrics.height(), data, color);
     streamToSurface(s, std::move(glyph));
   }
 }
@@ -266,8 +265,8 @@ void SmoothFont::drawGlyphModeFill(DisplayOutput &output, int16_t x, int16_t y,
                  blending_mode);
   } else {
     // Identical as above, but using Raster<>
-    auto glyph = MakeDrawableRawStreamable(
-        Raster<const roo_io::byte PROGMEM *, Alpha4>(box, data, color));
+    auto glyph =
+        MakeDrawableRawStreamable(ProgMemRaster<Alpha4>(box, data, color));
     drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor,
                  blending_mode);
   }
@@ -290,10 +289,9 @@ void SmoothFont::drawKernedGlyphsModeFill(
                  blending_mode);
   } else {
     // Identical as above, but using Raster<>
-    auto glyph = MakeDrawableRawStreamable(Overlay(
-        Raster<const roo_io::byte PROGMEM *, Alpha4>(lb, left_data, color), 0,
-        0, Raster<const roo_io::byte PROGMEM *, Alpha4>(rb, right_data, color),
-        0, 0));
+    auto glyph = MakeDrawableRawStreamable(
+        Overlay(ProgMemRaster<Alpha4>(lb, left_data, color), 0, 0,
+                ProgMemRaster<Alpha4>(rb, right_data, color), 0, 0));
     drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor,
                  blending_mode);
   }

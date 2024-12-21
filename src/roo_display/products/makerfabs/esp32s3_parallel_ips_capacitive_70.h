@@ -63,14 +63,16 @@ class Esp32s3ParallelIpsCapacitive70 : public ComboDevice {
     digitalWrite(10, LOW);
   }
 
-  void initTransport() { wire_.begin(17, 18); }
+  void initTransport() {
+    wire_.begin(17, 18);
+  }
 
   DisplayDevice& display() override { return display_; }
 
   TouchDevice* touch() override { return &touch_; }
 
   decltype(SPI)& spi() { return spi_; }
-  constexpr int8_t sd_cs() const { return 16; }
+  constexpr int8_t sd_cs() const { return 10; }
 
   TouchCalibration touch_calibration() override {
     return TouchCalibration(0, 0, 800, 480);

@@ -8,7 +8,10 @@
 
 namespace roo_display {
 
+// prefer roo_io::StringPrintf in new code.
 std::string StringPrintf(const char* format, ...);
+
+// prefer roo_io::StringVPrintf in new code.
 std::string StringVPrintf(const char* format, va_list arg);
 
 // StringPrinter is a utility that allows formatted writing to std::string.

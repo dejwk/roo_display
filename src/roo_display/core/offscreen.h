@@ -5,7 +5,7 @@
 #include "roo_display/color/color.h"
 #include "roo_display/core/raster.h"
 #include "roo_display/internal/byte_order.h"
-#include "roo_display/internal/memfill.h"
+#include "roo_io/memory/fill.h"
 
 namespace roo_display {
 
@@ -854,7 +854,8 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
       ++target;
     }
     uint32_t contiguous_byte_count = count / pixels_per_byte;
-    pattern_fill<1>(target, contiguous_byte_count, &raw_color_full_byte_);
+    roo_io::PatternFill<1>((roo_io::byte *)target, contiguous_byte_count,
+                           (const roo_io::byte *)&raw_color_full_byte_);
     count = count % pixels_per_byte;
     target += contiguous_byte_count;
     for (int i = 0; i < count; ++i) {
@@ -947,13 +948,15 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
   }
 
   void operator()(uint8_t *p, uint32_t offset) const {
-    pattern_write<ColorMode::bits_per_pixel / 8>(
-        p + offset * ColorMode::bits_per_pixel / 8, raw_color_);
+    roo_io::PatternWrite<ColorMode::bits_per_pixel / 8>(
+        (roo_io::byte *)(p + offset * ColorMode::bits_per_pixel / 8),
+        raw_color_);
   }
 
   void operator()(uint8_t *p, uint32_t offset, uint32_t count) const {
-    pattern_fill<ColorMode::bits_per_pixel / 8>(
-        p + offset * ColorMode::bits_per_pixel / 8, count, raw_color_);
+    roo_io::PatternFill<ColorMode::bits_per_pixel / 8>(
+        (roo_io::byte *)(p + offset * ColorMode::bits_per_pixel / 8), count,
+        raw_color_);
   }
 
  private:

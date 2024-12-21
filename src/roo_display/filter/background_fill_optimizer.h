@@ -2,7 +2,6 @@
 
 #include "roo_display/core/buffered_drawing.h"
 #include "roo_display/core/device.h"
-#include "roo_display/internal/memfill.h"
 #include "roo_display/internal/nibble_rect.h"
 
 namespace roo_display {

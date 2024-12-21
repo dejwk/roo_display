@@ -5,7 +5,6 @@
 #include "roo_display/color/traits.h"
 #include "roo_display/core/device.h"
 #include "roo_display/internal/byte_order.h"
-#include "roo_display/internal/memfill.h"
 
 namespace roo_display {
 

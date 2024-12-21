@@ -5,6 +5,7 @@
 #if (defined(ESP32) && (CONFIG_IDF_TARGET_ESP32) && !defined(ROO_TESTING))
 
 #include "roo_display/hal/esp32/spi.h"
+#include "roo_io/memory/fill.h"
 
 #else
 
@@ -13,7 +14,6 @@
 #include <SPI.h>
 
 #include "roo_display/internal/byte_order.h"
-#include "roo_display/internal/memfill.h"
 
 namespace roo_display {
 
@@ -22,7 +22,7 @@ class GenericSpi {
  public:
   // Creates the SPI transport, with specified transaction settings, using the
   // provided SPI bus.
-  GenericSpi(decltype(SPI)& spi) : spi_(spi) {}
+  GenericSpi(decltype(SPI) & spi) : spi_(spi) {}
 
   // // Creates the SPI transport, with specified clock, and using MSBFIRST and
   // // SPI_MODE0, using the provided SPI bus.
@@ -91,7 +91,8 @@ class GenericSpi {
   void fill16be_async(uint16_t data, uint32_t len) {
     uint8_t buf[64];
     if (len >= 32) {
-      pattern_fill<2>(buf, 32, (uint8_t*)&data);
+      roo_io::PatternFill<2>((roo_io::byte*)buf, 32,
+                             (const roo_io::byte*)&data);
       while (len >= 32) {
         spi_.writeBytes(buf, 64);
         len -= 32;
@@ -99,14 +100,15 @@ class GenericSpi {
       spi_.writeBytes(buf, len * 2);
       return;
     }
-    pattern_fill<2>(buf, len, (uint8_t*)&data);
+    roo_io::PatternFill<2>((roo_io::byte*)buf, len, (const roo_io::byte*)&data);
     spi_.writeBytes(buf, len * 2);
   }
 
   void fill24be_async(uint32_t data, uint32_t len) {
     uint8_t buf[96];
     if (len >= 32) {
-      pattern_fill<3>(buf, 32, ((uint8_t*)&data + 1));
+      roo_io::PatternFill<3>((roo_io::byte*)buf, 32,
+                             ((const roo_io::byte*)&data + 1));
       while (len >= 32) {
         spi_.writeBytes(buf, 96);
         len -= 32;
@@ -114,7 +116,8 @@ class GenericSpi {
       spi_.writeBytes(buf, len * 3);
       return;
     }
-    pattern_fill<3>(buf, len, ((uint8_t*)&data + 1));
+    roo_io::PatternFill<3>((roo_io::byte*)buf, len,
+                           ((const roo_io::byte*)&data + 1));
     spi_.writeBytes(buf, len * 3);
   }
 
@@ -123,7 +126,7 @@ class GenericSpi {
   uint32_t transfer32(uint32_t data) { return spi_.transfer32(data); }
 
  private:
-  decltype(SPI)& spi_;
+  decltype(SPI) & spi_;
 };
 
 using DefaultSpi = GenericSpi;

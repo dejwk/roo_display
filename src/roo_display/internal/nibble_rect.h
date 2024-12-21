@@ -5,7 +5,7 @@
 #include "roo_display/color/color.h"
 #include "roo_display/core/box.h"
 #include "roo_display/core/buffered_drawing.h"
-#include "roo_display/internal/memfill.h"
+#include "roo_io/memory/fill.h"
 
 namespace roo_display {
 namespace internal {
@@ -40,13 +40,14 @@ class NibbleRect {
   // Fills the specified rectangle of the mask with the specified bit value.
   void fillRect(const Box& rect, uint8_t value) {
     if (rect.xMin() == 0 && rect.xMax() == width() - 1) {
-      nibble_fill(buffer_, rect.yMin() * width(), rect.height() * width(),
-                  value);
+      roo_io::NibbleFill((roo_io::byte*)buffer_, rect.yMin() * width(),
+                         rect.height() * width(), (roo_io::byte)value);
     } else {
       int16_t w = rect.width();
       uint32_t offset = rect.xMin() + rect.yMin() * width();
       for (int16_t i = rect.height(); i > 0; --i) {
-        nibble_fill(buffer_, offset, w, value);
+        roo_io::NibbleFill((roo_io::byte*)buffer_, offset, w,
+                           (roo_io::byte)value);
         offset += width();
       }
     }

@@ -2,7 +2,7 @@
 
 #include <inttypes.h>
 
-#include "roo_display/internal/memfill.h"
+#include "roo_io/memory/fill.h"
 
 namespace roo_display {
 
@@ -93,8 +93,8 @@ inline constexpr bool operator!=(const Color &a, const Color &b) {
 
 // Utility function to quickly fill an array with a single color.
 inline void FillColor(Color *buf, uint32_t count, Color color) {
-  pattern_fill<sizeof(Color)>(reinterpret_cast<uint8_t *>(buf), count,
-                              reinterpret_cast<uint8_t *>(&color));
+  roo_io::PatternFill<sizeof(Color)>((roo_io::byte *)buf, count,
+                                     (const roo_io::byte *)(&color));
 }
 
 template <typename ColorMode>

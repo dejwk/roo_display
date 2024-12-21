@@ -13,7 +13,7 @@
 #include "hal/dma_types.h"
 #include "hal/lcd_hal.h"
 #include "roo_display/driver/esp32s3_dma_parallel_rgb565.h"
-#include "roo_display/internal/memfill.h"
+
 
 namespace roo_display {
 

@@ -6,7 +6,6 @@
 #include "roo_display/hal/gpio.h"
 #include "roo_display/hal/spi.h"
 #include "roo_display/internal/byte_order.h"
-#include "roo_display/internal/memfill.h"
 
 namespace roo_display {
 

@@ -7,7 +7,6 @@
 #include "roo_display/color/named.h"
 #include "roo_display/core/raster.h"
 #include "roo_display/internal/byte_order.h"
-#include "roo_display/internal/memfill.h"
 
 namespace roo_display {
 namespace internal {

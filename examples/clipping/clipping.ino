@@ -36,6 +36,7 @@ struct Emulator {
 #include "roo_display/shape/basic.h"
 #include "roo_display/ui/text_label.h"
 #include "roo_fonts/NotoSerif_Italic/90.h"
+#include "roo_io/base/string_view.h"
 
 using namespace roo_display;
 

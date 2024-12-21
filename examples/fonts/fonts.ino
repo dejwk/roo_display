@@ -140,6 +140,7 @@ struct Emulator {
 #include "roo_fonts/NotoSerif_Regular/60.h"
 #include "roo_fonts/NotoSerif_Regular/8.h"
 #include "roo_fonts/NotoSerif_Regular/90.h"
+#include "roo_io/base/string_view.h"
 
 using namespace roo_display;
 

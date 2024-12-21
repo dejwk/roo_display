@@ -7,6 +7,7 @@
 #include "roo_display/image/image.h"
 #include "roo_display/internal/raw_streamable_overlay.h"
 #include "roo_display/io/memory.h"
+#include "roo_io/core/input_iterator.h"
 #include "roo_io/text/unicode.h"
 
 namespace roo_display {
@@ -15,30 +16,32 @@ void fatalError(const String &string);
 
 class FontMetricReader {
  public:
-  FontMetricReader(internal::ProgMemPtrStream *reader, int font_metric_bytes)
+  FontMetricReader(
+      roo_io::UnsafeGenericMemoryIterator<const roo_io::byte PROGMEM *> &reader,
+      int font_metric_bytes)
       : reader_(reader), font_metric_bytes_(font_metric_bytes) {}
 
   int read() {
-    return font_metric_bytes_ == 1 ? (int8_t)reader_->read()
-                                   : (int16_t)read_uint16_be(reader_);
+    return font_metric_bytes_ == 1 ? roo_io::ReadS8(reader_)
+                                   : roo_io::ReadBeS16(reader_);
   }
 
  private:
-  internal::ProgMemPtrStream *reader_;
+  roo_io::UnsafeGenericMemoryIterator<const roo_io::byte PROGMEM *> &reader_;
   int font_metric_bytes_;
 };
 
-static int8_t readByte(const uint8_t *PROGMEM ptr) {
+static int8_t readByte(const roo_io::byte *PROGMEM ptr) {
   return pgm_read_byte(ptr);
 }
 
-static int16_t readWord(const uint8_t *PROGMEM ptr) {
+static int16_t readWord(const roo_io::byte *PROGMEM ptr) {
   return (pgm_read_byte(ptr) << 8) | pgm_read_byte(ptr + 1);
 }
 
 class GlyphMetadataReader {
  public:
-  GlyphMetadataReader(const SmoothFont &font, const uint8_t *PROGMEM ptr)
+  GlyphMetadataReader(const SmoothFont &font, const roo_io::byte *PROGMEM ptr)
       : font_(font), ptr_(ptr + font.encoding_bytes_) {}
 
   GlyphMetrics readMetrics(FontLayout layout) {
@@ -65,7 +68,7 @@ class GlyphMetadataReader {
 
   long data_offset() const {
     int offset_bytes = font_.offset_bytes_;
-    const uint8_t *PROGMEM ptr = ptr_ + 5 * font_.font_metric_bytes_;
+    const roo_io::byte *PROGMEM ptr = ptr_ + 5 * font_.font_metric_bytes_;
     return offset_bytes == 2
                ? (pgm_read_byte(ptr) << 8) | pgm_read_byte(ptr + 1)
            : offset_bytes == 3
@@ -76,54 +79,55 @@ class GlyphMetadataReader {
 
  private:
   const SmoothFont &font_;
-  const uint8_t *PROGMEM ptr_;
+  const roo_io::byte *PROGMEM ptr_;
 };
 
-SmoothFont::SmoothFont(const uint8_t *font_data PROGMEM)
+SmoothFont::SmoothFont(const roo_io::byte *font_data PROGMEM)
     : glyph_count_(0), default_glyph_(0), default_space_width_(0) {
-  internal::ProgMemPtrStream reader(font_data);
-  uint16_t version = read_uint16_be(&reader);
+  roo_io::UnsafeGenericMemoryIterator<const roo_io::byte PROGMEM *> reader(
+      font_data);
+  uint16_t version = roo_io::ReadBeU16(reader);
 
   if (version != 0x0101) {
     fatalError(String("Unsupported version number: ") + version);
     return;
   }
 
-  alpha_bits_ = reader.read();
+  alpha_bits_ = roo_io::ReadU8(reader);
   if (alpha_bits_ != 4) {
     fatalError(String("Unsupported alpha encoding: ") + alpha_bits_);
     return;
   }
 
-  encoding_bytes_ = reader.read();
+  encoding_bytes_ = roo_io::ReadU8(reader);
   if (encoding_bytes_ > 2) {
     fatalError(String("Unsupported character encoding: ") + encoding_bytes_);
     return;
   }
 
-  font_metric_bytes_ = reader.read();
+  font_metric_bytes_ = roo_io::ReadU8(reader);
   if (font_metric_bytes_ > 2) {
     fatalError(String("Unsupported count of metric bytes: ") + encoding_bytes_);
     return;
   }
 
-  offset_bytes_ = reader.read();
+  offset_bytes_ = roo_io::ReadU8(reader);
   if (offset_bytes_ > 3) {
     fatalError(String("Unsupported count of offset bytes: ") + offset_bytes_);
     return;
   }
 
-  compression_method_ = reader.read();
+  compression_method_ = roo_io::ReadU8(reader);
   if (compression_method_ > 1) {
     fatalError(String("Unsupported compression method: ") +
                compression_method_);
     return;
   }
 
-  glyph_count_ = read_uint16_be(&reader);
-  kerning_pairs_count_ = read_uint16_be(&reader);
+  glyph_count_ = roo_io::ReadBeU16(reader);
+  kerning_pairs_count_ = roo_io::ReadBeU16(reader);
 
-  FontMetricReader fm_reader(&reader, font_metric_bytes_);
+  FontMetricReader fm_reader(reader, font_metric_bytes_);
   int xMin = fm_reader.read();
   int yMin = fm_reader.read();
   int xMax = fm_reader.read();
@@ -137,9 +141,9 @@ SmoothFont::SmoothFont(const uint8_t *font_data PROGMEM)
   default_space_width_ = fm_reader.read();
 
   if (encoding_bytes_ == 1) {
-    default_glyph_ = reader.read();
+    default_glyph_ = roo_io::ReadU8(reader);
   } else {
-    default_glyph_ = read_uint16_be(&reader);
+    default_glyph_ = roo_io::ReadBeU16(reader);
   }
 
   glyph_metadata_begin_ = reader.ptr();
@@ -179,7 +183,7 @@ bool is_space(char32_t code) {
 
 void SmoothFont::drawGlyphModeVisible(DisplayOutput &output, int16_t x,
                                       int16_t y, const GlyphMetrics &metrics,
-                                      const uint8_t *PROGMEM data,
+                                      const roo_io::byte *PROGMEM data,
                                       const Box &clip_box, Color color,
                                       Color bgcolor,
                                       BlendingMode blending_mode) const {
@@ -191,7 +195,7 @@ void SmoothFont::drawGlyphModeVisible(DisplayOutput &output, int16_t x,
     streamToSurface(s, std::move(glyph));
   } else {
     // Identical as above, but using Raster<> instead of MonoAlpha4RleImage.
-    Raster<const uint8_t PROGMEM *, Alpha4> glyph(
+    Raster<const roo_io::byte PROGMEM *, Alpha4> glyph(
         metrics.width(), metrics.height(), data, color);
     streamToSurface(s, std::move(glyph));
   }
@@ -250,9 +254,9 @@ void SmoothFont::drawBordered(DisplayOutput &output, int16_t x, int16_t y,
 void SmoothFont::drawGlyphModeFill(DisplayOutput &output, int16_t x, int16_t y,
                                    int16_t bgwidth,
                                    const GlyphMetrics &glyph_metrics,
-                                   const uint8_t *PROGMEM data, int16_t offset,
-                                   const Box &clip_box, Color color,
-                                   Color bgColor,
+                                   const roo_io::byte *PROGMEM data,
+                                   int16_t offset, const Box &clip_box,
+                                   Color color, Color bgColor,
                                    BlendingMode blending_mode) const {
   Box box = glyph_metrics.screen_extents().translate(offset, 0);
   if (rle()) {
@@ -263,7 +267,7 @@ void SmoothFont::drawGlyphModeFill(DisplayOutput &output, int16_t x, int16_t y,
   } else {
     // Identical as above, but using Raster<>
     auto glyph = MakeDrawableRawStreamable(
-        Raster<const uint8_t PROGMEM *, Alpha4>(box, data, color));
+        Raster<const roo_io::byte PROGMEM *, Alpha4>(box, data, color));
     drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor,
                  blending_mode);
   }
@@ -271,9 +275,9 @@ void SmoothFont::drawGlyphModeFill(DisplayOutput &output, int16_t x, int16_t y,
 
 void SmoothFont::drawKernedGlyphsModeFill(
     DisplayOutput &output, int16_t x, int16_t y, int16_t bgwidth,
-    const GlyphMetrics &left_metrics, const uint8_t *PROGMEM left_data,
+    const GlyphMetrics &left_metrics, const roo_io::byte *PROGMEM left_data,
     int16_t left_offset, const GlyphMetrics &right_metrics,
-    const uint8_t *PROGMEM right_data, int16_t right_offset,
+    const roo_io::byte *PROGMEM right_data, int16_t right_offset,
     const Box &clip_box, Color color, Color bgColor,
     BlendingMode blending_mode) const {
   Box lb = left_metrics.screen_extents().translate(left_offset, 0);
@@ -287,8 +291,9 @@ void SmoothFont::drawKernedGlyphsModeFill(
   } else {
     // Identical as above, but using Raster<>
     auto glyph = MakeDrawableRawStreamable(Overlay(
-        Raster<const uint8_t PROGMEM *, Alpha4>(lb, left_data, color), 0, 0,
-        Raster<const uint8_t PROGMEM *, Alpha4>(rb, right_data, color), 0, 0));
+        Raster<const roo_io::byte PROGMEM *, Alpha4>(lb, left_data, color), 0,
+        0, Raster<const roo_io::byte PROGMEM *, Alpha4>(rb, right_data, color),
+        0, 0));
     drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor,
                  blending_mode);
   }
@@ -302,12 +307,12 @@ class GlyphPairIterator {
 
   const GlyphMetrics &right_metrics() const { return swapped_ ? m1_ : m2_; }
 
-  const uint8_t *PROGMEM left_data() const {
+  const roo_io::byte *PROGMEM left_data() const {
     return font_->glyph_data_begin_ +
            (swapped_ ? data_offset_2_ : data_offset_1_);
   }
 
-  const uint8_t *PROGMEM right_data() const {
+  const roo_io::byte *PROGMEM right_data() const {
     return font_->glyph_data_begin_ +
            (swapped_ ? data_offset_1_ : data_offset_2_);
   }
@@ -320,7 +325,7 @@ class GlyphPairIterator {
       *mutable_right_data_offset() = 0;
       return;
     }
-    const uint8_t *PROGMEM glyph = font_->findGlyph(code);
+    const roo_io::byte *PROGMEM glyph = font_->findGlyph(code);
     if (glyph == nullptr) {
       glyph = font_->findGlyph(font_->default_glyph_);
     }
@@ -529,7 +534,7 @@ void SmoothFont::drawHorizontalString(const Surface &s, const char *utf8_data,
 
 bool SmoothFont::getGlyphMetrics(char32_t code, FontLayout layout,
                                  GlyphMetrics *result) const {
-  const uint8_t *PROGMEM glyph = findGlyph(code);
+  const roo_io::byte *PROGMEM glyph = findGlyph(code);
   if (glyph == nullptr) return false;
   GlyphMetadataReader reader(*this, glyph);
   *result = reader.readMetrics(layout);
@@ -537,23 +542,24 @@ bool SmoothFont::getGlyphMetrics(char32_t code, FontLayout layout,
 }
 
 template <int encoding_bytes>
-char32_t read_unicode(const uint8_t *PROGMEM address);
+char32_t read_unicode(const roo_io::byte *PROGMEM address);
 
 template <>
-char32_t read_unicode<1>(const uint8_t *PROGMEM address) {
+char32_t read_unicode<1>(const roo_io::byte *PROGMEM address) {
   return pgm_read_byte(address);
 }
 
 template <>
-char32_t read_unicode<2>(const uint8_t *PROGMEM address) {
+char32_t read_unicode<2>(const roo_io::byte *PROGMEM address) {
   return ((char32_t)pgm_read_byte(address) << 8) | pgm_read_byte(address + 1);
 }
 
 template <int encoding_bytes>
-const uint8_t *PROGMEM indexSearch(char32_t c, const uint8_t *PROGMEM data,
-                                   int glyph_size, int start, int stop) {
+const roo_io::byte *PROGMEM indexSearch(char32_t c,
+                                        const roo_io::byte *PROGMEM data,
+                                        int glyph_size, int start, int stop) {
   int pivot = (start + stop) / 2;
-  const uint8_t *PROGMEM pivot_ptr = data + (pivot * glyph_size);
+  const roo_io::byte *PROGMEM pivot_ptr = data + (pivot * glyph_size);
   uint16_t pivot_value = read_unicode<encoding_bytes>(pivot_ptr);
   if (c == pivot_value) return pivot_ptr;
   if (start >= stop) return nullptr;
@@ -562,7 +568,7 @@ const uint8_t *PROGMEM indexSearch(char32_t c, const uint8_t *PROGMEM data,
   return indexSearch<encoding_bytes>(c, data, glyph_size, pivot + 1, stop);
 }
 
-const uint8_t *PROGMEM SmoothFont::findGlyph(char32_t code) const {
+const roo_io::byte *PROGMEM SmoothFont::findGlyph(char32_t code) const {
   switch (encoding_bytes_) {
     case 1:
       return indexSearch<1>(code, glyph_metadata_begin_, glyph_metadata_size_,
@@ -576,11 +582,12 @@ const uint8_t *PROGMEM SmoothFont::findGlyph(char32_t code) const {
 }
 
 template <int encoding_bytes>
-const uint8_t *PROGMEM kernIndexSearch(uint32_t lookup,
-                                       const uint8_t *PROGMEM data,
-                                       int kern_size, int start, int stop) {
+const roo_io::byte *PROGMEM kernIndexSearch(uint32_t lookup,
+                                            const roo_io::byte *PROGMEM data,
+                                            int kern_size, int start,
+                                            int stop) {
   int pivot = (start + stop) / 2;
-  const uint8_t *PROGMEM pivot_ptr = data + (pivot * kern_size);
+  const roo_io::byte *PROGMEM pivot_ptr = data + (pivot * kern_size);
   uint16_t left = read_unicode<encoding_bytes>(pivot_ptr);
   uint16_t right = read_unicode<encoding_bytes>(pivot_ptr + encoding_bytes);
   uint32_t pivot_value = left << 16 | right;
@@ -597,8 +604,8 @@ const uint8_t *PROGMEM kernIndexSearch(uint32_t lookup,
                                          stop);
 }
 
-const uint8_t *PROGMEM SmoothFont::findKernPair(char32_t left,
-                                                char32_t right) const {
+const roo_io::byte *PROGMEM SmoothFont::findKernPair(char32_t left,
+                                                     char32_t right) const {
   uint32_t lookup = left << 16 | right;
   switch (encoding_bytes_) {
     case 1:
@@ -613,7 +620,7 @@ const uint8_t *PROGMEM SmoothFont::findKernPair(char32_t left,
 }
 
 int16_t SmoothFont::kerning(char32_t left, char32_t right) const {
-  const uint8_t *PROGMEM kern = findKernPair(left, right);
+  const roo_io::byte *PROGMEM kern = findKernPair(left, right);
   if (kern == 0) {
     return 0;
   } else {

@@ -202,11 +202,15 @@ void SmoothFont::drawBordered(DisplayOutput &output, int16_t x, int16_t y,
                               BlendingMode blending_mode) const {
   Box outer(x, y - metrics().glyphYMax(), x + bgwidth - 1,
             y - metrics().glyphYMin());
+
+  // NOTE: bgColor is part of the source, not destination.
   if (bgColor.a() == 0xFF &&
       (blending_mode == BLENDING_MODE_SOURCE_OVER ||
        blending_mode == BLENDING_MODE_SOURCE_OVER_OPAQUE)) {
+    // All souce pixels will be fully opaque.
     blending_mode = BLENDING_MODE_SOURCE;
   }
+
   if (outer.clip(clip_box) == Box::CLIP_RESULT_EMPTY) return;
   Box inner = glyph.extents().translate(x, y);
   if (inner.clip(clip_box) == Box::CLIP_RESULT_EMPTY) {
@@ -439,9 +443,8 @@ uint32_t SmoothFont::getHorizontalStringGlyphMetrics(const char *utf8_data,
   return glyph_count;
 }
 
-void SmoothFont::drawHorizontalString(const Surface &s,
-                                      const char *utf8_data, uint32_t size,
-                                      Color color) const {
+void SmoothFont::drawHorizontalString(const Surface &s, const char *utf8_data,
+                                      uint32_t size, Color color) const {
   Utf8LookAheadDecoder decoder(utf8_data, size);
   if (!decoder.has_next()) {
     // Nothing to draw.
@@ -498,8 +501,8 @@ void SmoothFont::drawHorizontalString(const Surface &s,
             glyphs.left_data(), -preadvanced, glyphs.right_metrics(),
             glyphs.right_data(), advance - preadvanced,
             Box::Intersect(s.clip_box(), Box(x, y - metrics().glyphYMax(),
-                                              x + total_rect_width - 1,
-                                              y - metrics().glyphYMin())),
+                                             x + total_rect_width - 1,
+                                             y - metrics().glyphYMin())),
             color, s.bgcolor(), s.blending_mode());
       } else {
         // Glyphs do not overlap; can draw them one by one.

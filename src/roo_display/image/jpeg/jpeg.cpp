@@ -47,21 +47,33 @@ int jpeg_draw_rect(JDEC* jdec, void* data, JRECT* rect) {
   return 1;
 }
 
-bool JpegDecoder::openInternal(int16_t& width, int16_t& height) {
+bool JpegDecoder::open(const roo_io::MultipassResource& resource,
+                       int16_t& width, int16_t& height) {
+  input_ = resource.open();
   if (jd_prepare(&jdec_, &jpeg_read, workspace_.get(), TJPGD_WORKSPACE_SIZE,
                  this) == JDR_OK) {
     width = jdec_.width;
     height = jdec_.height;
     return true;
   }
+  close();
   return false;
 }
 
-void JpegDecoder::drawInternal(const Surface& s, uint8_t scale) {
-  surface_ = &s;
+void JpegDecoder::draw(const roo_io::MultipassResource& resource,
+                       const Surface& s, uint8_t scale, int16_t& width,
+                       int16_t& height) {
   s.out().end();
+  if (!open(resource, width, height)) {
+    s.out().begin();
+    return;
+  }
+
+  surface_ = &s;
   jd_decomp(&jdec_, &jpeg_draw_rect, scale);
   surface_ = nullptr;
+
+  close();
   s.out().begin();
 }
 

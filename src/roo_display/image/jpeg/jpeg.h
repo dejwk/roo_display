@@ -28,31 +28,11 @@ class JpegDecoder {
     close();
   }
 
-  void draw(const roo_io::MultipassResource& resource, const Surface& s,
-            uint8_t scale, int16_t& width, int16_t& height) {
-    s.out().end();
-    if (!open(resource, width, height)) {
-      s.out().begin();
-      return;
-    }
-    s.out().begin();
-    drawInternal(s, scale);
-    s.out().end();
-    close();
-    s.out().begin();
-  }
-
-  void drawInternal(const Surface& s, uint8_t scale);
-
   bool open(const roo_io::MultipassResource& resource, int16_t& width,
-            int16_t& height) {
-    input_ = resource.open();
-    if (openInternal(width, height)) {
-      return true;
-    }
-    close();
-    return false;
-  }
+            int16_t& height);
+
+  void draw(const roo_io::MultipassResource& resource, const Surface& s,
+            uint8_t scale, int16_t& width, int16_t& height);
 
   // Opens the image and reads its width and height.
   bool openInternal(int16_t& width, int16_t& height);
@@ -78,9 +58,7 @@ class JpegImage : public Drawable {
     decoder_.getDimensions(resource_, width_, height_);
   }
 
-  Box extents() const override {
-    return Box(0, 0, width_ - 1, height_ - 1);
-  }
+  Box extents() const override { return Box(0, 0, width_ - 1, height_ - 1); }
 
  private:
   void drawTo(const Surface& s) const override {
@@ -107,7 +85,5 @@ class JpegFile : public Drawable {
   roo_io::ArduinoFileResource resource_;
   JpegImage<roo_io::ArduinoFileResource> img_;
 };
-
-// using JpegFile = JpegImage<roo_io::ArduinoFileResource>;
 
 }  // namespace roo_display

@@ -272,7 +272,8 @@ void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {
     fps = 1000.0 * frames / t;
     int first_changed = timerToString(t, time);
     {
-      auto label = ClippedStringViewLabel(time, timerFont, color::Black);
+      auto label = ClippedStringViewLabel(time, timerFont, color::Black,
+                                          FILL_MODE_RECTANGLE);
       // In case of the (optimal) inplace drawing, we need to use
       // color::Background (which is actually the default which could
       // generally be omitted), so that the entire bounding box of the glyph
@@ -392,8 +393,8 @@ void scrollingText() {
   StringViewLabel label(
       "Check out this awesome text banner. Note anti-aliased "
       "glyphs, with overlapping bounding boxes: 'Afy', 'fff'.  ",
-      font_NotoSans_Italic_40(), color::DarkRed, FILL_MODE_RECTANGLE);
-  for (int i = 0; i < label.extents().width(); i += 8) {
+      font_NotoSans_Italic_27(), color::DarkRed, FILL_MODE_RECTANGLE);
+  for (int i = 0; i < label.extents().width(); i += 4) {
     {
       DrawingContext dc(display);
       dc.draw(label, kLeft.shiftBy(-i) | kMiddle);
@@ -447,6 +448,7 @@ void loop() {
 
   // Same as before, but on a 'fancy' background. Flicker is even more visible
   // in this case.
+  b.inplace = false;
   b.background = true;
   timerBenchmark(&b, 5);
 
@@ -456,6 +458,8 @@ void loop() {
   b.clip = false;
   b.background = false;
   timerBenchmark(&b, 5);
+
+  b.clip = false;
   b.background = true;
   timerBenchmark(&b, 5);
 }

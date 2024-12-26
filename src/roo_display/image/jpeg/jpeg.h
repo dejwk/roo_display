@@ -30,11 +30,16 @@ class JpegDecoder {
 
   void draw(const roo_io::MultipassResource& resource, const Surface& s,
             uint8_t scale, int16_t& width, int16_t& height) {
+    s.out().end();
     if (!open(resource, width, height)) {
+      s.out().begin();
       return;
     }
+    s.out().begin();
     drawInternal(s, scale);
+    s.out().end();
     close();
+    s.out().begin();
   }
 
   void drawInternal(const Surface& s, uint8_t scale);
@@ -69,22 +74,16 @@ class JpegImage : public Drawable {
       : JpegImage(Resource(std::forward<Args>(args)...), decoder) {}
 
   JpegImage(Resource resource, JpegDecoder& decoder)
-      : decoder_(decoder),
-        resource_(std::move(resource)),
-        width_(-1),
-        height_(-1) {}
+      : decoder_(decoder), resource_(std::move(resource)) {
+    decoder_.getDimensions(resource_, width_, height_);
+  }
 
   Box extents() const override {
-    if (width_ < 0 || height_ < 0) {
-      decoder_.getDimensions(resource_, width_, height_);
-    }
     return Box(0, 0, width_ - 1, height_ - 1);
   }
 
  private:
   void drawTo(const Surface& s) const override {
-    // We update the width and height during drawing, so that the file does not
-    // need to be re-read just to fetch the dimensions.
     decoder_.draw(resource_, s, 0, width_, height_);
   }
 

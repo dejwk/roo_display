@@ -199,11 +199,17 @@ class Drawable {
   virtual ~Drawable() {}
 
   // Returns the bounding box encompassing all pixels that need to be drawn.
+  //
+  // Thie method should is called during an SPI transaction, and should not
+  // block or perform I/O.
   virtual Box extents() const = 0;
 
   // Returns the boundaries to be used when aligning this drawable. By default,
   // equivalent to extents(). Some drawables, notably text labels, may want to
   // use different bounds for alignment.
+  //
+  // Thie method should is called during an SPI transaction, and should not
+  // block or perform I/O.
   virtual Box anchorExtents() const { return extents(); }
 
   // A singleton, representing a 'no-op' drawable with no bounding box.

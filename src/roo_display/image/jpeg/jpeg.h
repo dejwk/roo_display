@@ -1,10 +1,12 @@
 #pragma once
 
+#include "roo_display/core/device.h"
 #include "roo_display/core/drawable.h"
 #include "roo_display/image/jpeg/lib/tjpgd.h"
 #include "roo_display/image/jpeg/lib/tjpgdcnf.h"
 #include "roo_io/core/multipass_input_stream.h"
 #include "roo_io_arduino/fs/arduino_file_resource.h"
+#include "roo_logging.h"
 
 namespace roo_display {
 
@@ -18,17 +20,16 @@ class JpegDecoder {
   friend size_t jpeg_read(JDEC*, uint8_t*, size_t);
   friend int jpeg_draw_rect(JDEC* jdec, void* data, JRECT* rect);
 
-  template <typename Resource>
-  void getDimensions(Resource& resource, int16_t& width, int16_t& height) {
+  void getDimensions(const roo_io::MultipassResource& resource, int16_t& width,
+                     int16_t& height) {
     if (!open(resource, width, height)) {
       return;
     }
     close();
   }
 
-  template <typename Resource>
-  void draw(Resource& resource, const Surface& s, uint8_t scale, int16_t& width,
-            int16_t& height) {
+  void draw(const roo_io::MultipassResource& resource, const Surface& s,
+            uint8_t scale, int16_t& width, int16_t& height) {
     if (!open(resource, width, height)) {
       return;
     }
@@ -38,8 +39,8 @@ class JpegDecoder {
 
   void drawInternal(const Surface& s, uint8_t scale);
 
-  template <typename Resource>
-  bool open(Resource& resource, int16_t& width, int16_t& height) {
+  bool open(const roo_io::MultipassResource& resource, int16_t& width,
+            int16_t& height) {
     input_ = resource.open();
     if (openInternal(width, height)) {
       return true;
@@ -94,6 +95,20 @@ class JpegImage : public Drawable {
   mutable int16_t height_;
 };
 
-using JpegFile = JpegImage<roo_io::ArduinoFileResource>;
+class JpegFile : public Drawable {
+ public:
+  JpegFile(JpegDecoder& decoder, ::fs::FS& fs, String path)
+      : resource_(fs, path), img_(decoder, resource_) {}
+
+  Box extents() const override { return img_.extents(); }
+
+ private:
+  void drawTo(const Surface& s) const override { s.drawObject(img_); }
+
+  roo_io::ArduinoFileResource resource_;
+  JpegImage<roo_io::ArduinoFileResource> img_;
+};
+
+// using JpegFile = JpegImage<roo_io::ArduinoFileResource>;
 
 }  // namespace roo_display

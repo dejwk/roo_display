@@ -1,5 +1,6 @@
 #include "roo_display/image/jpeg/jpeg.h"
 
+#include "roo_display.h"
 #include "roo_display/core/raster.h"
 #include "roo_io/base/byte.h"
 
@@ -41,9 +42,10 @@ int jpeg_draw_rect(JDEC* jdec, void* data, JRECT* rect) {
   }
   Box box(rect->left, rect->top, rect->right, rect->bottom);
   ConstDramRaster<Rgb888> raster(box, (const roo_io::byte*)data);
-  surface->out().begin();
-  surface->drawObject(raster);
-  surface->out().end();
+  {
+    ResumeOutput resume(surface->out());
+    surface->drawObject(raster);
+  }
   return 1;
 }
 
@@ -74,9 +76,8 @@ bool JpegDecoder::open(const roo_io::MultipassResource& resource,
 void JpegDecoder::draw(const roo_io::MultipassResource& resource,
                        const Surface& s, uint8_t scale, int16_t& width,
                        int16_t& height) {
-  s.out().end();
+  PauseOutput pause(s.out());
   if (!open(resource, width, height)) {
-    s.out().begin();
     return;
   }
 
@@ -85,7 +86,6 @@ void JpegDecoder::draw(const roo_io::MultipassResource& resource,
   surface_ = nullptr;
 
   close();
-  s.out().begin();
 }
 
 }  // namespace roo_display

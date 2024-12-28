@@ -421,4 +421,32 @@ class Clear : public Rasterizable {
   void drawTo(const Surface &s) const override;
 };
 
+// Utility that can be used while a DrawingContext is active, to temporarily
+// stop the underlying transport transaction, and release the bus (e.g. SPI). It
+// allows custom drawables to perform operations on the same bus (e.g., read
+// date from an SD card). When an instance of this class is alive, and unless
+// ResumeOutput is also used, DrawingContexts do not function, and no drawing
+// operations should be attempted.
+//
+// See jpeg.cpp and png.cpp for an application example.
+class PauseOutput {
+ public:
+  PauseOutput(DisplayOutput &out) : out_(out) { out_.end(); }
+  ~PauseOutput() { out_.begin(); }
+
+ private:
+  DisplayOutput &out_;
+};
+
+// The inverse of 'PauseOutput', above. It allows to resume drawing that was
+// paused by PauseOutput.
+class ResumeOutput {
+ public:
+  ResumeOutput(DisplayOutput &out) : out_(out) { out_.begin(); }
+  ~ResumeOutput() { out_.end(); }
+
+ private:
+  DisplayOutput &out_;
+};
+
 }  // namespace roo_display

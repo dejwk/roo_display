@@ -1,5 +1,6 @@
 #include "roo_display/image/png/png.h"
 
+#include "roo_display.h"
 #include "roo_display/color/color_mode_indexed.h"
 #include "roo_display/image/png/lib/png.inl"
 
@@ -40,7 +41,7 @@ void png_draw(PNGDRAW *pDraw) {
     return;
   }
   Box box(0, y, pDraw->iWidth - 1, y);
-  surface->out().begin();
+  ResumeOutput resume(surface->out());
   switch (pDraw->iPixelType) {
     case PNG_PIXEL_TRUECOLOR_ALPHA: {
       ConstDramRaster<Rgba8888> raster(box,
@@ -98,7 +99,6 @@ void png_draw(PNGDRAW *pDraw) {
       }
     }
   }
-  surface->out().end();
 }
 
 PngDecoder::PngDecoder() : pngdec_(new PNGIMAGE()), input_(nullptr) {}
@@ -136,15 +136,13 @@ bool PngDecoder::open(const roo_io::MultipassResource &resource, int16_t &width,
 void PngDecoder::draw(const roo_io::MultipassResource &resource,
                       const Surface &s, uint8_t scale, int16_t &width,
                       int16_t &height) {
-  s.out().end();
+  PauseOutput pause(s.out());
   if (!open(resource, width, height)) {
-    s.out().begin();
     return;
   }
   Box extents(0, 0, pngdec_->iWidth - 1, pngdec_->iHeight - 1);
   if (Box::Intersect(s.clip_box(), extents.translate(s.dx(), s.dy())).empty()) {
     close();
-    s.out().begin();
     return;
   }
   if (pngdec_->ucPixelType == PNG_PIXEL_INDEXED) {
@@ -154,7 +152,6 @@ void PngDecoder::draw(const roo_io::MultipassResource &resource,
   User user{.surface = &s, .palette = &palette_};
   DecodePNG(pngdec_.get(), (void *)&user, 0);
   close();
-  s.out().begin();
 }
 
 }  // namespace roo_display

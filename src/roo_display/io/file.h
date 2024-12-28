@@ -4,6 +4,6 @@
 
 namespace roo_display {
 
-using FileResource = ::roo_io::ArduinoFileIterable;
+using FileResource = ::roo_io::ExtendedArduinoFileIterable;
 
 }

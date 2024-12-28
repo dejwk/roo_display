@@ -22,7 +22,7 @@ class JpegDecoder {
   friend size_t jpeg_read(JDEC*, uint8_t*, size_t);
   friend int jpeg_draw_rect(JDEC* jdec, void* data, JRECT* rect);
 
-  void getDimensions(const roo_io::MultipassResource& resource, int16_t& width,
+  bool getDimensions(const roo_io::MultipassResource& resource, int16_t& width,
                      int16_t& height);
 
   bool open(const roo_io::MultipassResource& resource, int16_t& width,

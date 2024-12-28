@@ -21,7 +21,7 @@ class PngDecoder {
   friend int32_t png_read(PNGFILE* pFile, uint8_t* pBuf, int32_t iLen);
   friend int32_t png_seek(PNGFILE* pFile, int32_t iPosition);
 
-  void getDimensions(const roo_io::MultipassResource& resource, int16_t& width,
+  bool getDimensions(const roo_io::MultipassResource& resource, int16_t& width,
                      int16_t& height);
 
   bool open(const roo_io::MultipassResource& resource, int16_t& width,
@@ -47,12 +47,7 @@ class PngImage : public Drawable {
     decoder_.getDimensions(resource_, width_, height_);
   }
 
-  Box extents() const override {
-    if (width_ < 0 || height_ < 0) {
-      decoder_.getDimensions(resource_, width_, height_);
-    }
-    return Box(0, 0, width_ - 1, height_ - 1);
-  }
+  Box extents() const override { return Box(0, 0, width_ - 1, height_ - 1); }
 
  private:
   void drawTo(const Surface& s) const override {

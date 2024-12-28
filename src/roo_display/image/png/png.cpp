@@ -36,8 +36,9 @@ void png_draw(PNGDRAW *pDraw) {
   const Surface *surface = user.surface;
   int16_t y = pDraw->y;
   if (y + surface->dy() < surface->clip_box().yMin() ||
-      y + surface->dy() > surface->clip_box().yMax())
+      y + surface->dy() > surface->clip_box().yMax()) {
     return;
+  }
   Box box(0, y, pDraw->iWidth - 1, y);
   surface->out().begin();
   switch (pDraw->iPixelType) {
@@ -102,12 +103,15 @@ void png_draw(PNGDRAW *pDraw) {
 
 PngDecoder::PngDecoder() : pngdec_(new PNGIMAGE()), input_(nullptr) {}
 
-void PngDecoder::getDimensions(const roo_io::MultipassResource &resource,
+bool PngDecoder::getDimensions(const roo_io::MultipassResource &resource,
                                int16_t &width, int16_t &height) {
   if (!open(resource, width, height)) {
-    return;
+    width = 0;
+    height = 0;
+    return false;
   }
   close();
+  return true;
 }
 
 bool PngDecoder::open(const roo_io::MultipassResource &resource, int16_t &width,
@@ -149,8 +153,8 @@ void PngDecoder::draw(const roo_io::MultipassResource &resource,
   }
   User user{.surface = &s, .palette = &palette_};
   DecodePNG(pngdec_.get(), (void *)&user, 0);
-  s.out().begin();
   close();
+  s.out().begin();
 }
 
 }  // namespace roo_display

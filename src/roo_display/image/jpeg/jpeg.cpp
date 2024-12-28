@@ -47,6 +47,14 @@ int jpeg_draw_rect(JDEC* jdec, void* data, JRECT* rect) {
   return 1;
 }
 
+void JpegDecoder::getDimensions(const roo_io::MultipassResource& resource,
+                                int16_t& width, int16_t& height) {
+  if (!open(resource, width, height)) {
+    return;
+  }
+  close();
+}
+
 bool JpegDecoder::open(const roo_io::MultipassResource& resource,
                        int16_t& width, int16_t& height) {
   input_ = resource.open();

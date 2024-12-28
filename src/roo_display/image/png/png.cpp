@@ -100,7 +100,18 @@ void png_draw(PNGDRAW *pDraw) {
 
 PngDecoder::PngDecoder() : pngdec_(new PNGIMAGE()), input_(nullptr) {}
 
-bool PngDecoder::openInternal(int16_t &width, int16_t &height) {
+void PngDecoder::getDimensions(const roo_io::MultipassResource &resource,
+                               int16_t &width, int16_t &height) {
+  if (!open(resource, width, height)) {
+    return;
+  }
+  close();
+}
+
+bool PngDecoder::open(const roo_io::MultipassResource &resource, int16_t &width,
+                      int16_t &height) {
+  input_ = resource.open();
+  if (input_ == nullptr) return false;
   *pngdec_ = {};
   pngdec_->pfnRead = png_read;
   pngdec_->pfnSeek = png_seek;
@@ -116,18 +127,28 @@ bool PngDecoder::openInternal(int16_t &width, int16_t &height) {
   return true;
 }
 
-void PngDecoder::drawInternal(const Surface &s, uint8_t scale) {
-  Box extents(0, 0, pngdec_->iWidth - 1, pngdec_->iHeight - 1);
-  if (Box::Intersect(s.clip_box(), extents.translate(s.dx(), s.dy())).empty())
+void PngDecoder::draw(const roo_io::MultipassResource &resource,
+                      const Surface &s, uint8_t scale, int16_t &width,
+                      int16_t &height) {
+  s.out().end();
+  if (!open(resource, width, height)) {
+    s.out().begin();
     return;
+  }
+  Box extents(0, 0, pngdec_->iWidth - 1, pngdec_->iHeight - 1);
+  if (Box::Intersect(s.clip_box(), extents.translate(s.dx(), s.dy())).empty()) {
+    close();
+    s.out().begin();
+    return;
+  }
   if (pngdec_->ucPixelType == PNG_PIXEL_INDEXED) {
     palette_ =
         Palette::ReadOnly((Color *)pngdec_->ucPalette, 1 << pngdec_->ucBpp);
   }
   User user{.surface = &s, .palette = &palette_};
-  s.out().end();
   DecodePNG(pngdec_.get(), (void *)&user, 0);
   s.out().begin();
+  close();
 }
 
 }  // namespace roo_display

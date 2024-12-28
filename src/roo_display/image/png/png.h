@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include "roo_display.h"
 #include "roo_display/color/color.h"
 #include "roo_display/color/color_mode_indexed.h"
@@ -15,44 +17,18 @@ class PngDecoder {
   PngDecoder();
 
  private:
-  template <typename Resource>
   friend class PngImage;
   friend int32_t png_read(PNGFILE* pFile, uint8_t* pBuf, int32_t iLen);
   friend int32_t png_seek(PNGFILE* pFile, int32_t iPosition);
 
-  template <typename Resource>
-  void getDimensions(Resource& resource, int16_t& width, int16_t& height) {
-    if (!open(resource, width, height)) {
-      return;
-    }
-    close();
-  }
+  void getDimensions(const roo_io::MultipassResource& resource, int16_t& width,
+                     int16_t& height);
 
-  template <typename Resource>
-  void draw(Resource& resource, const Surface& s, uint8_t scale, int16_t& width,
-            int16_t& height) {
-    if (!open(resource, width, height)) {
-      return;
-    }
-    drawInternal(s, scale);
-    close();
-  }
+  bool open(const roo_io::MultipassResource& resource, int16_t& width,
+            int16_t& height);
 
-  void drawInternal(const Surface& s, uint8_t scale);
-
-  template <typename Resource>
-  bool open(Resource& resource, int16_t& width, int16_t& height) {
-    input_ = resource.open();
-    if (input_ == nullptr) return false;
-    if (openInternal(width, height)) {
-      return true;
-    }
-    close();
-    return false;
-  }
-
-  // Opens the image and reads its width and height.
-  bool openInternal(int16_t& width, int16_t& height);
+  void draw(const roo_io::MultipassResource& resource, const Surface& s,
+            uint8_t scale, int16_t& width, int16_t& height);
 
   void close() { input_ = nullptr; }
 
@@ -64,18 +40,12 @@ class PngDecoder {
   Palette palette_;
 };
 
-template <typename Resource>
 class PngImage : public Drawable {
  public:
-  template <typename... Args>
-  PngImage(PngDecoder& decoder, Args&&... args)
-      : PngImage(Resource(std::forward<Args>(args)...), decoder) {}
-
-  PngImage(Resource resource, PngDecoder& decoder)
-      : decoder_(decoder),
-        resource_(std::move(resource)),
-        width_(-1),
-        height_(-1) {}
+  PngImage(PngDecoder& decoder, roo_io::MultipassResource& resource)
+      : decoder_(decoder), resource_(resource) {
+    decoder_.getDimensions(resource_, width_, height_);
+  }
 
   Box extents() const override {
     if (width_ < 0 || height_ < 0) {
@@ -93,11 +63,26 @@ class PngImage : public Drawable {
 
   PngDecoder& decoder_;
 
-  Resource resource_;
+  roo_io::MultipassResource& resource_;
   mutable int16_t width_;
   mutable int16_t height_;
 };
 
-using PngFile = PngImage<roo_io::ArduinoFileResource>;
+class PngFile : public Drawable {
+ public:
+  PngFile(PngDecoder& decoder, ::fs::FS& fs, String path)
+      : resource_(fs, path.c_str()), img_(decoder, resource_) {}
+
+  PngFile(PngDecoder& decoder, roo_io::Filesystem& fs, String path)
+      : resource_(fs, path.c_str()), img_(decoder, resource_) {}
+
+  Box extents() const override { return img_.extents(); }
+
+ private:
+  void drawTo(const Surface& s) const override { s.drawObject(img_); }
+
+  roo_io::ExtendedArduinoFileResource resource_;
+  PngImage img_;
+};
 
 }  // namespace roo_display

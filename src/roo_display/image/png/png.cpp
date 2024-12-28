@@ -35,7 +35,9 @@ void png_draw(PNGDRAW *pDraw) {
   User &user = *((User *)pDraw->pUser);
   const Surface *surface = user.surface;
   int16_t y = pDraw->y;
-  if (y < surface->clip_box().yMin() || y > surface->clip_box().yMax()) return;
+  if (y + surface->dy() < surface->clip_box().yMin() ||
+      y + surface->dy() > surface->clip_box().yMax())
+    return;
   Box box(0, y, pDraw->iWidth - 1, y);
   surface->out().begin();
   switch (pDraw->iPixelType) {

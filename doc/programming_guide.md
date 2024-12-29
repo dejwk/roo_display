@@ -1404,14 +1404,15 @@ void loop() {
 
 ![img22](images/img22.png)
 
-You can also draw JPEG images stored inline in PROGMEM:
+You can also draw JPEG images stored inline in PROGMEM, or coming from any other source represented by an instance of `roo_io::MultipassResource`:
 
 ```cpp
-static const uint8_t roo[] PROGMEM = { /* bytes */ };
+static const unsigned char data[] PROGMEM = { /* bytes */ };
 
 void loop() {
   JpegDecoder decoder;
-  JpegImage<ProgMemResource> roo(decoder, roo, roo + sizeof(roo));
+  roo_io::MemoryResource<roo_io::byte* PROGMEM> resource((const roo_io::byte* PROGMEM)data, (const roo_io::byte* PROGMEM)data + sizeof(data));
+  JpegImage img(decoder, resource);
   // ...
 }
 ```

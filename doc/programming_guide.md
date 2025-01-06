@@ -1411,7 +1411,9 @@ static const unsigned char data[] PROGMEM = { /* bytes */ };
 
 void loop() {
   JpegDecoder decoder;
-  roo_io::MemoryResource<roo_io::byte* PROGMEM> resource((const roo_io::byte* PROGMEM)data, (const roo_io::byte* PROGMEM)data + sizeof(data));
+  roo_io::MemoryResource<roo_io::byte* PROGMEM> resource(
+      (const roo_io::byte* PROGMEM)data,
+      (const roo_io::byte* PROGMEM)data + sizeof(data));
   JpegImage img(decoder, resource);
   // ...
 }
@@ -1470,7 +1472,7 @@ void loop() {
 
 ![img23](images/img23.png)
 
-Similarly to JPEGs, you can draw PNGs from arbitrary sources, not only filesystems - by using the templated `PngImage` class.
+Similarly to JPEGs, you can draw PNGs from arbitrary sources, not only filesystems - by using the `PngImage` class.
 
 `PngDecoder` is based on the [PNGdec](https://github.com/bitbank2/PNGdec) library by Larry Bank, covered by Apache License 2.0.
 

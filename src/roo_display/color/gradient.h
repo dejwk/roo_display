@@ -159,8 +159,8 @@ inline LinearGradient VerticalGradient(int16_t x0, float dx,
   return LinearGradient({x0, 0}, dx, 0, gradient, extents);
 }
 
-// Creates a vertical gradient, in which the color value depends solely on the y
-// coordinate:
+// Creates a horizontal gradient, in which the color value depends solely on the
+// y coordinate:
 //
 // val = (y - y0) * dy
 inline LinearGradient HorizontalGradient(int16_t y0, float dy,

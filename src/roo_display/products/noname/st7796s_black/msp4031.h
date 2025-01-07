@@ -103,7 +103,8 @@ class Msp4031 : public ComboDevice {
   TouchDevice* touch() override { return &touch_; }
 
   TouchCalibration touch_calibration() override {
-    return TouchCalibration(0, 0, 319, 479, roo_display::Orientation::RightDown());
+    return TouchCalibration(0, 0, 319, 479,
+                            roo_display::Orientation::RightDown());
   }
 
  private:

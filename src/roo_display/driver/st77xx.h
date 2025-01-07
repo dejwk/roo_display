@@ -36,7 +36,8 @@ enum MadCtl {
 
 template <typename Transport, typename Initializer, int16_t display_width,
           int16_t display_height, int16_t lpad = 0, int16_t tpad = 0,
-          int16_t rpad = lpad, int16_t bpad = tpad, bool inverted = false>
+          int16_t rpad = lpad, int16_t bpad = tpad, bool inverted = false,
+          bool bgr = false, bool hflipped = false>
 class St77xxTarget {
  public:
   typedef Rgb565 ColorMode;
@@ -77,15 +78,17 @@ class St77xxTarget {
   }
 
   void setOrientation(Orientation orientation) {
-    uint8_t d = RGB | (orientation.isXYswapped() ? MV : 0) |
-                (orientation.isTopToBottom() ? 0 : MY) |
-                (orientation.isLeftToRight() ? 0 : MX);
+    bool is_xy_swapped = orientation.isXYswapped();
+    bool is_top_to_bottom = orientation.isTopToBottom();
+    bool is_left_to_right = orientation.isLeftToRight() ^ hflipped;
+    uint8_t d = (bgr ? BGR : RGB) | (is_xy_swapped ? MV : 0) |
+                (is_top_to_bottom ? 0 : MY) | (is_left_to_right ? 0 : MX);
     writeCommand(MADCTL);
     transport_.write(d);
-    int16_t xoffset = orientation.isLeftToRight() ? lpad : rpad;
-    int16_t yoffset = orientation.isTopToBottom() ? tpad : bpad;
-    x_offset_ = orientation.isXYswapped() ? yoffset : xoffset;
-    y_offset_ = orientation.isXYswapped() ? xoffset : yoffset;
+    int16_t xoffset = is_left_to_right ? lpad : rpad;
+    int16_t yoffset = is_top_to_bottom ? tpad : bpad;
+    x_offset_ = is_xy_swapped ? yoffset : xoffset;
+    y_offset_ = is_xy_swapped ? xoffset : yoffset;
   }
 
   void setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)

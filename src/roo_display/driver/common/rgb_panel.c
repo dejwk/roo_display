@@ -4,6 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "roo_display/driver/common/rgb_panel.h"
+
+#if defined(ESP32) && (CONFIG_IDF_TARGET_ESP32S3)
+
+#include "esp_idf_version.h"
+
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 1, 0)
+
 // #define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 
 #include <stdlib.h>
@@ -18,7 +26,6 @@
 #include "esp_check.h"
 #include "esp_pm.h"
 #include "esp_lcd_panel_interface.h"
-#include "esp_lcd_panel_rgb.h"
 #include "esp_lcd_panel_ops.h"
 #include "esp_rom_gpio.h"
 #include "soc/soc_caps.h"
@@ -561,3 +568,6 @@ esp_err_t esp_lcd_rgb_panel_get_frame_buffer(esp_lcd_panel_handle_t panel, uint3
     va_end(args);
     return ESP_OK;
 }
+
+#endif
+#endif

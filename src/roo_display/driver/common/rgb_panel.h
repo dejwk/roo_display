@@ -10,6 +10,7 @@
 #include "esp_lcd_types.h"
 #include "soc/soc_caps.h"
 #include "hal/lcd_types.h"
+#include "esp_lcd_panel_ops.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -124,7 +125,13 @@ esp_err_t esp_lcd_new_rgb_panel(const esp_lcd_rgb_panel_config_t *rgb_panel_conf
 
 #endif // SOC_LCD_RGB_SUPPORTED
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 esp_err_t esp_lcd_rgb_panel_get_frame_buffer(esp_lcd_panel_handle_t panel, uint32_t fb_num, void **fb0, ...);
+#ifdef __cplusplus
+}
+#endif
 
 #ifdef __cplusplus
 }

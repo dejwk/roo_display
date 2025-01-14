@@ -147,6 +147,7 @@ class Orientation {
         return rotateLeft();
       default:
         assert(false);
+        return *this;
     }
   }
 

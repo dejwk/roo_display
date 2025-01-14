@@ -44,9 +44,11 @@ class BasicTouchDevice : public TouchDevice {
 
  private:
   TouchResult pushResult(TouchPoint* points, int max_points) {
-    memcpy(points, &touch_points_,
-           std::min(points_touched_, std::min(max_points, max_touch_points)) *
-               sizeof(TouchPoint));
+    size_t point_count =
+        std::min(points_touched_, std::min(max_points, max_touch_points));
+    for (size_t i = 0; i < point_count; ++i) {
+      points[i] = touch_points_[i];
+    }
     return TouchResult(detection_timestamp_, points_touched_);
   }
 

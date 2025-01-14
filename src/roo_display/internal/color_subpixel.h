@@ -121,7 +121,7 @@ struct SubPixelColorHelper<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST, 2> {
     return (uint8_t)((source >> (index << 2)) & roo_io::byte{0x0F});
   }
   roo_io::byte RawToFullByte(uint8_t raw_color) {
-    return roo_io::byte{raw_color * 0x11};
+    return (roo_io::byte)(raw_color * 0x11);
   }
   inline void ReadSubPixelColorBulk(const ColorMode &mode, roo_io::byte in,
                                     Color *result) const {
@@ -141,7 +141,7 @@ struct SubPixelColorHelper<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST, 2> {
     return (uint8_t)((source >> ((1 - index) << 2)) & roo_io::byte{0x0F});
   }
   roo_io::byte RawToFullByte(uint8_t raw_color) {
-    return roo_io::byte{raw_color * 0x11};
+    return (roo_io::byte)(raw_color * 0x11);
   }
   inline void ReadSubPixelColorBulk(const ColorMode &mode, roo_io::byte in,
                                     Color *result) const {
@@ -162,7 +162,7 @@ struct SubPixelColorHelper<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST, 4> {
     return (uint8_t)((source >> (index << 1)) & roo_io::byte{0x03});
   }
   roo_io::byte RawToFullByte(uint8_t raw_color) {
-    return roo_io::byte{raw_color * 0x55};
+    return (roo_io::byte)(raw_color * 0x55);
   }
   inline void ReadSubPixelColorBulk(const ColorMode &mode, roo_io::byte in,
                                     Color *result) const {
@@ -184,7 +184,7 @@ struct SubPixelColorHelper<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST, 4> {
     return (uint8_t)((source >> ((3 - index) << 1)) & roo_io::byte{0x03});
   }
   roo_io::byte RawToFullByte(uint8_t raw_color) {
-    return roo_io::byte{raw_color * 0x55};
+    return (roo_io::byte)(raw_color * 0x55);
   }
   inline void ReadSubPixelColorBulk(const ColorMode &mode, roo_io::byte in,
                                     Color *result) const {

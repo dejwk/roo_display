@@ -1456,16 +1456,16 @@ void FillSubrectOfArc(const SmoothShape::Arc& arc, const ArcDrawSpec& spec,
           outline_active != color::Transparent) {
         spec.out->fillRect(spec.blending_mode, box,
                            spec.pre_blended_outline_active);
-        return;
       }
+      return;
     }
     case OUTLINE_INACTIVE: {
       if (spec.fill_mode == FILL_MODE_RECTANGLE ||
           outline_inactive != color::Transparent) {
         spec.out->fillRect(spec.blending_mode, box,
                            spec.pre_blended_outline_inactive);
-        return;
       }
+      return;
     }
     default:
       break;

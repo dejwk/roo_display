@@ -32,7 +32,7 @@ constexpr esp32s3_dma::Config kTftConfig = {.width = 800,
                                             .vsync_front_porch = 22,
                                             .vsync_polarity = 0,
                                             .pclk_active_neg = 1,
-                                            .prefer_speed = 16000000,
+                                            .prefer_speed = -1,
 
                                             .r0 = 45,
                                             .r1 = 48,
@@ -56,22 +56,20 @@ constexpr esp32s3_dma::Config kTftConfig = {.width = 800,
 class Esp32s3ParallelIpsCapacitive70 : public ComboDevice {
  public:
   Esp32s3ParallelIpsCapacitive70(Orientation orientation = Orientation(),
-                                 decltype(Wire)& wire = Wire,
+                                 decltype(Wire) & wire = Wire,
                                  int pwm_channel = 1)
       : spi_(HSPI), wire_(wire), display_(kTftConfig), touch_(wire, -1, 38) {
     display_.setOrientation(orientation);
     digitalWrite(10, LOW);
   }
 
-  void initTransport() {
-    wire_.begin(17, 18);
-  }
+  void initTransport() { wire_.begin(17, 18); }
 
   DisplayDevice& display() override { return display_; }
 
   TouchDevice* touch() override { return &touch_; }
 
-  decltype(SPI)& spi() { return spi_; }
+  decltype(SPI) & spi() { return spi_; }
   constexpr int8_t sd_cs() const { return 10; }
 
   TouchCalibration touch_calibration() override {
@@ -80,12 +78,12 @@ class Esp32s3ParallelIpsCapacitive70 : public ComboDevice {
 
  private:
   decltype(SPI) spi_;
-  decltype(Wire)& wire_;
-  roo_display::esp32s3_dma::ParallelRgb565Buffered display_;
+  decltype(Wire) & wire_;
+  // roo_display::esp32s3_dma::ParallelRgb565Buffered display_;
   // LAZY is much faster (up to 2x!) but unfortunately causes display tearing;
   // the update rate seems too fast for ESP32-S3.
-  // roo_display::esp32s3_dma::ParallelRgb565<esp32s3_dma::FLUSH_MODE_LAZY>
-  // display_;
+  roo_display::esp32s3_dma::ParallelRgb565<esp32s3_dma::FLUSH_MODE_LAZY>
+      display_;
   // roo_display::esp32s3_dma::ParallelRgb565<esp32s3_dma::FLUSH_MODE_AGGRESSIVE>
   // display_;
   roo_display::TouchGt911 touch_;

@@ -548,8 +548,6 @@ IRAM_ATTR static void lcd_default_isr_handler(void *args)
     }
 }
 
-#endif // SOC_LCDCAM_SUPPORTED
-
 esp_err_t esp_lcd_rgb_panel_get_frame_buffer(esp_lcd_panel_handle_t panel, uint32_t fb_num, void **fb0, ...)
 {
     ESP_RETURN_ON_FALSE(panel, ESP_ERR_INVALID_ARG, TAG, "invalid argument");
@@ -568,6 +566,8 @@ esp_err_t esp_lcd_rgb_panel_get_frame_buffer(esp_lcd_panel_handle_t panel, uint3
     va_end(args);
     return ESP_OK;
 }
+
+#endif // SOC_LCDCAM_SUPPORTED
 
 #endif
 #endif

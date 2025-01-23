@@ -61,7 +61,7 @@ class Esp32s3ParallelIpsCapacitive43 : public ComboDevice {
         wire_(wire),
         display_(kTftConfig),
         touch_(wire, -1, 38),
-        backlit_(2, pwm_channel) {
+        backlit_(2) {
     display_.setOrientation(orientation);
   }
 

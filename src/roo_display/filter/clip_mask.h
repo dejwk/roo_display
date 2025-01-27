@@ -4,7 +4,7 @@
 
 #include "roo_display/core/buffered_drawing.h"
 #include "roo_display/core/device.h"
-#include "roo_io/base/byte.h"
+#include "roo_backport/byte.h"
 
 namespace roo_display {
 
@@ -17,7 +17,7 @@ namespace roo_display {
 // when some low-res framebuf is used under the clip mask.
 class ClipMask {
  public:
-  ClipMask(const roo_io::byte* data, Box bounds)
+  ClipMask(const roo::byte* data, Box bounds)
       : data_(data),
         bounds_(std::move(bounds)),
         inverted_(false),
@@ -25,12 +25,12 @@ class ClipMask {
 
   // Deprecated, use the constructor accepting the byte buffer.
   template <typename U = uint8_t,
-            typename std::enable_if<!std::is_same<U, roo_io::byte>::value,
+            typename std::enable_if<!std::is_same<U, roo::byte>::value,
                                     int>::type = 0>
   ClipMask(const U* data, Box bounds)
-      : ClipMask((const roo_io::byte*)data, bounds) {}
+      : ClipMask((const roo::byte*)data, bounds) {}
 
-  const roo_io::byte* data() const { return data_; }
+  const roo::byte* data() const { return data_; }
   const Box& bounds() const { return bounds_; }
   bool inverted() const { return inverted_; }
 
@@ -40,17 +40,17 @@ class ClipMask {
     y -= bounds_.yMin();
     uint32_t byte_offset = x / 8 + y * line_width_bytes_;
     uint32_t pixel_index = x % 8;
-    roo_io::byte b = data_[byte_offset];
-    return (bool)(b & (roo_io::byte{0x80} >> pixel_index)) ^ inverted_;
+    roo::byte b = data_[byte_offset];
+    return (bool)(b & (roo::byte{0x80} >> pixel_index)) ^ inverted_;
   }
 
-  inline bool isAllMasked(int16_t x, int16_t y, roo_io::byte mask,
+  inline bool isAllMasked(int16_t x, int16_t y, roo::byte mask,
                           uint8_t lines) const {
     return inverted_ ? isAllUnset(x, y, mask, ~lines)
                      : isAllSet(x, y, mask, lines);
   }
 
-  inline bool isAllUnmasked(int16_t x, int16_t y, roo_io::byte mask,
+  inline bool isAllUnmasked(int16_t x, int16_t y, roo::byte mask,
                             uint8_t lines) const {
     return inverted_ ? isAllSet(x, y, mask, ~lines)
                      : isAllUnset(x, y, mask, lines);
@@ -59,9 +59,9 @@ class ClipMask {
   void setInverted(bool inverted) { inverted_ = inverted; }
 
  private:
-  inline bool isAllSet(int16_t x, int16_t y, roo_io::byte mask,
+  inline bool isAllSet(int16_t x, int16_t y, roo::byte mask,
                        uint8_t lines) const {
-    const roo_io::byte* ptr = data_ + (x - bounds_.xMin()) / 8 +
+    const roo::byte* ptr = data_ + (x - bounds_.xMin()) / 8 +
                               (y - bounds_.yMin()) * line_width_bytes_;
     while (lines-- > 0) {
       if ((*ptr & mask) != mask) return false;
@@ -70,18 +70,18 @@ class ClipMask {
     return true;
   }
 
-  inline bool isAllUnset(int16_t x, int16_t y, roo_io::byte mask,
+  inline bool isAllUnset(int16_t x, int16_t y, roo::byte mask,
                          uint8_t lines) const {
-    const roo_io::byte* ptr = data_ + (x - bounds_.xMin()) / 8 +
+    const roo::byte* ptr = data_ + (x - bounds_.xMin()) / 8 +
                               (y - bounds_.yMin()) * line_width_bytes_;
     while (lines-- > 0) {
-      if ((*ptr & mask) != roo_io::byte{0}) return false;
+      if ((*ptr & mask) != roo::byte{0}) return false;
       ptr += line_width_bytes_;
     }
     return true;
   }
 
-  const roo_io::byte* data_;
+  const roo::byte* data_;
 
   Box bounds_;
 
@@ -248,9 +248,9 @@ class ClipMaskFilter : public DisplayOutput {
       uint8_t xshift = (x0 - bounds.xMin()) % 8;
       for (int16_t xc0 = x0; xc0 <= x1;) {
         int16_t xc1 = xc0 - xshift + 7;
-        roo_io::byte mask = roo_io::byte{0xFF} >> xshift;
+        roo::byte mask = roo::byte{0xFF} >> xshift;
         if (xc1 > x1) {
-          mask &= (roo_io::byte{0xFF} << (xc1 - x1));
+          mask &= (roo::byte{0xFF} << (xc1 - x1));
           xc1 = x1;
         }
         if (!clip_mask_->isAllMasked(xc0, yc0, mask, lines)) {

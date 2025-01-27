@@ -21,10 +21,10 @@ namespace roo_display {
 
 // Trivial, byte-order-respecting, raw color reader, returning storage_type.
 template <ByteOrder byte_order>
-uint32_t read_bytes(const roo_io::byte* p, int count);
+uint32_t read_bytes(const roo::byte* p, int count);
 
 template <>
-uint32_t read_bytes<roo_io::kBigEndian>(const roo_io::byte* p, int count) {
+uint32_t read_bytes<roo_io::kBigEndian>(const roo::byte* p, int count) {
   uint32_t result = 0;
   while (count-- > 0) {
     result <<= 8;
@@ -34,7 +34,7 @@ uint32_t read_bytes<roo_io::kBigEndian>(const roo_io::byte* p, int count) {
 }
 
 template <>
-uint32_t read_bytes<roo_io::kLittleEndian>(const roo_io::byte* p, int count) {
+uint32_t read_bytes<roo_io::kLittleEndian>(const roo::byte* p, int count) {
   uint32_t result = 0;
   p += count - 1;
   while (count-- > 0) {
@@ -51,20 +51,20 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           bool sub_pixel = (ColorTraits<ColorMode>::pixels_per_byte > 1)>
 class RawColorReader {
  public:
-  RawColorReader(const roo_io::byte* data, Box extents, ColorMode color_mode)
+  RawColorReader(const roo::byte* data, Box extents, ColorMode color_mode)
       : color_mode_(color_mode), data_(data), extents_(extents) {}
 
   Color get(int16_t x, int16_t y) const {
     int size = ColorMode::bits_per_pixel / 8;
     uint32_t offset =
         (x - extents_.xMin() + (y - extents_.yMin()) * extents_.width());
-    const roo_io::byte* ptr = data_ + (offset * size);
+    const roo::byte* ptr = data_ + (offset * size);
     return color_mode_.toArgbColor(read_bytes<byte_order>(ptr, size));
   }
 
  private:
   ColorMode color_mode_;
-  const roo_io::byte* data_;
+  const roo::byte* data_;
   Box extents_;
 };
 
@@ -73,7 +73,7 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
 class RawColorReader<ColorMode, pixel_order, byte_order, uint8_t, 1,
                      pixels_per_byte, true> {
  public:
-  RawColorReader(const roo_io::byte* data, Box extents, ColorMode color_mode,
+  RawColorReader(const roo::byte* data, Box extents, ColorMode color_mode,
                  int pixel_index = 0)
       : color_mode_(color_mode),
         data_(data),
@@ -92,7 +92,7 @@ class RawColorReader<ColorMode, pixel_order, byte_order, uint8_t, 1,
 
  private:
   ColorMode color_mode_;
-  const roo_io::byte* data_;
+  const roo::byte* data_;
   Box extents_;
   int pixel_index_;
 };
@@ -162,7 +162,7 @@ class RawColorRect : public Streamable {
  public:
   typedef RawColorReader<ColorMode, pixel_order, byte_order> Reader;
 
-  RawColorRect(int16_t width, int16_t height, const roo_io::byte* data,
+  RawColorRect(int16_t width, int16_t height, const roo::byte* data,
                const ColorMode& color_mode = ColorMode())
       : extents_(Box(0, 0, width - 1, height - 1)),
         data_(data),
@@ -189,7 +189,7 @@ class RawColorRect : public Streamable {
 
  private:
   Box extents_;
-  const roo_io::byte* data_;
+  const roo::byte* data_;
   ColorMode color_mode_;
 };
 
@@ -281,13 +281,13 @@ class WriterTester {
         width_(width),
         height_(height),
         actual_(
-            new roo_io::byte[(width * height * ColorMode::bits_per_pixel + 7) /
+            new roo::byte[(width * height * ColorMode::bits_per_pixel + 7) /
                              8]),
         expected_(new Color[width * height]) {
     Color bg = color_mode_.toArgbColor(0);
     for (int32_t i = 0;
          i < (width * height * ColorMode::bits_per_pixel + 7) / 8; ++i)
-      actual_[i] = roo_io::byte{0};
+      actual_[i] = roo::byte{0};
     for (int32_t i = 0; i < width * height; ++i) expected_[i] = bg;
   }
 
@@ -343,7 +343,7 @@ class WriterTester {
   ColorMode color_mode_;
   int16_t width_;
   int16_t height_;
-  std::unique_ptr<roo_io::byte[]> actual_;
+  std::unique_ptr<roo::byte[]> actual_;
   std::unique_ptr<Color[]> expected_;
 };
 
@@ -657,7 +657,7 @@ class OffscreenDeviceForTest
 
   OffscreenDeviceForTest(int16_t width, int16_t height, Color bg)
       : Base(width, height,
-             new roo_io::byte[(ColorMode::bits_per_pixel * width * height + 7) /
+             new roo::byte[(ColorMode::bits_per_pixel * width * height + 7) /
              8], ColorMode()) {
     Base::fillRect(0, 0, width - 1, height - 1, bg);
   }

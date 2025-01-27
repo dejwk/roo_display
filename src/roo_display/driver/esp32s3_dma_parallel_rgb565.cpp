@@ -34,7 +34,7 @@ namespace roo_display {
 
 namespace esp32s3_dma {
 
-roo_io::byte* AllocateBuffer(const Config &config) {
+roo::byte* AllocateBuffer(const Config &config) {
   esp_lcd_rgb_panel_config_t *cfg =
       (esp_lcd_rgb_panel_config_t *)heap_caps_calloc(
           1, sizeof(esp_lcd_rgb_panel_config_t),
@@ -138,14 +138,14 @@ roo_io::byte* AllocateBuffer(const Config &config) {
   ESP_ERROR_CHECK(esp_lcd_panel_reset(handle));
   ESP_ERROR_CHECK(esp_lcd_panel_init(handle));
 
-  roo_io::byte *buf;
+  roo::byte *buf;
   esp_lcd_rgb_panel_get_frame_buffer(handle, 1, (void **)&buf);
   return buf;
 }
 
 template <>
 void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::init() {
-  roo_io::byte *buffer = AllocateBuffer(cfg_);
+  roo::byte *buffer = AllocateBuffer(cfg_);
   buffer_.reset(new Dev(cfg_.width, cfg_.height, buffer,
                         ::roo_display::internal::Rgb565Dma()));
   buffer_->setOrientation(orientation());
@@ -228,7 +228,7 @@ inline FlushRange ResolveFlushRangeForRects(const Config &cfg,
 
 template <>
 void ParallelRgb565<FLUSH_MODE_BUFFERED>::init() {
-  roo_io::byte *buffer = AllocateBuffer(cfg_);
+  roo::byte *buffer = AllocateBuffer(cfg_);
   buffer_.reset(new Dev(cfg_.width, cfg_.height, buffer, Rgb565()));
   buffer_->setOrientation(orientation());
 }
@@ -325,7 +325,7 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillRects(BlendingMode mode,
 
 template <>
 void ParallelRgb565<FLUSH_MODE_LAZY>::init() {
-  roo_io::byte *buffer = AllocateBuffer(cfg_);
+  roo::byte *buffer = AllocateBuffer(cfg_);
   buffer_.reset(new Dev(cfg_.width, cfg_.height, buffer, Rgb565()));
   buffer_->setOrientation(orientation());
 }

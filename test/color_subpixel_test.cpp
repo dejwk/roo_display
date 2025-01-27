@@ -19,21 +19,21 @@ TEST(Color, MonochromeLsb) {
   Color bg(0xF1311F3A);
   Monochrome mode(fg, bg);
   SubPixelColorHelper<Monochrome, COLOR_PIXEL_ORDER_LSB_FIRST> subpixel;
-  EXPECT_EQ(roo_io::byte{0xFF}, subpixel.RawToFullByte(1));
-  EXPECT_EQ(roo_io::byte{0x00}, subpixel.RawToFullByte(0));
-  roo_io::byte target{0};
+  EXPECT_EQ(roo::byte{0xFF}, subpixel.RawToFullByte(1));
+  EXPECT_EQ(roo::byte{0x00}, subpixel.RawToFullByte(0));
+  roo::byte target{0};
   subpixel.applySubPixelColor(1, &target, 0);
-  EXPECT_EQ(roo_io::byte{0x01}, target);
+  EXPECT_EQ(roo::byte{0x01}, target);
   subpixel.applySubPixelColor(1, &target, 6);
-  EXPECT_EQ(roo_io::byte{0x41}, target);
+  EXPECT_EQ(roo::byte{0x41}, target);
   subpixel.applySubPixelColor(0, &target, 0);
-  EXPECT_EQ(roo_io::byte{0x40}, target);
+  EXPECT_EQ(roo::byte{0x40}, target);
   EXPECT_EQ(1, subpixel.ReadSubPixelColor(target, 6));
   EXPECT_EQ(0, subpixel.ReadSubPixelColor(target, 0));
 
   Color expected[] = {fg, bg, bg, bg, bg, bg, fg, bg};
   Color actual[8];
-  subpixel.ReadSubPixelColorBulk(mode, roo_io::byte{0x41}, actual);
+  subpixel.ReadSubPixelColorBulk(mode, roo::byte{0x41}, actual);
   for (int i = 0; i < 8; ++i) {
     EXPECT_EQ(expected[i], actual[i]);
   }
@@ -44,21 +44,21 @@ TEST(Color, MonochromeMsb) {
   Color bg(0xF1311F3A);
   Monochrome mode(fg, bg);
   SubPixelColorHelper<Monochrome, COLOR_PIXEL_ORDER_MSB_FIRST> subpixel;
-  EXPECT_EQ(roo_io::byte{0xFF}, subpixel.RawToFullByte(1));
-  EXPECT_EQ(roo_io::byte{0x00}, subpixel.RawToFullByte(0));
-  roo_io::byte target{0};
+  EXPECT_EQ(roo::byte{0xFF}, subpixel.RawToFullByte(1));
+  EXPECT_EQ(roo::byte{0x00}, subpixel.RawToFullByte(0));
+  roo::byte target{0};
   subpixel.applySubPixelColor(1, &target, 0);
-  EXPECT_EQ(roo_io::byte{0x80}, target);
+  EXPECT_EQ(roo::byte{0x80}, target);
   subpixel.applySubPixelColor(1, &target, 6);
-  EXPECT_EQ(roo_io::byte{0x82}, target);
+  EXPECT_EQ(roo::byte{0x82}, target);
   subpixel.applySubPixelColor(0, &target, 0);
-  EXPECT_EQ(roo_io::byte{0x02}, target);
+  EXPECT_EQ(roo::byte{0x02}, target);
   EXPECT_EQ(1, subpixel.ReadSubPixelColor(target, 6));
   EXPECT_EQ(0, subpixel.ReadSubPixelColor(target, 0));
 
   Color expected[] = {fg, bg, bg, bg, bg, bg, fg, bg};
   Color actual[8];
-  subpixel.ReadSubPixelColorBulk(mode, roo_io::byte{0x82}, actual);
+  subpixel.ReadSubPixelColorBulk(mode, roo::byte{0x82}, actual);
   for (int i = 0; i < 8; ++i) {
     EXPECT_EQ(expected[i], actual[i]);
   }
@@ -67,21 +67,21 @@ TEST(Color, MonochromeMsb) {
 TEST(Color, Alpha4Lsb) {
   Alpha4 mode(color::Black);
   SubPixelColorHelper<Alpha4, COLOR_PIXEL_ORDER_LSB_FIRST> subpixel;
-  EXPECT_EQ(roo_io::byte{0xCC}, subpixel.RawToFullByte(0x0C));
-  EXPECT_EQ(roo_io::byte{0x11}, subpixel.RawToFullByte(0x01));
-  roo_io::byte target{0};
+  EXPECT_EQ(roo::byte{0xCC}, subpixel.RawToFullByte(0x0C));
+  EXPECT_EQ(roo::byte{0x11}, subpixel.RawToFullByte(0x01));
+  roo::byte target{0};
   subpixel.applySubPixelColor(0x0E, &target, 0);
-  EXPECT_EQ(roo_io::byte{0x0E}, target);
+  EXPECT_EQ(roo::byte{0x0E}, target);
   subpixel.applySubPixelColor(0x02, &target, 1);
-  EXPECT_EQ(roo_io::byte{0x2E}, target);
+  EXPECT_EQ(roo::byte{0x2E}, target);
   subpixel.applySubPixelColor(0x05, &target, 0);
-  EXPECT_EQ(roo_io::byte{0x25}, target);
+  EXPECT_EQ(roo::byte{0x25}, target);
   EXPECT_EQ(0x02, subpixel.ReadSubPixelColor(target, 1));
   EXPECT_EQ(0x05, subpixel.ReadSubPixelColor(target, 0));
 
   Color expected[] = {0xEE000000, 0x44000000};
   Color actual[2];
-  subpixel.ReadSubPixelColorBulk(mode, roo_io::byte{0x4E}, actual);
+  subpixel.ReadSubPixelColorBulk(mode, roo::byte{0x4E}, actual);
   for (int i = 0; i < 2; ++i) {
     EXPECT_EQ(expected[i], actual[i]);
   }
@@ -90,21 +90,21 @@ TEST(Color, Alpha4Lsb) {
 TEST(Color, Alpha4Msb) {
   Alpha4 mode(color::Black);
   SubPixelColorHelper<Alpha4, COLOR_PIXEL_ORDER_MSB_FIRST> subpixel;
-  EXPECT_EQ(roo_io::byte{0xCC}, subpixel.RawToFullByte(0x0C));
-  EXPECT_EQ(roo_io::byte{0x11}, subpixel.RawToFullByte(0x01));
-  roo_io::byte target{0};
+  EXPECT_EQ(roo::byte{0xCC}, subpixel.RawToFullByte(0x0C));
+  EXPECT_EQ(roo::byte{0x11}, subpixel.RawToFullByte(0x01));
+  roo::byte target{0};
   subpixel.applySubPixelColor(0x0E, &target, 0);
-  EXPECT_EQ(roo_io::byte{0xE0}, target);
+  EXPECT_EQ(roo::byte{0xE0}, target);
   subpixel.applySubPixelColor(0x02, &target, 1);
-  EXPECT_EQ(roo_io::byte{0xE2}, target);
+  EXPECT_EQ(roo::byte{0xE2}, target);
   subpixel.applySubPixelColor(0x05, &target, 0);
-  EXPECT_EQ(roo_io::byte{0x52}, target);
+  EXPECT_EQ(roo::byte{0x52}, target);
   EXPECT_EQ(0x02, subpixel.ReadSubPixelColor(target, 1));
   EXPECT_EQ(0x05, subpixel.ReadSubPixelColor(target, 0));
 
   Color expected[] = {0x44000000, 0xEE000000};
   Color actual[2];
-  subpixel.ReadSubPixelColorBulk(mode, roo_io::byte{0x4E}, actual);
+  subpixel.ReadSubPixelColorBulk(mode, roo::byte{0x4E}, actual);
   for (int i = 0; i < 2; ++i) {
     EXPECT_EQ(expected[i], actual[i]);
   }

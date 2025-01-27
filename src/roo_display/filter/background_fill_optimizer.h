@@ -3,7 +3,7 @@
 #include "roo_display/core/buffered_drawing.h"
 #include "roo_display/core/device.h"
 #include "roo_display/internal/nibble_rect.h"
-#include "roo_io/base/byte.h"
+#include "roo_backport/byte.h"
 
 namespace roo_display {
 
@@ -75,7 +75,7 @@ class BackgroundFillOptimizer : public DisplayOutput {
     // for the purpose of byte buffer size calculations).
     // Before the framebuffer is used, its palette should be initialized by
     // calling setPalette().
-    FrameBuffer(int16_t width, int16_t height, roo_io::byte* buffer);
+    FrameBuffer(int16_t width, int16_t height, roo::byte* buffer);
 
     // Makes this framebuffer use the specified palette. The palette size
     // is expected to be <= 15.
@@ -107,7 +107,7 @@ class BackgroundFillOptimizer : public DisplayOutput {
     friend class BackgroundFillOptimizer;
     friend class BackgroundFillOptimizerDevice;
 
-    FrameBuffer(int16_t width, int16_t height, roo_io::byte* buffer,
+    FrameBuffer(int16_t width, int16_t height, roo::byte* buffer,
                 bool owns_buffer);
 
     void prefilled(uint8_t idx_in_palette);
@@ -116,7 +116,7 @@ class BackgroundFillOptimizer : public DisplayOutput {
     Color palette_[15];
     uint8_t palette_size_;
     bool swap_xy_;
-    std::unique_ptr<roo_io::byte[]> owned_buffer_;
+    std::unique_ptr<roo::byte[]> owned_buffer_;
   };
 
   // Creates the instance of a background fill optimizer filter, delegating to

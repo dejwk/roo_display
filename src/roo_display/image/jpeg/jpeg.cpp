@@ -2,7 +2,7 @@
 
 #include "roo_display.h"
 #include "roo_display/core/raster.h"
-#include "roo_io/base/byte.h"
+#include "roo_backport/byte.h"
 
 namespace roo_display {
 
@@ -26,7 +26,7 @@ JpegDecoder::JpegDecoder()
 size_t jpeg_read(JDEC* jdec, uint8_t* buf, size_t size) {
   JpegDecoder* decoder = (JpegDecoder*)jdec->device;
   if (buf != nullptr) {
-    return decoder->input_->read((roo_io::byte*)buf, size);
+    return decoder->input_->read((roo::byte*)buf, size);
   } else {
     decoder->input_->skip(size);
     return size;
@@ -41,7 +41,7 @@ int jpeg_draw_rect(JDEC* jdec, void* data, JRECT* rect) {
     return 0;
   }
   Box box(rect->left, rect->top, rect->right, rect->bottom);
-  ConstDramRaster<Rgb888> raster(box, (const roo_io::byte*)data);
+  ConstDramRaster<Rgb888> raster(box, (const roo::byte*)data);
   {
     ResumeOutput resume(surface->out());
     surface->drawObject(raster);

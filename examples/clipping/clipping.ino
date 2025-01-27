@@ -36,7 +36,7 @@ struct Emulator {
 #include "roo_display/shape/basic.h"
 #include "roo_display/ui/text_label.h"
 #include "roo_fonts/NotoSerif_Italic/90.h"
-#include "roo_io/base/string_view.h"
+#include "roo_backport/string_view.h"
 
 using namespace roo_display;
 
@@ -178,7 +178,7 @@ void pieChart() {
 // Note: graphic primitives are small objects, and it's quite OK to pass them
 // by value, particularly that the compiler can optimize most copying away.
 TileOf<StringViewLabel> centeredStringViewLabel(
-    roo_io::string_view content, Color color, Color bgcolor = color::Transparent) {
+    roo::string_view content, Color color, Color bgcolor = color::Transparent) {
   return MakeTileOf(StringViewLabel(content, font_NotoSerif_Italic_90(), color),
                     display.extents(), kCenter | kMiddle, bgcolor);
 }

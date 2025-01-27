@@ -26,17 +26,17 @@ inline uint8_t getIdxInPalette(Color color, const Color* palette,
 BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height)
     : FrameBuffer(
           width, height,
-          new roo_io::byte[FrameBuffer::SizeForDimensions(width, height)],
+          new roo::byte[FrameBuffer::SizeForDimensions(width, height)],
           true) {
   invalidate();
 }
 
 BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height,
-                                                  roo_io::byte* buffer)
+                                                  roo::byte* buffer)
     : FrameBuffer(width, height, buffer, false) {}
 
 BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height,
-                                                  roo_io::byte* buffer,
+                                                  roo::byte* buffer,
                                                   bool owns_buffer)
     : background_mask_(
           buffer, ((((width - 1) / kBgFillOptimizerWindowSize + 1) + 1) / 2),

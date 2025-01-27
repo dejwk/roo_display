@@ -13,7 +13,7 @@ namespace roo_display {
 
 int32_t png_read(PNGFILE *pFile, uint8_t *pBuf, int32_t iLen) {
   PngDecoder *decoder = (PngDecoder *)pFile->fHandle;
-  return decoder->input_->read((roo_io::byte *)pBuf, iLen);
+  return decoder->input_->read((roo::byte *)pBuf, iLen);
 }
 
 int32_t png_seek(PNGFILE *pFile, int32_t iPosition) {
@@ -45,24 +45,24 @@ void png_draw(PNGDRAW *pDraw) {
   switch (pDraw->iPixelType) {
     case PNG_PIXEL_TRUECOLOR_ALPHA: {
       ConstDramRaster<Rgba8888> raster(box,
-                                       (const roo_io::byte *)pDraw->pPixels);
+                                       (const roo::byte *)pDraw->pPixels);
       surface->drawObject(raster);
       break;
     }
     case PNG_PIXEL_TRUECOLOR: {
-      ConstDramRaster<Rgb888> raster(box, (const roo_io::byte *)pDraw->pPixels);
+      ConstDramRaster<Rgb888> raster(box, (const roo::byte *)pDraw->pPixels);
       surface->drawObject(raster);
       break;
     }
     case PNG_PIXEL_GRAYSCALE: {
       ConstDramRaster<Grayscale8> raster(box,
-                                         (const roo_io::byte *)pDraw->pPixels);
+                                         (const roo::byte *)pDraw->pPixels);
       surface->drawObject(raster);
       break;
     }
     case PNG_PIXEL_GRAY_ALPHA: {
       ConstDramRaster<GrayAlpha8> raster(box,
-                                         (const roo_io::byte *)pDraw->pPixels);
+                                         (const roo::byte *)pDraw->pPixels);
       surface->drawObject(raster);
       break;
     }
@@ -70,28 +70,28 @@ void png_draw(PNGDRAW *pDraw) {
       switch (pDraw->iBpp) {
         case 8: {
           ConstDramRaster<Indexed8> raster(box,
-                                           (const roo_io::byte *)pDraw->pPixels,
+                                           (const roo::byte *)pDraw->pPixels,
                                            Indexed8(user.palette));
           surface->drawObject(raster);
           break;
         }
         case 4: {
           ConstDramRaster<Indexed4> raster(box,
-                                           (const roo_io::byte *)pDraw->pPixels,
+                                           (const roo::byte *)pDraw->pPixels,
                                            Indexed4(user.palette));
           surface->drawObject(raster);
           break;
         }
         case 2: {
           ConstDramRaster<Indexed2> raster(box,
-                                           (const roo_io::byte *)pDraw->pPixels,
+                                           (const roo::byte *)pDraw->pPixels,
                                            Indexed2(user.palette));
           surface->drawObject(raster);
           break;
         }
         case 1: {
           ConstDramRaster<Indexed1> raster(box,
-                                           (const roo_io::byte *)pDraw->pPixels,
+                                           (const roo::byte *)pDraw->pPixels,
                                            Indexed1(user.palette));
           surface->drawObject(raster);
           break;

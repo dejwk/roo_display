@@ -13,11 +13,11 @@ namespace internal {
 // Rectangular nibble (half-byte) area.
 class NibbleRect {
  public:
-  NibbleRect(roo_io::byte* buffer, int16_t width_bytes, int16_t height)
+  NibbleRect(roo::byte* buffer, int16_t width_bytes, int16_t height)
       : buffer_(buffer), width_bytes_(width_bytes), height_(height) {}
 
-  roo_io::byte* buffer() { return buffer_; }
-  const roo_io::byte* buffer() const { return buffer_; }
+  roo::byte* buffer() { return buffer_; }
+  const roo::byte* buffer() const { return buffer_; }
   int16_t width_bytes() const { return width_bytes_; }
   int16_t width() const { return width_bytes_ * 2; }
   int16_t height() const { return height_; }
@@ -28,13 +28,13 @@ class NibbleRect {
   }
 
   void set(int16_t x, int16_t y, uint8_t value) {
-    roo_io::byte& b = buffer_[x / 2 + y * width_bytes()];
+    roo::byte& b = buffer_[x / 2 + y * width_bytes()];
     if (x % 2 == 0) {
-      b &= roo_io::byte{0x0F};
-      b |= (roo_io::byte)(value << 4);
+      b &= roo::byte{0x0F};
+      b |= (roo::byte)(value << 4);
     } else {
-      b &= roo_io::byte{0xF0};
-      b |= (roo_io::byte)value;
+      b &= roo::byte{0xF0};
+      b |= (roo::byte)value;
     }
   }
 
@@ -42,19 +42,19 @@ class NibbleRect {
   void fillRect(const Box& rect, uint8_t value) {
     if (rect.xMin() == 0 && rect.xMax() == width() - 1) {
       roo_io::NibbleFill(buffer_, rect.yMin() * width(),
-                         rect.height() * width(), (roo_io::byte)value);
+                         rect.height() * width(), (roo::byte)value);
     } else {
       int16_t w = rect.width();
       uint32_t offset = rect.xMin() + rect.yMin() * width();
       for (int16_t i = rect.height(); i > 0; --i) {
-        roo_io::NibbleFill(buffer_, offset, w, (roo_io::byte)value);
+        roo_io::NibbleFill(buffer_, offset, w, (roo::byte)value);
         offset += width();
       }
     }
   }
 
  private:
-  roo_io::byte* buffer_;
+  roo::byte* buffer_;
   int16_t width_bytes_;
   int16_t height_;
 };
@@ -87,7 +87,7 @@ class NibbleRectWindowIterator {
   }
 
  private:
-  const roo_io::byte* ptr_;
+  const roo::byte* ptr_;
   uint8_t nibble_idx_;
   int16_t x_;
   const int16_t width_;

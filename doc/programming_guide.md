@@ -1411,9 +1411,9 @@ static const unsigned char data[] PROGMEM = { /* bytes */ };
 
 void loop() {
   JpegDecoder decoder;
-  roo_io::MemoryResource<roo_io::byte* PROGMEM> resource(
-      (const roo_io::byte* PROGMEM)data,
-      (const roo_io::byte* PROGMEM)data + sizeof(data));
+  roo_io::MemoryResource<roo::byte* PROGMEM> resource(
+      (const roo::byte* PROGMEM)data,
+      (const roo::byte* PROGMEM)data + sizeof(data));
   JpegImage img(decoder, resource);
   // ...
 }

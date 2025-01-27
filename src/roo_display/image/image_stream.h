@@ -50,9 +50,9 @@ template <typename StreamType>
 uint32_t read_varint(StreamType& in, uint32_t result) {
   while (true) {
     result <<= 7;
-    roo_io::byte datum = in.read();
-    result |= (uint8_t)(datum & roo_io::byte{0x7F});
-    if ((datum & roo_io::byte{0x80}) == roo_io::byte{0}) return result;
+    roo::byte datum = in.read();
+    result |= (uint8_t)(datum & roo::byte{0x7F});
+    if ((datum & roo::byte{0x80}) == roo::byte{0}) return result;
   }
 }
 
@@ -92,12 +92,12 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, false>
   Color next() {
     if (remaining_items_ == 0) {
       // No remaining items; need to decode the next group.
-      roo_io::byte data = input_.read();
-      run_ = ((data & roo_io::byte{0x80}) != roo_io::byte{0});
-      if ((data & roo_io::byte{0x40}) == roo_io::byte{0}) {
-        remaining_items_ = (int)(data & roo_io::byte{0x3F}) + 1;
+      roo::byte data = input_.read();
+      run_ = ((data & roo::byte{0x80}) != roo::byte{0});
+      if ((data & roo::byte{0x40}) == roo::byte{0}) {
+        remaining_items_ = (int)(data & roo::byte{0x3F}) + 1;
       } else {
-        remaining_items_ = read_varint(input_, (int)(data & roo_io::byte{0x3F})) + 1;
+        remaining_items_ = read_varint(input_, (int)(data & roo::byte{0x3F})) + 1;
       }
       if (run_) {
         run_value_ = read_color();
@@ -324,7 +324,7 @@ class NibbleReader {
   uint8_t next() {
     if (half_byte_) {
       half_byte_ = false;
-      return (uint8_t)(buffer_ & roo_io::byte{0x0F});
+      return (uint8_t)(buffer_ & roo::byte{0x0F});
     } else {
       buffer_ = input_.read();
       half_byte_ = true;
@@ -334,7 +334,7 @@ class NibbleReader {
 
  private:
   StreamType input_;
-  roo_io::byte buffer_;
+  roo::byte buffer_;
   bool half_byte_;
 };
 

@@ -86,7 +86,7 @@ class GenericSpi {
   void fill16be_async(uint16_t data, uint32_t len) {
     uint8_t buf[64];
     if (len >= 32) {
-      roo_io::PatternFill<2>((roo_io::byte*)buf, 32, (roo_io::byte*)&data);
+      roo_io::PatternFill<2>((roo::byte*)buf, 32, (roo::byte*)&data);
       while (len >= 32) {
         spi_.writeBytes(buf, 64);
         len -= 32;
@@ -94,15 +94,15 @@ class GenericSpi {
       spi_.writeBytes(buf, len * 2);
       return;
     }
-    roo_io::PatternFill<2>((roo_io::byte*)buf, len, (roo_io::byte*)&data);
+    roo_io::PatternFill<2>((roo::byte*)buf, len, (roo::byte*)&data);
     spi_.writeBytes(buf, len * 2);
   }
 
   void fill24be_async(uint32_t data, uint32_t len) {
     uint8_t buf[96];
     if (len >= 32) {
-      roo_io::PatternFill<3>((roo_io::byte*)buf, 32,
-                             ((roo_io::byte*)&data + 1));
+      roo_io::PatternFill<3>((roo::byte*)buf, 32,
+                             ((roo::byte*)&data + 1));
       while (len >= 32) {
         spi_.writeBytes(buf, 96);
         len -= 32;
@@ -110,7 +110,7 @@ class GenericSpi {
       spi_.writeBytes(buf, len * 3);
       return;
     }
-    roo_io::PatternFill<3>((roo_io::byte*)buf, len, ((roo_io::byte*)&data + 1));
+    roo_io::PatternFill<3>((roo::byte*)buf, len, ((roo::byte*)&data + 1));
     spi_.writeBytes(buf, len * 3);
   }
 

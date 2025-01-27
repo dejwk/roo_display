@@ -165,17 +165,17 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           typename storage_type = ColorStorageType<ColorMode>>
 struct Reader {
-  storage_type operator()(const roo_io::byte* p, uint32_t offset) const {
+  storage_type operator()(const roo::byte* p, uint32_t offset) const {
     SubPixelColorHelper<ColorMode, pixel_order> subpixel;
     int pixel_index = offset % pixels_per_byte;
-    const roo_io::byte* target = p + offset / pixels_per_byte;
+    const roo::byte* target = p + offset / pixels_per_byte;
     return subpixel.ReadSubPixelColor(*target, pixel_index);
   }
 };
 
 template <typename RawType, int bits_per_pixel, ByteOrder byte_order>
 struct ConstRawReader {
-  RawType operator()(const roo_io::byte* ptr, uint32_t offset) const {
+  RawType operator()(const roo::byte* ptr, uint32_t offset) const {
     return roo_io::LoadInteger<byte_order, RawType>(ptr +
                                                     offset * sizeof(RawType));
   }
@@ -183,7 +183,7 @@ struct ConstRawReader {
 
 template <>
 struct ConstRawReader<uint32_t, 24, roo_io::kBigEndian> {
-  uint32_t operator()(const roo_io::byte* ptr, uint32_t offset) const {
+  uint32_t operator()(const roo::byte* ptr, uint32_t offset) const {
     ptr += 3 * offset;
     return roo_io::LoadBeU24(ptr);
   }
@@ -191,7 +191,7 @@ struct ConstRawReader<uint32_t, 24, roo_io::kBigEndian> {
 
 template <>
 struct ConstRawReader<uint32_t, 24, roo_io::kLittleEndian> {
-  uint32_t operator()(const roo_io::byte* ptr, uint32_t offset) const {
+  uint32_t operator()(const roo::byte* ptr, uint32_t offset) const {
     ptr += 3 * offset;
     return roo_io::LoadLeU24(ptr);
   }
@@ -201,7 +201,7 @@ struct ConstRawReader<uint32_t, 24, roo_io::kLittleEndian> {
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           typename storage_type>
 struct Reader<ColorMode, pixel_order, byte_order, 1, storage_type> {
-  storage_type operator()(const roo_io::byte* p, uint32_t offset) const {
+  storage_type operator()(const roo::byte* p, uint32_t offset) const {
     ConstRawReader<ColorStorageType<ColorMode>, ColorMode::bits_per_pixel,
                    byte_order>
         read;
@@ -217,7 +217,7 @@ struct PtrTypeResolver {
 // To accommodate legacy generated raster definitions using uint8_t explicitly.
 template <>
 struct PtrTypeResolver<const uint8_t*> {
-  using PtrType = const roo_io::byte*;
+  using PtrType = const roo::byte*;
 };
 
 }  // namespace internal
@@ -343,57 +343,57 @@ class Raster : public Rasterizable {
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = roo_io::kBigEndian>
-using DramRaster = Raster<roo_io::byte*, ColorMode, pixel_order, byte_order>;
+using DramRaster = Raster<roo::byte*, ColorMode, pixel_order, byte_order>;
 
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = roo_io::kBigEndian>
 using ConstDramRaster =
-    Raster<const roo_io::byte*, ColorMode, pixel_order, byte_order>;
+    Raster<const roo::byte*, ColorMode, pixel_order, byte_order>;
 
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = roo_io::kBigEndian>
 using ProgMemRaster =
-    Raster<const roo_io::byte * PROGMEM, ColorMode, pixel_order, byte_order>;
+    Raster<const roo::byte * PROGMEM, ColorMode, pixel_order, byte_order>;
 
 template <typename ColorMode>
-using DramRasterBE = Raster<roo_io::byte*, ColorMode,
+using DramRasterBE = Raster<roo::byte*, ColorMode,
                             COLOR_PIXEL_ORDER_MSB_FIRST, roo_io::kBigEndian>;
 
 template <typename ColorMode>
-using DramRasterLE = Raster<roo_io::byte*, ColorMode,
+using DramRasterLE = Raster<roo::byte*, ColorMode,
                             COLOR_PIXEL_ORDER_MSB_FIRST, roo_io::kLittleEndian>;
 
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = roo_io::kBigEndian>
 using ConstDramRaster =
-    Raster<const roo_io::byte*, ColorMode, pixel_order, byte_order>;
+    Raster<const roo::byte*, ColorMode, pixel_order, byte_order>;
 
 template <typename ColorMode>
 using ConstDramRasterBE =
-    Raster<const roo_io::byte*, ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST,
+    Raster<const roo::byte*, ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST,
            roo_io::kBigEndian>;
 
 template <typename ColorMode>
 using ConstDramRasterLE =
-    Raster<const roo_io::byte*, ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST,
+    Raster<const roo::byte*, ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST,
            roo_io::kLittleEndian>;
 
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = roo_io::kBigEndian>
 using ProgMemRaster =
-    Raster<const roo_io::byte * PROGMEM, ColorMode, pixel_order, byte_order>;
+    Raster<const roo::byte * PROGMEM, ColorMode, pixel_order, byte_order>;
 
 template <typename ColorMode>
-using ProgMemRasterBE = Raster<const roo_io::byte PROGMEM*, ColorMode,
+using ProgMemRasterBE = Raster<const roo::byte PROGMEM*, ColorMode,
                                COLOR_PIXEL_ORDER_MSB_FIRST, roo_io::kBigEndian>;
 
 template <typename ColorMode>
 using ProgMemRasterLE =
-    Raster<const roo_io::byte PROGMEM*, ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST,
+    Raster<const roo::byte PROGMEM*, ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST,
            roo_io::kLittleEndian>;
 
 }  // namespace roo_display

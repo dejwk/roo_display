@@ -4,7 +4,7 @@
 #include "roo_display.h"
 #include "roo_display/color/color.h"
 #include "roo_display/core/offscreen.h"
-#include "roo_io/base/byte.h"
+#include "roo_backport/byte.h"
 #include "testing.h"
 #include "testing_display_device.h"
 
@@ -14,7 +14,7 @@ namespace roo_display {
 namespace internal {
 
 TEST(NibbleRect, Basics) {
-  roo_io::byte buffer[40];
+  roo::byte buffer[40];
   memset(buffer, 0, 40);
   ConstDramRaster<Grayscale4> raster(10, 8, buffer);
   NibbleRect nibble_rect(buffer, 5, 8);
@@ -24,7 +24,7 @@ TEST(NibbleRect, Basics) {
 }
 
 TEST(NibbleRect, SetGet) {
-  roo_io::byte buffer[40];
+  roo::byte buffer[40];
   memset(buffer, 0, 40);
   ConstDramRaster<Grayscale4> raster(10, 8, buffer);
   NibbleRect nibble_rect(buffer, 5, 8);
@@ -58,7 +58,7 @@ TEST(NibbleRect, SetGet) {
 }
 
 TEST(NibbleRect, FillRect) {
-  roo_io::byte buffer[40];
+  roo::byte buffer[40];
   memset(buffer, 0, 40);
   ConstDramRaster<Grayscale4> raster(10, 8, buffer);
   NibbleRect nibble_rect(buffer, 5, 8);
@@ -125,7 +125,7 @@ class NibbleRectWindowStreamable {
 };
 
 TEST(NibbleRect, WindowIteratorFull) {
-  roo_io::byte buffer[40];
+  roo::byte buffer[40];
   memset(buffer, 0, 40);
   NibbleRect nibble_rect(buffer, 5, 8);
   initNibbleRect(&nibble_rect,
@@ -150,7 +150,7 @@ TEST(NibbleRect, WindowIteratorFull) {
 }
 
 TEST(NibbleRect, WindowIteratorTopLeftOffset) {
-  roo_io::byte buffer[40];
+  roo::byte buffer[40];
   memset(buffer, 0, 40);
   NibbleRect nibble_rect(buffer, 5, 8);
   initNibbleRect(&nibble_rect,
@@ -173,7 +173,7 @@ TEST(NibbleRect, WindowIteratorTopLeftOffset) {
 }
 
 TEST(NibbleRect, WindowIteratorMiddle) {
-  roo_io::byte buffer[40];
+  roo::byte buffer[40];
   memset(buffer, 0, 40);
   NibbleRect nibble_rect(buffer, 5, 8);
   initNibbleRect(&nibble_rect,
@@ -193,7 +193,7 @@ TEST(NibbleRect, WindowIteratorMiddle) {
 }
 
 TEST(NibbleRect, WindowIteratorSinglePixel) {
-  roo_io::byte buffer[40];
+  roo::byte buffer[40];
   memset(buffer, 0, 40);
   NibbleRect nibble_rect(buffer, 5, 8);
   initNibbleRect(&nibble_rect,

@@ -60,7 +60,7 @@ Box alignExtents(Box extents) {
 
 }  // namespace
 
-BitMaskOffscreen::BitMaskOffscreen(Box extents, roo_io::byte *buffer)
+BitMaskOffscreen::BitMaskOffscreen(Box extents, roo::byte *buffer)
     : Offscreen(alignExtents(extents), buffer,
                 Monochrome(color::Black, color::Transparent)) {
   set_extents(extents);

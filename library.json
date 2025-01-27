@@ -44,6 +44,7 @@
         "FS": ">0",
         "SPI": ">0",
         "Wire": ">0",
+        "dejwk/roo_backport": ">=0",
         "dejwk/roo_io": ">=1.1.0",
         "dejwk/roo_io_arduino": ">=1.0.0",
         "dejwk/roo_collections": ">=1.1.4"

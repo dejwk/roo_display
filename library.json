@@ -28,7 +28,7 @@
         "type": "git",
         "url": "https://github.com/dejwk/roo_display"
     },
-    "version": "2.0.0",
+    "version": "2.1.0",
     "homepage": "https://github.com/dejwk/roo_display",
     "frameworks": [
         "Arduino"
@@ -45,8 +45,8 @@
         "SPI": ">0",
         "Wire": ">0",
         "dejwk/roo_backport": ">=0",
-        "dejwk/roo_io": ">=1.1.0",
+        "dejwk/roo_io": ">=1.2.0",
         "dejwk/roo_io_arduino": ">=1.0.0",
-        "dejwk/roo_collections": ">=1.1.4"
+        "dejwk/roo_collections": ">=1.1.6"
     }
 }

@@ -1,6 +1,12 @@
 #include "font_adafruit_fixed_5x7.h"
 
+#ifdef __AVR__
+#include <avr/pgmspace.h>
+#elif defined(ESP8266) || defined(ESP32)
 #include <pgmspace.h>
+#else
+#define pgm_read_byte(addr) (*(const unsigned char *)(addr))
+#endif
 
 #include "roo_display/core/buffered_drawing.h"
 #include "roo_io/text/unicode.h"

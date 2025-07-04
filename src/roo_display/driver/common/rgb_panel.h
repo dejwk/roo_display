@@ -5,6 +5,8 @@
  */
 #pragma once
 
+#ifdef ESP32
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -131,4 +133,6 @@ esp_err_t esp_lcd_rgb_panel_get_frame_buffer(esp_lcd_panel_handle_t panel, uint3
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif

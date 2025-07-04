@@ -13,13 +13,6 @@
 #include "roo_display/touch/calibration.h"
 #include "roo_display/ui/alignment.h"
 
-#ifdef ARDUINO
-// PlatformIO depdendency scanning gets confused if this is not included in the
-// main file, causing compilation errors (header not found).
-#include <FS.h>
-#include <Wire.h>
-#endif
-
 namespace roo_display {
 
 class FrontToBackWriter;

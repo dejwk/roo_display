@@ -21,16 +21,21 @@ class LedcBacklit : public Backlit {
 
 #if (defined ESP_ARDUINO_VERSION_MAJOR) && (ESP_ARDUINO_VERSION_MAJOR >= 3)
     ledcAttach(pin_, 50000, 8);
+    ledcWrite(pin_, intensity);
 #else
     ledcSetup(channel_, 50000, 8);
     ledcAttachPin(pin_, channel_);
-#endif
     ledcWrite(channel_, intensity);
+#endif
   }
 
  public:
   void setIntensity(uint8_t intensity) override {
+#if (defined ESP_ARDUINO_VERSION_MAJOR) && (ESP_ARDUINO_VERSION_MAJOR >= 3)
+    ledcWrite(pin_, intensity);
+#else
     ledcWrite(channel_, intensity);
+#endif
   }
 
  private:

@@ -1,0 +1,2 @@
+build --registry="https://raw.githubusercontent.com/dejwk/roo-registry/main/"
+build --registry="https://bcr.bazel.build"

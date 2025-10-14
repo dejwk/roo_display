@@ -76,7 +76,7 @@ class Esp32s3ParallelIpsCapacitive43 : public ComboDevice {
   }
 
   decltype(SPI)& spi() { return spi_; }
-  constexpr int8_t sd_cs() const { return 16; }
+  constexpr int8_t sd_cs() const { return 10; }
 
   Backlit& backlit() { return backlit_; }
 

@@ -9,8 +9,8 @@
 #include "roo_io.h"
 #include "roo_io/core/multipass_input_stream.h"
 #include "roo_io/fs/filesystem.h"
-#include "roo_io_arduino.h"
-#include "roo_io_arduino/fs/arduino_file_resource.h"
+#include "roo_io.h"
+#include "roo_io/fs/arduino/file_resource.h"
 #include "roo_logging.h"
 
 namespace roo_display {

@@ -8,7 +8,7 @@
 #include "roo_display/color/color_modes.h"
 #include "roo_display/image/png/lib/PNGdec.h"
 #include "roo_io/core/multipass_input_stream.h"
-#include "roo_io_arduino/fs/arduino_file_resource.h"
+#include "roo_io/fs/arduino/file_resource.h"
 
 namespace roo_display {
 

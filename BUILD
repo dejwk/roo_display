@@ -17,7 +17,6 @@ cc_library(
         "@roo_backport",
         "@roo_collections",
         "@roo_io",
-        "@roo_io_arduino",
         "@roo_testing//:arduino",
         "@roo_testing//roo_testing/frameworks/arduino-esp32-2.0.4/libraries/FS",
         "@roo_testing//roo_testing/frameworks/arduino-esp32-2.0.4/libraries/Wire"
@@ -44,7 +43,6 @@ cc_library(
     deps = [
         "@roo_collections",
         "@roo_io",
-        "@roo_io_arduino",
         "@roo_testing//:arduino_gtest_main",
     ],
 )

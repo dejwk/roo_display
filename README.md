@@ -23,11 +23,11 @@
 
 ## Compatibility
 
-* Supported SPI display drivers: ILI9341, ILI9486, ILI9488, SSD1327, ST7735, ST7789;
+* Supported SPI display drivers: ILI9341, ILI9486, ILI9488, SSD1327, ST7735, ST7789, ST7796s;
 * ESP32S3 DMA parallel driver harness;
 * Adapter driver for TFT_eSPI-supported displays;
 * Supported touch drivers: XPT2046, FT6x36, GT911;
-* Supported integrated devices (microcontroller + touch display): LilyGo T-Display-S3, Makerfabs: 3.5in, ILI9488 SPI-based capacitive touch combo; 4.3in, parallel DMA-based capacitive touch combo.
+* Supported integrated devices (microcontroller + touch display): LilyGo T-Display-S3, Makerfabs: 3.5in, 4.3in, 5in, and 7in, ILI9488 SPI-based capacitive touch combo; 4.3in, parallel DMA-based capacitive touch combo.
 
 ## Gallery
 

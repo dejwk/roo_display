@@ -73,7 +73,7 @@ Display display(device);
 static const int16_t kBgWidth = 240;
 static const int16_t kBgHeight = 200;
 
-uint8_t background_buf[kBgWidth * kBgHeight * 2];
+roo::byte background_buf[kBgWidth * kBgHeight * 2];
 Offscreen<Rgb565> background(kBgWidth, kBgHeight, background_buf);
 
 void setup() {

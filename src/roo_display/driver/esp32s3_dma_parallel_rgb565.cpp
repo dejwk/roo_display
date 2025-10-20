@@ -74,8 +74,11 @@ roo::byte* AllocateBuffer(const Config &config) {
   cfg->timings.flags.pclk_idle_high = 0;
 
   cfg->data_width = 16;  // RGB565 in parallel mode.
+#ifdef LEGACY_RGBPANEL
+  // Deprecated.
   cfg->sram_trans_align = 8;
   cfg->psram_trans_align = 64;
+#endif
   cfg->hsync_gpio_num = config.hsync;
   cfg->vsync_gpio_num = config.vsync;
   cfg->de_gpio_num = config.de;

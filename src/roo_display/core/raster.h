@@ -347,6 +347,27 @@ class DramRaster
     : public Raster<roo::byte*, ColorMode, pixel_order, byte_order> {
  public:
   using Raster<roo::byte*, ColorMode, pixel_order, byte_order>::Raster;
+
+  DramRaster(int16_t width, int16_t height, uint8_t* ptr,
+             const ColorMode& color_mode = ColorMode())
+      : Raster<roo::byte*, ColorMode, pixel_order, byte_order>(
+            width, height, (roo::byte*)ptr, color_mode) {}
+
+  DramRaster(int16_t width, int16_t height, Box extents, uint8_t* ptr,
+             const ColorMode& color_mode = ColorMode())
+      : Raster<roo::byte*, ColorMode, pixel_order, byte_order>(
+            width, height, std::move(extents), (roo::byte*)ptr, color_mode) {}
+
+  DramRaster(Box extents, uint8_t* ptr,
+             const ColorMode& color_mode = ColorMode())
+      : Raster<roo::byte*, ColorMode, pixel_order, byte_order>(
+            std::move(extents), extents, (roo::byte*)ptr, color_mode) {}
+
+  DramRaster(Box extents, Box anchor_extents, uint8_t* ptr,
+             const ColorMode& color_mode = ColorMode())
+      : Raster<roo::byte*, ColorMode, pixel_order, byte_order>(
+            std::move(extents), std::move(anchor_extents), (roo::byte*)ptr,
+            color_mode) {}
 };
 
 template <typename ColorMode,
@@ -356,6 +377,28 @@ class ConstDramRaster
     : public Raster<const roo::byte*, ColorMode, pixel_order, byte_order> {
  public:
   using Raster<const roo::byte*, ColorMode, pixel_order, byte_order>::Raster;
+
+  ConstDramRaster(int16_t width, int16_t height, const uint8_t* ptr,
+                  const ColorMode& color_mode = ColorMode())
+      : Raster<const roo::byte*, ColorMode, pixel_order, byte_order>(
+            width, height, (const roo::byte*)ptr, color_mode) {}
+
+  ConstDramRaster(int16_t width, int16_t height, Box extents,
+                  const uint8_t* ptr, const ColorMode& color_mode = ColorMode())
+      : Raster<const roo::byte*, ColorMode, pixel_order, byte_order>(
+            width, height, std::move(extents), (const roo::byte*)ptr,
+            color_mode) {}
+
+  ConstDramRaster(Box extents, const uint8_t* ptr,
+                  const ColorMode& color_mode = ColorMode())
+      : Raster<const roo::byte*, ColorMode, pixel_order, byte_order>(
+            std::move(extents), extents, (const roo::byte*)ptr, color_mode) {}
+
+  ConstDramRaster(Box extents, Box anchor_extents, const uint8_t* ptr,
+                  const ColorMode& color_mode = ColorMode())
+      : Raster<const roo::byte*, ColorMode, pixel_order, byte_order>(
+            std::move(extents), std::move(anchor_extents),
+            (const roo::byte*)ptr, color_mode) {}
 };
 
 template <typename ColorMode,
@@ -366,6 +409,29 @@ class ProgMemRaster : public Raster<const roo::byte * PROGMEM, ColorMode,
  public:
   using Raster<const roo::byte * PROGMEM, ColorMode, pixel_order,
                byte_order>::Raster;
+
+  ProgMemRaster(int16_t width, int16_t height, const uint8_t* PROGMEM ptr,
+                const ColorMode& color_mode = ColorMode())
+      : Raster<const roo::byte * PROGMEM, ColorMode, pixel_order, byte_order>(
+            width, height, (const roo::byte*)ptr, color_mode) {}
+
+  ProgMemRaster(int16_t width, int16_t height, Box extents,
+                const uint8_t* PROGMEM ptr,
+                const ColorMode& color_mode = ColorMode())
+      : Raster<const roo::byte * PROGMEM, ColorMode, pixel_order, byte_order>(
+            width, height, std::move(extents), (const roo::byte*)ptr,
+            color_mode) {}
+
+  ProgMemRaster(Box extents, const uint8_t* PROGMEM ptr,
+                const ColorMode& color_mode = ColorMode())
+      : Raster<const roo::byte * PROGMEM, ColorMode, pixel_order, byte_order>(
+            std::move(extents), extents, (const roo::byte*)ptr, color_mode) {}
+
+  ProgMemRaster(Box extents, Box anchor_extents, const uint8_t* PROGMEM ptr,
+                const ColorMode& color_mode = ColorMode())
+      : Raster<const roo::byte * PROGMEM, ColorMode, pixel_order, byte_order>(
+            std::move(extents), std::move(anchor_extents),
+            (const roo::byte*)ptr, color_mode) {}
 };
 
 template <typename ColorMode>

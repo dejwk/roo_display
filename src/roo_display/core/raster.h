@@ -365,12 +365,6 @@ template <typename ColorMode>
 using DramRasterLE = Raster<roo::byte*, ColorMode,
                             COLOR_PIXEL_ORDER_MSB_FIRST, roo_io::kLittleEndian>;
 
-template <typename ColorMode,
-          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
-          ByteOrder byte_order = roo_io::kBigEndian>
-using ConstDramRaster =
-    Raster<const roo::byte*, ColorMode, pixel_order, byte_order>;
-
 template <typename ColorMode>
 using ConstDramRasterBE =
     Raster<const roo::byte*, ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST,
@@ -380,12 +374,6 @@ template <typename ColorMode>
 using ConstDramRasterLE =
     Raster<const roo::byte*, ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST,
            roo_io::kLittleEndian>;
-
-template <typename ColorMode,
-          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
-          ByteOrder byte_order = roo_io::kBigEndian>
-using ProgMemRaster =
-    Raster<const roo::byte * PROGMEM, ColorMode, pixel_order, byte_order>;
 
 template <typename ColorMode>
 using ProgMemRasterBE = Raster<const roo::byte PROGMEM*, ColorMode,

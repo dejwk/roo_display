@@ -343,19 +343,30 @@ class Raster : public Rasterizable {
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = roo_io::kBigEndian>
-using DramRaster = Raster<roo::byte*, ColorMode, pixel_order, byte_order>;
+class DramRaster
+    : public Raster<roo::byte*, ColorMode, pixel_order, byte_order> {
+ public:
+  using Raster<roo::byte*, ColorMode, pixel_order, byte_order>::Raster;
+};
 
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = roo_io::kBigEndian>
-using ConstDramRaster =
-    Raster<const roo::byte*, ColorMode, pixel_order, byte_order>;
+class ConstDramRaster
+    : public Raster<const roo::byte*, ColorMode, pixel_order, byte_order> {
+ public:
+  using Raster<const roo::byte*, ColorMode, pixel_order, byte_order>::Raster;
+};
 
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = roo_io::kBigEndian>
-using ProgMemRaster =
-    Raster<const roo::byte * PROGMEM, ColorMode, pixel_order, byte_order>;
+class ProgMemRaster : public Raster<const roo::byte * PROGMEM, ColorMode,
+                                    pixel_order, byte_order> {
+ public:
+  using Raster<const roo::byte * PROGMEM, ColorMode, pixel_order,
+               byte_order>::Raster;
+};
 
 template <typename ColorMode>
 using DramRasterBE =

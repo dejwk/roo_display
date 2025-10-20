@@ -28,34 +28,64 @@ TouchPoint ReadPoint(const uint8_t* data) {
 
 void TouchGt911::initTouch() { reset(); }
 
-TouchGt911::TouchGt911(decltype(Wire)& wire, int8_t pinIntr, int8_t pinRst)
+TouchGt911::TouchGt911(decltype(Wire)& wire, int8_t pinIntr, int8_t pinRst,
+                       long reset_low_hold_ms)
     : BasicTouchDevice<5>(Config{.min_sampling_interval_ms = 20,
                                  .touch_intertia_ms = 30,
                                  .smoothing_factor = 0.0}),
       addr_(kAddr1),
       pinIntr_(pinIntr),
       pinRst_(pinRst),
-      wire_(wire) {}
-
-void TouchGt911::reset() {
-  pinMode(pinIntr_, OUTPUT);
+      wire_(wire),
+      reset_low_hold_ms_(reset_low_hold_ms),
+      ready_(false) {
   pinMode(pinRst_, OUTPUT);
   digitalWrite(pinRst_, 0);
-  digitalWrite(pinIntr_, 0);
-  delay(10);
-  digitalWrite(pinIntr_, addr_ == kAddr2);
-  delay(1);
-  digitalWrite(pinRst_, 1);
-  delay(5);
-  digitalWrite(pinIntr_, 0);
-  // Note: the programming guide for 911 says that it is at least 50ms until the
-  // interrupts start working, and up to 100 ms before scan starts clocking, but
-  // it seems to be no need to block for that here - the worst that can happen
-  // is that the touch will not be detected for that initial period.
+  if (pinIntr_ >= 0) {
+    pinMode(pinIntr_, OUTPUT);
+    digitalWrite(pinIntr_, 0);
+  }
+}
+
+void TouchGt911::reset() {
+  if (reset_thread_.joinable()) {
+    return;
+  }
+  ready_ = false;
+  // Initialize the reset asynchronously to avoid blocking the main thread.
+  reset_thread_ = roo::thread([this]() {
+    if (pinIntr_ >= 0) {
+      digitalWrite(pinIntr_, 0);
+    }
+    digitalWrite(pinRst_, 0);
+    delay(reset_low_hold_ms_);
+    if (pinIntr_ >= 0) {
+      digitalWrite(pinIntr_, addr_ == kAddr2);
+      delay(1);
+    }
+    digitalWrite(pinRst_, 1);
+    if (pinIntr_ >= 0) {
+      delay(5);
+      digitalWrite(pinIntr_, 0);
+    }
+    // Note: the programming guide for 911 says that it is at least 50ms until
+    // the interrupts start working, and up to 100 ms before scan starts
+    // clocking.
+    delay(100);
+    ready_ = true;
+  });
 }
 
 int TouchGt911::readTouch(TouchPoint* points) {
-  uint8_t status = readByte(kTouchRead);
+  if (!ready_) return 0;
+  if (reset_thread_.joinable()) {
+    reset_thread_.join();
+  }
+  uint8_t status;
+  if (!readByte(kTouchRead, status)) {
+    reset();
+    return 0;
+  }
   uint8_t ready = (status & 0x80) != 0;
   // uint8_t have_key = (status & 0x10) != 0;
   if (!ready) return 0;
@@ -70,15 +100,16 @@ int TouchGt911::readTouch(TouchPoint* points) {
   return touches;
 }
 
-uint8_t TouchGt911::readByte(uint16_t reg) {
-  uint8_t x;
+bool TouchGt911::readByte(uint16_t reg, uint8_t& result) {
   wire_.beginTransmission(addr_);
   wire_.write(reg >> 8);
   wire_.write(reg & 0xFF);
-  wire_.endTransmission();
-  wire_.requestFrom(addr_, (uint8_t)1);
-  x = wire_.read();
-  return x;
+  if (wire_.endTransmission() != 0) {
+    return false;
+  }
+  if (wire_.requestFrom(addr_, (uint8_t)1) != 1) return false;
+  result = wire_.read();
+  return true;
 }
 
 void TouchGt911::writeByte(uint16_t reg, uint8_t val) {

@@ -56,10 +56,17 @@ constexpr esp32s3_dma::Config kTftConfig = {.width = 800,
 class Esp32s3ParallelIpsCapacitive70 : public ComboDevice {
  public:
   Esp32s3ParallelIpsCapacitive70(Orientation orientation = Orientation(),
-                                 decltype(Wire) & wire = Wire,
+                                 decltype(Wire)& wire = Wire,
                                  int pwm_channel = 1)
-      : spi_(HSPI), wire_(wire), display_(kTftConfig), touch_(wire, -1, 38) {
+      : spi_(HSPI),
+        wire_(wire),
+        display_(kTftConfig),
+        // Note: UART 'nack' errors have been observed when reset hold down time
+        // is below 300ms. This startup delay isn't very painful because the
+        // driver performs reset asynchronously.
+        touch_(wire, -1, 38, 300) {
     display_.setOrientation(orientation);
+    pinMode(10, OUTPUT);
     digitalWrite(10, LOW);
   }
 
@@ -69,7 +76,7 @@ class Esp32s3ParallelIpsCapacitive70 : public ComboDevice {
 
   TouchDevice* touch() override { return &touch_; }
 
-  decltype(SPI) & spi() { return spi_; }
+  decltype(SPI)& spi() { return spi_; }
   constexpr int8_t sd_cs() const { return 10; }
 
   TouchCalibration touch_calibration() override {
@@ -78,7 +85,7 @@ class Esp32s3ParallelIpsCapacitive70 : public ComboDevice {
 
  private:
   decltype(SPI) spi_;
-  decltype(Wire) & wire_;
+  decltype(Wire)& wire_;
   // roo_display::esp32s3_dma::ParallelRgb565Buffered display_;
   // LAZY is much faster (up to 2x!) but unfortunately causes display tearing;
   // the update rate seems too fast for ESP32-S3.

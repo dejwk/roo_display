@@ -127,7 +127,14 @@ void loop() {
     DrawingContext dc(
         display, Box(0, 0, display.width() - 1, display.height() / 2 + 14));
     dc.setFillMode(FILL_MODE_RECTANGLE);
-    dc.draw(StringViewLabel(time, timeFont, color::BlueViolet),
+    // Using tile to make sure that the entire 'anchor' extents are filled.
+    // Otherwise, only the bounding box of the drawn text would be filled,
+    // and those can differ for different digits, so e.g. '1' would leave
+    // unfilled pixels from previous digits.
+    // Anchor extents are always the same for all digits in the same font,
+    // so this technique works well for clocks.
+    auto label = StringViewLabel(time, timeFont, color::BlueViolet);
+    dc.draw(MakeTileOf(label, label.anchorExtents()),
             kCenter | kMiddle);  // draw Time
   }
   {
@@ -135,7 +142,9 @@ void loop() {
                                    display.width() - 1, display.height() - 1));
     dc.setBackgroundColor(color::BlueViolet);
     dc.setFillMode(FILL_MODE_RECTANGLE);
-    dc.draw(StringViewLabel(date, dateFont, color::BlanchedAlmond),
+    // See above.
+    auto label = StringViewLabel(date, dateFont, color::BlanchedAlmond);
+    dc.draw(MakeTileOf(label, label.anchorExtents()),
             kCenter | kMiddle);  // draw Date
   }
   delay(100);

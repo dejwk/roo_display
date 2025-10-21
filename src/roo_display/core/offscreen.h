@@ -257,6 +257,11 @@ class Offscreen : public Rasterizable {
             ColorMode color_mode = ColorMode())
       : Offscreen(Box(0, 0, width - 1, height - 1), buffer, color_mode) {}
 
+  // Convenience that accepts uint8_t* buffer.
+  Offscreen(int16_t width, int16_t height, uint8_t* buffer,
+            ColorMode color_mode = ColorMode())
+      : Offscreen(width, height, (roo::byte*)buffer, std::move(color_mode)) {}
+
   // Creates an offscreen device with specified geometry, using the
   // designated buffer. The buffer must have sufficient capacity, determined as
   // (width * height * ColorMode::bits_per_pixel + 7) / 8. The buffer is not
@@ -409,11 +414,19 @@ class BitMaskOffscreen : public Offscreen<Monochrome> {
   BitMaskOffscreen(int16_t width, int16_t height, roo::byte* buffer)
       : BitMaskOffscreen(Box(0, 0, width - 1, height - 1), buffer) {}
 
+  // Convenience that accepts uint8_t* buffer.
+  BitMaskOffscreen(int16_t width, int16_t height, uint8_t* buffer)
+      : BitMaskOffscreen(width, height, (roo::byte*)buffer) {}
+
   // Creates a bit map offscreen with the specified geometry, using the
   // designated buffer. The buffer must have sufficient capacity, determined as
   // ((width + 7) / 8) * height. The buffer is not modified; it can contain
   // pre-existing content.
   BitMaskOffscreen(Box extents, roo::byte* buffer);
+
+  // Convenience that accepts uint8_t* buffer.
+  BitMaskOffscreen(Box extents, uint8_t* buffer)
+      : BitMaskOffscreen(std::move(extents), (roo::byte*)buffer) {}
 
   // Creates an offscreen with specified geometry, using an internally
   // allocated buffer. The buffer is not pre-initialized; it contains random

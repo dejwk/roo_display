@@ -219,7 +219,7 @@ class ErasedDrawable : public Drawable {
  private:
   void drawTo(const Surface& s) const override {
     Surface news = s;
-    ColorFilter<Erasure> filter(s.out());
+    ColorFilter<Erasure> filter(s.out(), s.bgcolor());
     news.set_out(&filter);
     news.set_blending_mode(BLENDING_MODE_SOURCE);
     news.drawObject(*delegate_);

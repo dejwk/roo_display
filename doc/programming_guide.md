@@ -517,9 +517,9 @@ You can also specify a translucent background color. In this case, the actual ba
 ```cpp
 void setup() {
   // ...
-  int w = display.width();
-  int h = display.height();
   DrawingContext dc(display);
+  int w = dc.width();
+  int h = dc.height();
   dc.draw(FilledRect(0, h / 2, w - 1, h - 1, color::Khaki));
 }
 
@@ -535,7 +535,7 @@ void loop() {
   DrawingContext dc(display);
   dc.draw(tile);
   dc.setBackgroundColor(color::Khaki);
-  dc.draw(tile, 0, display.height() / 2);
+  dc.draw(tile, 0, dc.height() / 2);
   delay(10000);
 }
 ```
@@ -550,8 +550,8 @@ You can set a _clip box_ on a drawing context in order to constrain the drawn ar
 void loop() {
   const auto& font = font_NotoSerif_Italic_60();
   auto label = TextLabel("Hello!", font, color::Black);
-  int w = display.width();
-  int h = display.height();
+  int w = dc.width();
+  int h = dc.height();
   DrawingContext dc(display);
   dc.setClipBox(0, 0, w - 1, 179);
   dc.draw(FilledCircle::ByRadius(w / 2, 179, w / 2 - 20, color::Gold));
@@ -602,9 +602,9 @@ void setup() {
 void loop() {
   const auto& font = font_NotoSerif_Italic_60();
   auto label = TextLabel("Hello!", font, color::Black);
-  int w = display.width();
-  int h = display.height();
   DrawingContext dc(display);
+  int w = dc.width();
+  int h = dc.height();
   dc.setClipBox(0, 0, w - 1, 179);
   dc.draw(FilledCircle::ByRadius(w / 2, 179, w / 2 - 20, color::Gold));
   dc.setBackgroundColor(color::Gold);
@@ -804,8 +804,8 @@ void loop() {
   auto label = TextLabel("yeah.", font, color::Black);
   dc.setBackgroundColor(color::LightGray);
   dc.draw(FilledRect(label.extents(), color::LightGray), dx, dy);
-  dc.draw(Line(dx, 0, dx, display.height() - 1, color::Red));
-  dc.draw(Line(0, dy, display.width() - 1, dy, color::Red));
+  dc.draw(Line(dx, 0, dx, dc.height() - 1, color::Red));
+  dc.draw(Line(0, dy, dc.width() - 1, dy, color::Red));
   dc.draw(Rect(label.anchorExtents(), color::Blue), dx, dy);
 
   dc.draw(label, dx, dy);
@@ -832,9 +832,9 @@ void loop() {
   auto label = TextLabel("yeah.", font, color::Black);
   int dx = 10;
   int dy = 10;
-  int w = display.width();
-  int h = display.height();
   DrawingContext dc(display);
+  int w = dc.width();
+  int h = dc.height();
   dc.draw(Line(0, dy, w - 1, dy, color::Red));
   dc.draw(Line(0, h - dy - 1, w - 1, h - dy - 1, color::Red));
   dc.draw(Line(dx, 0, dx, h - 1, color::Red));
@@ -2004,7 +2004,7 @@ In fact, the library provides a convenience subclass `BitMaskOffscreen` to make 
 // ...
 
 // 320x60 pixels.
-uint8_t mask_data[320 * 60 / 8];
+roo::byte mask_data[320 * 60 / 8];
 
 void setup() {
   // ...
@@ -2025,9 +2025,9 @@ void setup() {
 void loop() {
   const auto& font = font_NotoSerif_Italic_60();
   auto label = TextLabel("Hello!", font, color::Black);
-  int w = display.width();
-  int h = display.height();
   DrawingContext dc(display);
+  int w = dc.width();
+  int h = dc.height();
   dc.setClipBox(0, 0, w - 1, 179);
   dc.draw(FilledCircle::ByRadius(w / 2, 179, w / 2 - 20, color::Gold));
   dc.setBackgroundColor(color::Gold);
@@ -2077,6 +2077,8 @@ void loop() {
   }
   DrawingContext dc(display);
   dc.draw(offscreen);
+
+  delay(10000);
 }
 ```
 
@@ -2119,7 +2121,7 @@ Let's look at a simple example of using a stretched raster as a gradient:
 /// ...
 
 // 1x240 Rgb565 pixels.
-uint8_t background_data[240 * 2];
+roo::byte background_data[240 * 2];
 
 void setup() {
   // ...
@@ -2258,7 +2260,7 @@ void loop() {
   auto centered = kMiddle | kCenter;
   {
     // Radial gradient.
-    DrawingContext dc(display, Box(0, 0, w / 2 - 1, h / 2 - 1));
+    DrawingContext dc(display, 0, 0, Box(0, 0, w / 2 - 1, h / 2 - 1));
     auto gradient = RadialGradientSq(
         {w / 4, h / 4}, ColorGradient({{0, HsvToRgb(60, 0.8, 0.99)},
                                        {50 * 50, HsvToRgb(0, 0.8, 0.95)},
@@ -2273,14 +2275,14 @@ void loop() {
     // Note that we're repeating the same color at both ends of the gradient,
     // to make the period equal to 120 degrees (2 * Pi / 3) and to smoothly
     // oscillate between red and yellow.
-    DrawingContext dc(display, Box(w / 2, 0, w - 1, h / 2 - 1));
+    DrawingContext dc(display, w / 2, 0, Box(0, 0, w / 2 - 1, h / 2 - 1));
     auto gradient =
-        AngularGradient({w * 3 / 4, h / 4},
+        AngularGradient({w / 4, h / 4},
                         ColorGradient({{0, HsvToRgb(60, 0.8, 0.95)},
                                        {M_PI / 3, HsvToRgb(0, 0.8, 0.99)},
                                        {M_PI / 1.5, HsvToRgb(60, 0.8, 0.95)}},
                                       ColorGradient::PERIODIC),
-                        Box(w / 2 + 20, 20, w - 21, h / 2 - 21));
+                        Box(20, 20, w / 2 - 21, h / 2 - 21));
     dc.setBackground(&gradient);
     dc.clear();
     dc.draw(TextLabel("&", font_NotoSerif_Italic_90(), color::Black),
@@ -2288,7 +2290,7 @@ void loop() {
   }
   {
     // Multi-node vertical gradient.
-    DrawingContext dc(display, Box(0, h / 2, w / 2 - 1, h - 1));
+    DrawingContext dc(display, 0, h / 2, Box(0, 0, w / 2 - 1, h / 2 - 1));
     float v = 0.9;
     float s = 0.7;
     auto gradient = VerticalGradient(10, 1,
@@ -2300,7 +2302,7 @@ void loop() {
                                                     {100, HsvToRgb(300, s, v)},
                                                     {120, HsvToRgb(360, s, v)}},
                                                    ColorGradient::PERIODIC),
-                                     Box(20, h / 2 + 20, w / 2 - 21, h - 21));
+                                     Box(20, 20, w / 2 - 21, h / 2 - 21));
     dc.setBackground(&gradient);
     dc.clear();
     dc.draw(TextLabel("&", font_NotoSerif_Italic_90(), color::Black),
@@ -2308,10 +2310,10 @@ void loop() {
   }
   {
     // Multi-node skewed linear gradient.
-    DrawingContext dc(display, Box(w / 2, h / 2, w - 1, h - 1));
+    DrawingContext dc(display, w / 2, h / 2, Box(0, 0, w / 2 - 1, h / 2 - 1));
     float v = 0.9;
     float s = 0.7;
-    auto gradient = LinearGradient({w / 2 + 10, h / 2 + 10}, 0.5, 0.3,
+    auto gradient = LinearGradient({10, 10}, 0.5, 0.3,
                                    ColorGradient({{0, HsvToRgb(0, s, v)},
                                                   {20, HsvToRgb(60, s, v)},
                                                   {40, HsvToRgb(120, s, v)},
@@ -2320,7 +2322,7 @@ void loop() {
                                                   {100, HsvToRgb(300, s, v)},
                                                   {120, HsvToRgb(360, s, v)}},
                                                  ColorGradient::PERIODIC),
-                                   Box(w / 2 + 20, h / 2 + 20, w - 21, h - 21));
+                                   Box(20, 20, w / 2 - 21, h / 2 - 21));
     dc.setBackground(&gradient);
     dc.clear();
     dc.draw(TextLabel("&", font_NotoSerif_Italic_90(), color::Black),
@@ -3048,9 +3050,10 @@ class PressAnimationOverlay : public Drawable {
   void drawTo(const Surface& s) const override {
     Surface my_s(s);
     my_s.set_bgcolor(AlphaBlend(s.bgcolor(), color::Purple.withA(0x20)));
-    auto circle = SmoothFilledCircle(
-        {xc_, yc_}, r_, color::Purple.withA(0x30));
-    ForegroundFilter fg(s.out(), &circle);
+    auto circle = SmoothFilledCircle({xc_, yc_}, r_, color::Purple.withA(0x30));
+    // By using the surface's offset, we ensure that the filter is positioned
+    // relative to the object being drawn.
+    ForegroundFilter fg(s.out(), &circle, s.dx(), s.dy());
     if (r_ != 0) {
       my_s.set_out(&fg);
     }
@@ -3063,12 +3066,12 @@ class PressAnimationOverlay : public Drawable {
 
 void loop() {
   auto tile = MakeTileOf(
-    TextLabel("Hello, World!", font_NotoSans_Bold_27(), color::Black),
-    Box(0, 0, 200, 50),
-    kCenter | kMiddle);
+      TextLabel("Hello, World!", font_NotoSans_Bold_27(), color::Black),
+      Box(0, 0, 200, 50), kCenter | kMiddle);
   PressAnimationOverlay overlaid(&tile);
   if ((millis() / 1000) % 2 == 0) {
-    overlaid.set(180, 120, (millis() % 1000) / 2);
+    // Center at (+120, +25) relative to the top-left corner of the rectangle.
+    overlaid.set(120, 25, (millis() % 1000) / 2);
   }
   DrawingContext dc(display);
   dc.setFillMode(FILL_MODE_RECTANGLE);
@@ -3085,7 +3088,7 @@ This technique can also be used to draw 'sprites':
 
 class JumpingPedroSpriteOverlay : public Drawable {
  public:
-  JumpingPedroSpriteOverlay(const Drawable *contents)
+  JumpingPedroSpriteOverlay(const Drawable* contents)
       : contents_(contents), xc_(0), yc_(0), jumping_(false) {}
 
   Box extents() const override { return contents_->extents(); }
@@ -3097,7 +3100,7 @@ class JumpingPedroSpriteOverlay : public Drawable {
   }
 
  private:
-  void drawTo(const Surface &s) const override {
+  void drawTo(const Surface& s) const override {
     static const uint8_t pedro_standing_data[] PROGMEM = {
         0x01, 0x00, 0x05, 0x40, 0x05, 0x40, 0x06, 0x40, 0x09, 0x80, 0x15,
         0x50, 0x15, 0x55, 0x6A, 0xAA, 0x95, 0x55, 0x5F, 0x34, 0x1F, 0xF0,
@@ -3123,12 +3126,12 @@ class JumpingPedroSpriteOverlay : public Drawable {
     auto pedro_scaled = MakeRasterizable(
         Box(0, 0, 8 * 4 - 1, 22 * 2 - 1),
         [&](int16_t x, int16_t y) { return pedro_raster.get(x / 4, y / 2); });
-    ForegroundFilter fg(s.out(), &pedro_scaled, xc_, yc_);
+    ForegroundFilter fg(s.out(), &pedro_scaled, xc_ + s.dx(), yc_ + s.dy());
     my_s.set_out(&fg);
     my_s.drawObject(*contents_);
   }
 
-  const Drawable *contents_;
+  const Drawable* contents_;
   int16_t xc_, yc_;
   bool jumping_;
 };
@@ -3143,7 +3146,7 @@ void setup() {
 void loop() {
   auto tile = MakeTileOf(
       TextLabel("Hello, World!", font_NotoSans_Bold_27(), color::SkyBlue),
-      display.extents(), kCenter | kMiddle);
+      dc.bounds(), kCenter | kMiddle);
   JumpingPedroSpriteOverlay overlaid(&tile);
   int y = 140;
   bool jumping = (millis() / 500) % 4 == 0;
@@ -3190,8 +3193,7 @@ Implementation-wise, the 'write-once' mode uses a clip-mask-based filter that in
 We now put together some of the techniques discussed so far, including: the write-once mode, clip masks, and smooth primitives, to write a complete analog gauge widget with a smoothly animated, anti-aliased needle:
 
 ```cpp
-#include "roo_display/ui/string_printer.h"
-
+#include "roo_io/text/string_printf.h"
 // ...
 
 static const float kRadius = 120;
@@ -3242,7 +3244,7 @@ class ValueIndicator : public Drawable {
   }
 
  private:
-  void drawTo(const Surface &s) const override {
+  void drawTo(const Surface& s) const override {
     Needle needle(value_);
     auto needle_shape = needle.getShape();
     DrawingContext dc(s);
@@ -3273,11 +3275,11 @@ class Scale : public Drawable {
   }
 
  private:
-  void drawTo(const Surface &s) const override {
+  void drawTo(const Surface& s) const override {
     Needle needle(value_);
     auto needle_shape = needle.getShape();
     Surface my_s = s;
-    ForegroundFilter filter(s.out(), &needle_shape);
+    ForegroundFilter filter(s.out(), &needle_shape, s.dx(), s.dy());
     my_s.set_out(&filter);
     DrawingContext dc(my_s);
     // Note: we expect my_s to be write-once.
@@ -3323,7 +3325,7 @@ class Gauge : public Drawable {
   }
 
  private:
-  void drawTo(const Surface &s) const override {
+  void drawTo(const Surface& s) const override {
     Box box = extents();
     if (full_redraw_) {
       s.drawObject(SmoothThickRoundRect(box.xMin() + 3, box.yMin() + 3,

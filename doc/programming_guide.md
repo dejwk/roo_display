@@ -401,6 +401,53 @@ void loop() {
 
 ![img8](images/img8.png)
 
+The example above has one caveat: the sub-pictures are still using the absolute screen coordinates. The alignment does its thing to position the content relative to the declared bounds, but if you tried to draw something without alignment, you would still need to use those full screen coordinates. Instead, it is often desirable to draw to a 'virtual canvas' as if it was a separate, smaller device, and 'forget' that it belongs to the larger, physical coordinate system.
+
+This can be achieved by additionally specifying the offset in the DrawingContext constructor. Usually, then, the bounds should have the top-left corner at (0, 0), making it the origin of the 'virtual canvas':
+
+```cpp
+void drawStuff(DrawingContext& dc) {
+  dc.draw(FilledCircle::ByExtents({10, 10}, 30, color::Purple));
+  dc.draw(FilledTriangle({60, 10}, {70, 40}, {120, 15}, color::Crimson));
+  dc.draw(FilledRoundRect(10, 50, 60, 80, 10, color::ForestGreen));
+  dc.draw(FilledRect(80, 60, 120, 80, color::DodgerBlue));
+}
+
+void loop() {
+  uint16_t w = display.width();
+  uint16_t h = display.height();
+  // Declare the bounds of the desired 'virtual canvas'.
+  Box box(0, 0, w / 2 - 1, h / 2 - 1);
+  {
+    // No offset: draw everything at top-left corner.
+    DrawingContext dc(display, 0, 0, box);
+    drawStuff(dc);
+  }
+  {
+    // Everything shifted horizontally.
+    DrawingContext dc(display, w / 2, 0, box);
+    drawStuff(dc);
+  }
+  {
+    // Everything shifted vertically.
+    DrawingContext dc(display, 0, h / 2, box);
+    drawStuff(dc);
+  }
+  {
+    // Everything shifted both horizontally and vertically.
+    DrawingContext dc(display, w / 2, h / 2, box);
+    drawStuff(dc);
+  }
+
+  delay(10000);
+}
+```
+
+![img8](images/img63.png)
+
+This technique allows you to treat a DrawingContext as a virtual 'canvas',
+separating the concerns of content drawing from the concerns of physical rendering.
+
 For the purpose of alignment, drawables may declare 'anchor extents' that are different than the regular extents defining the bounding rectangle of their content. We will see the examples of that later.
 
 As we saw in the examples, `kLeft` aligns left anchor of the object to the left side of the screen, `kCenter` aligns the center of the object to the center of the screen, and so on. You can override the 'destination' anchor for more specialized alignments. The following example draws the same text twice, first aligning the _top_ of the text to the middle of the sceen, and then aligning the _bottom_ of the text to the middle of the screen:

@@ -180,7 +180,7 @@ void DrawingContext::drawInternalWithBackground(Surface& s,
   if (background_ == nullptr) {
     drawInternalTransformed(s, object);
   } else {
-    BackgroundFilter filter(s.out(), background_, s.bgcolor());
+    BackgroundFilter filter(s.out(), background_, dx_, dy_, s.bgcolor());
     s.set_out(&filter);
     s.set_bgcolor(color::Transparent);
     drawInternalTransformed(s, object);

@@ -13,6 +13,10 @@
 #include "roo_display/driver/touch_gt911.h"
 #include "roo_display/products/combo_device.h"
 
+#if !defined(ESP32) || !(CONFIG_IDF_TARGET_ESP32S3)
+#warning Compilation target must be ESP32_S3 for this device.
+#else
+
 namespace roo_display::products::makerfabs {
 
 namespace {
@@ -92,3 +96,5 @@ class Esp32s3ParallelIpsCapacitive800x480 : public ComboDevice {
 };
 
 }  // namespace roo_display::products::makerfabs
+
+#endif  // ESP32 && CONFIG_IDF_TARGET_ESP32S3

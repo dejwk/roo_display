@@ -217,14 +217,35 @@ class Display {
 // balance between performance and program size.
 class DrawingContext {
  public:
+  // Constructs a drawing context covering the entire display.
   template <typename Display>
   DrawingContext(Display& display)
       : DrawingContext(display, 0, 0, display.extents()) {}
 
+  // Constructs a drawing context covering the specified bounds, relative to the
+  // display's extents. If bounds exceed the display's extents, they will be
+  // clipped accordingly, but the requested bounds will still be used for
+  // alignment purposes. For example, drawing a centered object will center it
+  // relative to the bounds(), even if they exceed the display's extents.
   template <typename Display>
   DrawingContext(Display& display, Box bounds)
       : DrawingContext(display, 0, 0, bounds) {}
 
+  // Constructs a drawing context covering the entire display, with device
+  // coordinates offset by the specified amounts.
+  template <typename Display>
+  DrawingContext(Display& display, int16_t x_offset, int16_t y_offset)
+      : DrawingContext(display, x_offset, y_offset,
+                       display.extents().translate(-x_offset, -y_offset)) {}
+
+  // Constructs a drawing context covering the specified bounds, with device
+  // coordinates offset by the specified amounts. The bounds are expressed
+  // post-translation. That is, bounds corresponding to the entire display
+  // surface would be equal to display.extents().translate(-x_offset,
+  // -y_offset). If bounds exceed the display's extents, they will be clipped
+  // accordingly, but the requested bounds will still be used for alignment
+  // purposes. For example, drawing a centered object will center it relative to
+  // the requested bounds, even if they exceed the display's extents.
   template <typename Display>
   DrawingContext(Display& display, int16_t x_offset, int16_t y_offset,
                  Box bounds)
@@ -249,7 +270,14 @@ class DrawingContext {
 
   ~DrawingContext();
 
+  // Returns the bounds used for alignment.
   const Box& bounds() const { return bounds_; }
+
+  // Returns the width of the drawing context. Equivalent to bounds().width().
+  const uint16_t width() const { return bounds_.width(); }
+
+  // Returns the height of the drawing context. Equivalent to bounds().height().
+  const uint16_t height() const { return bounds_.height(); }
 
   void setBackground(const Rasterizable* bg) { background_ = bg; }
   const Rasterizable* getBackground() const { return background_; }
@@ -271,44 +299,60 @@ class DrawingContext {
   // Fills the display with the specified color, respecting the clip box.
   void fill(Color color);
 
+  // Sets the clip box, intersected with the maximum allowed clip box.
+  // Expressed in device coordinates.
   void setClipBox(const Box& clip_box) {
     clip_box_ = Box::Intersect(clip_box, max_clip_box_);
   }
 
+  // Sets the clip box, intersected with the maximum allowed clip box.
+  // Expressed in device coordinates.
   void setClipBox(int16_t x0, int16_t y0, int16_t x1, int16_t y1) {
     setClipBox(Box(x0, y0, x1, y1));
   }
 
   void setClipMask(const ClipMask* clip_mask) { clip_mask_ = clip_mask; }
 
+  // Returns the current clip box, in device coordinates.
   const Box& getClipBox() const { return clip_box_; }
 
   // void applyTransformation(Transformation t) {
   //   transformation_ = transformation_.transform(t);
   // }
 
+  // Sets a transformation to be applied to all drawn objects when converting
+  // the drawing coordinates to device coordinates.
   void setTransformation(Transformation t) {
     transformation_ = t;
     transformed_ = (t.xy_swap() || t.is_rescaled() || t.is_translated());
   }
 
+  // Returns the current transformation. (The identity transformation by
+  // default).
   const Transformation& transformation() const { return transformation_; }
 
   void setWriteOnce();
 
   bool isWriteOnce() const { return write_once_; }
 
+  // Allows to efficiently draw pixels to the context, using a buffered
+  // pixel writer (avoiding virtual calls per pixel, and allowing for batch
+  // writes). The provided function `fn` will be called with a
+  // ClippingBufferedPixelWriter that respects the current clip box and
+  // uses the specified blending mode.
   void drawPixels(const std::function<void(ClippingBufferedPixelWriter&)>& fn,
                   BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER);
 
   // Draws the object using its inherent coordinates. The point (0, 0) in the
-  // object's coordinates maps to (0, 0) in the context's coordinates.
+  // object's coordinates maps to (0, 0) in the context's coordinates
+  // (subject to the optional transformation).
   inline void draw(const Drawable& object) {
     drawInternal(object, 0, 0, bgcolor_);
   }
 
   // Draws the object using the specified absolute offset. The point (0, 0) in
-  // the object's coordinates maps to (dx, dy) in the context's coordinates.
+  // the object's coordinates maps to (dx, dy) in the context's coordinates
+  // (subject to the optional transformation).
   inline void draw(const Drawable& object, int16_t dx, int16_t dy) {
     drawInternal(object, dx, dy, bgcolor_);
   }

@@ -160,7 +160,7 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, true>
   Color next() {
     if (remaining_items_ == 0) {
       // No remaining items; need to decode the next group.
-      uint8_t data = input_.read();
+      uint8_t data = (uint8_t)input_.read();
       run_ = ((data & 0x80) != 0);
       if ((data & 0x40) == 0) {
         remaining_items_ = pixels_per_byte * ((data & 0x3F) + 1);

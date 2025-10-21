@@ -2,9 +2,9 @@
 
 #include <type_traits>
 
+#include "roo_backport/byte.h"
 #include "roo_display/core/buffered_drawing.h"
 #include "roo_display/core/device.h"
-#include "roo_backport/byte.h"
 
 namespace roo_display {
 
@@ -17,10 +17,10 @@ namespace roo_display {
 // when some low-res framebuf is used under the clip mask.
 class ClipMask {
  public:
-  ClipMask(const roo::byte* data, Box bounds)
+  ClipMask(const roo::byte* data, Box bounds, bool inverted = false)
       : data_(data),
         bounds_(std::move(bounds)),
-        inverted_(false),
+        inverted_(inverted),
         line_width_bytes_((bounds.width() + 7) / 8) {}
 
   // Deprecated, use the constructor accepting the byte buffer.
@@ -62,7 +62,7 @@ class ClipMask {
   inline bool isAllSet(int16_t x, int16_t y, roo::byte mask,
                        uint8_t lines) const {
     const roo::byte* ptr = data_ + (x - bounds_.xMin()) / 8 +
-                              (y - bounds_.yMin()) * line_width_bytes_;
+                           (y - bounds_.yMin()) * line_width_bytes_;
     while (lines-- > 0) {
       if ((*ptr & mask) != mask) return false;
       ptr += line_width_bytes_;
@@ -73,7 +73,7 @@ class ClipMask {
   inline bool isAllUnset(int16_t x, int16_t y, roo::byte mask,
                          uint8_t lines) const {
     const roo::byte* ptr = data_ + (x - bounds_.xMin()) / 8 +
-                              (y - bounds_.yMin()) * line_width_bytes_;
+                           (y - bounds_.yMin()) * line_width_bytes_;
     while (lines-- > 0) {
       if ((*ptr & mask) != roo::byte{0}) return false;
       ptr += line_width_bytes_;
@@ -97,9 +97,11 @@ class ClipMask {
 // mask.
 class ClipMaskFilter : public DisplayOutput {
  public:
-  ClipMaskFilter(DisplayOutput& output, const ClipMask* clip_mask)
+  ClipMaskFilter(DisplayOutput& output, const ClipMask* clip_mask,
+                 int16_t dx = 0, int16_t dy = 0)
       : output_(output),
-        clip_mask_(clip_mask),
+        clip_mask_(clip_mask->data(), clip_mask->bounds().translate(dx, dy),
+                   clip_mask->inverted()),
         address_window_(0, 0, 0, 0),
         cursor_x_(0),
         cursor_y_(0) {}
@@ -119,7 +121,7 @@ class ClipMaskFilter : public DisplayOutput {
     uint32_t i = 0;
     BufferedPixelWriter writer(output_, blending_mode_);
     while (i < pixel_count) {
-      if (!clip_mask_->isMasked(cursor_x_, cursor_y_)) {
+      if (!clip_mask_.isMasked(cursor_x_, cursor_y_)) {
         writer.writePixel(cursor_x_, cursor_y_, color[i]);
       }
       if (++cursor_x_ > address_window_.xMax()) {
@@ -151,7 +153,7 @@ class ClipMaskFilter : public DisplayOutput {
     Color* color_out = color;
     uint16_t new_pixel_count = 0;
     for (uint16_t i = 0; i < pixel_count; ++i) {
-      if (!clip_mask_->isMasked(x[i], y[i])) {
+      if (!clip_mask_.isMasked(x[i], y[i])) {
         *x_out++ = x[i];
         *y_out++ = y[i];
         *color_out++ = color[i];
@@ -169,7 +171,7 @@ class ClipMaskFilter : public DisplayOutput {
     int16_t* y_out = y;
     uint16_t new_pixel_count = 0;
     for (uint16_t i = 0; i < pixel_count; ++i) {
-      if (!clip_mask_->isMasked(x[i], y[i])) {
+      if (!clip_mask_.isMasked(x[i], y[i])) {
         *x_out++ = x[i];
         *y_out++ = y[i];
         new_pixel_count++;
@@ -188,51 +190,51 @@ class ClipMaskFilter : public DisplayOutput {
     // rectfiller).
     BufferedPixelFiller pfiller(output_, color, mode);
     BufferedRectFiller rfiller(output_, color, mode);
-    const Box& bounds = clip_mask_->bounds();
+    const Box& bounds = clip_mask_.bounds();
     if (y0 < bounds.yMin()) {
       if (y1 < bounds.yMin()) {
-        if (!clip_mask_->inverted()) {
+        if (!clip_mask_.inverted()) {
           rfiller.fillRect(x0, y0, x1, y1);
         }
         return;
       }
-      if (!clip_mask_->inverted()) {
+      if (!clip_mask_.inverted()) {
         rfiller.fillRect(x0, y0, x1, bounds.yMin() - 1);
       }
       y0 = bounds.yMin();
     }
     if (x0 < bounds.xMin()) {
       if (x1 < bounds.xMin()) {
-        if (!clip_mask_->inverted()) {
+        if (!clip_mask_.inverted()) {
           rfiller.fillRect(x0, y0, x1, y1);
         }
         return;
       }
-      if (!clip_mask_->inverted()) {
+      if (!clip_mask_.inverted()) {
         rfiller.fillRect(x0, y0, bounds.xMin() - 1, y1);
       }
       x0 = bounds.xMin();
     }
     if (x1 > bounds.xMax()) {
       if (x0 > bounds.xMax()) {
-        if (!clip_mask_->inverted()) {
+        if (!clip_mask_.inverted()) {
           rfiller.fillRect(x0, y0, x1, y1);
         }
         return;
       }
-      if (!clip_mask_->inverted()) {
+      if (!clip_mask_.inverted()) {
         rfiller.fillRect(bounds.xMax() + 1, y0, x1, y1);
       }
       x1 = bounds.xMax();
     }
     if (y1 > bounds.yMax()) {
       if (y0 > bounds.yMax()) {
-        if (!clip_mask_->inverted()) {
+        if (!clip_mask_.inverted()) {
           rfiller.fillRect(x0, y0, x1, y1);
         }
         return;
       }
-      if (!clip_mask_->inverted()) {
+      if (!clip_mask_.inverted()) {
         rfiller.fillRect(x0, bounds.yMax() + 1, x1, y1);
       }
       y1 = bounds.yMax();
@@ -253,14 +255,14 @@ class ClipMaskFilter : public DisplayOutput {
           mask &= (roo::byte{0xFF} << (xc1 - x1));
           xc1 = x1;
         }
-        if (!clip_mask_->isAllMasked(xc0, yc0, mask, lines)) {
-          if (clip_mask_->isAllUnmasked(xc0, yc0, mask, lines)) {
+        if (!clip_mask_.isAllMasked(xc0, yc0, mask, lines)) {
+          if (clip_mask_.isAllUnmasked(xc0, yc0, mask, lines)) {
             rfiller.fillRect(xc0, yc0, xc1, yc1);
           } else {
             // Degenerate to the slow version.
             for (int16_t y = yc0; y <= yc1; ++y) {
               for (int16_t x = xc0; x <= xc1; ++x) {
-                if (!clip_mask_->isMasked(x, y)) {
+                if (!clip_mask_.isMasked(x, y)) {
                   pfiller.fillPixel(x, y);
                 }
               }
@@ -276,10 +278,10 @@ class ClipMaskFilter : public DisplayOutput {
     }
   }
 
-  const Box& bounds() const { return clip_mask_->bounds(); }
+  const Box& bounds() const { return clip_mask_.bounds(); }
 
   DisplayOutput& output_;
-  const ClipMask* clip_mask_;
+  ClipMask clip_mask_;
   Box address_window_;
   BlendingMode blending_mode_;
   int16_t cursor_x_;

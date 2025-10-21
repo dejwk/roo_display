@@ -169,7 +169,7 @@ void DrawingContext::drawInternal(const Drawable& object, int16_t dx,
   if (clip_mask_ == nullptr) {
     drawInternalWithBackground(s, object);
   } else {
-    ClipMaskFilter filter(out, clip_mask_);
+    ClipMaskFilter filter(out, clip_mask_, dx_, dy_);
     s.set_out(&filter);
     drawInternalWithBackground(s, object);
   }

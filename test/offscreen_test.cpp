@@ -785,6 +785,8 @@ TEST_F(OffscreenTest, OffsetedDrawing) {
   EXPECT_FALSE(dc.transformation().is_rescaled());
   EXPECT_FALSE(dc.transformation().is_translated());
   EXPECT_EQ(dc.bounds(), Box(-6, -5, 4, 3));
+  EXPECT_EQ(offscreen.extents(), Box(-6, -5, 4, 3));
+  EXPECT_EQ(dc.getClipBox(), Box(-6, -5, 4, 3));
   dc.draw(SolidRect(-4, -3, 2, 1, color::White));
   EXPECT_THAT(offscreen.raster(),
               MatchesContent(WhiteOnBlack(), Box(-6, -5, 4, 3),

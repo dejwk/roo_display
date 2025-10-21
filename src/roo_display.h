@@ -219,15 +219,21 @@ class DrawingContext {
  public:
   template <typename Display>
   DrawingContext(Display& display)
-      : DrawingContext(display, display.extents()) {}
+      : DrawingContext(display, 0, 0, display.extents()) {}
 
   template <typename Display>
   DrawingContext(Display& display, Box bounds)
+      : DrawingContext(display, 0, 0, bounds) {}
+
+  template <typename Display>
+  DrawingContext(Display& display, int16_t x_offset, int16_t y_offset,
+                 Box bounds)
       : output_(display.output()),
-        dx_(display.dx()),
-        dy_(display.dy()),
+        dx_(display.dx() + x_offset),
+        dy_(display.dy() + y_offset),
         bounds_(bounds),
-        max_clip_box_(Box::Intersect(bounds, display.extents())),
+        max_clip_box_(Box::Intersect(
+            bounds, display.extents().translate(-x_offset, -y_offset))),
         clip_box_(max_clip_box_),
         unnest_([&display]() { display.unnest(); }),
         write_once_(display.is_write_once()),

@@ -19,7 +19,7 @@ class FrontToBackWriter;
 
 class TouchDisplay {
  public:
-  TouchDisplay(DisplayDevice &display_device, TouchDevice &touch_device,
+  TouchDisplay(DisplayDevice& display_device, TouchDevice& touch_device,
                TouchCalibration touch_calibration = TouchCalibration())
       : display_device_(display_device),
         touch_device_(touch_device),
@@ -28,10 +28,10 @@ class TouchDisplay {
   void init() { touch_device_.initTouch(); }
 
   // Calibrated, and using the display coordinates.
-  TouchResult getTouch(TouchPoint *points, int max_points);
+  TouchResult getTouch(TouchPoint* points, int max_points);
 
   // Uncalibrated, and using the absolute coordinates: 0-4095.
-  TouchResult getRawTouch(TouchPoint *points, int max_points) {
+  TouchResult getRawTouch(TouchPoint* points, int max_points) {
     return touch_device_.getTouch(points, max_points);
   }
 
@@ -39,11 +39,11 @@ class TouchDisplay {
     touch_calibration_ = touch_calibration;
   }
 
-  const TouchCalibration &calibration() const { return touch_calibration_; }
+  const TouchCalibration& calibration() const { return touch_calibration_; }
 
  private:
-  DisplayDevice &display_device_;
-  TouchDevice &touch_device_;
+  DisplayDevice& display_device_;
+  TouchDevice& touch_device_;
   TouchCalibration touch_calibration_;
 
   int16_t raw_touch_x_;
@@ -53,21 +53,21 @@ class TouchDisplay {
 
 class Display {
  public:
-  Display(DisplayDevice &display_device)
+  Display(DisplayDevice& display_device)
       : Display(display_device, nullptr, TouchCalibration()) {}
 
-  Display(DisplayDevice &display_device, TouchDevice &touch_device,
+  Display(DisplayDevice& display_device, TouchDevice& touch_device,
           TouchCalibration touch_calibration = TouchCalibration())
       : Display(display_device, &touch_device, touch_calibration) {}
 
-  Display(ComboDevice &device)
+  Display(ComboDevice& device)
       : Display(device.display(), device.touch(), device.touch_calibration()) {}
 
   int32_t area() const {
     return display_device_.raw_width() * display_device_.raw_height();
   }
 
-  const Box &extents() const { return extents_; }
+  const Box& extents() const { return extents_; }
 
   int16_t width() const { return extents_.width(); }
   int16_t height() const { return extents_.height(); }
@@ -88,31 +88,31 @@ class Display {
 
   Orientation orientation() const { return orientation_; }
 
-  const TouchCalibration &touchCalibration() const {
+  const TouchCalibration& touchCalibration() const {
     return touch_.calibration();
   }
 
-  DisplayOutput &output() { return display_device_; }
-  const DisplayOutput &output() const { return display_device_; }
+  DisplayOutput& output() { return display_device_; }
+  const DisplayOutput& output() const { return display_device_; }
 
   // If touch has not been registered, returns {.touch_points = 0 } and does not
   // modify `points'. If k touch points have been registered, sets max(k,
   // max_points) `points`, and returns {.touch_points = k}. In both cases,
   // returned timestamp_us specifies the micros() corresponding to the
   // detection time.
-  TouchResult getTouch(TouchPoint *points, int max_points) {
+  TouchResult getTouch(TouchPoint* points, int max_points) {
     return touch_.getTouch(points, max_points);
   }
 
   // As above, but results use absolute coordinates (0-4095) and ignore
   // touch calibration settings.
-  TouchResult getRawTouch(TouchPoint *points, int max_points) {
+  TouchResult getRawTouch(TouchPoint* points, int max_points) {
     return touch_.getRawTouch(points, max_points);
   }
 
   // If touched, returns true and sets the touch (x, y) coordinates (in device
   // coordinates). If not touched, returns false and does not modify (x, y).
-  bool getTouch(int16_t &x, int16_t &y);
+  bool getTouch(int16_t& x, int16_t& y);
 
   // Resets the clip box to the maximum device-allowed values.
   void resetExtents() {
@@ -121,13 +121,13 @@ class Display {
   }
 
   // Sets a default clip box, inherited by all derived contexts.
-  void setExtents(const Box &extents) {
+  void setExtents(const Box& extents) {
     resetExtents();
     extents_ = Box::Intersect(extents_, extents);
   }
 
   // Sets a rasterizable background to be used by all derived contexts.
-  void setBackground(const Rasterizable *bg) {
+  void setBackground(const Rasterizable* bg) {
     background_ = bg;
     bgcolor_ = color::Transparent;
   }
@@ -136,7 +136,7 @@ class Display {
     touch_.setCalibration(touch_calibration);
   }
 
-  const Rasterizable *getRasterizableBackground() const { return background_; }
+  const Rasterizable* getRasterizableBackground() const { return background_; }
 
   // Sets a background color to be used by all derived contexts.
   // Initially set to color::Transparent.
@@ -151,7 +151,7 @@ class Display {
   void clear();
 
  private:
-  Display(DisplayDevice &display_device, TouchDevice *touch_device,
+  Display(DisplayDevice& display_device, TouchDevice* touch_device,
           TouchCalibration touch_calibration);
 
   friend class DrawingContext;
@@ -174,14 +174,14 @@ class Display {
   FillMode fill_mode() const { return FILL_MODE_VISIBLE; }
   BlendingMode blending_mode() const { return BLENDING_MODE_SOURCE_OVER; }
 
-  DisplayDevice &display_device_;
+  DisplayDevice& display_device_;
   TouchDisplay touch_;
   int16_t nest_level_;
   Orientation orientation_;
 
   Box extents_;
   Color bgcolor_;
-  const Rasterizable *background_;
+  const Rasterizable* background_;
 };
 
 // Primary top-level interface for drawing to screens, off-screen buffers,
@@ -218,11 +218,11 @@ class Display {
 class DrawingContext {
  public:
   template <typename Display>
-  DrawingContext(Display &display)
+  DrawingContext(Display& display)
       : DrawingContext(display, display.extents()) {}
 
   template <typename Display>
-  DrawingContext(Display &display, Box bounds)
+  DrawingContext(Display& display, Box bounds)
       : output_(display.output()),
         dx_(display.dx()),
         dy_(display.dy()),
@@ -243,10 +243,10 @@ class DrawingContext {
 
   ~DrawingContext();
 
-  const Box &bounds() const { return bounds_; }
+  const Box& bounds() const { return bounds_; }
 
-  void setBackground(const Rasterizable *bg) { background_ = bg; }
-  const Rasterizable *getBackground() const { return background_; }
+  void setBackground(const Rasterizable* bg) { background_ = bg; }
+  const Rasterizable* getBackground() const { return background_; }
 
   Color getBackgroundColor() const { return bgcolor_; }
   void setBackgroundColor(Color bgcolor) { bgcolor_ = bgcolor; }
@@ -265,7 +265,7 @@ class DrawingContext {
   // Fills the display with the specified color, respecting the clip box.
   void fill(Color color);
 
-  void setClipBox(const Box &clip_box) {
+  void setClipBox(const Box& clip_box) {
     clip_box_ = Box::Intersect(clip_box, max_clip_box_);
   }
 
@@ -273,9 +273,9 @@ class DrawingContext {
     setClipBox(Box(x0, y0, x1, y1));
   }
 
-  void setClipMask(const ClipMask *clip_mask) { clip_mask_ = clip_mask; }
+  void setClipMask(const ClipMask* clip_mask) { clip_mask_ = clip_mask; }
 
-  const Box &getClipBox() const { return clip_box_; }
+  const Box& getClipBox() const { return clip_box_; }
 
   // void applyTransformation(Transformation t) {
   //   transformation_ = transformation_.transform(t);
@@ -286,31 +286,31 @@ class DrawingContext {
     transformed_ = (t.xy_swap() || t.is_rescaled() || t.is_translated());
   }
 
-  const Transformation &transformation() const { return transformation_; }
+  const Transformation& transformation() const { return transformation_; }
 
   void setWriteOnce();
 
   bool isWriteOnce() const { return write_once_; }
 
-  void drawPixels(const std::function<void(ClippingBufferedPixelWriter &)> &fn,
+  void drawPixels(const std::function<void(ClippingBufferedPixelWriter&)>& fn,
                   BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER);
 
   // Draws the object using its inherent coordinates. The point (0, 0) in the
   // object's coordinates maps to (0, 0) in the context's coordinates.
-  inline void draw(const Drawable &object) {
+  inline void draw(const Drawable& object) {
     drawInternal(object, 0, 0, bgcolor_);
   }
 
   // Draws the object using the specified absolute offset. The point (0, 0) in
   // the object's coordinates maps to (dx, dy) in the context's coordinates.
-  inline void draw(const Drawable &object, int16_t dx, int16_t dy) {
+  inline void draw(const Drawable& object, int16_t dx, int16_t dy) {
     drawInternal(object, dx, dy, bgcolor_);
   }
 
   // Draws the object applying the specified alignment, relative to the
   // bounds(). For example, for with kMiddle | kCenter, the object will be
   // centered relative to the bounds().
-  void draw(const Drawable &object, Alignment alignment) {
+  void draw(const Drawable& object, Alignment alignment) {
     Box anchorExtents = object.anchorExtents();
     if (transformed_) {
       anchorExtents = transformation_.transformBox(anchorExtents);
@@ -321,28 +321,28 @@ class DrawingContext {
 
   // Analogous to draw(object), but instead of drawing, replaces all the output
   // pixels with the background color.
-  void erase(const Drawable &object);
+  void erase(const Drawable& object);
 
   // Analogous to draw(object, dx, dy), but instead of drawing, replaces all the
   // output pixels with the background color.
-  void erase(const Drawable &object, int16_t dx, int16_t dy);
+  void erase(const Drawable& object, int16_t dx, int16_t dy);
 
   // Analogous to draw(object, alignment), but instead of drawing, replaces all
   // the output pixels with the background color.
-  void erase(const Drawable &object, Alignment alignment);
+  void erase(const Drawable& object, Alignment alignment);
 
  private:
-  DisplayOutput &output() { return output_; }
-  const DisplayOutput &output() const { return output_; }
+  DisplayOutput& output() { return output_; }
+  const DisplayOutput& output() const { return output_; }
 
-  void drawInternal(const Drawable &object, int16_t dx, int16_t dy,
+  void drawInternal(const Drawable& object, int16_t dx, int16_t dy,
                     Color bgcolor);
 
-  void drawInternalWithBackground(Surface &s, const Drawable &object);
+  void drawInternalWithBackground(Surface& s, const Drawable& object);
 
-  void drawInternalTransformed(Surface &s, const Drawable &object);
+  void drawInternalTransformed(Surface& s, const Drawable& object);
 
-  DisplayOutput &output_;
+  DisplayOutput& output_;
 
   // Offset of the origin in the output coordinates. Empty Transformation maps
   // (0, 0) in drawing coordinates onto (dx_, dy_) in device coordinates.
@@ -369,8 +369,8 @@ class DrawingContext {
   FillMode fill_mode_;
   BlendingMode blending_mode_;
 
-  const ClipMask *clip_mask_;
-  const Rasterizable *background_;
+  const ClipMask* clip_mask_;
+  const Rasterizable* background_;
   Color bgcolor_;
   bool transformed_;
   Transformation transformation_;
@@ -384,14 +384,14 @@ class Fill : public Rasterizable {
 
   Box extents() const override { return Box::MaximumBox(); }
 
-  void readColors(const int16_t *x, const int16_t *y, uint32_t count,
-                  Color *result) const override;
+  void readColors(const int16_t* x, const int16_t* y, uint32_t count,
+                  Color* result) const override;
 
   bool readColorRect(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax,
-                     Color *result) const override;
+                     Color* result) const override;
 
  private:
-  void drawTo(const Surface &s) const override;
+  void drawTo(const Surface& s) const override;
 
   Color color_;
 };
@@ -404,14 +404,14 @@ class Clear : public Rasterizable {
 
   Box extents() const override { return Box::MaximumBox(); }
 
-  void readColors(const int16_t *x, const int16_t *y, uint32_t count,
-                  Color *result) const override;
+  void readColors(const int16_t* x, const int16_t* y, uint32_t count,
+                  Color* result) const override;
 
   bool readColorRect(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax,
-                     Color *result) const override;
+                     Color* result) const override;
 
  private:
-  void drawTo(const Surface &s) const override;
+  void drawTo(const Surface& s) const override;
 };
 
 // Utility that can be used while a DrawingContext is active, to temporarily
@@ -424,22 +424,22 @@ class Clear : public Rasterizable {
 // See jpeg.cpp and png.cpp for an application example.
 class PauseOutput {
  public:
-  PauseOutput(DisplayOutput &out) : out_(out) { out_.end(); }
+  PauseOutput(DisplayOutput& out) : out_(out) { out_.end(); }
   ~PauseOutput() { out_.begin(); }
 
  private:
-  DisplayOutput &out_;
+  DisplayOutput& out_;
 };
 
 // The inverse of 'PauseOutput', above. It allows to resume drawing that was
 // paused by PauseOutput.
 class ResumeOutput {
  public:
-  ResumeOutput(DisplayOutput &out) : out_(out) { out_.begin(); }
+  ResumeOutput(DisplayOutput& out) : out_(out) { out_.begin(); }
   ~ResumeOutput() { out_.end(); }
 
  private:
-  DisplayOutput &out_;
+  DisplayOutput& out_;
 };
 
 }  // namespace roo_display

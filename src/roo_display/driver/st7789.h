@@ -31,11 +31,12 @@ struct Init {
 
 }  // namespace st7789
 
-template <typename Transport, int16_t display_width, int16_t display_height, int16_t lpad = 0,
-          int16_t tpad = 0, int16_t rpad = lpad, int16_t bpad = tpad>
-using St7789_Generic = AddrWindowDevice<st77xx::St77xxTarget<
-    Transport, st7789::Init, display_width, display_height, lpad,
-    tpad, rpad, bpad, true>>;
+template <typename Transport, int16_t display_width, int16_t display_height,
+          int16_t lpad = 0, int16_t tpad = 0, int16_t rpad = lpad,
+          int16_t bpad = tpad>
+using St7789_Generic = AddrWindowDevice<
+    st77xx::St77xxTarget<Transport, st7789::Init, display_width, display_height,
+                         lpad, tpad, rpad, bpad, true>>;
 
 template <int pinCS, int pinDC, int pinRST, int16_t display_width,
           int16_t display_height, int16_t lpad = 0, int16_t tpad = 0,
@@ -48,25 +49,28 @@ using St7789spi_Generic =
 
 template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
           typename SpiSettings = st7789::DefaultSpiSettings>
-using St7789spi_240x240 = St7789spi_Generic<pinCS, pinDC, pinRST, 240, 240, 0,
-                                            0, 0, 80, Spi, SpiSettings, DefaultGpio>;
+using St7789spi_240x240 =
+    St7789spi_Generic<pinCS, pinDC, pinRST, 240, 240, 0, 0, 0, 80, Spi,
+                      SpiSettings, DefaultGpio>;
 
 template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
           typename SpiSettings = st7789::DefaultSpiSettings,
           typename Gpio = DefaultGpio>
 using St7789spi_240x280 = St7789spi_Generic<pinCS, pinDC, pinRST, 240, 280, 0,
                                             20, 0, 0, Spi, SpiSettings, Gpio>;
-  
-template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
-          typename SpiSettings = st7789::DefaultSpiSettings,
-          typename Gpio = DefaultGpio>
-using St7789spi_172x320 = St7789spi_Generic<pinCS, pinDC, pinRST, 172, 320, 34,
-                                            0, 34, 0, Spi, SpiSettings, DefaultGpio>;
 
 template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
           typename SpiSettings = st7789::DefaultSpiSettings,
           typename Gpio = DefaultGpio>
-using St7789spi_135x240 = St7789spi_Generic<pinCS, pinDC, pinRST, 135, 240, 
-                          0, 40, 53, 0, Spi, SpiSettings, DefaultGpio>;
-  
+using St7789spi_172x320 =
+    St7789spi_Generic<pinCS, pinDC, pinRST, 172, 320, 34, 0, 34, 0, Spi,
+                      SpiSettings, DefaultGpio>;
+
+template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
+          typename SpiSettings = st7789::DefaultSpiSettings,
+          typename Gpio = DefaultGpio>
+using St7789spi_135x240 =
+    St7789spi_Generic<pinCS, pinDC, pinRST, 135, 240, 0, 40, 53, 0, Spi,
+                      SpiSettings, DefaultGpio>;
+
 }  // namespace roo_display

@@ -1093,6 +1093,11 @@ void loop() {
 
 > Note: smooth circles are always specifies via center point and a radius. With floating-point coordinates, there is no need to use bounding box and diameters.
 
+> Note: some microcontrollers, e.g. ESP32-S2 and ESP32-C3, do not have a
+> floating-point coprocessor (FPU). On these devices, smooth shapes will render
+> slowly. For smooth shapes, prefer devices with a coprocessor, e.g. ESP32 or
+> ESP32-S3.
+
 #### Thick and color-filled outlines
 
 Speaking of thickness: you are not limited to the 1-pixel-thick outlines. You can specify arbitrary positive floating-point thickness:

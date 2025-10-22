@@ -26,7 +26,15 @@ TouchPoint ReadPoint(const uint8_t* data) {
 
 }  // namespace
 
-void TouchGt911::initTouch() { reset(); }
+void TouchGt911::initTouch() {
+  pinMode(pinRst_, OUTPUT);
+  digitalWrite(pinRst_, 0);
+  if (pinIntr_ >= 0) {
+    pinMode(pinIntr_, OUTPUT);
+    digitalWrite(pinIntr_, 0);
+  }
+  reset();
+}
 
 TouchGt911::TouchGt911(decltype(Wire)& wire, int8_t pinIntr, int8_t pinRst,
                        long reset_low_hold_ms)
@@ -38,14 +46,7 @@ TouchGt911::TouchGt911(decltype(Wire)& wire, int8_t pinIntr, int8_t pinRst,
       pinRst_(pinRst),
       wire_(wire),
       reset_low_hold_ms_(reset_low_hold_ms),
-      ready_(false) {
-  pinMode(pinRst_, OUTPUT);
-  digitalWrite(pinRst_, 0);
-  if (pinIntr_ >= 0) {
-    pinMode(pinIntr_, OUTPUT);
-    digitalWrite(pinIntr_, 0);
-  }
-}
+      ready_(false) {}
 
 void TouchGt911::reset() {
   if (reset_thread_.joinable()) {

@@ -22,6 +22,20 @@ enum Command {
 
   MADCTL = 0x36,
   COLMOD = 0x3A,
+
+  DIC = 0xB4,
+  DFC = 0xB6,
+
+  PWR1 = 0xC0,
+  PWR2 = 0xC1,
+  PWR3 = 0xC2,
+
+  VCMPCTL = 0xC5,
+
+  PGC = 0xE0,
+  NGC = 0xE1,
+  DOCA = 0xE8,
+  CSCON = 0xF0,
 };
 
 enum MadCtl {

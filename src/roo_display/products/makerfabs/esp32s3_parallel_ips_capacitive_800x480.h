@@ -70,11 +70,13 @@ class Esp32s3ParallelIpsCapacitive800x480 : public ComboDevice {
         // driver performs reset asynchronously.
         touch_(wire, -1, 38, 300) {
     display_.setOrientation(orientation);
-    pinMode(10, OUTPUT);
-    digitalWrite(10, LOW);
   }
 
-  void initTransport() { wire_.begin(17, 18); }
+  void initTransport() {
+    pinMode(10, OUTPUT);
+    digitalWrite(10, LOW);
+    wire_.begin(17, 18);
+  }
 
   DisplayDevice& display() override { return display_; }
 

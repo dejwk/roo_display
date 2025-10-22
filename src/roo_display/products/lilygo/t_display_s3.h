@@ -4,6 +4,10 @@
 // Maker: LILYGO
 // Product Code: T-Display-S3
 
+#if !defined(ESP32) || !(CONFIG_IDF_TARGET_ESP32S3)
+#warning Compilation target must be ESP32_S3 for this device.
+#else
+
 #include "roo_display/backlit/esp32_ledc.h"
 #include "roo_display/core/device.h"
 #include "roo_display/core/orientation.h"
@@ -46,3 +50,5 @@ class TDisplayS3 : public ComboDevice {
 };
 
 }  // namespace roo_display::products::lilygo
+
+#endif

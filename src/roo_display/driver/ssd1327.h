@@ -26,6 +26,7 @@ class Ssd1327Target {
   Ssd1327Target() : transport_(), xy_swap_(false) {}
 
   void init() {
+    transport_.init();
     delay(200);
     begin();
     uint8_t init[] = {0xAE, 0x15, 0x00, 0x7F, 0x75, 0x00, 0x7F, 0x81, 0x53,

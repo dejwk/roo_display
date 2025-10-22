@@ -111,6 +111,7 @@ class Ili9341Target {
   }
 
   void init() {
+    transport_.init();
     begin();
 
     writeCommand(0xEF, {0x03, 0x80, 0x02});

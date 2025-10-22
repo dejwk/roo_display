@@ -127,6 +127,7 @@ class Ili9488Target {
   }
 
   void init() {
+    transport_.init();
     begin();
 
     // Set Gamma.

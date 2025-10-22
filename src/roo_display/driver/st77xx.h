@@ -70,6 +70,7 @@ class St77xxTarget {
   }
 
   void init() {
+    transport_.init();
     Initializer init;
     begin();
     init.init(*this, lpad, display_width + lpad + rpad - 1, tpad,

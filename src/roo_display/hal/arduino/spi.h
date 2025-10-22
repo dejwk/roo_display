@@ -43,6 +43,8 @@ class GenericSpi {
 
   GenericSpi() : GenericSpi(SPI) {}
 
+  void init() {}
+
   void beginReadWriteTransaction(SPISettings& settings) {
     spi_.beginTransaction(settings);
   }

@@ -41,6 +41,8 @@ class SpiTransport {
 
   SpiTransport(decltype(SPI)& spi) : spi_(spi) {}
 
+  void init() {}
+
   void beginReadWriteTransaction(const SPISettings& settings) {
     spi_.beginTransaction(settings);
   }

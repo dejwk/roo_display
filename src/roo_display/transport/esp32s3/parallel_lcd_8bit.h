@@ -7,10 +7,12 @@
 #include <inttypes.h>
 
 #include "esp_lcd_panel_io.h"
-#include "soc/lcd_cam_struct.h"
-#include "soc/lcd_cam_reg.h"
 #include "roo_display/hal/esp32s3/gpio.h"
 #include "roo_display/internal/byte_order.h"
+#include "soc/lcd_cam_reg.h"
+#include "soc/lcd_cam_struct.h"
+
+#include "roo_io/data/byte_order.h"
 
 namespace roo_display {
 namespace esp32s3 {
@@ -35,33 +37,41 @@ class ParallelLcd8Bit {
 
   ParallelLcd8Bit(int8_t pinCs, int8_t pinDc, int pinRst, int8_t pinWr,
                   int8_t pinRd, DataBus data, int32_t speed)
-      : pinCs_(pinCs), data_(std::move(data)), speed_(speed) {
-    if (pinCs >= 0) {
-      pinMode(pinCs, OUTPUT);
-      digitalWrite(pinCs, HIGH);
+      : pinCs_(pinCs),
+        pinDc_(pinDc),
+        pinRst_(pinRst),
+        pinWr_(pinWr),
+        pinRd_(pinRd),
+        data_(std::move(data)),
+        speed_(speed) {}
+
+  void init() {
+    if (pinCs_ >= 0) {
+      pinMode(pinCs_, OUTPUT);
+      digitalWrite(pinCs_, HIGH);
     }
 
-    pinMode(pinDc, OUTPUT);
-    digitalWrite(pinDc, HIGH);
+    pinMode(pinDc_, OUTPUT);
+    digitalWrite(pinDc_, HIGH);
 
-    if (pinRst >= 0) {
-      pinMode(pinRst, OUTPUT);
-      digitalWrite(pinRst, HIGH);
+    if (pinRst_ >= 0) {
+      pinMode(pinRst_, OUTPUT);
+      digitalWrite(pinRst_, HIGH);
     }
 
-    pinMode(pinWr, OUTPUT);
-    digitalWrite(pinWr, HIGH);
+    pinMode(pinWr_, OUTPUT);
+    digitalWrite(pinWr_, HIGH);
 
-    if (pinRd >= 0) {
-      pinMode(pinRd, OUTPUT);
-      digitalWrite(pinRd, HIGH);
+    if (pinRd_ >= 0) {
+      pinMode(pinRd_, OUTPUT);
+      digitalWrite(pinRd_, HIGH);
     }
 
     esp_lcd_i80_bus_handle_t i80_bus = nullptr;
 
     esp_lcd_i80_bus_config_t bus_config = {
-        .dc_gpio_num = pinDc,
-        .wr_gpio_num = pinWr,
+        .dc_gpio_num = pinDc_,
+        .wr_gpio_num = pinWr_,
         .clk_src = LCD_CLK_SRC_PLL160M,
         .data_gpio_nums = {data_.pinD0, data_.pinD1, data_.pinD2, data_.pinD3,
                            data_.pinD4, data_.pinD5, data_.pinD6, data_.pinD7},
@@ -74,13 +84,13 @@ class ParallelLcd8Bit {
     uint32_t div_a = 63;
     uint32_t div_b = 62;
     uint32_t clkcnt = 64;
-    uint32_t start_cnt = std::min<uint32_t>(64u, (F_CPU / (speed * 2) + 1));
-    uint32_t end_cnt = std::max<uint32_t>(2u, F_CPU / 256u / speed);
+    uint32_t start_cnt = std::min<uint32_t>(64u, (F_CPU / (speed_ * 2) + 1));
+    uint32_t end_cnt = std::max<uint32_t>(2u, F_CPU / 256u / speed_);
     if (start_cnt <= 2) {
       end_cnt = 1;
     }
     for (uint32_t cnt = start_cnt; diff && cnt >= end_cnt; --cnt) {
-      float fdiv = (float)F_CPU / cnt / speed;
+      float fdiv = (float)F_CPU / cnt / speed_;
       uint32_t n = std::max<uint32_t>(2u, (uint32_t)fdiv);
       fdiv -= n;
 
@@ -90,7 +100,7 @@ class ParallelLcd8Bit {
           break;
         }
         uint32_t freq = F_CPU / ((n * cnt) + (float)(b * cnt) / (float)a);
-        uint32_t d = abs(speed - (int)freq);
+        uint32_t d = abs(speed_ - (int)freq);
         if (diff <= d) {
           continue;
         }
@@ -110,7 +120,7 @@ class ParallelLcd8Bit {
     }
 
     lcd_cam_lcd_clock_reg_t lcd_clock;
-    lcd_clock.lcd_clkcnt_n = std::max(1u, clkcnt - 1);
+    lcd_clock.lcd_clkcnt_n = std::max(1ul, clkcnt - 1);
     lcd_clock.lcd_clk_equ_sysclk = (clkcnt == 1);
     lcd_clock.lcd_ck_idle_edge = true;
     lcd_clock.lcd_ck_out_edge = false;
@@ -132,7 +142,7 @@ class ParallelLcd8Bit {
     digitalWrite(pinCs_, LOW);
     LCD_CAM.lcd_misc.val = LCD_CAM_LCD_CD_IDLE_EDGE;
     LCD_CAM.lcd_user.val = 0;
-    LCD_CAM.lcd_user.val = LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG;
+    LCD_CAM.lcd_user.val = LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE;
   }
 
   void sync() {}
@@ -153,16 +163,14 @@ class ParallelLcd8Bit {
     while (len-- > 0) write(*data++);
   }
 
-  void writeBytes_async(uint8_t* data, uint32_t len) {
-    writeBytes(data, len);
-  }
+  void writeBytes_async(uint8_t* data, uint32_t len) { writeBytes(data, len); }
 
   void write(uint8_t data) {
     LCD_CAM.lcd_cmd_val.lcd_cmd_value = data;
     while (LCD_CAM.lcd_user.val & LCD_CAM_LCD_START) {
     }
     LCD_CAM.lcd_user.val =
-        LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
+        LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE | LCD_CAM_LCD_START;
   }
 
   void write16(uint16_t data) {
@@ -177,9 +185,7 @@ class ParallelLcd8Bit {
     write(b & 0xFF);
   }
 
-  void write16x2_async(uint16_t a, uint16_t b) {
-    write16x2(a, b);
-  }
+  void write16x2_async(uint16_t a, uint16_t b) { write16x2(a, b); }
 
   // Writes 2-byte word that has been pre-converted to BE if needed.
   void write16be(uint16_t data) { writeBytes((uint8_t*)&data, 2); }
@@ -195,7 +201,7 @@ class ParallelLcd8Bit {
   void write32be(uint32_t data) { writeBytes((uint8_t*)&data, 4); }
 
   void fill16(uint16_t data, uint32_t len) {
-    fill16be(byte_order::htobe(data), len);
+    fill16be(roo_io::htobe(data), len);
   }
 
   void fill16be(uint16_t data, uint32_t len) {
@@ -204,12 +210,14 @@ class ParallelLcd8Bit {
     }
   }
 
-  void fill16be_async(uint16_t data, uint32_t len) {
-    fill16be(data, len);
-  }
+  void fill16be_async(uint16_t data, uint32_t len) { fill16be(data, len); }
 
  private:
   int8_t pinCs_;
+  int8_t pinDc_;
+  int8_t pinRst_;
+  int8_t pinWr_;
+  int8_t pinRd_;
   DataBus data_;
   int32_t speed_;
 };

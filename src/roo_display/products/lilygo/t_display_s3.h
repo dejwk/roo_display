@@ -26,11 +26,13 @@ class TDisplayS3 : public ComboDevice {
                                               .pinD5 = 46,
                                               .pinD6 = 47,
                                               .pinD7 = 48})),
-                                              backlit_(38, 0) {
+                                              backlit_(38) {
     display_.setOrientation(orientation);
   }
 
-  void initTransport() {}
+  void initTransport() {
+    backlit_.begin();
+  }
 
   DisplayDevice& display() override { return display_; }
 

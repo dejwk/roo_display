@@ -97,6 +97,7 @@ class Ili9486Target {
   }
 
   void init() {
+    transport_.init();
     // Soft reset.
     begin();
     writeCommand(SWRESET);

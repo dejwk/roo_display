@@ -14,16 +14,19 @@ typedef SpiSettings<40000000, MSBFIRST, SPI_MODE3> DefaultSpiSettings;
 
 struct Init {
   template <typename Target>
-  void init(Target& t, uint8_t xstart, uint8_t xend, uint8_t ystart,
-            uint8_t yend, bool inverted) const {
+  void init(Target& t, uint16_t xstart, uint16_t xend, uint16_t ystart,
+            uint16_t yend, bool inverted) const {
     t.writeCommand(st77xx::SWRESET, {}, 150);
     t.writeCommand(st77xx::SLPOUT, {}, 500);
     t.writeCommand(st77xx::COLMOD, {0x55}, 10);
     t.writeCommand(st77xx::MADCTL, {0x08});
-    t.writeCommand(st77xx::CASET, {0x00, xstart, 0x00, xend});
-    t.writeCommand(st77xx::RASET, {0x00, ystart, 0x00, yend});
+    t.writeCommand(st77xx::CASET,
+                   {(uint8_t)(xstart >> 8), (uint8_t)(xstart & 0xFF),
+                    (uint8_t)(xend >> 8), (uint8_t)(xend & 0xFF)});
+    t.writeCommand(st77xx::RASET,
+                   {(uint8_t)(ystart >> 8), (uint8_t)(ystart & 0xFF),
+                    (uint8_t)(yend >> 8), (uint8_t)(yend & 0xFF)});
     t.writeCommand(inverted ? st77xx::INVON : st77xx::INVOFF);
-    t.writeCommand(st77xx::INVON, {}, 10);
     t.writeCommand(st77xx::NORON, {}, 10);
     t.writeCommand(st77xx::DISPON, {}, 500);
   }

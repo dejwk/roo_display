@@ -14,10 +14,14 @@ static constexpr int kDcPin = 2;
 static constexpr int kRstPin = 4;
 static constexpr int kBlPin = 16;
 
+static constexpr int kSpiSck = -1;
+static constexpr int kSpiMiso = -1;
+static constexpr int kSpiMosi = -1;
+
 // Uncomment if you have connected the BL pin to GPIO.
 
 // #include "roo_display/backlit/esp32_ledc.h"
-// LedcBacklit backlit(kBlPin, /* ledc channel */ 0);
+// LedcBacklit backlit(kBlPin);
 
 Ili9341spi<kCsPin, kDcPin, kRstPin> device(Orientation().rotateLeft());
 Display display(device);
@@ -29,8 +33,11 @@ Display display(device);
 #include "roo_fonts/NotoSerif_Italic/90.h"
 
 void setup() {
-  SPI.begin();
+  SPI.begin(kSpiSck, kSpiMiso, kSpiMosi);
   display.init(Graylevel(0xF0));
+
+  // Uncomment if using backlit.
+  // backlit.begin();
 }
 
 void vertical() {
@@ -90,7 +97,7 @@ void semi_transparent() {
   display.clear();
 
   DrawingContext dc(display);
-  auto bg = MakeRasterizable(display.extents(), [](int16_t x, int16_t y) {
+  auto bg = MakeRasterizable(dc.bounds(), [](int16_t x, int16_t y) {
     return color::RoyalBlue.withA(y);
   });
   dc.setBackground(&bg);

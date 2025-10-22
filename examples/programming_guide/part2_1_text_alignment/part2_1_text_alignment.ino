@@ -14,10 +14,14 @@ static constexpr int kDcPin = 2;
 static constexpr int kRstPin = 4;
 static constexpr int kBlPin = 16;
 
+static constexpr int kSpiSck = -1;
+static constexpr int kSpiMiso = -1;
+static constexpr int kSpiMosi = -1;
+
 // Uncomment if you have connected the BL pin to GPIO.
 
 // #include "roo_display/backlit/esp32_ledc.h"
-// LedcBacklit backlit(kBlPin, /* ledc channel */ 0);
+// LedcBacklit backlit(kBlPin);
 
 Ili9341spi<kCsPin, kDcPin, kRstPin> device(Orientation().rotateLeft());
 Display display(device);
@@ -32,8 +36,11 @@ Display display(device);
 #include "roo_fonts/NotoSerif_Italic/90.h"
 
 void setup() {
-  SPI.begin();
+  SPI.begin(kSpiSck, kSpiMiso, kSpiMosi);
   display.init(Graylevel(0xF0));
+
+  // Uncomment if using backlit.
+  // backlit.begin();
 }
 
 void extents() {
@@ -46,8 +53,8 @@ void extents() {
   auto label = TextLabel("yeah.", font, color::Black);
   dc.setBackgroundColor(color::LightGray);
   dc.draw(FilledRect(label.extents(), color::LightGray), dx, dy);
-  dc.draw(Line(dx, 0, dx, display.height() - 1, color::Red));
-  dc.draw(Line(0, dy, display.width() - 1, dy, color::Red));
+  dc.draw(Line(dx, 0, dx, dc.height() - 1, color::Red));
+  dc.draw(Line(0, dy, dc.width() - 1, dy, color::Red));
   dc.draw(Rect(label.anchorExtents(), color::Blue), dx, dy);
 
   dc.draw(label, dx, dy);
@@ -62,9 +69,9 @@ void alignments() {
   auto label = TextLabel("yeah.", font, color::Black);
   int dx = 10;
   int dy = 10;
-  int w = display.width();
-  int h = display.height();
   DrawingContext dc(display);
+  int w = dc.width();
+  int h = dc.height();
   dc.draw(Line(0, dy, w - 1, dy, color::Red));
   dc.draw(Line(0, h - dy - 1, w - 1, h - dy - 1, color::Red));
   dc.draw(Line(dx, 0, dx, h - 1, color::Red));

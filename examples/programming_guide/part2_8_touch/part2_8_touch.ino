@@ -16,10 +16,14 @@ static constexpr int kRstPin = 4;
 static constexpr int kBlPin = 16;
 static constexpr int kTouchCsPin = 27;
 
+static constexpr int kSpiSck = -1;
+static constexpr int kSpiMiso = -1;
+static constexpr int kSpiMosi = -1;
+
 // Uncomment if you have connected the BL pin to GPIO.
 
 // #include "roo_display/backlit/esp32_ledc.h"
-// LedcBacklit backlit(kBlPin, /* ledc channel */ 0);
+// LedcBacklit backlit(kBlPin);
 
 Ili9341spi<kCsPin, kDcPin, kRstPin> display_device(Orientation().rotateLeft());
 TouchXpt2046<kTouchCsPin> touch_device;
@@ -34,8 +38,11 @@ Display display(display_device, touch_device,
 #include "roo_display/shape/basic.h"
 
 void setup() {
-  SPI.begin();
+  SPI.begin(kSpiSck, kSpiMiso, kSpiMosi);
   display.init(color::DarkGray);
+
+  // Uncomment if using backlit.
+  // backlit.begin();
 }
 
 int16_t x = -1;

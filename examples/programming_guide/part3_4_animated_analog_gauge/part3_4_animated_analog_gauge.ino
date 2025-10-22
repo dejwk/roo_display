@@ -16,10 +16,14 @@ static constexpr int kDcPin = 2;
 static constexpr int kRstPin = 4;
 static constexpr int kBlPin = 16;
 
+static constexpr int kSpiSck = -1;
+static constexpr int kSpiMiso = -1;
+static constexpr int kSpiMosi = -1;
+
 // Uncomment if you have connected the BL pin to GPIO.
 
 // #include "roo_display/backlit/esp32_ledc.h"
-// LedcBacklit backlit(kBlPin, /* ledc channel */ 0);
+// LedcBacklit backlit(kBlPin);
 
 Ili9341spi<kCsPin, kDcPin, kRstPin> device(Orientation().rotateLeft());
 Display display(device);
@@ -34,8 +38,11 @@ Display display(device);
 #include "roo_io/text/string_printf.h"
 
 void setup() {
-  SPI.begin();
+  SPI.begin(kSpiSck, kSpiMiso, kSpiMosi);
   display.init(color::White);
+
+  // Uncomment if using backlit.
+  // backlit.begin();
 }
 
 static const float kRadius = 120;
@@ -121,7 +128,7 @@ class Scale : public Drawable {
     Needle needle(value_);
     auto needle_shape = needle.getShape();
     Surface my_s = s;
-    ForegroundFilter filter(s.out(), &needle_shape);
+    ForegroundFilter filter(s.out(), &needle_shape, s.dx(), s.dy());
     my_s.set_out(&filter);
     DrawingContext dc(my_s);
     // Note: we expect my_s to be write-once.

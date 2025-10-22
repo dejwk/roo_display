@@ -14,10 +14,14 @@ static constexpr int kDcPin = 2;
 static constexpr int kRstPin = 4;
 static constexpr int kBlPin = 16;
 
+static constexpr int kSpiSck = -1;
+static constexpr int kSpiMiso = -1;
+static constexpr int kSpiMosi = -1;
+
 // Uncomment if you have connected the BL pin to GPIO.
 
 // #include "roo_display/backlit/esp32_ledc.h"
-// LedcBacklit backlit(kBlPin, /* ledc channel */ 0);
+// LedcBacklit backlit(kBlPin);
 
 Ili9341spi<kCsPin, kDcPin, kRstPin> device(Orientation().rotateLeft());
 Display display(device);
@@ -28,8 +32,11 @@ Display display(device);
 #include "roo_fonts/NotoSans_Bold/27.h"
 
 void setup() {
-  SPI.begin();
+  SPI.begin(kSpiSck, kSpiMiso, kSpiMosi);
   display.init(color::Black);
+
+  // Uncomment if using backlit.
+  // backlit.begin();
 }
 
 class JumpingPedroSpriteOverlay : public Drawable {
@@ -72,7 +79,7 @@ class JumpingPedroSpriteOverlay : public Drawable {
     auto pedro_scaled = MakeRasterizable(
         Box(0, 0, 8 * 4 - 1, 22 * 2 - 1),
         [&](int16_t x, int16_t y) { return pedro_raster.get(x / 4, y / 2); });
-    ForegroundFilter fg(s.out(), &pedro_scaled, xc_, yc_);
+    ForegroundFilter fg(s.out(), &pedro_scaled, xc_ + s.dx(), yc_ + s.dy());
     my_s.set_out(&fg);
     my_s.drawObject(*contents_);
   }

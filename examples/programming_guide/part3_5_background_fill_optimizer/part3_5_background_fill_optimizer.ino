@@ -14,10 +14,14 @@ static constexpr int kDcPin = 2;
 static constexpr int kRstPin = 4;
 static constexpr int kBlPin = 16;
 
+static constexpr int kSpiSck = -1;
+static constexpr int kSpiMiso = -1;
+static constexpr int kSpiMosi = -1;
+
 // Uncomment if you have connected the BL pin to GPIO.
 
 // #include "roo_display/backlit/esp32_ledc.h"
-// LedcBacklit backlit(kBlPin, /* ledc channel */ 0);
+// LedcBacklit backlit(kBlPin);
 
 Ili9341spi<kCsPin, kDcPin, kRstPin> device(Orientation().rotateLeft());
 
@@ -29,10 +33,13 @@ BackgroundFillOptimizerDevice fill_optimizer(device);
 Display display(fill_optimizer);
 
 void setup() {
-  SPI.begin();
+  SPI.begin(kSpiSck, kSpiMiso, kSpiMosi);
   // For simplicity, only using 1-color palette. (You can use up to 15 colors).
   fill_optimizer.setPalette({color::White});
   display.init(color::White);
+
+  // Uncomment if using backlit.
+  // backlit.begin();
 }
 
 void loop() {

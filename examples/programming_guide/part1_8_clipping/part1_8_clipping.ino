@@ -14,10 +14,14 @@ static constexpr int kDcPin = 2;
 static constexpr int kRstPin = 4;
 static constexpr int kBlPin = 16;
 
+static constexpr int kSpiSck = -1;
+static constexpr int kSpiMiso = -1;
+static constexpr int kSpiMosi = -1;
+
 // Uncomment if you have connected the BL pin to GPIO.
 
 // #include "roo_display/backlit/esp32_ledc.h"
-// LedcBacklit backlit(kBlPin, /* ledc channel */ 0);
+// LedcBacklit backlit(kBlPin);
 
 Ili9341spi<kCsPin, kDcPin, kRstPin> device(Orientation().rotateLeft());
 Display display(device);
@@ -27,8 +31,11 @@ Display display(device);
 #include "roo_fonts/NotoSerif_Italic/60.h"
 
 void setup() {
-  SPI.begin();
+  SPI.begin(kSpiSck, kSpiMiso, kSpiMosi);
   display.init(Graylevel(0xF0));
+
+  // Uncomment if using backlit.
+  // backlit.begin();
 }
 
 void with_clip_box() {
@@ -36,9 +43,9 @@ void with_clip_box() {
 
   const auto& font = font_NotoSerif_Italic_60();
   auto label = TextLabel("Hello!", font, color::Black);
-  int w = display.width();
-  int h = display.height();
   DrawingContext dc(display);
+  int w = dc.width();
+  int h = dc.height();
   dc.setClipBox(0, 0, w - 1, 179);
   dc.draw(FilledCircle::ByRadius(w / 2, 179, w / 2 - 20, color::Gold));
   dc.setBackgroundColor(color::Gold);
@@ -66,9 +73,9 @@ void with_clip_mask() {
 
   const auto& font = font_NotoSerif_Italic_60();
   auto label = TextLabel("Hello!", font, color::Black);
-  int w = display.width();
-  int h = display.height();
   DrawingContext dc(display);
+  int w = dc.width();
+  int h = dc.height();
   dc.setClipBox(0, 0, w - 1, 179);
   dc.draw(FilledCircle::ByRadius(w / 2, 179, w / 2 - 20, color::Gold));
   dc.setBackgroundColor(color::Gold);

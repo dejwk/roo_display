@@ -973,7 +973,7 @@ The library inherits a few utilities to work with UTF-8, in the `"roo_io/text/un
 
 #### Formatted text
 
-The library provides convenience 'sprintf-like' utilities in `"roo_display/ui/string_printer.h"`. You can use them to format text into `std::string`, which is used in other places such as the `TextLabel`.
+The library (or rather, its dependency library `roo_io`) provides convenience 'sprintf-like' utilities in `"roo_io/text/string_printf.h"`. You can use them to format text into `std::string`, which is used in other places such as the `TextLabel`.
 
 > Note: do not hesitate to use `std::string`. It works well on microcontrollers such as ESP32. For best performance, strings should be passed by value and _moved_ (rather than copied). Classes such as `TextLabel` already provide suitable move constructors, making things 'just work'.
 

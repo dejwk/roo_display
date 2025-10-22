@@ -60,12 +60,13 @@ TouchXpt2046<2> touch_device;
 
 Display display(display_device, touch_device);
 
-LedcBacklit backlit(16, 1);
+LedcBacklit backlit(16);
 
 void setup() {
   Serial.begin(115200);
   SPI.begin();
   display.init(color::LightSeaGreen);
+  backlit.begin();
 }
 
 void loop() {

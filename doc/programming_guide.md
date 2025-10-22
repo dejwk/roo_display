@@ -62,6 +62,14 @@ class XXXspi { ... };
 
 The template arguments allow you to specify pins that connect to your display's
 CS, DC and RST signals. The driver may accept additional template parameters, e.g. overriding the default SPI settings. See the driver's comments for more details.
+As an example, to specify SPI settings for the ST7796s driver, you can declare it
+like this:
+
+```cpp
+St7796sspi<kCsPin, kDcPin, kRstPin, roo_display::DefaultSpi,
+           roo_display::SpiSettings<40000000, MSBFIRST, SPI_MODE0>>
+    device;
+```
 
 When you instantiate the SPI driver without any additional parameters, it will assume the default SPI interface. If you need to override that interface, you can do so by specifying one in the constructor:
 
@@ -103,14 +111,19 @@ Backlit is independent from the display driver. `roo_display` provides some util
 ```cpp
 #include "roo_display/backlit/esp32_ledc.h"
 
-LedcBacklit backlit(/* pin */ 16, /* ledc channel */ 0);
+LedcBacklit backlit(/* pin */ 16);
 
 // ...
+
+void setup() {
+  // ...
+  backlit.begin();
+}
 
 void loop() {
   // ...
   // Optional: adjust brightness.
-  backlit.setIntensity(n);  // in the [0-255] range.
+  backlit.setIntensity(n);  // in the [0-256] range.
 }
 
 ```

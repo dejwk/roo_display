@@ -458,8 +458,22 @@ void loop() {
 
 ![img8](images/img63.png)
 
-This technique allows you to treat a DrawingContext as a virtual 'canvas',
-separating the concerns of content drawing from the concerns of physical rendering.
+This technique allows you to treat a DrawingContext as a virtual 'canvas', separating the concerns of content drawing from the concerns of physical rendering. As an example, say you wanted to try out the examples from this guide on a high-resolution device, but constraining the display to a 320x240 centered view. You can do so by replacing
+
+```cpp
+DrawingContext dc(display);
+```
+
+with
+
+```cpp
+  DrawingContext dc(display, (display.width() - 320) / 2,
+                    (display.height() - 240) / 2, Box(0, 0, 319, 239));
+```
+
+Voila!
+
+#### Anchor extents
 
 For the purpose of alignment, drawables may declare 'anchor extents' that are different than the regular extents defining the bounding rectangle of their content. We will see the examples of that later.
 

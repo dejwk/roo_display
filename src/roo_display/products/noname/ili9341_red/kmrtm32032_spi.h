@@ -45,11 +45,12 @@
 //     display_device;
 // Display display(display_device);
 //
-// LedcBacklit backlit(kPinLcdBl, kBlLedcChannel);
+// LedcBacklit backlit(kPinLcdBl);
 //
 // void setup() {
 //   display_device.initTransport(kPinSpiSck, kPinSpiMiso, kPinSpiMosi);
 //   display.init(color::White);
+//   backlit.begin();
 // }
 //
 // void loop() {

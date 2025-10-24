@@ -38,8 +38,6 @@
 //
 // static const int kPinLcdBl = 16;
 //
-// static const int kBlLedcChannel = 1;
-//
 // products::noname::st7796s_black::Msp4031<kPinLcdCs, kPinTouchCs, kPinLcdDc,
 //                                              kPinLcdReset>
 //     display_device;

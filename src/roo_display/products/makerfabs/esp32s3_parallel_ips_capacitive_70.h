@@ -1,4 +1,4 @@
-#include "roo_display/products/makerfabs/esp32s3_parallel_ips_capacitive_800x480.h"
+#include "roo_display/products/makerfabs/esp32s3_parallel_ips_capacitive.h"
 
 namespace roo_display::products::makerfabs{
 

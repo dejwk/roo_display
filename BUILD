@@ -9,6 +9,7 @@ cc_library(
         ],
         exclude = ["test/**"],
     ),
+    linkstatic = 1,
     includes = [
         "src",
     ],
@@ -35,7 +36,7 @@ cc_library(
         exclude = ["test/**"],
     ),
     defines = ["ROO_DISPLAY_TESTING"],
-    alwayslink = 1,
+    linkstatic = 1,
     includes = [
         "src",
     ],

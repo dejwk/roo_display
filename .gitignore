@@ -1,1 +1,2 @@
-*.code-workspace
+MODULE.bazel.lock
+bazel-*

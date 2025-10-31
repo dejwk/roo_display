@@ -1,4 +1,4 @@
-build --registry="https://raw.githubusercontent.com/dejwk/roo-registry/main/" --registry="https://bcr.bazel.build"
+common --registry="https://raw.githubusercontent.com/dejwk/roo-registry/main/" --registry="https://bcr.bazel.build"
 
 build:asan --strip=never
 build:asan --copt -fsanitize=address

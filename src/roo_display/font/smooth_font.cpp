@@ -49,7 +49,7 @@ class GlyphMetadataReader {
     if (font_.font_metric_bytes_ == 1) {
       uint8_t b = readByte(ptr_ + 0);
       compressed = ((b >> 7) == ((b >> 6) & 1));
-      glyphXMin = (b ^ ((!compressed) << 6));
+      glyphXMin = (int8_t)(b ^ ((!compressed) << 6));
       glyphYMin = readByte(ptr_ + 1);
       glyphXMax = readByte(ptr_ + 2);
       glyphYMax = readByte(ptr_ + 3);
@@ -57,7 +57,7 @@ class GlyphMetadataReader {
     } else {
       uint16_t b = readWord(ptr_ + 0);
       compressed = ((b >> 15) == ((b >> 14) & 1));
-      glyphXMin = (b ^ ((!compressed) << 14));
+      glyphXMin = (int16_t)(b ^ ((!compressed) << 14));
       glyphXMin = readWord(ptr_ + 0);
       glyphYMin = readWord(ptr_ + 2);
       glyphXMax = readWord(ptr_ + 4);

@@ -10,7 +10,7 @@ namespace roo_display {
 
 class PixelStream {
  public:
-  virtual void Read(Color *buf, uint16_t size) = 0;
+  virtual void Read(Color* buf, uint16_t size) = 0;
 
   virtual void Skip(uint32_t count) {
     Color buf[kPixelWritingBufferSize];
@@ -26,8 +26,8 @@ class PixelStream {
 
 namespace internal {
 
-inline void fillReplaceRect(DisplayOutput &output, const Box &extents,
-                            PixelStream *stream, BlendingMode mode) {
+inline void fillReplaceRect(DisplayOutput& output, const Box& extents,
+                            PixelStream* stream, BlendingMode mode) {
   Color buf[kPixelWritingBufferSize];
   output.setAddress(extents, mode);
   uint32_t count = extents.area();
@@ -40,8 +40,8 @@ inline void fillReplaceRect(DisplayOutput &output, const Box &extents,
   }
 }
 
-inline void fillPaintRectOverOpaqueBg(DisplayOutput &output, const Box &extents,
-                                      Color bgColor, PixelStream *stream,
+inline void fillPaintRectOverOpaqueBg(DisplayOutput& output, const Box& extents,
+                                      Color bgColor, PixelStream* stream,
                                       BlendingMode mode) {
   Color buf[kPixelWritingBufferSize];
   output.setAddress(extents, mode);
@@ -56,8 +56,8 @@ inline void fillPaintRectOverOpaqueBg(DisplayOutput &output, const Box &extents,
   } while (count > 0);
 }
 
-inline void fillPaintRectOverBg(DisplayOutput &output, const Box &extents,
-                                Color bgcolor, PixelStream *stream,
+inline void fillPaintRectOverBg(DisplayOutput& output, const Box& extents,
+                                Color bgcolor, PixelStream* stream,
                                 BlendingMode mode) {
   Color buf[kPixelWritingBufferSize];
   output.setAddress(extents, mode);
@@ -75,8 +75,8 @@ inline void fillPaintRectOverBg(DisplayOutput &output, const Box &extents,
 }
 
 // Assumes no bgcolor.
-inline void writeRectVisible(DisplayOutput &output, const Box &extents,
-                             PixelStream *stream, BlendingMode mode) {
+inline void writeRectVisible(DisplayOutput& output, const Box& extents,
+                             PixelStream* stream, BlendingMode mode) {
   // TODO(dawidk): need to optimize this.
   Color buf[kPixelWritingBufferSize];
   BufferedPixelWriter writer(output, mode);
@@ -99,9 +99,9 @@ inline void writeRectVisible(DisplayOutput &output, const Box &extents,
   }
 }
 
-inline void writeRectVisibleOverOpaqueBg(DisplayOutput &output,
-                                         const Box &extents, Color bgcolor,
-                                         PixelStream *stream,
+inline void writeRectVisibleOverOpaqueBg(DisplayOutput& output,
+                                         const Box& extents, Color bgcolor,
+                                         PixelStream* stream,
                                          BlendingMode mode) {
   // TODO(dawidk): need to optimize this.
   Color buf[kPixelWritingBufferSize];
@@ -124,8 +124,8 @@ inline void writeRectVisibleOverOpaqueBg(DisplayOutput &output,
   }
 }
 
-inline void writeRectVisibleOverBg(DisplayOutput &output, const Box &extents,
-                                   Color bgcolor, PixelStream *stream,
+inline void writeRectVisibleOverBg(DisplayOutput& output, const Box& extents,
+                                   Color bgcolor, PixelStream* stream,
                                    BlendingMode mode) {
   // TODO(dawidk): need to optimize this.
   Color buf[kPixelWritingBufferSize];
@@ -150,8 +150,8 @@ inline void writeRectVisibleOverBg(DisplayOutput &output, const Box &extents,
 
 // This function will fill in the specified rectangle using the most appropriate
 // method given the stream's transparency mode.
-inline void FillRectFromStream(DisplayOutput &output, const Box &extents,
-                               PixelStream *stream, Color bgcolor,
+inline void FillRectFromStream(DisplayOutput& output, const Box& extents,
+                               PixelStream* stream, Color bgcolor,
                                FillMode fill_mode, BlendingMode blending_mode,
                                TransparencyMode transparency) {
   if (fill_mode == FILL_MODE_RECTANGLE || transparency == TRANSPARENCY_NONE) {
@@ -204,12 +204,12 @@ class BufferingStream {
   //   return;
   // }
 
-  void read(Color *buf, uint16_t count) {
+  void read(Color* buf, uint16_t count) {
     if (idx_ >= kPixelWritingBufferSize) {
       idx_ = 0;
       fetch();
     }
-    const Color *in = buf_ + idx_;
+    const Color* in = buf_ + idx_;
     uint16_t batch = kPixelWritingBufferSize - idx_;
     while (true) {
       if (count <= batch) {
@@ -226,12 +226,12 @@ class BufferingStream {
     }
   }
 
-  void blend(Color *buf, uint16_t count, BlendingMode blending_mode) {
+  void blend(Color* buf, uint16_t count, BlendingMode blending_mode) {
     if (idx_ >= kPixelWritingBufferSize) {
       idx_ = 0;
       fetch();
     }
-    const Color *in = buf_ + idx_;
+    const Color* in = buf_ + idx_;
     uint16_t batch = kPixelWritingBufferSize - idx_;
     while (true) {
       if (count <= batch) {
@@ -303,9 +303,9 @@ class SubRectangleStream : public PixelStream {
         remaining_(count),
         idx_(kPixelWritingBufferSize) {}
 
-  SubRectangleStream(SubRectangleStream &&) = default;
+  SubRectangleStream(SubRectangleStream&&) = default;
 
-  void Read(Color *buf, uint16_t count) override {
+  void Read(Color* buf, uint16_t count) override {
     do {
       if (x_ >= width_) {
         dskip(width_skip_);
@@ -356,7 +356,7 @@ class SubRectangleStream : public PixelStream {
     idx_ = count;
   }
 
-  uint16_t dnext(Color *buf, int16_t count) {
+  uint16_t dnext(Color* buf, int16_t count) {
     if (idx_ >= kPixelWritingBufferSize) {
       uint16_t n = kPixelWritingBufferSize;
       if (n > remaining_) n = remaining_;
@@ -372,7 +372,7 @@ class SubRectangleStream : public PixelStream {
     return count;
   }
 
-  SubRectangleStream(const SubRectangleStream &) = delete;
+  SubRectangleStream(const SubRectangleStream&) = delete;
 
   Delegate stream_;
   int16_t x_;
@@ -386,8 +386,8 @@ class SubRectangleStream : public PixelStream {
 
 template <typename Stream>
 inline SubRectangleStream<Stream> MakeSubRectangle(Stream stream,
-                                                   const Box &extents,
-                                                   const Box &bounds) {
+                                                   const Box& extents,
+                                                   const Box& bounds) {
   int line_offset = extents.width() - bounds.width();
   int xoffset = bounds.xMin() - extents.xMin();
   int yoffset = bounds.yMin() - extents.yMin();
@@ -401,8 +401,8 @@ inline SubRectangleStream<Stream> MakeSubRectangle(Stream stream,
 
 template <typename Stream>
 inline std::unique_ptr<PixelStream> SubRectangle(Stream stream,
-                                                 const Box &extents,
-                                                 const Box &bounds) {
+                                                 const Box& extents,
+                                                 const Box& bounds) {
   int line_offset = extents.width() - bounds.width();
   int xoffset = bounds.xMin() - extents.xMin();
   int yoffset = bounds.yMin() - extents.yMin();
@@ -420,7 +420,7 @@ class Streamable : public virtual Drawable {
   virtual std::unique_ptr<PixelStream> createStream() const = 0;
 
   virtual std::unique_ptr<PixelStream> createStream(
-      const Box &clip_box) const = 0;
+      const Box& clip_box) const = 0;
 
   // getTransparencyMode is an optimization hint that a streamable can
   // give to the renderer. The default, safe to use, is TRANSPARENCY_GRADUAL,
@@ -433,7 +433,7 @@ class Streamable : public virtual Drawable {
   }
 
  private:
-  void drawTo(const Surface &s) const override {
+  void drawTo(const Surface& s) const override {
     Box ext = extents();
     Box bounds = Box::Intersect(s.clip_box().translate(-s.dx(), -s.dy()), ext);
     if (bounds.empty()) return;
@@ -455,37 +455,37 @@ template <typename Iterable, typename ColorMode, typename StreamType>
 class SimpleStreamable : public Streamable {
  public:
   SimpleStreamable(int16_t width, int16_t height, Iterable resource,
-                   const ColorMode &color_mode = ColorMode())
+                   const ColorMode& color_mode = ColorMode())
       : SimpleStreamable(Box(0, 0, width - 1, height - 1), std::move(resource),
                          std::move(color_mode)) {}
 
   SimpleStreamable(Box extents, Iterable resource,
-                   const ColorMode &color_mode = ColorMode())
+                   const ColorMode& color_mode = ColorMode())
       : SimpleStreamable(extents, extents, std::move(resource), color_mode) {}
 
   SimpleStreamable(Box extents, Box anchor_extents, Iterable resource,
-                   const ColorMode &color_mode = ColorMode())
+                   const ColorMode& color_mode = ColorMode())
       : extents_(std::move(extents)),
         anchor_extents_(anchor_extents),
         resource_(std::move(resource)),
         color_mode_(color_mode) {}
 
-  void setColorMode(const ColorMode &color_mode) { color_mode_ = color_mode; }
+  void setColorMode(const ColorMode& color_mode) { color_mode_ = color_mode; }
 
   Box extents() const override { return extents_; }
 
   Box anchorExtents() const override { return anchor_extents_; }
 
-  const Iterable &resource() const { return resource_; }
-  const ColorMode &color_mode() const { return color_mode_; }
-  ColorMode &color_mode() { return color_mode_; }
+  const Iterable& resource() const { return resource_; }
+  const ColorMode& color_mode() const { return color_mode_; }
+  ColorMode& color_mode() { return color_mode_; }
 
   std::unique_ptr<PixelStream> createStream() const override {
     return std::unique_ptr<PixelStream>(
         new StreamType(resource_.iterator(), color_mode_));
   }
 
-  std::unique_ptr<PixelStream> createStream(const Box &bounds) const override {
+  std::unique_ptr<PixelStream> createStream(const Box& bounds) const override {
     return SubRectangle(StreamType(resource_.iterator(), color_mode_),
                         extents(), bounds);
   }

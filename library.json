@@ -43,6 +43,6 @@
     "dependencies": {
         "dejwk/roo_backport": ">=1.1.1",
         "dejwk/roo_collections": ">=1.3.2",
-        "dejwk/roo_io": ">=2.0.2"
+        "dejwk/roo_io": ">=2.0.3"
     }
 }

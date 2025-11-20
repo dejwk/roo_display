@@ -27,23 +27,17 @@ struct RawColorReader<StreamType, 8> {
 
 template <typename StreamType>
 struct RawColorReader<StreamType, 16> {
-  uint16_t operator()(StreamType& in) const {
-    return roo_io::ReadBeU16(in);
-  }
+  uint16_t operator()(StreamType& in) const { return roo_io::ReadBeU16(in); }
 };
 
 template <typename StreamType>
 struct RawColorReader<StreamType, 24> {
-  uint32_t operator()(StreamType& in) const {
-    return roo_io::ReadBeU24(in);
-  }
+  uint32_t operator()(StreamType& in) const { return roo_io::ReadBeU24(in); }
 };
 
 template <typename StreamType>
 struct RawColorReader<StreamType, 32> {
-  uint32_t operator()(StreamType& in) const {
-    return roo_io::ReadBeU32(in);
-  }
+  uint32_t operator()(StreamType& in) const { return roo_io::ReadBeU32(in); }
 };
 
 template <typename StreamType>
@@ -97,7 +91,8 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, false>
       if ((data & roo::byte{0x40}) == roo::byte{0}) {
         remaining_items_ = (int)(data & roo::byte{0x3F}) + 1;
       } else {
-        remaining_items_ = read_varint(input_, (int)(data & roo::byte{0x3F})) + 1;
+        remaining_items_ =
+            read_varint(input_, (int)(data & roo::byte{0x3F})) + 1;
       }
       if (run_) {
         run_value_ = read_color();
@@ -332,6 +327,10 @@ class NibbleReader {
     }
   }
 
+  bool ok() const {
+    return input_.status() == roo_io::kOk;
+  }
+
  private:
   StreamType input_;
   roo::byte buffer_;
@@ -370,6 +369,32 @@ class RleStream4bppxBiased<Resource, ColorMode, 4> : public PixelStream {
 
   void Skip(uint32_t n) override { skip(n); }
 
+  // The algorihm processes nibbles (4-bit values), decoding them as follows:
+  //
+  // * 1xxx (x > 0) : run of x opaque pixels (value = 0xF)
+  // * 0xxx (x > 0) : run of x opaque pixels (value = 0x0)
+  // * 0x0 0x0 cccc: 2 repetitions of color cccc
+  // * 0x0 0xF cccc: 3 repetitions of color cccc
+  // * 0x0 cccc: single color cccc (cccc != 0x0, 0xF)
+  // * 0x8 0x0 <v> cccc: run of (v + 4) repetitions of color cccc
+  // * 0x8 <v> [cccc ...]: (v + 2) arbitrary colors
+  //
+  // where v is a variable-length integer encoded in 3-bit chunks, with
+  // bit 3 indicating whether more chunks follow.
+  //
+  // For example:
+  //
+  // 0x1 -> 0x0 (a single transparent pixel)
+  // 0x3 -> 0x0 0x0 0x0 (run of 3 transparent pixels)
+  // 0x9 -> 0xF (a single opaque pixel)
+  // 0xD -> 0xF 0xF 0xF 0xF 0xF (run of 5 opaque pixels)
+  // 0x0 0x0 0x5 -> 0x5 0x5 (two pixels of value 0x5)
+  // 0x0 0xF 0x5 -> 0x5 0x5 0x5 (three pixels of value 0x5)
+  // 0x8 0x0 0x0 0x5 -> 0x5 0x5 0x5 0x5 (4 pixels of value 0x5)
+  // 0x8 0x0 0x1 0x5 -> 0x5 0x5 0x5 0x5 0x5 (5 pixels of value 0x5)
+  // 0x8 0x1 0x3 0x4 0x5 -> 0x3 0x4 (3 arbitrary pixels: 0x3, 0x4, 0x5)
+  //
+  // 0x8 0xD 0x1 ... -> 13 (11 + 2) arbitrary pixels that follow
   Color next() {
     if (remaining_items_ == 0) {
       // No remaining items; need to decode the next group.
@@ -428,6 +453,10 @@ class RleStream4bppxBiased<Resource, ColorMode, 4> : public PixelStream {
   }
 
   TransparencyMode transparency() const { return color_mode_.transparency(); }
+
+  bool ok() const {
+    return reader_.ok();
+  }
 
  private:
   inline Color color(uint8_t nibble) { return color_mode_.toArgbColor(nibble); }

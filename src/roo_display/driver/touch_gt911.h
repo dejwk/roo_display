@@ -2,11 +2,10 @@
 
 #include <Wire.h>
 
-#include <atomic>
-
 #include "roo_display/core/device.h"
 #include "roo_display/driver/common/basic_touch.h"
 #include "roo_threads.h"
+#include "roo_threads/atomic.h"
 #include "roo_threads/thread.h"
 
 namespace roo_display {
@@ -37,7 +36,7 @@ class TouchGt911 : public BasicTouchDevice<5> {
   decltype(Wire)& wire_;
   long reset_low_hold_ms_;
 
-  std::atomic<bool> ready_;
+  roo::atomic<bool> ready_;
   roo::thread reset_thread_;
 };
 

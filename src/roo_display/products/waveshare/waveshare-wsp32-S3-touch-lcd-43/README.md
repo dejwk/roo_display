@@ -1,8 +1,6 @@
-# Waveshare ESP32-S3-Touch-LCD-4.3 Test Sketch
+# Waveshare ESP32-S3-Touch-LCD-4.3B
 
-Basic test application for the Waveshare ESP32-S3-Touch-LCD-4.3 display using the roo_display library.
-
-## Hardware Requirements
+## Hardware overview
 
 - Waveshare ESP32-S3-Touch-LCD-4.3
   - 800x480 RGB parallel display

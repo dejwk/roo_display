@@ -1,5 +1,7 @@
 # Waveshare ESP32-S3-Touch-LCD-4.3B
 
+- Example folder conatins a basic test sketch
+
 ## Hardware overview
 
 - Waveshare ESP32-S3-Touch-LCD-4.3

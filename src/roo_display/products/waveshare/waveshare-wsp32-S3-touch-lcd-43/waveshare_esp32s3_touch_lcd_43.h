@@ -94,8 +94,8 @@ constexpr esp32s3_dma::Config kWaveshareConfig = {
     
     // Vertical Timing (spezifisch für 4.3" Modell)
     .vsync_pulse_width = 4,
-    .vsync_back_porch = 16,   // 4.3" nutzt 16 (nicht 8 wie 7" Modell)
-    .vsync_front_porch = 16,  // 4.3" nutzt 16 (nicht 8 wie 7" Modell)
+    .vsync_back_porch = 8,   // 4.3" nutzt 16 (nicht 8 wie 7" Modell)
+    .vsync_front_porch = 8,  // 4.3" nutzt 16 (nicht 8 wie 7" Modell)
     .vsync_polarity = 0,
     
     // Clock Konfiguration

@@ -17,7 +17,7 @@
 
 **Required Settings:**
 - USB CDC On Boot: `Disabled`
-- PSRAM: `OPI PSRAM`
+- PSRAM: Enabled `OPI PSRAM`
 
 ## Dependencies
 

@@ -28,7 +28,7 @@
 
 The display requires a hardware configuration header file to function. Include it in your sketch:
 ```cpp
-#include "roo_display/products/waveshare/waveshare-wsp32-S3-touch-lcd-43/waveshare_esp32s3_touch_lcd_43.h"
+#include "roo_display/products/waveshare/waveshare-esp32-s3-touch-lcd-43/waveshare_esp32s3_touch_lcd_43.h"
 ```
 
 See the example sketch in the `examples` folder for complete implementation details.

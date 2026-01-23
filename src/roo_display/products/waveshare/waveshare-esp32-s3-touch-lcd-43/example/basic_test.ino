@@ -8,15 +8,15 @@
 using namespace roo_display;
 using namespace roo_display::products::waveshare;
 
-// Create hardware object
-WaveshareEsp32s3TouchLcd43 hardware;
-Display display(hardware);
+// Create hardware object.
+WaveshareEsp32s3TouchLcd43 device;
+Display display(device);
 
-// Touch statistics
+// Touch statistics.
 uint32_t touchCount = 0;
 uint32_t lastTouchTime = 0;
 
-// Reset button coordinates (position and size)
+// Reset button coordinates (position and size).
 const int16_t RESET_BTN_X = 650;
 const int16_t RESET_BTN_Y = 30;
 const int16_t RESET_BTN_W = 130;
@@ -24,19 +24,17 @@ const int16_t RESET_BTN_H = 60;
 
 void setup() {
   Serial.begin(115200);
-
   Serial.println("\n=== Waveshare Display Test ===\n");
 
-  // Initialize I2C bus
-  hardware.initTransport();
-
-  // Initialize hardware (CH422G and GT911)
-  if (!hardware.init()) {
+  // Initialize hardware (PSRAM check, I2C, GT911 reset).
+  if (!device.initTransport())
+  {
     Serial.println("Init failed!");
-    while (1) delay(1000);
+    while (1)
+      delay(1000);
   }
 
-  // Print display information to serial console
+  // Print display information to serial console.
   Serial.println("Display Information:");
   Serial.printf("  Resolution: %d x %d\n", 
                 display.width(), display.height());
@@ -44,10 +42,10 @@ void setup() {
   Serial.printf("  Free PSRAM: %d bytes\n", ESP.getFreePsram());
   Serial.println();
 
-  // Initialize display with black background
+  // Initialize display with black background.
   display.init(color::Black);
 
-  // Draw geometric shapes in a row
+  // Draw geometric shapes in a row.
   DrawingContext dc(display);
 
   int16_t centerY = 240;
@@ -58,7 +56,7 @@ void setup() {
                     font_NotoSans_Regular_27(), color::Cyan),
           50, 50);
 
-  // Draw six different shapes to demonstrate display capabilities
+  // Draw six different shapes to demonstrate display capabilities.
   dc.draw(FilledCircle::ByExtents(startX, centerY - 50, 50, 
                                    color::Red));
   dc.draw(FilledRect(startX + spacing - 50, centerY - 50,
@@ -79,7 +77,7 @@ void setup() {
                startX + 5 * spacing - 50, centerY + 50, 
                color::Yellow));
 
-  // Draw reset button in top-right corner
+  // Draw reset button in top-right corner.
   dc.draw(FilledRect(RESET_BTN_X, RESET_BTN_Y,
                      RESET_BTN_X + RESET_BTN_W, 
                      RESET_BTN_Y + RESET_BTN_H,
@@ -108,7 +106,7 @@ void loop() {
     uint32_t now = millis();
     touchCount++;
 
-    // Check if reset button was pressed
+    // Check if reset button was pressed.
     if (x >= RESET_BTN_X && x <= (RESET_BTN_X + RESET_BTN_W) &&
         y >= RESET_BTN_Y && y <= (RESET_BTN_Y + RESET_BTN_H)) {
       Serial.println("\n*** RESET BUTTON PRESSED ***\n");
@@ -116,7 +114,7 @@ void loop() {
       ESP.restart();
     }
 
-    // Determine which region of the screen was touched
+    // Determine which region of the screen was touched.
     const char* region = "unknown";
     if (y < 100) {
       region = "top";
@@ -126,11 +124,11 @@ void loop() {
       region = "shapes-row";
     }
 
-    // Print detailed touch information to serial console
+    // Print detailed touch information to serial console.
     Serial.printf("[%4lu] Touch: (%3d, %3d) @ %6lu ms [%s]",
                   touchCount, x, y, now, region);
 
-    // Calculate and print time since last touch
+    // Calculate and print time since last touch.
     if (lastTouchTime > 0) {
       uint32_t delta = now - lastTouchTime;
       Serial.printf(" (delta: %lu ms)", delta);
@@ -139,7 +137,7 @@ void loop() {
 
     lastTouchTime = now;
 
-    // Visualize touch with yellow circle at touch position
+    // Visualize touch with yellow circle at touch position.
     DrawingContext dc(display);
     dc.draw(FilledCircle::ByExtents(x - 10, y - 10, 20, 
                                      color::Yellow));

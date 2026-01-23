@@ -4,11 +4,26 @@
 
 ## Hardware overview
 
-- Waveshare ESP32-S3-Touch-LCD-4.3
-  - 800x480 RGB parallel display
-  - GT911 touch controller
-  - CH422G I/O expander
-  - ESP32-S3 with PSRAM
+### Core System
+- **MCU:** ESP32-S3-WROOM-1-N16R8
+- **Processor:** Xtensa® 32-bit LX7 dual-core processor, up to 240MHz
+- **Memory:** 16MB Flash, 8MB PSRAM, 512KB SRAM, 384KB ROM
+- **Wireless:** 2.4GHz Wi-Fi (802.11 b/g/n) and Bluetooth 5 (LE)
+
+### Display & Touch
+- **Screen:** 4.3-inch LCD with 800×480 resolution (65K colors)
+- **Touch Type:** Capacitive 5-point touch via I2C interface
+
+### Connectivity & Industrial Interfaces
+- **Communication:** RS485 and CAN bus support
+- **Expansion:** I2C interface for external sensors
+- **Isolated IO:** Onboard digital isolated IO (passive/active input, optocoupler-isolated output up to 450mA)
+- **Storage:** TF Card Slot for external data logging or assets
+
+### Power & Management
+- **Input Voltage:** Supports wide-range 7~36V DC power supply
+- **Battery:** Integrated lithium battery management (charging/discharging)
+- **RTC:** Real-time clock chip with battery backup
 
 ## Arduino IDE Configuration
 

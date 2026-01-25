@@ -9,10 +9,10 @@ cc_library(
         ],
         exclude = ["test/**"],
     ),
-    linkstatic = 1,
     includes = [
         "src",
     ],
+    linkstatic = 1,
     visibility = ["//visibility:public"],
     deps = [
         "@roo_backport",
@@ -20,7 +20,7 @@ cc_library(
         "@roo_io",
         "@roo_testing//:arduino",
         "@roo_testing//roo_testing/frameworks/arduino-esp32-2.0.4/libraries/FS",
-        "@roo_testing//roo_testing/frameworks/arduino-esp32-2.0.4/libraries/Wire"
+        "@roo_testing//roo_testing/frameworks/arduino-esp32-2.0.4/libraries/Wire",
     ],
 )
 
@@ -36,10 +36,10 @@ cc_library(
         exclude = ["test/**"],
     ),
     defines = ["ROO_DISPLAY_TESTING"],
-    linkstatic = 1,
     includes = [
         "src",
     ],
+    linkstatic = 1,
     visibility = ["//visibility:public"],
     deps = [
         "@roo_collections",

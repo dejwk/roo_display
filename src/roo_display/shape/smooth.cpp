@@ -1,6 +1,5 @@
 #include "roo_display/shape/smooth.h"
 
-#include <Arduino.h>
 #include <math.h>
 
 #include "roo_display/core/buffered_drawing.h"

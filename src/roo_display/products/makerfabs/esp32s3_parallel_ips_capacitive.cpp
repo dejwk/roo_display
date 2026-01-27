@@ -1,7 +1,10 @@
-#include "roo_display/products/makerfabs/esp32s3_parallel_ips_capacitive.h"
+
+#include <Arduino.h>
 
 #if !defined(ESP32) || !(CONFIG_IDF_TARGET_ESP32S3)
 #else
+
+#include "roo_display/products/makerfabs/esp32s3_parallel_ips_capacitive.h"
 
 namespace roo_display::products::makerfabs {
 

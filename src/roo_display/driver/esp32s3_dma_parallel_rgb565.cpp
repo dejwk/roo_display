@@ -1,24 +1,16 @@
-#include <Arduino.h>
+// #include <Arduino.h>
 
-#if defined(ESP32) && (CONFIG_IDF_TARGET_ESP32S3)
+#if defined(ESP_PLATFORM)
+#include "sdkconfig.h"
 
-// #include "esp_heap_caps.h"
-// #include "esp_intr_alloc.h"
-// #include "esp_lcd_panel_interface.h"
-// #include "esp_lcd_panel_io.h"
-// #include "esp_lcd_panel_rgb.h"
-// #include "esp_pm.h"
-// #include "esp_private/gdma.h"
-// #include "hal/dma_types.h"
-// #include "hal/lcd_hal.h"
-
-#include "roo_display/driver/esp32s3_dma_parallel_rgb565.h"
+#if CONFIG_IDF_TARGET_ESP32S3
 
 #include "esp_err.h"
-#include "esp_lcd_panel_ops.h"
 #include "esp_idf_version.h"
-
-
+#include "esp_lcd_panel_ops.h"
+#include "roo_backport.h"
+#include "roo_backport/byte.h"
+#include "roo_display/driver/esp32s3_dma_parallel_rgb565.h"
 
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 1, 0)
 #define LEGACY_RGBPANEL
@@ -34,7 +26,7 @@ namespace roo_display {
 
 namespace esp32s3_dma {
 
-roo::byte* AllocateBuffer(const Config &config) {
+roo::byte *AllocateBuffer(const Config &config) {
   esp_lcd_rgb_panel_config_t *cfg =
       (esp_lcd_rgb_panel_config_t *)heap_caps_calloc(
           1, sizeof(esp_lcd_rgb_panel_config_t),
@@ -49,9 +41,9 @@ roo::byte* AllocateBuffer(const Config &config) {
   int32_t default_speed = 13000000L;
 #endif
 #else
-// #ifdef CONFIG_SPIRAM_MODE_QUAD
-//   int32_t default_speed = 10000000L;
-// #else
+  // #ifdef CONFIG_SPIRAM_MODE_QUAD
+  //   int32_t default_speed = 10000000L;
+  // #else
   int32_t default_speed = 18000000L;
 // #endif
 #endif
@@ -301,7 +293,8 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::writeRects(BlendingMode mode,
                                                      int16_t *y1,
                                                      uint16_t count) {
   // FlushRange range =
-  //     ResolveFlushRangeForRects(cfg_, orientation(), x0, y0, x1, y1, count);
+  //     ResolveFlushRangeForRects(cfg_, orientation(), x0, y0, x1, y1,
+  //     count);
   buffer_->writeRects(mode, color, x0, y0, x1, y1, count);
   // Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + range.offset,
   //                      range.length);
@@ -317,7 +310,8 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillRects(BlendingMode mode,
                                                     int16_t *y1,
                                                     uint16_t count) {
   // FlushRange range =
-  //     ResolveFlushRangeForRects(cfg_, orientation(), x0, y0, x1, y1, count);
+  //     ResolveFlushRangeForRects(cfg_, orientation(), x0, y0, x1, y1,
+  //     count);
   buffer_->fillRects(mode, color, x0, y0, x1, y1, count);
   // Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + range.offset,
   //                      range.length);
@@ -399,7 +393,8 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::fillRects(BlendingMode mode, Color color,
 //   flush(&xmin, &ymin, &xmax, &ymax, 1);
 // }
 
-// void ParallelRgb565::writePixels(BlendingMode mode, Color *color, int16_t *x,
+// void ParallelRgb565::writePixels(BlendingMode mode, Color *color, int16_t
+// *x,
 //                                  int16_t *y, uint16_t pixel_count) {
 //   uint16_t *buf = (uint16_t *)buffer_->buffer();
 //   int16_t w = config.width;
@@ -425,7 +420,8 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::fillRects(BlendingMode mode, Color color,
 //   flush(x, y, x, y, 1);
 // }
 
-// void ParallelRgb565::writeRects(BlendingMode mode, Color *color, int16_t *x0,
+// void ParallelRgb565::writeRects(BlendingMode mode, Color *color, int16_t
+// *x0,
 //                                 int16_t *y0, int16_t *x1, int16_t *y1,
 //                                 uint16_t count) {
 //   Rgb565 cmode;
@@ -503,4 +499,5 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::fillRects(BlendingMode mode, Color color,
 
 }  // namespace roo_display
 
-#endif  // #if defined(ESP32) && (CONFIG_IDF_TARGET_ESP32S3)
+#endif  // CONFIG_IDF_TARGET_ESP32S3
+#endif  // ESP_PLATFORM

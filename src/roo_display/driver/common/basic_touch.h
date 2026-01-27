@@ -1,7 +1,5 @@
 #pragma once
 
-#include <Arduino.h>
-
 #include "roo_display/core/device.h"
 
 namespace roo_display {

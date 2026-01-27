@@ -1,7 +1,6 @@
 #include "roo_display/driver/touch_gt911.h"
 
 #include <Arduino.h>
-#include <Wire.h>
 
 #include "roo_display/core/device.h"
 
@@ -15,11 +14,11 @@ static constexpr int kAddr2 = 0x14;
 static constexpr int kTouchRead = 0x814e;
 static constexpr int kPointBuffer = 0x814f;
 
-TouchPoint ReadPoint(const uint8_t* data) {
+TouchPoint ReadPoint(const roo::byte* data) {
   TouchPoint tp;
-  tp.id = data[0];
-  tp.x = (data[2] << 8) | data[1];
-  tp.y = (data[4] << 8) | data[3];
+  tp.id = (uint16_t)data[0];
+  tp.x = ((int16_t)data[2] << 8) | (int16_t)data[1];
+  tp.y = ((int16_t)data[4] << 8) | (int16_t)data[3];
   tp.z = 1024;
   return tp;
 }
@@ -36,7 +35,10 @@ void TouchGt911::initTouch() {
   reset();
 }
 
-TouchGt911::TouchGt911(decltype(Wire)& wire, int8_t pinIntr, int8_t pinRst,
+TouchGt911::TouchGt911(int8_t pinIntr, int8_t pinRst, long reset_low_hold_ms)
+    : TouchGt911(I2cMasterBusHandle(), pinIntr, pinRst, reset_low_hold_ms) {}
+
+TouchGt911::TouchGt911(I2cMasterBusHandle i2c, int8_t pinIntr, int8_t pinRst,
                        long reset_low_hold_ms)
     : BasicTouchDevice<5>(Config{.min_sampling_interval_ms = 20,
                                  .touch_intertia_ms = 30,
@@ -44,7 +46,7 @@ TouchGt911::TouchGt911(decltype(Wire)& wire, int8_t pinIntr, int8_t pinRst,
       addr_(kAddr1),
       pinIntr_(pinIntr),
       pinRst_(pinRst),
-      wire_(wire),
+      i2c_slave_(i2c, addr_),
       reset_low_hold_ms_(reset_low_hold_ms),
       ready_(false) {}
 
@@ -82,64 +84,40 @@ int TouchGt911::readTouch(TouchPoint* points) {
   if (reset_thread_.joinable()) {
     reset_thread_.join();
   }
-  uint8_t status;
+  roo::byte status;
   if (!readByte(kTouchRead, status)) {
     reset();
     return 0;
   }
-  uint8_t ready = (status & 0x80) != 0;
+  bool ready = (status & roo::byte{0x80}) != roo::byte{0};
   // uint8_t have_key = (status & 0x10) != 0;
   if (!ready) return 0;
-  int touches = status & 0xF;
-  uint8_t data[7];
+  int touches = (int)(status & roo::byte{0xF});
+  roo::byte data[7];
   for (uint8_t i = 0; i < touches; i++) {
     readBlock(data, kPointBuffer + i * 8, 7);
     points[i] = ReadPoint(data);
   }
   // Clear the 'ready' flag.
-  writeByte(kTouchRead, 0);
+  writeByte(kTouchRead, roo::byte{0});
   return touches;
 }
 
-bool TouchGt911::readByte(uint16_t reg, uint8_t& result) {
-  wire_.beginTransmission(addr_);
-  wire_.write(reg >> 8);
-  wire_.write(reg & 0xFF);
-  if (wire_.endTransmission() != 0) {
-    return false;
-  }
-  if (wire_.requestFrom(addr_, (uint8_t)1) != 1) return false;
-  result = wire_.read();
-  return true;
+bool TouchGt911::readByte(uint16_t reg, roo::byte& result) {
+  roo::byte addr[] = {(roo::byte)(reg >> 8), (roo::byte)(reg & 0xFF)};
+  if (!i2c_slave_.transmit(addr, 2)) return false;
+  return (i2c_slave_.receive(&result, 1) == 1);
 }
 
-void TouchGt911::writeByte(uint16_t reg, uint8_t val) {
-  wire_.beginTransmission(addr_);
-  wire_.write(reg >> 8);
-  wire_.write(reg & 0xFF);
-  wire_.write(val);
-  wire_.endTransmission();
+void TouchGt911::writeByte(uint16_t reg, roo::byte val) {
+  roo::byte buf[] = {(roo::byte)(reg >> 8), (roo::byte)(reg & 0xFF), val};
+  i2c_slave_.transmit(buf, 3);
 }
 
-void TouchGt911::readBlock(uint8_t* buf, uint16_t reg, uint8_t size) {
-  wire_.beginTransmission(addr_);
-  wire_.write(reg >> 8);
-  wire_.write(reg & 0xFF);
-  wire_.endTransmission();
-  wire_.requestFrom(addr_, size);
-  for (int i = 0; i < size; i++) {
-    buf[i] = wire_.read();
-  }
-}
-
-void TouchGt911::writeBlock(uint16_t reg, const uint8_t* val, uint8_t size) {
-  wire_.beginTransmission(addr_);
-  wire_.write(reg >> 8);
-  wire_.write(reg & 0xFF);
-  for (int i = 0; i < size; i++) {
-    wire_.write(val[i]);
-  }
-  wire_.endTransmission();
+void TouchGt911::readBlock(roo::byte* buf, uint16_t reg, uint8_t size) {
+  roo::byte addr[] = {(roo::byte)(reg >> 8), (roo::byte)(reg & 0xFF)};
+  i2c_slave_.transmit(addr, 2);
+  i2c_slave_.receive(buf, size);
 }
 
 }  // namespace roo_display

@@ -1,6 +1,6 @@
 #include "roo_display/driver/touch_ft6x36.h"
 
-#include <Wire.h>
+#include "roo_display/hal/i2c.h"
 
 namespace roo_display {
 
@@ -20,25 +20,23 @@ static constexpr int kTouchBufferSize = 6;
 
 }  // namespace
 
-TouchFt6x36::TouchFt6x36() : TouchFt6x36(Wire) {}
-
 // The panel reports the same, cached, coordinates if scanned more frequently
 // than every 25ms. So let's not bother asking, just serve cached values.
 // (This also allows velocity detection to work).
-TouchFt6x36::TouchFt6x36(decltype(Wire)& wire)
+TouchFt6x36::TouchFt6x36(I2cMasterBusHandle i2c)
     : BasicTouchDevice<2>(Config{.min_sampling_interval_ms = 25,
                                  .touch_intertia_ms = 0,
                                  .smoothing_factor = 0.0}),
-      wire_(wire) {}
+      i2c_slave_(i2c, kTouchI2cAddr) {}
+
+TouchFt6x36::TouchFt6x36() : TouchFt6x36(I2cMasterBusHandle()) {}
 
 int TouchFt6x36::readTouch(TouchPoint* point) {
   static constexpr uint8_t size = 16;
   uint8_t data[size];
-  wire_.beginTransmission(kTouchI2cAddr);
-  wire_.write(0);
-  if (wire_.endTransmission() != 0) return 0;
-  if (wire_.requestFrom(kTouchI2cAddr, size) < size) return 0;
-  for (uint8_t i = 0; i < size; i++) data[i] = wire_.read();
+  roo::byte request[] = {roo::byte{0}};
+  if (!i2c_slave_.transmit(request, 1)) return 0;
+  if (i2c_slave_.receive((roo::byte*)data, size) < size) return 0;
   TouchPoint* p = point;
   int touched = data[kRegNumTouches] & 0x0F;
   if (touched == 0 || touched > 2) return 0;

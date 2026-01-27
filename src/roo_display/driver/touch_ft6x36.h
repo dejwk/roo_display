@@ -1,20 +1,19 @@
 #pragma once
 
-#include <Wire.h>
-
 #include "roo_display/driver/common/basic_touch.h"
+#include "roo_display/hal/i2c.h"
 
 namespace roo_display {
 
 class TouchFt6x36 : public BasicTouchDevice<2> {
  public:
+  TouchFt6x36(I2cMasterBusHandle i2c);
   TouchFt6x36();
-  TouchFt6x36(decltype(Wire)& wire);
 
   int readTouch(TouchPoint* point) override;
 
  private:
-  decltype(Wire)& wire_;
+  I2cSlaveDevice i2c_slave_;
 };
 
 }  // namespace roo_display

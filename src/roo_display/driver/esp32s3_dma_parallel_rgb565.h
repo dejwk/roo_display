@@ -1,8 +1,8 @@
 #pragma once
 
-#include <Arduino.h>
+#include "roo_display/hal/config.h"
 
-#if !defined(ESP32) || !(CONFIG_IDF_TARGET_ESP32S3)
+#if !defined(ESP_PLATFORM) || !(CONFIG_IDF_TARGET_ESP32S3)
 #warning Compilation target must be ESP32_S3 for this device.
 #else
 

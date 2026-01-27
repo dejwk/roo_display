@@ -1,9 +1,6 @@
-// #include <Arduino.h>
+#include "roo_display/hal/config.h"
 
-#if defined(ESP_PLATFORM)
-#include "sdkconfig.h"
-
-#if CONFIG_IDF_TARGET_ESP32S3
+#if defined(ESP_PLATFORM) && CONFIG_IDF_TARGET_ESP32S3
 
 #include "esp_err.h"
 #include "esp_idf_version.h"
@@ -499,5 +496,4 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::fillRects(BlendingMode mode, Color color,
 
 }  // namespace roo_display
 
-#endif  // CONFIG_IDF_TARGET_ESP32S3
-#endif  // ESP_PLATFORM
+#endif  // defined(ESP_PLATFORM) && CONFIG_IDF_TARGET_ESP32S3

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+
 #include "roo_display/core/device.h"
 
 namespace roo_display {
@@ -108,7 +110,7 @@ TouchResult BasicTouchDevice<max_touch_points>::getTouch(TouchPoint* points,
   // Copy over and report.
   detection_timestamp_ = now;
   points_touched_ = points_touched;
-  memcpy(touch_points_, &readout, points_touched * sizeof(TouchPoint));
+  std::copy(readout, readout + points_touched, touch_points_);
   return pushResult(points, max_points);
 }
 

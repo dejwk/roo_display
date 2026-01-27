@@ -1,17 +1,10 @@
 #pragma once
 
-#ifdef __AVR__
-#include <avr/pgmspace.h>
-#elif defined(ESP8266) || defined(ESP32)
-#include <pgmspace.h>
-#else
-#define pgm_read_byte(addr) (*(const unsigned char*)(addr))
-#endif
-
 #include <type_traits>
 
 #include "font.h"
 #include "roo_backport/byte.h"
+#include "roo_display/hal/progmem.h"
 
 namespace roo_display {
 

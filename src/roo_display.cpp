@@ -1,7 +1,5 @@
 #include "roo_display.h"
 
-#include <Arduino.h>
-
 #include <cmath>
 
 #include "roo_display/filter/color_filter.h"

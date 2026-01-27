@@ -1,18 +1,14 @@
 #include "roo_display/font/smooth_font.h"
 
-#include <HardwareSerial.h>
-#include <WString.h>  // Pretty much for debug output only.
-
 #include "roo_display/core/raster.h"
 #include "roo_display/image/image.h"
 #include "roo_display/internal/raw_streamable_overlay.h"
 #include "roo_display/io/memory.h"
 #include "roo_io/core/input_iterator.h"
 #include "roo_io/text/unicode.h"
+#include "roo_logging.h"
 
 namespace roo_display {
-
-void fatalError(const String& string);
 
 class FontMetricReader {
  public:
@@ -92,42 +88,25 @@ SmoothFont::SmoothFont(const roo::byte* font_data PROGMEM)
   roo_io::UnsafeGenericMemoryIterator<const roo::byte PROGMEM*> reader(
       font_data);
   uint16_t version = roo_io::ReadBeU16(reader);
-
-  if (version != 0x0101 && version != 0x0102) {
-    fatalError(String("Unsupported version number: ") + version);
-    return;
-  }
+  CHECK(version == 0x0101 || version == 0x0102)
+      << "Unsupported version number: " << version;
 
   alpha_bits_ = roo_io::ReadU8(reader);
-  if (alpha_bits_ != 4) {
-    fatalError(String("Unsupported alpha encoding: ") + alpha_bits_);
-    return;
-  }
-
+  CHECK_EQ(alpha_bits_, 4) << "Unsupported alpha encoding: " << alpha_bits_;
   encoding_bytes_ = roo_io::ReadU8(reader);
-  if (encoding_bytes_ > 2) {
-    fatalError(String("Unsupported character encoding: ") + encoding_bytes_);
-    return;
-  }
-
+  CHECK_LE(encoding_bytes_, 2)
+      << "Unsupported character encoding: " << encoding_bytes_;
   font_metric_bytes_ = roo_io::ReadU8(reader);
-  if (font_metric_bytes_ > 2) {
-    fatalError(String("Unsupported count of metric bytes: ") + encoding_bytes_);
-    return;
-  }
+  CHECK_LE(font_metric_bytes_, 2)
+      << "Unsupported count of metric bytes: " << encoding_bytes_;
 
   offset_bytes_ = roo_io::ReadU8(reader);
-  if (offset_bytes_ > 3) {
-    fatalError(String("Unsupported count of offset bytes: ") + offset_bytes_);
-    return;
-  }
+  CHECK_LE(offset_bytes_, 3)
+      << "Unsupported count of offset bytes: " << offset_bytes_;
 
   compression_method_ = roo_io::ReadU8(reader);
-  if (compression_method_ > 1) {
-    fatalError(String("Unsupported compression method: ") +
-               compression_method_);
-    return;
-  }
+  CHECK_LE(compression_method_, 1)
+      << "Unsupported compression method: " << compression_method_;
 
   glyph_count_ = roo_io::ReadBeU16(reader);
   kerning_pairs_count_ = roo_io::ReadBeU16(reader);
@@ -651,13 +630,6 @@ int16_t SmoothFont::kerning(char32_t left, char32_t right) const {
   } else {
     return pgm_read_byte(kern + 2 * encoding_bytes_);
   }
-}
-
-void fatalError(const String& string) {
-  Serial.println();
-  Serial.print(
-      "--------------- FATAL ERROR in smooth_font.cpp ------------------");
-  Serial.println(string);
 }
 
 }  // namespace roo_display

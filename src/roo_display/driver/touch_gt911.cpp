@@ -1,8 +1,10 @@
 #include "roo_display/driver/touch_gt911.h"
 
-#include <Arduino.h>
-
 #include "roo_display/core/device.h"
+#include "roo_display/hal/gpio.h"
+#include "roo_threads.h"
+#include "roo_threads/thread.h"
+#include "roo_time.h"
 
 namespace roo_display {
 
@@ -26,11 +28,11 @@ TouchPoint ReadPoint(const roo::byte* data) {
 }  // namespace
 
 void TouchGt911::initTouch() {
-  pinMode(pinRst_, OUTPUT);
-  digitalWrite(pinRst_, 0);
+  DefaultGpio::setOutput(pinRst_);
+  DefaultGpio::setLow(pinRst_);
   if (pinIntr_ >= 0) {
-    pinMode(pinIntr_, OUTPUT);
-    digitalWrite(pinIntr_, 0);
+    DefaultGpio::setOutput(pinIntr_);
+    DefaultGpio::setLow(pinIntr_);
   }
   reset();
 }
@@ -58,23 +60,27 @@ void TouchGt911::reset() {
   // Initialize the reset asynchronously to avoid blocking the main thread.
   reset_thread_ = roo::thread([this]() {
     if (pinIntr_ >= 0) {
-      digitalWrite(pinIntr_, 0);
+      DefaultGpio::setLow(pinIntr_);
     }
-    digitalWrite(pinRst_, 0);
-    delay(reset_low_hold_ms_);
+    DefaultGpio::setLow(pinRst_);
+    roo::this_thread::sleep_for(roo_time::Millis((reset_low_hold_ms_)));
     if (pinIntr_ >= 0) {
-      digitalWrite(pinIntr_, addr_ == kAddr2);
-      delay(1);
+      if (addr_ == kAddr1) {
+        DefaultGpio::setHigh(pinIntr_);
+      } else {
+        DefaultGpio::setLow(pinIntr_);
+      }
+      roo::this_thread::sleep_for(roo_time::Millis(1));
     }
-    digitalWrite(pinRst_, 1);
+    DefaultGpio::setHigh(pinRst_);
     if (pinIntr_ >= 0) {
-      delay(5);
-      digitalWrite(pinIntr_, 0);
+      roo::this_thread::sleep_for(roo_time::Millis(5));
+      DefaultGpio::setLow(pinIntr_);
     }
     // Note: the programming guide for 911 says that it is at least 50ms until
     // the interrupts start working, and up to 100 ms before scan starts
     // clocking.
-    delay(100);
+    roo::this_thread::sleep_for(roo_time::Millis(100));
     ready_ = true;
   });
 }

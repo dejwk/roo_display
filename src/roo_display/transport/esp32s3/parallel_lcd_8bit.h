@@ -1,18 +1,22 @@
 #pragma once
 
-#include <Arduino.h>
+#include "roo_display/hal/config.h"
 
-#if defined(ESP32) && (CONFIG_IDF_TARGET_ESP32S3)
+#if !defined(ESP_PLATFORM) || !(CONFIG_IDF_TARGET_ESP32S3)
+#warning Compilation target must be ESP32_S3 for this device.
+#else
 
-#include <inttypes.h>
+#include <algorithm>
+#include <cinttypes>
+#include <cmath>
+#include <utility>
 
 #include "esp_lcd_panel_io.h"
 #include "roo_display/hal/esp32s3/gpio.h"
 #include "roo_display/internal/byte_order.h"
+#include "roo_io/data/byte_order.h"
 #include "soc/lcd_cam_reg.h"
 #include "soc/lcd_cam_struct.h"
-
-#include "roo_io/data/byte_order.h"
 
 namespace roo_display {
 namespace esp32s3 {
@@ -47,24 +51,24 @@ class ParallelLcd8Bit {
 
   void init() {
     if (pinCs_ >= 0) {
-      pinMode(pinCs_, OUTPUT);
-      digitalWrite(pinCs_, HIGH);
+      DefaultGpio::setOutput(pinCs_);
+      DefaultGpio::setHigh(pinCs_);
     }
 
-    pinMode(pinDc_, OUTPUT);
-    digitalWrite(pinDc_, HIGH);
+    DefaultGpio::setOutput(pinDc_);
+    DefaultGpio::setHigh(pinDc_);
 
     if (pinRst_ >= 0) {
-      pinMode(pinRst_, OUTPUT);
-      digitalWrite(pinRst_, HIGH);
+      DefaultGpio::setOutput(pinRst_);
+      DefaultGpio::setHigh(pinRst_);
     }
 
-    pinMode(pinWr_, OUTPUT);
-    digitalWrite(pinWr_, HIGH);
+    DefaultGpio::setOutput(pinWr_);
+    DefaultGpio::setHigh(pinWr_);
 
     if (pinRd_ >= 0) {
-      pinMode(pinRd_, OUTPUT);
-      digitalWrite(pinRd_, HIGH);
+      DefaultGpio::setOutput(pinRd_);
+      DefaultGpio::setHigh(pinRd_);
     }
 
     esp_lcd_i80_bus_handle_t i80_bus = nullptr;
@@ -139,7 +143,7 @@ class ParallelLcd8Bit {
   void endTransaction() {}
 
   void begin() {
-    digitalWrite(pinCs_, LOW);
+    DefaultGpio::setLow(pinCs_);
     LCD_CAM.lcd_misc.val = LCD_CAM_LCD_CD_IDLE_EDGE;
     LCD_CAM.lcd_user.val = 0;
     LCD_CAM.lcd_user.val = LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE;
@@ -150,7 +154,7 @@ class ParallelLcd8Bit {
   void end() {
     while (LCD_CAM.lcd_user.val & LCD_CAM_LCD_START) {
     }
-    digitalWrite(pinCs_, HIGH);
+    DefaultGpio::setHigh(pinCs_);
   }
 
   void cmdBegin() {

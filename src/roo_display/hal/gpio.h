@@ -28,6 +28,10 @@ struct ArduinoGpio {
   static void setHigh() {
     digitalWrite(pin, HIGH);
   }
+
+  // Non-templated versions as well, for dynamic pin numbers.
+  static void setLow(int pin) { digitalWrite(pin, LOW); }
+  static void setHigh(int pin) { digitalWrite(pin, HIGH); }
 };
 
 using DefaultGpio = ArduinoGpio;

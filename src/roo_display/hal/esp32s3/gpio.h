@@ -1,12 +1,15 @@
 #pragma once
 
+#include "driver/gpio.h"
 #include "soc/gpio_struct.h"
 
 namespace roo_display {
 namespace esp32s3 {
 
 struct Gpio {
-  static void setOutput(int pin) { pinMode(pin, OUTPUT); }
+  static void setOutput(int pin) {
+    gpio_set_direction((gpio_num_t)pin, GPIO_MODE_OUTPUT);
+  }
 
   template <int pin>
   static void setLow() {

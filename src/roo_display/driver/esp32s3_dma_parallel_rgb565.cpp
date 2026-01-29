@@ -3,6 +3,7 @@
 #if defined(ESP_PLATFORM) && CONFIG_IDF_TARGET_ESP32S3
 
 #include "esp_err.h"
+#include "esp_heap_caps.h"
 #include "esp_idf_version.h"
 #include "esp_lcd_panel_ops.h"
 #include "roo_backport.h"

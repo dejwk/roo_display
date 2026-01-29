@@ -1,16 +1,17 @@
 #pragma once
 
-#include <Arduino.h>
+#include "roo_display/hal/config.h"
 
-#if (defined(ESP32) && (CONFIG_IDF_TARGET_ESP32) && !defined(ROO_TESTING))
+#if (defined(ESP_PLATFORM) && (CONFIG_IDF_TARGET_ESP32) && \
+     !defined(ROO_TESTING))
 
 #include "roo_display/hal/esp32/gpio.h"
 
-#elif (defined(ESP32) && (CONFIG_IDF_TARGET_ESP32S3) && !defined(ROO_TESTING))
-
+#elif (defined(ESP_PLATFORM) && (CONFIG_IDF_TARGET_ESP32S3) && \
+       !defined(ROO_TESTING))
 #include "roo_display/hal/esp32s3/gpio.h"
 
-#else
+#elif defined(ARDUINO)
 
 // Generic Arduino implementation.
 

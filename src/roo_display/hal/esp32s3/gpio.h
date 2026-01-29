@@ -3,6 +3,14 @@
 #include "driver/gpio.h"
 #include "soc/gpio_struct.h"
 
+#ifdef ARDUINO
+// Support possible pin remapping in Arduino framework.
+#include "Arduino.h"
+#define ROO_DISPLAY_GPIO_PIN_REMAP(pin) digitalPinToGPIONumber(pin)
+#else
+#define ROO_DISPLAY_GPIO_PIN_REMAP(pin) (pin)
+#endif
+
 namespace roo_display {
 namespace esp32s3 {
 
@@ -15,10 +23,11 @@ struct Gpio {
   // constant.
   template <int pin>
   static void setLow() {
-    if (pin < 32) {
-      GPIO.out_w1tc = digitalPinToBitMask((int8_t)pin);
+    const auto gpio = ROO_DISPLAY_GPIO_PIN_REMAP(pin);
+    if (gpio < 32) {
+      GPIO.out_w1tc = (1UL << gpio);
     } else {
-      GPIO.out1_w1tc.val = digitalPinToBitMask((int8_t)pin);
+      GPIO.out1_w1tc.val = (1UL << (gpio - 32));
     }
   }
 
@@ -26,30 +35,33 @@ struct Gpio {
   // constant.
   template <int pin>
   static void setHigh() {
-    if (pin < 32) {
-      GPIO.out_w1ts = digitalPinToBitMask((int8_t)pin);
+    const auto gpio = ROO_DISPLAY_GPIO_PIN_REMAP(pin);
+    if (gpio < 32) {
+      GPIO.out_w1ts = (1UL << gpio);
     } else {
-      GPIO.out1_w1ts.val = digitalPinToBitMask((int8_t)pin);
+      GPIO.out1_w1ts.val = (1UL << (gpio - 32));
     }
   }
 
   // Non-templated versions as well, for when pin numbers are not fixed at
   // compile time.
   static void setLow(int pin) {
-    if (pin < 32) {
-      GPIO.out_w1tc = digitalPinToBitMask((int8_t)pin);
+    const auto gpio = ROO_DISPLAY_GPIO_PIN_REMAP(pin);
+    if (gpio < 32) {
+      GPIO.out_w1tc = (1UL << gpio);
     } else {
-      GPIO.out1_w1tc.val = digitalPinToBitMask((int8_t)pin);
+      GPIO.out1_w1tc.val = (1UL << (gpio - 32));
     }
   }
 
   // Templated setHigh will be inlined to a single register write with a
   // constant.
   static void setHigh(int pin) {
-    if (pin < 32) {
-      GPIO.out_w1ts = digitalPinToBitMask((int8_t)pin);
+    const auto gpio = ROO_DISPLAY_GPIO_PIN_REMAP(pin);
+    if (gpio < 32) {
+      GPIO.out_w1ts = (1UL << gpio);
     } else {
-      GPIO.out1_w1ts.val = digitalPinToBitMask((int8_t)pin);
+      GPIO.out1_w1ts.val = (1UL << (gpio - 32));
     }
   }
 };

@@ -8,6 +8,7 @@ namespace esp32 {
 
 struct Gpio {
   static void setOutput(int pin) {
+    gpio_reset_pin((gpio_num_t)pin);
     gpio_set_direction((gpio_num_t)pin, GPIO_MODE_OUTPUT);
   }
 

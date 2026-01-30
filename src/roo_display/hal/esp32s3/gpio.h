@@ -16,7 +16,9 @@ namespace esp32s3 {
 
 struct Gpio {
   static void setOutput(int pin) {
-    gpio_set_direction((gpio_num_t)pin, GPIO_MODE_OUTPUT);
+    const auto gpio = ROO_DISPLAY_GPIO_PIN_REMAP(pin);
+    gpio_reset_pin((gpio_num_t)gpio);
+    gpio_set_direction((gpio_num_t)gpio, GPIO_MODE_OUTPUT);
   }
 
   // Templated setLow will be inlined to a single register write with a

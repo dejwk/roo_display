@@ -6,6 +6,7 @@
 #include "roo_display/color/color.h"
 #include "roo_display/core/box.h"
 #include "roo_display/core/orientation.h"
+#include "roo_time.h"
 
 namespace roo_display {
 
@@ -204,13 +205,13 @@ struct TouchPoint {
 };
 
 struct TouchResult {
-  TouchResult() : timestamp_us(0), touch_points(0) {}
+  TouchResult() : timestamp(roo_time::Uptime::Start()), touch_points(0) {}
 
-  TouchResult(unsigned long timestamp_us, int touch_points)
-      : timestamp_us(timestamp_us), touch_points(touch_points) {}
+  TouchResult(roo_time::Uptime timestamp, int touch_points)
+      : timestamp(timestamp), touch_points(touch_points) {}
 
-  // micros() at detection.
-  unsigned long timestamp_us;
+  // Detection time.
+  roo_time::Uptime timestamp;
 
   int touch_points;
 };
@@ -224,8 +225,7 @@ class TouchDevice {
   // If touch has not been registered, returns {.touch_points = 0 } and does not
   // modify `points'. If k touch points have been registered, sets max(k,
   // max_points) `points`, and returns {.touch_points = k}. In both cases,
-  // returned timestamp_us specifies the micros() corresponding to the
-  // detection time.
+  // returned timestamp specifies the detection time.
   virtual TouchResult getTouch(TouchPoint *points, int max_points) = 0;
 };
 

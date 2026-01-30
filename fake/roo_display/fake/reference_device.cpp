@@ -126,7 +126,7 @@ roo_display::TouchResult ReferenceTouchDevice::getTouch(
     tp.x = (int32_t)4096 * x_display / w;
     tp.y = (int32_t)4096 * y_display / h;
     tp.z = 100;
-    return TouchResult(roo_time::Uptime::Now().inMillis(), 1);
+    return TouchResult(roo_time::Uptime::Now(), 1);
   }
   return TouchResult();
 }

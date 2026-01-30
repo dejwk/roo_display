@@ -3,8 +3,8 @@
 #ifdef ROO_TESTING
 
 #include "roo_testing/devices/display/ili9341/ili9341spi.h"
-#include "roo_testing/microcontrollers/esp32/fake_esp32.h"
 #include "roo_testing/devices/touch/xpt2046/xpt2046spi.h"
+#include "roo_testing/microcontrollers/esp32/fake_esp32.h"
 #include "roo_testing/transducers/ui/viewport/flex_viewport.h"
 #include "roo_testing/transducers/ui/viewport/fltk/fltk_viewport.h"
 
@@ -46,6 +46,7 @@ struct Emulator {
 #include "roo_display/ui/text_label.h"
 #include "roo_fonts/NotoSans_Condensed/12.h"
 #include "roo_io/text/string_printf.h"
+#include "roo_time.h"
 
 using namespace roo_display;
 
@@ -71,7 +72,7 @@ void setup() {
 class TouchCalibrator {
  public:
   TouchCalibrator(Display& display, const Font& font)
-      : display_(display), font_(font), state_(IDLE), last_touch_event_us_(0) {}
+      : display_(display), font_(font), state_(IDLE), last_touch_event_(0) {}
 
   void loop() {
     int16_t xstart;
@@ -92,7 +93,7 @@ class TouchCalibrator {
             auto touch = display_.getTouch(&tp, 1);
             if (touch.touch_points != 0) {
               state_ = IDLE_SINGLE_PRESSED;
-              last_touch_event_us_ = touch.timestamp_us;
+              last_touch_event_ = touch.timestamp;
               x = tp.x;
               y = tp.y;
               xstart = x;
@@ -141,7 +142,8 @@ class TouchCalibrator {
                 state_ = IDLE_SINGLE_PRESSED;
               }
             } else {
-              uint32_t touch_time = touch.timestamp_us - last_touch_event_us_;
+              roo_time::Duration touch_time =
+                  touch.timestamp - last_touch_event_;
               {
                 DrawingContext dc(display);
                 dc.draw(Line(0, old_y, display.width() - 1, old_y,
@@ -149,13 +151,14 @@ class TouchCalibrator {
                 dc.draw(Line(old_x, 0, old_x, display.height() - 1,
                              color::DarkGray));
               }
-              if (touch_time > 250000 || touch_time < 50000) {
+              if (touch_time > roo_time::Millis(250) ||
+                  touch_time < roo_time::Millis(50)) {
                 // Too fast, or too slow; not a click - go back to the idle
                 // mode.
                 state_ = IDLE;
               } else {
                 // Click registered. First click or a second click?
-                last_touch_event_us_ = micros();
+                last_touch_event_ = roo_time::Uptime::Now();
                 if (state_ == IDLE_SINGLE_PRESSED) {
                   state_ = IDLE_SINGLE_CLICKED;
                 } else {
@@ -171,8 +174,9 @@ class TouchCalibrator {
         case IDLE_SINGLE_CLICKED: {
           // Wait for a timeout or a double click.
           while (true) {
-            uint32_t time_unclicked = micros() - last_touch_event_us_;
-            if (time_unclicked > 300000) {
+            roo_time::Duration time_unclicked =
+                roo_time::Uptime::Now() - last_touch_event_;
+            if (time_unclicked > roo_time::Millis(300)) {
               // Timeout.
               state_ = IDLE;
               break;
@@ -180,12 +184,12 @@ class TouchCalibrator {
             TouchPoint tp;
             auto touch = display_.getTouch(&tp, 1);
             if (touch.touch_points != 0) {
-              if (time_unclicked < 50000) {
+              if (time_unclicked < roo_time::Millis(50)) {
                 // Too fast! May be a glitch.
                 state_ = IDLE_SINGLE_PRESSED;
               } else {
                 state_ = IDLE_DOUBLE_PRESSED;
-                last_touch_event_us_ = touch.timestamp_us;
+                last_touch_event_ = touch.timestamp;
               }
               break;
             }
@@ -453,7 +457,7 @@ class TouchCalibrator {
   Display& display_;
   const Font& font_;
   State state_;
-  uint32_t last_touch_event_us_;
+  roo_time::Uptime last_touch_event_;
 };
 
 void loop(void) {

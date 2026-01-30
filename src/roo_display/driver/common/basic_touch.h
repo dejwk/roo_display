@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "roo_display/core/device.h"
+#include "roo_time.h"
 
 namespace roo_display {
 
@@ -31,7 +32,7 @@ class BasicTouchDevice : public TouchDevice {
 
   BasicTouchDevice(Config config)
       : config_(std::move(config)),
-        detection_timestamp_(0),
+        detection_timestamp_(roo_time::Uptime::Start()),
         touch_points_(),
         points_touched_(0) {}
 
@@ -53,7 +54,7 @@ class BasicTouchDevice : public TouchDevice {
   }
 
   Config config_;
-  unsigned long detection_timestamp_;
+  roo_time::Uptime detection_timestamp_;
   TouchPoint touch_points_[max_touch_points];
   int points_touched_;
 };
@@ -61,16 +62,16 @@ class BasicTouchDevice : public TouchDevice {
 template <int max_touch_points>
 TouchResult BasicTouchDevice<max_touch_points>::getTouch(TouchPoint* points,
                                                          int max_points) {
-  unsigned long now = micros();
-  unsigned long dt = now - detection_timestamp_;
-  if (dt < config_.min_sampling_interval_ms * 1000) {
+  roo_time::Uptime now = roo_time::Uptime::Now();
+  roo_time::Duration dt = now - detection_timestamp_;
+  if (dt < roo_time::Millis(config_.min_sampling_interval_ms)) {
     // Immediately return the last result without attempting to scan.
     return pushResult(points, max_points);
   }
   TouchPoint readout[max_touch_points];
   int points_touched = readTouch(readout);
   if (points_touched == 0) {
-    if (dt < config_.touch_intertia_ms * 1000) {
+    if (dt < roo_time::Millis(config_.touch_intertia_ms)) {
       // We did not detect touch, but the latest confirmed touch was not long
       // ago so we report that one anyway, but do not update the
       // detection_timestamp_ to reflect that we're reporting a stale value.
@@ -82,7 +83,7 @@ TouchResult BasicTouchDevice<max_touch_points>::getTouch(TouchPoint* points,
     return pushResult(points, max_points);
   }
   // Touch has been detected. Need to smooth the values and report it.
-  float alpha = 1 - pow(config_.smoothing_factor, dt / 10000.0);
+  float alpha = 1 - pow(config_.smoothing_factor, dt.inMicros() / 10000.0);
   for (int i = 0; i < points_touched; i++) {
     TouchPoint& p = readout[i];
     p.vx = 0;
@@ -95,10 +96,10 @@ TouchResult BasicTouchDevice<max_touch_points>::getTouch(TouchPoint* points,
         int16_t x = prev.x * (1 - alpha) + p.x * alpha;
         int16_t y = prev.y * (1 - alpha) + p.y * alpha;
         int16_t z = prev.z * (1 - alpha) + p.z * alpha;
-        if (dt > 0) {
+        if (dt > roo_time::Micros(0)) {
           // Velocity in pixels / s.
-          p.vx = 1000000LL * (x - prev.x) / (long)dt;
-          p.vy = 1000000LL * (y - prev.y) / (long)dt;
+          p.vx = 1000000LL * (x - prev.x) / dt.inMicros();
+          p.vy = 1000000LL * (y - prev.y) / dt.inMicros();
         }
         p.x = x;
         p.y = y;

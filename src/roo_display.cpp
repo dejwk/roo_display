@@ -50,7 +50,7 @@ class DummyTouch : public TouchDevice {
   void initTouch() override {}
 
   TouchResult getTouch(TouchPoint* points, int max_points) override {
-    return TouchResult(micros(), 0);
+    return TouchResult(roo_time::Uptime::Now(), 0);
   }
 };
 

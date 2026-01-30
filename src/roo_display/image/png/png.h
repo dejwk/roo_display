@@ -8,7 +8,12 @@
 #include "roo_display/color/color_modes.h"
 #include "roo_display/image/png/lib/PNGdec.h"
 #include "roo_io/core/multipass_input_stream.h"
+
+#ifdef ARDUINO
 #include "roo_io/fs/arduino/file_resource.h"
+#else
+#include "roo_io/fs/file_resource.h"
+#endif
 
 namespace roo_display {
 
@@ -63,12 +68,16 @@ class PngImage : public Drawable {
   mutable int16_t height_;
 };
 
+#ifdef ARDUINO
 class PngFile : public Drawable {
  public:
   PngFile(PngDecoder& decoder, ::fs::FS& fs, String path)
       : resource_(fs, path.c_str()), img_(decoder, resource_) {}
 
   PngFile(PngDecoder& decoder, roo_io::Filesystem& fs, String path)
+      : resource_(fs, path.c_str()), img_(decoder, resource_) {}
+
+  PngFile(PngDecoder& decoder, roo_io::Filesystem& fs, std::string path)
       : resource_(fs, path.c_str()), img_(decoder, resource_) {}
 
   Box extents() const override { return img_.extents(); }
@@ -79,5 +88,20 @@ class PngFile : public Drawable {
   roo_io::ExtendedArduinoFileResource resource_;
   PngImage img_;
 };
+#else
+class PngFile : public Drawable {
+ public:
+  PngFile(PngDecoder& decoder, roo_io::Filesystem& fs, std::string path)
+      : resource_(fs, std::move(path)), img_(decoder, resource_) {}
+
+  Box extents() const override { return img_.extents(); }
+
+ private:
+  void drawTo(const Surface& s) const override { s.drawObject(img_); }
+
+  roo_io::FileResource resource_;
+  PngImage img_;
+};
+#endif
 
 }  // namespace roo_display

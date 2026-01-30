@@ -8,10 +8,15 @@
 #include "roo_display/image/jpeg/lib/tjpgdcnf.h"
 #include "roo_io.h"
 #include "roo_io/core/multipass_input_stream.h"
+#include "roo_io/core/resource.h"
 #include "roo_io/fs/filesystem.h"
-#include "roo_io.h"
-#include "roo_io/fs/arduino/file_resource.h"
 #include "roo_logging.h"
+
+#ifdef ARDUINO
+#include "roo_io/fs/arduino/file_resource.h"
+#else
+#include "roo_io/fs/file_resource.h"
+#endif
 
 namespace roo_display {
 
@@ -63,6 +68,7 @@ class JpegImage : public Drawable {
   mutable int16_t height_;
 };
 
+#ifdef ARDUINO
 class JpegFile : public Drawable {
  public:
   JpegFile(JpegDecoder& decoder, ::fs::FS& fs, String path)
@@ -70,6 +76,9 @@ class JpegFile : public Drawable {
 
   JpegFile(JpegDecoder& decoder, roo_io::Filesystem& fs, String path)
       : resource_(fs, path.c_str()), img_(decoder, resource_) {}
+
+  JpegFile(JpegDecoder& decoder, roo_io::Filesystem& fs, std::string path)
+      : resource_(fs, std::move(path)), img_(decoder, resource_) {}
 
   Box extents() const override { return img_.extents(); }
 
@@ -79,5 +88,20 @@ class JpegFile : public Drawable {
   roo_io::ExtendedArduinoFileResource resource_;
   JpegImage img_;
 };
+#else
+class JpegFile : public Drawable {
+ public:
+  JpegFile(JpegDecoder& decoder, roo_io::Filesystem& fs, std::string path)
+      : resource_(fs, std::move(path)), img_(decoder, resource_) {}
+
+  Box extents() const override { return img_.extents(); }
+
+ private:
+  void drawTo(const Surface& s) const override { s.drawObject(img_); }
+
+  roo_io::FileResource resource_;
+  JpegImage img_;
+};
+#endif
 
 }  // namespace roo_display

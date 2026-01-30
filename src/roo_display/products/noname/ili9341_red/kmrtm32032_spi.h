@@ -38,10 +38,8 @@
 //
 // static const int kPinLcdBl = 16;
 //
-// static const int kBlLedcChannel = 1;
-//
-// products::noname::ili9341_red::Kmrtm32032Spi<kPinLcdCs, kPinTouchCs, kPinLcdDc,
-//                                              kPinLcdReset>
+// products::noname::ili9341_red::Kmrtm32032Spi<kPinLcdCs, kPinTouchCs,
+//                                              kPinLcdDc, kPinLcdReset>
 //     display_device;
 // Display display(display_device);
 //

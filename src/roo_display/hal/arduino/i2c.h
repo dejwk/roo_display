@@ -32,6 +32,8 @@ class ArduinoI2cSlaveDevice {
                         uint8_t slave_address)
       : wire_(bus_handle.wire_), slave_address_(slave_address) {}
 
+  void init() {}
+
   bool transmit(const roo::byte* data, size_t len) {
     wire_.beginTransmission(slave_address_);
     size_t written = wire_.write((const uint8_t*)data, len);

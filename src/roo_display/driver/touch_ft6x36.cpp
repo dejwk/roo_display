@@ -31,6 +31,8 @@ TouchFt6x36::TouchFt6x36(I2cMasterBusHandle i2c)
 
 TouchFt6x36::TouchFt6x36() : TouchFt6x36(I2cMasterBusHandle()) {}
 
+void TouchFt6x36::initTouch() { i2c_slave_.init(); }
+
 int TouchFt6x36::readTouch(TouchPoint* point) {
   static constexpr uint8_t size = 16;
   uint8_t data[size];

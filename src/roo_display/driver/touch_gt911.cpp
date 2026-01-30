@@ -34,6 +34,7 @@ void TouchGt911::initTouch() {
     DefaultGpio::setOutput(pinIntr_);
     DefaultGpio::setLow(pinIntr_);
   }
+  i2c_slave_.init();
   reset();
 }
 

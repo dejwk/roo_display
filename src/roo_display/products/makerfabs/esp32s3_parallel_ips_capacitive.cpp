@@ -84,13 +84,13 @@ constexpr esp32s3_dma::Config kTftConfig1024x600 = {.width = 1024,
 Esp32s3ParallelIpsCapacitive::Esp32s3ParallelIpsCapacitive(
     Resolution resolution, Orientation orientation, I2cMasterBusHandle i2c)
     : resolution_(resolution),
-      i2c_(i2c),
+      i2c_(std::move(i2c)),
       display_(resolution_ == k800x480 ? kTftConfig800x480
                                        : kTftConfig1024x600),
       // Note: UART 'nack' errors have been observed when reset hold down time
       // is below 300ms. This startup delay isn't very painful because the
       // driver performs reset asynchronously.
-      touch_(i2c, -1, 38, 300) {
+      touch_(i2c_, -1, 38, 300) {
   display_.setOrientation(orientation);
 }
 

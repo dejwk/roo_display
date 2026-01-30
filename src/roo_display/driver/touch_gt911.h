@@ -11,11 +11,18 @@ namespace roo_display {
 
 class TouchGt911 : public BasicTouchDevice<5> {
  public:
+  // Constructs the driver assuming the default I2C bus.
+  TouchGt911(int8_t pinIntr, int8_t pinRst, long reset_low_hold_ms = 1);
+
+  // Constructs the driver using the specified I2C bus (passed as the first
+  // argument).
+  // When using Arduino, you can pass a Wire& object reference.
+  // When using esp-idf, you can pass an i2c_port_num_t.
   TouchGt911(I2cMasterBusHandle i2c, int8_t pinIntr, int8_t pinRst,
              long reset_low_hold_ms = 1);
 
-  TouchGt911(int8_t pinIntr, int8_t pinRst, long reset_low_hold_ms = 1);
-
+  // Initializes the driver (performing GPIO setup and calling reset()).
+  // Must be called once.
   void initTouch() override;
 
   int readTouch(TouchPoint* point) override;

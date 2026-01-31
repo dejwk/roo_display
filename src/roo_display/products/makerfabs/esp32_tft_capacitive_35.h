@@ -4,13 +4,11 @@
 // Maker: MakerFabs
 // Product Code: ESPTFT35CA
 
-#include <SPI.h>
-#include <Wire.h>
-
 #include "roo_display/core/device.h"
 #include "roo_display/core/orientation.h"
 #include "roo_display/driver/ili9488.h"
 #include "roo_display/driver/touch_ft6x36.h"
+#include "roo_display/hal/i2c.h"
 #include "roo_display/hal/spi.h"
 #include "roo_display/products/combo_device.h"
 
@@ -18,15 +16,19 @@ namespace roo_display::products::makerfabs {
 
 class Esp32TftCapacitive35 : public ComboDevice {
  public:
-  Esp32TftCapacitive35(Orientation orientation = Orientation(),
-                       decltype(Wire)& wire = Wire)
-      : spi_(HSPI), wire_(wire), display_(spi_), touch_() {
+  Esp32TftCapacitive35(
+      Orientation orientation = Orientation(),
+      roo_display::I2cMasterBusHandle i2c = roo_display::I2cMasterBusHandle())
+      : spi_(roo_display::esp32::Hspi()),
+        i2c_(i2c),
+        display_(spi_),
+        touch_(i2c_) {
     display_.setOrientation(orientation);
   }
 
   void initTransport() {
-    spi_.begin(14, 12, 13);
-    wire_.begin(26, 27);
+    spi_.init(14, 12, 13);
+    i2c_.init(26, 27);
   }
 
   DisplayDevice& display() override { return display_; }
@@ -37,8 +39,6 @@ class Esp32TftCapacitive35 : public ComboDevice {
     return TouchCalibration(0, 20, 309, 454, Orientation::RightDown());
   }
 
-  decltype(SPI)& spi() { return spi_; }
-
   constexpr int8_t pin_sck() const { return 14; }
   constexpr int8_t pin_miso() const { return 12; }
   constexpr int8_t pin_mosi() const { return 13; }
@@ -48,8 +48,8 @@ class Esp32TftCapacitive35 : public ComboDevice {
   constexpr int8_t pin_sd_cs() const { return 4; }
 
  private:
-  decltype(SPI) spi_;
-  decltype(Wire)& wire_;
+  roo_display::esp32::Hspi spi_;
+  roo_display::I2cMasterBusHandle i2c_;
   roo_display::Ili9488spi<15, 33, 26, esp32::Hspi> display_;
   roo_display::TouchFt6x36 touch_;
 };

@@ -16,6 +16,8 @@ class ArduinoI2cMasterBusHandle {
   // Creates the I2C master bus handle that references the specified Wire.
   ArduinoI2cMasterBusHandle(decltype(Wire)& wire = Wire) : wire_(wire) {}
 
+  void init() { wire_.begin(); }
+
   void init(int sda, int scl, uint32_t frequency = 0) {
     wire_.begin(sda, scl, frequency);
   }

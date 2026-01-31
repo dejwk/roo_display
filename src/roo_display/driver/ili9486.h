@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+
 #include "roo_display/color/color_modes.h"
 #include "roo_display/driver/common/addr_window_device.h"
 #include "roo_display/transport/spi.h"

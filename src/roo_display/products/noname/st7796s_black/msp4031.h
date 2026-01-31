@@ -66,13 +66,12 @@
 //   delay(200);
 // }
 
-#include <Arduino.h>
-#include <SPI.h>
-
 #include "roo_display/core/device.h"
 #include "roo_display/core/orientation.h"
 #include "roo_display/driver/st7796s.h"
 #include "roo_display/driver/touch_ft6x36.h"
+#include "roo_display/hal/i2c.h"
+#include "roo_display/hal/spi.h"
 #include "roo_display/products/combo_device.h"
 
 namespace roo_display::products::noname::st7796s_black {
@@ -80,21 +79,25 @@ namespace roo_display::products::noname::st7796s_black {
 template <int8_t pinLcdCs, int8_t pinLcdDc, int8_t pinLcdReset = -1>
 class Msp4031 : public ComboDevice {
  public:
-  Msp4031(Orientation orientation = Orientation().rotateLeft(),
-          decltype(SPI) & spi = SPI, decltype(Wire) & wire = Wire)
-      : spi_(spi), wire_(wire), display_(spi), touch_(wire) {
+  Msp4031(
+      Orientation orientation = Orientation().rotateLeft(),
+      roo_display::DefaultSpi spi = roo_display::DefaultSpi(),
+      roo_display::I2cMasterBusHandle i2c = roo_display::I2cMasterBusHandle())
+      : spi_(spi), i2c_(i2c), display_(spi_), touch_(i2c_) {
     display_.setOrientation(orientation);
   }
 
+#if defined(ARDUINO)
   void initTransport() {
-    spi_.begin();
-    wire_.begin();
+    spi_.init();
+    i2c_.init();
   }
+#endif
 
   void initTransport(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t sda,
                      uint8_t scl) {
-    spi_.begin(sck, miso, mosi);
-    wire_.begin(sda, scl);
+    spi_.init(sck, miso, mosi);
+    i2c_.init(sda, scl);
   }
 
   DisplayDevice& display() override { return display_; }
@@ -107,8 +110,8 @@ class Msp4031 : public ComboDevice {
   }
 
  private:
-  decltype(SPI) & spi_;
-  decltype(Wire) & wire_;
+  roo_display::DefaultSpi spi_;
+  roo_display::I2cMasterBusHandle i2c_;
   roo_display::St7796sspi<pinLcdCs, pinLcdDc, pinLcdReset> display_;
   roo_display::TouchFt6x36 touch_;
 };

@@ -65,13 +65,11 @@
 //   delay(200);
 // }
 
-#include <Arduino.h>
-#include <SPI.h>
-
 #include "roo_display/core/device.h"
 #include "roo_display/core/orientation.h"
 #include "roo_display/driver/ili9341.h"
 #include "roo_display/driver/touch_xpt2046.h"
+#include "roo_display/hal/spi.h"
 #include "roo_display/products/combo_device.h"
 
 namespace roo_display::products::noname::ili9341_red {
@@ -81,15 +79,17 @@ template <int8_t pinLcdCs, int8_t pinTouchCs, int8_t pinLcdDc,
 class Kmrtm32032Spi : public ComboDevice {
  public:
   Kmrtm32032Spi(Orientation orientation = Orientation().rotateLeft(),
-                decltype(SPI)& spi = SPI)
+                roo_display::DefaultSpi spi = roo_display::DefaultSpi())
       : spi_(spi), display_(spi), touch_() {
     display_.setOrientation(orientation);
   }
 
-  void initTransport() { spi_.begin(); }
+  #if defined(ARDUINO)
+  void initTransport() { spi_.init(); }
+  #endif
 
   void initTransport(uint8_t sck, uint8_t miso, uint8_t mosi) {
-    spi_.begin(sck, miso, mosi);
+    spi_.init(sck, miso, mosi);
   }
 
   DisplayDevice& display() override { return display_; }
@@ -102,7 +102,7 @@ class Kmrtm32032Spi : public ComboDevice {
   }
 
  private:
-  decltype(SPI)& spi_;
+  roo_display::DefaultSpi spi_;
   roo_display::Ili9341spi<pinLcdCs, pinLcdDc, pinLcdReset> display_;
   roo_display::TouchXpt2046<pinTouchCs> touch_;
 };

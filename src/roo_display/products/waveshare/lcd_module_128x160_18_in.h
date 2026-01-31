@@ -47,11 +47,10 @@
 //   delay(200);
 // }
 
-#include <SPI.h>
-
 #include "roo_display/core/device.h"
 #include "roo_display/core/orientation.h"
 #include "roo_display/driver/st7735.h"
+#include "roo_display/hal/spi.h"
 
 namespace roo_display::products::waveshare {
 
@@ -59,7 +58,7 @@ template <int8_t pinCs, int8_t pinDc, int8_t pinReset = -1>
 class LcdModule_128x160 : public St7735spi_128x160<pinCs, pinDc, pinReset> {
  public:
   LcdModule_128x160(Orientation orientation = Orientation(),
-                    decltype(SPI)& spi = SPI)
+                    roo_display::DefaultSpi spi = roo_display::DefaultSpi())
       : St7735spi_128x160<pinCs, pinDc, pinReset>(orientation, spi) {}
 };
 

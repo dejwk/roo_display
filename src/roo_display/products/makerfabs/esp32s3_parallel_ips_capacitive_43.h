@@ -4,14 +4,13 @@
 // Maker: MakerFabs
 // Product Code: E32S3RGB43
 
-#include <Wire.h>
-#include <SPI.h>
-
 #include "roo_display/backlit/esp32_ledc.h"
 #include "roo_display/core/device.h"
 #include "roo_display/core/orientation.h"
 #include "roo_display/driver/esp32s3_dma_parallel_rgb565.h"
 #include "roo_display/driver/touch_gt911.h"
+#include "roo_display/hal/i2c.h"
+#include "roo_display/hal/spi.h"
 #include "roo_display/products/combo_device.h"
 
 namespace roo_display::products::makerfabs {
@@ -54,18 +53,19 @@ constexpr esp32s3_dma::Config kTftConfig = {.width = 800,
 
 class Esp32s3ParallelIpsCapacitive43 : public ComboDevice {
  public:
-  Esp32s3ParallelIpsCapacitive43(Orientation orientation = Orientation(),
-                                 decltype(Wire)& wire = Wire,
-                                 int pwm_channel = 1)
-      : spi_(HSPI),
-        wire_(wire),
+  Esp32s3ParallelIpsCapacitive43(
+      Orientation orientation = Orientation(),
+      roo_display::I2cMasterBusHandle i2c = roo_display::I2cMasterBusHandle(),
+      int pwm_channel = 1)
+      : spi_(),
+        i2c_(i2c),
         display_(kTftConfig),
-        touch_(wire, -1, 38),
+        touch_(i2c_, -1, 38),
         backlit_(2) {
     display_.setOrientation(orientation);
   }
 
-  void initTransport() { wire_.begin(17, 18); }
+  void initTransport() { i2c_.init(17, 18); }
 
   DisplayDevice& display() override { return display_; }
 
@@ -75,14 +75,14 @@ class Esp32s3ParallelIpsCapacitive43 : public ComboDevice {
     return TouchCalibration(0, 0, 800, 480);
   }
 
-  decltype(SPI)& spi() { return spi_; }
+  roo_display::DefaultSpi& spi() { return spi_; }
   constexpr int8_t sd_cs() const { return 10; }
 
   Backlit& backlit() { return backlit_; }
 
  private:
-  decltype(SPI) spi_;
-  decltype(Wire)& wire_;
+  roo_display::DefaultSpi spi_;
+  roo_display::I2cMasterBusHandle i2c_;
   roo_display::esp32s3_dma::ParallelRgb565Buffered display_;
   roo_display::TouchGt911 touch_;
   LedcBacklit backlit_;

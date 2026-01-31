@@ -54,26 +54,46 @@ inline void SpiTxStart(uint8_t spi_port) {
   WRITE_PERI_REG(SPI_CMD_REG(spi_port), SPI_USR);
 }
 
+template <uint8_t spi_port, typename SpiSettings>
+class Esp32SpiDevice;
+
 template <uint8_t spi_port>
-class SpiTransport {
+class Esp32Spi {
  public:
-  SpiTransport(SPISettings settings)
-      : spi_(SPI), settings_(std::move(settings)) {
+  template <typename SpiSettings>
+  using Device = Esp32SpiDevice<spi_port, SpiSettings>;
+
+  Esp32Spi() : spi_(SPI) {
     static_assert(
         spi_port == ROO_DISPLAY_ESP32_SPI_DEFAULT_PORT,
         "When using a SPI interface different than the default, you must "
         "provide a SPIClass object also in the constructor.");
   }
 
-  SpiTransport(decltype(SPI)& spi, SPISettings settings)
-      : spi_(spi), settings_(std::move(settings)) {}
+  Esp32Spi(decltype(SPI)& spi) : spi_(spi) {}
+
+ private:
+  template <uint8_t, typename SpiSettings>
+  friend class Esp32SpiDevice;
+
+  decltype(SPI)& spi_;
+};
+
+template <uint8_t spi_port, typename SpiSettings>
+class Esp32SpiDevice {
+ public:
+  Esp32SpiDevice(Esp32Spi<spi_port>& spi) : spi_(spi.spi_) {}
 
   void init() {}
 
-  void beginReadWriteTransaction() { spi_.beginTransaction(settings_); }
+  void beginReadWriteTransaction() {
+    spi_.beginTransaction(SPISettings(
+        SpiSettings::clock, SpiSettings::bit_order, SpiSettings::data_mode));
+  }
 
   void beginWriteOnlyTransaction() {
-    spi_.beginTransaction(settings_);
+    spi_.beginTransaction(SPISettings(
+        SpiSettings::clock, SpiSettings::bit_order, SpiSettings::data_mode));
     // Enable write-only mode.
     WRITE_PERI_REG(SPI_USER_REG(spi_port), SPI_USR_MOSI);
   }
@@ -398,15 +418,15 @@ class SpiTransport {
 
  private:
   decltype(SPI)& spi_;
-  SPISettings settings_;
+  // SPISettings settings_;
   bool need_sync_ = false;
 };
 
 #if CONFIG_IDF_TARGET_ESP32
-using Vspi = SpiTransport<0>;
-using Hspi = SpiTransport<1>;
+using Vspi = Esp32Spi<0>;
+using Hspi = Esp32Spi<1>;
 #endif
-using Fspi = SpiTransport<2>;
+using Fspi = Esp32Spi<2>;
 
 }  // namespace esp32
 }  // namespace roo_display
@@ -419,10 +439,10 @@ namespace roo_display {
 namespace esp32 {
 
 #if CONFIG_IDF_TARGET_ESP32
-using Vspi = GenericSpi;
-using Hspi = GenericSpi;
+using Vspi = ArduinoSpi;
+using Hspi = ArduinoSpi;
 #endif
-using Fspi = GenericSpi;
+using Fspi = ArduinoSpi;
 
 }  // namespace esp32
 }  // namespace roo_display

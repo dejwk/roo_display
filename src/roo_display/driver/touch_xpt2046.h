@@ -43,16 +43,13 @@ static const int kInitialTouchZThreshold = 400;
 template <int pinCS, typename Spi = DefaultSpi, typename Gpio = DefaultGpio>
 class TouchXpt2046 : public BasicTouchDevice<1> {
  public:
-  explicit TouchXpt2046(
-      Spi spi = Spi(SPISettings(TouchXpt2046SpiSettings::clock,
-                                TouchXpt2046SpiSettings::bit_order,
-                                TouchXpt2046SpiSettings::data_mode)));
+  explicit TouchXpt2046(Spi spi = Spi());
 
  protected:
   int readTouch(TouchPoint* points) override;
 
  private:
-  Spi spi_transport_;
+  typename Spi::Device<TouchXpt2046SpiSettings> device_;
 
   bool pressed_;
   unsigned long latest_confirmed_pressed_timestamp_;
@@ -65,7 +62,7 @@ TouchXpt2046<pinCS, Spi, Gpio>::TouchXpt2046(Spi spi)
     : BasicTouchDevice(Config{.min_sampling_interval_ms = 5,
                               .touch_intertia_ms = 30,
                               .smoothing_factor = 0.8}),
-      spi_transport_(std::forward<Spi>(spi)),
+      device_(spi),
       pressed_(false),
       latest_confirmed_pressed_timestamp_(0) {
   Gpio::setOutput(pinCS);
@@ -142,8 +139,7 @@ int TouchXpt2046<pinCS, Spi, Gpio>::readTouch(TouchPoint* touch_point) {
   //   z_threshold = kSustainedTouchZThreshold;
   // }
 
-  SpiReadWriteTransaction<pinCS, decltype(spi_transport_), Gpio> transaction(
-      spi_transport_);
+  SpiReadWriteTransaction<pinCS, decltype(device_), Gpio> transaction(device_);
 
   int settled_conversions = 0;
   uint16_t x_tmp, y_tmp, z_tmp;
@@ -155,14 +151,14 @@ int TouchXpt2046<pinCS, Spi, Gpio>::readTouch(TouchPoint* touch_point) {
   // Discard a few initial conversions so that the sensor settles.
   for (int i = 0; i < 5; ++i) {
     ConversionResult result =
-        single_conversion(spi_transport_, z_threshold, &x_tmp, &y_tmp, &z_tmp);
+        single_conversion(device_, z_threshold, &x_tmp, &y_tmp, &z_tmp);
     if (result == UNSETTLED) continue;
   }
 
   bool touched = false;
   for (int i = 0; i < kMaxConversionAttempts; ++i) {
     ConversionResult result =
-        single_conversion(spi_transport_, z_threshold, &x_tmp, &y_tmp, &z_tmp);
+        single_conversion(device_, z_threshold, &x_tmp, &y_tmp, &z_tmp);
     if (result == UNSETTLED) continue;
     settled_conversions++;
     if (result == TOUCHED) {

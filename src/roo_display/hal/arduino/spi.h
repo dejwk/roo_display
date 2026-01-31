@@ -12,43 +12,44 @@
 
 namespace roo_display {
 
+template <typename SpiSettings>
+class ArduinoSpiDevice;
+
+class ArduinoSpi {
+ public:
+  template <typename SpiSettings>
+  using Device = ArduinoSpiDevice<SpiSettings>;
+
+  ArduinoSpi(decltype(SPI)& spi = SPI) : spi_(spi) {}
+
+ private:
+  template <typename SpiSettings>
+  friend class ArduinoSpiDevice;
+
+  decltype(SPI)& spi_;
+};
+
 // SPI transport, using the default <SPI.h> from the Arduino framework.
-class GenericSpi {
+template <typename SpiSettings>
+class ArduinoSpiDevice {
  public:
   // Creates the SPI transport, with specified transaction settings, using the
   // provided SPI bus.
-  GenericSpi(decltype(SPI)& spi, SPISettings settings)
-      : spi_(spi), settings_(std::move(settings)) {}
+  ArduinoSpiDevice(ArduinoSpi& spi) : spi_(spi.spi_) {}
 
-  // // Creates the SPI transport, with specified clock, and using MSBFIRST and
-  // // SPI_MODE0, using the provided SPI bus.
-  // GenericSpi(decltype(SPI)& spi, uint32_t clock)
-  //     : spi_(spi), settings_(clock, MSBFIRST, SPI_MODE0) {}
-
-  // // Creates the SPI transport, with specified transaction settings, using
-  // the
-  // // default SPI bus.
-  // GenericSpi(SPISettings settings)
-  //     : spi_(SPI), settings_(std::move(settings)) {}
-
-  // // Creates the SPI transport, with specified clock, and using MSBFIRST and
-  // // SPI_MODE0, using the default SPI bus.
-  // GenericSpi(uint32_t clock)
-  //     : spi_(SPI), settings_(clock, MSBFIRST, SPI_MODE0) {}
-
-  // // Creates the SPI transport, with specified transaction settings, using
-  // the
-  // // default SPI bus.
-  // GenericSpi(SPISettings settings)
-  //     : spi_(SPI), settings_(std::move(settings)) {}
-
-  GenericSpi(SPISettings settings) : GenericSpi(SPI, std::move(settings)) {}
+  ArduinoSpiDevice() : spi_(SPI) {}
 
   void init() {}
 
-  void beginReadWriteTransaction() { spi_.beginTransaction(settings_); }
+  void beginReadWriteTransaction() {
+    spi_.beginTransaction(SPISettings(
+        SpiSettings::clock, SpiSettings::bit_order, SpiSettings::data_mode));
+  }
 
-  void beginWriteOnlyTransaction() { spi_.beginTransaction(settings_); }
+  void beginWriteOnlyTransaction() {
+    spi_.beginTransaction(SPISettings(
+        SpiSettings::clock, SpiSettings::bit_order, SpiSettings::data_mode));
+  }
 
   void endTransaction() { spi_.endTransaction(); }
 
@@ -118,7 +119,6 @@ class GenericSpi {
 
  private:
   decltype(SPI)& spi_;
-  SPISettings settings_;
 };
 
 }  // namespace roo_display

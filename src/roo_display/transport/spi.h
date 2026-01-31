@@ -10,20 +10,20 @@
 
 namespace roo_display {
 
-template <int pinCS, typename Spi, typename Gpio>
+template <int pinCS, typename SpiDevice, typename Gpio>
 class SpiReadWriteTransaction {
  public:
-  SpiReadWriteTransaction(Spi& spi) : spi_(spi) {
-    spi_.beginReadWriteTransaction();
+  SpiReadWriteTransaction(SpiDevice& device) : device_(device) {
+    device_.beginReadWriteTransaction();
     Gpio::template setLow<pinCS>();
   }
   ~SpiReadWriteTransaction() {
     Gpio::template setHigh<pinCS>();
-    spi_.endTransaction();
+    device_.endTransaction();
   }
 
  private:
-  Spi& spi_;
+  SpiDevice& device_;
 };
 
 // Convenience helper class for device drivers that use 'chip select',
@@ -37,13 +37,11 @@ class SpiReadWriteTransaction {
 // are inlined already.
 template <int pinCS, int pinDC, int pinRST, typename SpiSettings,
           typename Spi = DefaultSpi, typename Gpio = DefaultGpio>
-class SpiTransport : public Spi {
+class SpiTransport {
  public:
   template <typename... Args>
   SpiTransport(Args&&... args)
-      : Spi(std::forward<Args>(args)...,
-            SPISettings(SpiSettings::clock, SpiSettings::bit_order,
-                        SpiSettings::data_mode)) {
+      : spi_(std::forward<Args>(args)...), device_(spi_) {
     Gpio::setOutput(pinCS);
     cs_h();
 
@@ -67,7 +65,77 @@ class SpiTransport : public Spi {
 
   void cmdEnd() { dc_d(); }
 
+  void init() { device_.init(); }
+
+  void beginReadWriteTransaction() { device_.beginReadWriteTransaction(); }
+
+  void beginWriteOnlyTransaction() { device_.beginWriteOnlyTransaction(); }
+
+  void endTransaction() { device_.endTransaction(); }
+
+  void sync() __attribute__((always_inline)) { device_.sync(); }
+
+  void write(uint8_t data) __attribute__((always_inline)) {
+    device_.write(data);
+  }
+
+  void write16(uint16_t data) __attribute__((always_inline)) {
+    device_.write16(data);
+  }
+
+  void write16x2(uint16_t a, uint16_t b) __attribute((always_inline)) {
+    device_.write16x2(a, b);
+  }
+
+  void write16x2_async(uint16_t a, uint16_t b) __attribute((always_inline)) {
+    device_.write16x2_async(a, b);
+  }
+
+  void write16be(uint16_t data) __attribute((always_inline)) {
+    device_.write16be(data);
+  }
+
+  void write32(uint32_t data) __attribute__((always_inline)) {
+    device_.write32(data);
+  }
+
+  void write32be(uint32_t data) __attribute__((always_inline)) {
+    device_.write32be(data);
+  }
+
+  void writeBytes_async(uint8_t* data, uint32_t len) {
+    device_.writeBytes_async(data, len);
+  }
+
+  void fill16_async(uint16_t data, uint32_t len)
+      __attribute__((always_inline)) {
+    device_.fill16be_async(data, len);
+  }
+
+  void fill16be_async(uint16_t data, uint32_t len) {
+    device_.fill16be_async(data, len);
+  }
+
+  void fill24be_async(uint32_t data, uint32_t len) {
+    device_.fill24be_async(data, len);
+  }
+
+  uint8_t transfer(uint8_t data) __attribute__((always_inline)) {
+    return device_.transfer(data);
+  }
+
+  uint16_t transfer16(uint16_t data) __attribute__((always_inline)) {
+    return device_.transfer16(data);
+  }
+
+  uint32_t transfer32(uint32_t data) __attribute__((always_inline)) {
+    return device_.transfer32(data);
+  }
+
  private:
+  Spi spi_;
+  typename Spi::Device<SpiSettings> device_;
+
   void dc_c() { Gpio::template setLow<pinDC>(); }
   void dc_d() { Gpio::template setHigh<pinDC>(); }
   void cs_l() { Gpio::template setLow<pinCS>(); }

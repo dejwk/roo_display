@@ -2,14 +2,17 @@
 
 #include "roo_display/hal/config.h"
 
-#if (defined(ESP_PLATFORM) && (CONFIG_IDF_TARGET_ESP32) && \
-     !defined(ROO_TESTING))
+#if (defined(ESP_PLATFORM) && !defined(ROO_TESTING))
 
+#if (CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2)
 #include "roo_display/hal/esp32/gpio.h"
-
-#elif (defined(ESP_PLATFORM) && (CONFIG_IDF_TARGET_ESP32S3) && \
-       !defined(ROO_TESTING))
+#elif (CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32C3 || \
+       CONFIG_IDF_TARGET_ESP32C2 || CONFIG_IDF_TARGET_ESP32C6 || \
+       CONFIG_IDF_TARGET_ESP32H2)
 #include "roo_display/hal/esp32s3/gpio.h"
+#else
+#error "Unsupported ESP32 variant"
+#endif
 
 #elif defined(ARDUINO)
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "driver/gpio.h"
+#include "roo_display/hal/config.h"
 #include "soc/gpio_struct.h"
 
 #ifdef ARDUINO
@@ -9,6 +10,16 @@
 #define ROO_DISPLAY_GPIO_PIN_REMAP(pin) digitalPinToGPIONumber(pin)
 #else
 #define ROO_DISPLAY_GPIO_PIN_REMAP(pin) (pin)
+#endif
+
+// ESP32S3 uses direct register access, while C3/C2/C6/H2 use .val
+#if CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32C2 || \
+    CONFIG_IDF_TARGET_ESP32C6 || CONFIG_IDF_TARGET_ESP32H2
+#define GPIO_OUT_W1T_CLR(value) (GPIO.out_w1tc.val = (value))
+#define GPIO_OUT_W1T_SET(value) (GPIO.out_w1ts.val = (value))
+#else
+#define GPIO_OUT_W1T_CLR(value) (GPIO.out_w1tc = (value))
+#define GPIO_OUT_W1T_SET(value) (GPIO.out_w1ts = (value))
 #endif
 
 namespace roo_display {
@@ -27,9 +38,11 @@ struct Gpio {
   static void setLow() {
     const auto gpio = ROO_DISPLAY_GPIO_PIN_REMAP(pin);
     if (gpio < 32) {
-      GPIO.out_w1tc = (1UL << gpio);
+      GPIO_OUT_W1T_CLR(1UL << gpio);
+#if CONFIG_IDF_TARGET_ESP32S3
     } else {
       GPIO.out1_w1tc.val = (1UL << (gpio - 32));
+#endif
     }
   }
 
@@ -39,9 +52,11 @@ struct Gpio {
   static void setHigh() {
     const auto gpio = ROO_DISPLAY_GPIO_PIN_REMAP(pin);
     if (gpio < 32) {
-      GPIO.out_w1ts = (1UL << gpio);
+      GPIO_OUT_W1T_SET(1UL << gpio);
+#if CONFIG_IDF_TARGET_ESP32S3
     } else {
       GPIO.out1_w1ts.val = (1UL << (gpio - 32));
+#endif
     }
   }
 
@@ -50,9 +65,11 @@ struct Gpio {
   static void setLow(int pin) {
     const auto gpio = ROO_DISPLAY_GPIO_PIN_REMAP(pin);
     if (gpio < 32) {
-      GPIO.out_w1tc = (1UL << gpio);
+      GPIO_OUT_W1T_CLR(1UL << gpio);
+#if CONFIG_IDF_TARGET_ESP32S3
     } else {
       GPIO.out1_w1tc.val = (1UL << (gpio - 32));
+#endif
     }
   }
 
@@ -61,9 +78,11 @@ struct Gpio {
   static void setHigh(int pin) {
     const auto gpio = ROO_DISPLAY_GPIO_PIN_REMAP(pin);
     if (gpio < 32) {
-      GPIO.out_w1ts = (1UL << gpio);
+      GPIO_OUT_W1T_SET(1UL << gpio);
+#if CONFIG_IDF_TARGET_ESP32S3
     } else {
       GPIO.out1_w1ts.val = (1UL << (gpio - 32));
+#endif
     }
   }
 };

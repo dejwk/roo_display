@@ -1,8 +1,14 @@
 #pragma once
 
+#if defined(ARDUINO)
 #include <Arduino.h>
 #include <SPI.h>
+#else
+#include "driver/spi_master.h"
+#include "esp_err.h"
+#endif
 
+#include "roo_display/hal/spi_settings.h"
 #include "roo_io/data/byte_order.h"
 #include "soc/spi_reg.h"
 
@@ -63,6 +69,7 @@ class Esp32Spi {
   template <typename SpiSettings>
   using Device = Esp32SpiDevice<spi_port, SpiSettings>;
 
+#if defined(ARDUINO)
   Esp32Spi() : spi_(SPI) {
     static_assert(
         spi_port == ROO_DISPLAY_ESP32_SPI_DEFAULT_PORT,
@@ -72,11 +79,52 @@ class Esp32Spi {
 
   Esp32Spi(decltype(SPI)& spi) : spi_(spi) {}
 
+  void init() { spi_.begin(); }
+
+  void init(uint8_t sck, uint8_t miso, uint8_t mosi) {
+    spi_.begin(sck, miso, mosi);
+  }
+
+#else
+  Esp32Spi() : spi_(SPI2_HOST) {}
+
+  Esp32Spi(spi_host_device_t spi) : spi_(spi) {}
+
+  void init() {
+    spi_bus_config_t config = {
+        .mosi_io_num = -1,
+        .miso_io_num = -1,
+        .sclk_io_num = -1,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = 4096,
+    };
+    ESP_ERROR_CHECK(spi_bus_initialize(spi_, &config, SPI_DMA_CH_AUTO));
+  }
+
+  void init(uint8_t sck, uint8_t miso, uint8_t mosi) {
+    spi_bus_config_t config = {
+        .mosi_io_num = mosi,
+        .miso_io_num = miso,
+        .sclk_io_num = sck,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = 4096,
+    };
+    ESP_ERROR_CHECK(spi_bus_initialize(spi_, &config, SPI_DMA_CH_AUTO));
+  }
+
+#endif
+
  private:
   template <uint8_t, typename SpiSettings>
   friend class Esp32SpiDevice;
 
+#if defined(ARDUINO)
   decltype(SPI)& spi_;
+#else
+  spi_host_device_t spi_;
+#endif
 };
 
 template <uint8_t spi_port, typename SpiSettings>
@@ -84,6 +132,7 @@ class Esp32SpiDevice {
  public:
   Esp32SpiDevice(Esp32Spi<spi_port>& spi) : spi_(spi.spi_) {}
 
+#if defined(ARDUINO)
   void init() {}
 
   void beginReadWriteTransaction() {
@@ -104,6 +153,45 @@ class Esp32SpiDevice {
                    SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN);
     spi_.endTransaction();
   }
+#else
+  void init() {
+    spi_device_interface_config_t config_ = {
+        .command_bits = 0,
+        .address_bits = 0,
+        .dummy_bits = 0,
+        .mode = SpiSettings::data_mode,
+        .clock_source = SPI_CLK_SRC_DEFAULT,
+        .duty_cycle_pos = 128,
+        .cs_ena_pretrans = 0,
+        .cs_ena_posttrans = 0,
+        .clock_speed_hz = SpiSettings::clock,
+        .input_delay_ns = 0,
+        .spics_io_num = -1,
+        .flags = {SpiSettings::bit_order == kSpiLsbFirst
+                      ? SPI_DEVICE_BIT_LSBFIRST
+                      : 0},
+        .queue_size = 1,
+    };
+    ESP_ERROR_CHECK(spi_bus_add_device(spi_, &config_, &device_));
+  }
+
+  void beginReadWriteTransaction() {
+    spi_device_acquire_bus(device_, portMAX_DELAY);
+  }
+
+  void beginWriteOnlyTransaction() {
+    spi_device_acquire_bus(device_, portMAX_DELAY);
+    // Enable write-only mode.
+    WRITE_PERI_REG(SPI_USER_REG(spi_port), SPI_USR_MOSI);
+  }
+
+  void endTransaction() {
+    // Re-enable read-write mode.
+    WRITE_PERI_REG(SPI_USER_REG(spi_port),
+                   SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN);
+    spi_device_release_bus(device_);
+  }
+#endif
 
   void sync() __attribute__((always_inline)) {
     // if (need_sync_)
@@ -417,8 +505,12 @@ class Esp32SpiDevice {
   }
 
  private:
+#if defined(ARDUINO)
   decltype(SPI)& spi_;
-  // SPISettings settings_;
+#else
+  spi_host_device_t spi_;
+  spi_device_handle_t device_;
+#endif
   bool need_sync_ = false;
 };
 

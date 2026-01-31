@@ -1,8 +1,8 @@
 #pragma once
 
-#include <Arduino.h>
+#include "roo_display/hal/config.h"
 
-#if defined(ESP32)
+#if defined(ESP_PLATFORM)
 
 #include "roo_display/hal/esp32/spi.h"
 
@@ -14,12 +14,12 @@ using DefaultSpi = esp32::Fspi;
 #endif
 }  // namespace roo_display
 
-#else
+#elif defined(ARDUINO)
 
 #include "roo_display/hal/arduino/spi.h"
 
 namespace roo_display {
-using DefaultSpi = GenericSpi;
+using DefaultSpi = ArduinoSpi;
 }
 
 #endif

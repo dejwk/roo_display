@@ -1,8 +1,5 @@
 #pragma once
 
-#include <Arduino.h>
-#include <SPI.h>
-
 #include "roo_display/hal/gpio.h"
 #include "roo_display/hal/spi.h"
 #include "roo_display/hal/spi_settings.h"

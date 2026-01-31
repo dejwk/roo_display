@@ -18,8 +18,7 @@
 #endif
 #endif
 
-// ESP32C3 and S3 require an update signal after writing FIFO/DMA buffers.
-#if CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32S3
+#if !defined(CONFIG_IDF_TARGET_ESP32) && !defined(CONFIG_IDF_TARGET_ESP32S2)
 #define ROO_DISPLAY_SPI_CMD_UPDATE_REQUIRED 1
 #else
 #define ROO_DISPLAY_SPI_CMD_UPDATE_REQUIRED 0

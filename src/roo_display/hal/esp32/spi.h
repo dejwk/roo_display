@@ -6,6 +6,22 @@
 #include "roo_io/data/byte_order.h"
 #include "soc/spi_reg.h"
 
+#if CONFIG_IDF_TARGET_ESP32
+#define ROO_DISPLAY_ESP32_SPI_DEFAULT_PORT 3
+#else
+#define ROO_DISPLAY_ESP32_SPI_DEFAULT_PORT 2
+#ifndef SPI_MOSI_DLEN_REG
+#define SPI_MOSI_DLEN_REG(x) SPI_MS_DLEN_REG(x)
+#endif
+#endif
+
+// ESP32C3 and S3 require an update signal after writing FIFO/DMA buffers.
+#if CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32S3
+#define ROO_DISPLAY_SPI_CMD_UPDATE_REQUIRED 1
+#else
+#define ROO_DISPLAY_SPI_CMD_UPDATE_REQUIRED 0
+#endif
+
 #ifndef ROO_TESTING
 
 namespace roo_display {
@@ -20,6 +36,12 @@ inline void SpiTxWait(uint8_t spi_port) {
 }
 
 inline void SpiTxStart(uint8_t spi_port) {
+#if ROO_DISPLAY_SPI_CMD_UPDATE_REQUIRED
+  SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_UPDATE);
+  while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_UPDATE) {
+  }
+#endif
+
   // SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
   // The 'correct' way to set the SPI_USR would be to set just the single bit,
   // as in the commented-out code above. But the remaining bits of this register
@@ -34,9 +56,10 @@ template <uint8_t spi_port>
 class SpiTransport {
  public:
   SpiTransport() : spi_(SPI) {
-    static_assert(spi_port == VSPI,
-                  "When using a SPI interface different than VSPI, you must "
-                  "provide a SPIClass object also in the constructor.");
+    static_assert(
+        spi_port == ROO_DISPLAY_ESP32_SPI_DEFAULT_PORT,
+        "When using a SPI interface different than the default, you must "
+        "provide a SPIClass object also in the constructor.");
   }
 
   SpiTransport(decltype(SPI)& spi) : spi_(spi) {}
@@ -331,7 +354,9 @@ class SpiTransport {
   }
 
   uint8_t transfer(uint8_t data) { return spi_.transfer(data); }
+
   uint16_t transfer16(uint16_t data) { return spi_.transfer16(data); }
+
   uint32_t transfer32(uint32_t data) { return spi_.transfer32(data); }
 
  private:
@@ -339,9 +364,11 @@ class SpiTransport {
   bool need_sync_ = false;
 };
 
-using Vspi = SpiTransport<VSPI>;
-using Hspi = SpiTransport<HSPI>;
-using Fspi = SpiTransport<FSPI>;
+#if CONFIG_IDF_TARGET_ESP32
+using Vspi = SpiTransport<0>;
+using Hspi = SpiTransport<1>;
+#endif
+using Fspi = SpiTransport<2>;
 
 }  // namespace esp32
 }  // namespace roo_display
@@ -353,11 +380,13 @@ using Fspi = SpiTransport<FSPI>;
 namespace roo_display {
 namespace esp32 {
 
+#if CONFIG_IDF_TARGET_ESP32
 using Vspi = GenericSpi;
 using Hspi = GenericSpi;
+#endif
 using Fspi = GenericSpi;
 
-}
-}
+}  // namespace esp32
+}  // namespace roo_display
 
 #endif

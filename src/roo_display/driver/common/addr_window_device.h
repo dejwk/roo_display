@@ -72,6 +72,7 @@ class AddrWindowDevice : public DisplayDevice {
   AddrWindowDevice(Orientation orientation, Target target)
       : DisplayDevice(orientation, target.width(), target.height()),
         target_(std::move(target)),
+        initialized_(false),
         bgcolor_(0xFF7F7F7F),
         compactor_() {}
 
@@ -79,6 +80,7 @@ class AddrWindowDevice : public DisplayDevice {
 
   void init() override {
     target_.init();
+    initialized_ = true;
     target_.begin();
     target_.setOrientation(orientation());
     target_.end();
@@ -209,7 +211,13 @@ class AddrWindowDevice : public DisplayDevice {
         });
   }
 
-  void orientationUpdated() override { target_.setOrientation(orientation()); }
+  void orientationUpdated() override {
+    if (!initialized_) {
+      // Initialization will set the orientation.
+      return;
+    }
+    target_.setOrientation(orientation());
+  }
 
   static inline raw_color_type to_raw_color(Color color)
       __attribute__((always_inline)) {
@@ -220,6 +228,7 @@ class AddrWindowDevice : public DisplayDevice {
 
  protected:
   Target target_;
+  bool initialized_;
 
  private:
   Color* processColorSequence(BlendingMode blending_mode, Color* src,

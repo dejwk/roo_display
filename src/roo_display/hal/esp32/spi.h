@@ -57,23 +57,23 @@ inline void SpiTxStart(uint8_t spi_port) {
 template <uint8_t spi_port>
 class SpiTransport {
  public:
-  SpiTransport() : spi_(SPI) {
+  SpiTransport(SPISettings settings)
+      : spi_(SPI), settings_(std::move(settings)) {
     static_assert(
         spi_port == ROO_DISPLAY_ESP32_SPI_DEFAULT_PORT,
         "When using a SPI interface different than the default, you must "
         "provide a SPIClass object also in the constructor.");
   }
 
-  SpiTransport(decltype(SPI)& spi) : spi_(spi) {}
+  SpiTransport(decltype(SPI)& spi, SPISettings settings)
+      : spi_(spi), settings_(std::move(settings)) {}
 
   void init() {}
 
-  void beginReadWriteTransaction(const SPISettings& settings) {
-    spi_.beginTransaction(settings);
-  }
+  void beginReadWriteTransaction() { spi_.beginTransaction(settings_); }
 
-  void beginWriteOnlyTransaction(const SPISettings& settings) {
-    spi_.beginTransaction(settings);
+  void beginWriteOnlyTransaction() {
+    spi_.beginTransaction(settings_);
     // Enable write-only mode.
     WRITE_PERI_REG(SPI_USER_REG(spi_port), SPI_USR_MOSI);
   }
@@ -398,6 +398,7 @@ class SpiTransport {
 
  private:
   decltype(SPI)& spi_;
+  SPISettings settings_;
   bool need_sync_ = false;
 };
 

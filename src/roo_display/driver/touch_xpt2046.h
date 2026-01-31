@@ -43,13 +43,16 @@ static const int kInitialTouchZThreshold = 400;
 template <int pinCS, typename Spi = DefaultSpi, typename Gpio = DefaultGpio>
 class TouchXpt2046 : public BasicTouchDevice<1> {
  public:
-  explicit TouchXpt2046(Spi spi = Spi());
+  explicit TouchXpt2046(
+      Spi spi = Spi(SPISettings(TouchXpt2046SpiSettings::clock,
+                                TouchXpt2046SpiSettings::bit_order,
+                                TouchXpt2046SpiSettings::data_mode)));
 
  protected:
   int readTouch(TouchPoint* points) override;
 
  private:
-  BoundSpi<Spi, TouchXpt2046SpiSettings> spi_transport_;
+  Spi spi_transport_;
 
   bool pressed_;
   unsigned long latest_confirmed_pressed_timestamp_;
@@ -62,7 +65,7 @@ TouchXpt2046<pinCS, Spi, Gpio>::TouchXpt2046(Spi spi)
     : BasicTouchDevice(Config{.min_sampling_interval_ms = 5,
                               .touch_intertia_ms = 30,
                               .smoothing_factor = 0.8}),
-      spi_transport_(std::move(spi)),
+      spi_transport_(std::forward<Spi>(spi)),
       pressed_(false),
       latest_confirmed_pressed_timestamp_(0) {
   Gpio::setOutput(pinCS);
@@ -139,8 +142,8 @@ int TouchXpt2046<pinCS, Spi, Gpio>::readTouch(TouchPoint* touch_point) {
   //   z_threshold = kSustainedTouchZThreshold;
   // }
 
-  BoundSpiReadWriteTransaction<pinCS, decltype(spi_transport_), Gpio>
-      transaction(spi_transport_);
+  SpiReadWriteTransaction<pinCS, decltype(spi_transport_), Gpio> transaction(
+      spi_transport_);
 
   int settled_conversions = 0;
   uint16_t x_tmp, y_tmp, z_tmp;

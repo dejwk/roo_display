@@ -17,7 +17,8 @@ class GenericSpi {
  public:
   // Creates the SPI transport, with specified transaction settings, using the
   // provided SPI bus.
-  GenericSpi(decltype(SPI) & spi) : spi_(spi) {}
+  GenericSpi(decltype(SPI)& spi, SPISettings settings)
+      : spi_(spi), settings_(std::move(settings)) {}
 
   // // Creates the SPI transport, with specified clock, and using MSBFIRST and
   // // SPI_MODE0, using the provided SPI bus.
@@ -41,17 +42,13 @@ class GenericSpi {
   // GenericSpi(SPISettings settings)
   //     : spi_(SPI), settings_(std::move(settings)) {}
 
-  GenericSpi() : GenericSpi(SPI) {}
+  GenericSpi(SPISettings settings) : GenericSpi(SPI, std::move(settings)) {}
 
   void init() {}
 
-  void beginReadWriteTransaction(SPISettings& settings) {
-    spi_.beginTransaction(settings);
-  }
+  void beginReadWriteTransaction() { spi_.beginTransaction(settings_); }
 
-  void beginWriteOnlyTransaction(SPISettings& settings) {
-    spi_.beginTransaction(settings);
-  }
+  void beginWriteOnlyTransaction() { spi_.beginTransaction(settings_); }
 
   void endTransaction() { spi_.endTransaction(); }
 
@@ -103,8 +100,7 @@ class GenericSpi {
   void fill24be_async(uint32_t data, uint32_t len) {
     uint8_t buf[96];
     if (len >= 32) {
-      roo_io::PatternFill<3>((roo::byte*)buf, 32,
-                             ((roo::byte*)&data + 1));
+      roo_io::PatternFill<3>((roo::byte*)buf, 32, ((roo::byte*)&data + 1));
       while (len >= 32) {
         spi_.writeBytes(buf, 96);
         len -= 32;
@@ -121,7 +117,8 @@ class GenericSpi {
   uint32_t transfer32(uint32_t data) { return spi_.transfer32(data); }
 
  private:
-  decltype(SPI) & spi_;
+  decltype(SPI)& spi_;
+  SPISettings settings_;
 };
 
 }  // namespace roo_display

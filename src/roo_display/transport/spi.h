@@ -16,41 +16,20 @@ struct SpiSettings {
   static constexpr uint8_t data_mode = _data_mode;
 };
 
-// Convenience template wrapper that allows to capture all SPI configuration
-// settings at compile time, inside a class specialization.
-template <typename Spi, typename SpiSettings>
-class BoundSpi : public Spi {
+template <int pinCS, typename Spi, typename Gpio>
+class SpiReadWriteTransaction {
  public:
-  template <typename... Args>
-  BoundSpi(Args&&... args) : Spi(std::forward<Args>(args)...) {}
-
-  void beginReadWriteTransaction() {
-    SPISettings settings(SpiSettings::clock, SpiSettings::bit_order,
-                         SpiSettings::data_mode);
-    Spi::beginReadWriteTransaction(settings);
-  }
-
-  void beginWriteOnlyTransaction() {
-    SPISettings settings(SpiSettings::clock, SpiSettings::bit_order,
-                         SpiSettings::data_mode);
-    Spi::beginWriteOnlyTransaction(settings);
-  }
-};
-
-template <int pinCS, typename BoundSpi, typename Gpio>
-class BoundSpiReadWriteTransaction {
- public:
-  BoundSpiReadWriteTransaction(BoundSpi& spi) : spi_(spi) {
+  SpiReadWriteTransaction(Spi& spi) : spi_(spi) {
     spi_.beginReadWriteTransaction();
     Gpio::template setLow<pinCS>();
   }
-  ~BoundSpiReadWriteTransaction() {
+  ~SpiReadWriteTransaction() {
     Gpio::template setHigh<pinCS>();
     spi_.endTransaction();
   }
 
  private:
-  BoundSpi& spi_;
+  Spi& spi_;
 };
 
 // Convenience helper class for device drivers that use 'chip select',
@@ -64,11 +43,13 @@ class BoundSpiReadWriteTransaction {
 // are inlined already.
 template <int pinCS, int pinDC, int pinRST, typename SpiSettings,
           typename Spi = DefaultSpi, typename Gpio = DefaultGpio>
-class SpiTransport : public BoundSpi<Spi, SpiSettings> {
+class SpiTransport : public Spi {
  public:
   template <typename... Args>
   SpiTransport(Args&&... args)
-      : BoundSpi<Spi, SpiSettings>(std::forward<Args>(args)...) {
+      : Spi(std::forward<Args>(args)...,
+            SPISettings(SpiSettings::clock, SpiSettings::bit_order,
+                        SpiSettings::data_mode)) {
     Gpio::setOutput(pinCS);
     cs_h();
 

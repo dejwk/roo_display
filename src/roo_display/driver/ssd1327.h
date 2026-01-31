@@ -7,6 +7,8 @@
 #include "roo_display/core/raster.h"
 #include "roo_display/driver/common/buffered_addr_window_device.h"
 #include "roo_display/transport/spi.h"
+#include "roo_threads.h"
+#include "roo_threads/thread.h"
 
 namespace roo_display {
 namespace ssd1327 {
@@ -27,7 +29,7 @@ class Ssd1327Target {
 
   void init() {
     transport_.init();
-    delay(200);
+    sleep_ms(200);
     begin();
     uint8_t init[] = {0xAE, 0x15, 0x00, 0x7F, 0x75, 0x00, 0x7F, 0x81, 0x53,
                       0xA0, 0x42, 0xA1, 0x00, 0xA2, 0x00, 0xA4, 0xA8, 0x7F,
@@ -35,7 +37,7 @@ class Ssd1327Target {
                       0x07, 0xBC, 0x08, 0xD5, 0x62, 0xFD, 0x12};
     writeCommand(init, sizeof(init));
     end();
-    delay(200);
+    sleep_ms(200);
     begin();
     writeCommand(0xAF);
     end();
@@ -135,6 +137,10 @@ class Ssd1327Target {
     transport_.writeBytes_async(c, size);
     transport_.sync();
     transport_.cmdEnd();
+  }
+
+  void sleep_ms(uint32_t ms) {
+    roo::this_thread::sleep_for(roo_time::Millis(ms));
   }
 
   Transport transport_;

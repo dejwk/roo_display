@@ -6,6 +6,8 @@
 #include "roo_display/color/color_modes.h"
 #include "roo_display/driver/common/addr_window_device.h"
 #include "roo_display/transport/spi.h"
+#include "roo_threads.h"
+#include "roo_threads/thread.h"
 
 namespace roo_display {
 
@@ -151,7 +153,7 @@ class Ili9341Target {
     writeCommand(SLPOUT);
 
     end();
-    delay(120);
+    sleep_ms(120);
 
     begin();
     writeCommand(DISPON);
@@ -208,6 +210,10 @@ class Ili9341Target {
   void writeCommand(uint8_t c, const std::initializer_list<uint8_t>& d) {
     writeCommand(c);
     for (uint8_t i : d) transport_.write(i);
+  }
+
+  void sleep_ms(uint32_t ms) {
+    roo::this_thread::sleep_for(roo_time::Millis(ms));
   }
 
   Transport transport_;

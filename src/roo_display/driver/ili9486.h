@@ -6,6 +6,8 @@
 #include "roo_display/color/color_modes.h"
 #include "roo_display/driver/common/addr_window_device.h"
 #include "roo_display/transport/spi.h"
+#include "roo_threads.h"
+#include "roo_threads/thread.h"
 
 namespace roo_display {
 
@@ -102,11 +104,11 @@ class Ili9486Target {
     begin();
     writeCommand(SWRESET);
     end();
-    delay(5);
+    sleep_ms(5);
 
     begin();
     writeCommand(SLPOUT);  // Sleep out, also SW reset
-    delay(120);
+    sleep_ms(120);
 
     writeCommand(PIXSET, {0x55});  // 16 bits / pixel
 
@@ -125,12 +127,12 @@ class Ili9486Target {
     writeCommand(INVOFF);
     writeCommand(MADCTL, {0x48});
     end();
-    delay(120);
+    sleep_ms(120);
 
     begin();
     writeCommand(DISPON);
     end();
-    delay(120);
+    sleep_ms(120);
   }
 
   void setOrientation(Orientation orientation) {
@@ -187,6 +189,10 @@ class Ili9486Target {
   void writeCommand(uint8_t c, const std::initializer_list<uint8_t>& d) {
     writeCommand(c);
     for (uint8_t i : d) transport_.write16(i);
+  }
+
+  void sleep_ms(uint32_t ms) {
+    roo::this_thread::sleep_for(roo_time::Millis(ms));
   }
 
   Transport transport_;

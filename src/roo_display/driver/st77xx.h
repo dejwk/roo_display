@@ -1,6 +1,8 @@
 #pragma once
 
 #include "roo_display/transport/spi.h"
+#include "roo_threads.h"
+#include "roo_threads/thread.h"
 
 namespace roo_display {
 namespace st77xx {
@@ -145,10 +147,14 @@ class St77xxTarget {
                     uint32_t delay_ms = 0) {
     writeCommand(c);
     for (uint8_t i : d) transport_.write(i);
-    if (delay_ms > 0) delay(delay_ms);
+    if (delay_ms > 0) sleep_ms(delay_ms);
   }
 
  private:
+  void sleep_ms(uint32_t ms) {
+    roo::this_thread::sleep_for(roo_time::Millis(ms));
+  }
+
   Transport transport_;
   int16_t width_;
   int16_t height_;

@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "roo_display/core/device.h"
+#include "roo_logging.h"
 #include "roo_time.h"
 
 namespace roo_display {

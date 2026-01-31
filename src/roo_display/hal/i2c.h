@@ -13,8 +13,7 @@ using I2cSlaveDevice = ArduinoI2cSlaveDevice;
 
 }  // namespace roo_display
 
-#elif defined(ESP_PLATFORM) && \
-    (CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S3)
+#elif defined(ESP_PLATFORM)
 
 #include "roo_display/hal/esp32/i2c.h"
 

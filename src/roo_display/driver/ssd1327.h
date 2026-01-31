@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Arduino.h>
+#include <cstdint>
 #include "roo_display/core/orientation.h"
 #include "roo_display/core/raster.h"
 #include "roo_display/driver/common/buffered_addr_window_device.h"

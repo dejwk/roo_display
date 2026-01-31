@@ -1,6 +1,7 @@
 #pragma once
 
-#include <Arduino.h>
+#include <cstdint>
+
 #include "roo_display/driver/common/addr_window_device.h"
 #include "roo_display/driver/st77xx.h"
 #include "roo_display/transport/spi.h"
@@ -66,28 +67,31 @@ using St7735_Generic = AddrWindowDevice<
     st77xx::St77xxTarget<Transport, st7735::Init, display_width, display_height,
                          lpad, tpad, rpad, bpad, inverted>>;
 
-template <int pinCS, int pinDC, int pinRST, int16_t display_width, int16_t display_height,
-          int16_t lpad = 0, int16_t tpad = 0, int16_t rpad = lpad,
-          int16_t bpad = tpad, bool inverted = false, typename Spi = DefaultSpi,
+template <int pinCS, int pinDC, int pinRST, int16_t display_width,
+          int16_t display_height, int16_t lpad = 0, int16_t tpad = 0,
+          int16_t rpad = lpad, int16_t bpad = tpad, bool inverted = false,
+          typename Spi = DefaultSpi,
           typename SpiSettings = st7735::DefaultSpiSettings,
           typename Gpio = DefaultGpio>
 using St7735spi_Generic =
     St7735_Generic<SpiTransport<pinCS, pinDC, pinRST, SpiSettings, Spi, Gpio>,
-                   display_width, display_height, lpad, tpad, rpad, bpad, inverted>;
+                   display_width, display_height, lpad, tpad, rpad, bpad,
+                   inverted>;
 
 template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
           typename SpiSettings = st7735::DefaultSpiSettings>
-using St7735spi_128x160 =
-    St7735spi_Generic<pinCS, pinDC, pinRST, 128, 160, 2, 1, 2, 1, false, Spi, SpiSettings>;
+using St7735spi_128x160 = St7735spi_Generic<pinCS, pinDC, pinRST, 128, 160, 2,
+                                            1, 2, 1, false, Spi, SpiSettings>;
 
 template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
           typename SpiSettings = st7735::DefaultSpiSettings>
 using St7735spi_80x160_inv =
-    St7735spi_Generic<pinCS, pinDC, pinRST, 80, 160, 26, 1, 26, 1, true, Spi, SpiSettings>;
+    St7735spi_Generic<pinCS, pinDC, pinRST, 80, 160, 26, 1, 26, 1, true, Spi,
+                      SpiSettings>;
 
 template <int pinCS, int pinDC, int pinRST, typename Spi = DefaultSpi,
           typename SpiSettings = st7735::DefaultSpiSettings>
-using St7735spi_128x128 =
-    St7735spi_Generic<pinCS, pinDC, pinRST, 128, 128, 2, 1, 2, 3, false, Spi, SpiSettings>;
+using St7735spi_128x128 = St7735spi_Generic<pinCS, pinDC, pinRST, 128, 128, 2,
+                                            1, 2, 3, false, Spi, SpiSettings>;
 
 }  // namespace roo_display

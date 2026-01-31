@@ -7,6 +7,8 @@
 #include "waveshare_esp32s3_touch_lcd_43.h"
 
 #include "roo_logging.h"
+#include "roo_threads.h"
+#include "roo_threads/thread.h"
 
 namespace roo_display::products::waveshare {
 
@@ -84,18 +86,22 @@ void writeEXIO(TwoWire &wire, uint8_t &shadow, uint8_t pin, bool state) {
   wire.endTransmission();
 }
 
+void sleep_ms(uint32_t ms) {
+  roo::this_thread::sleep_for(roo_time::Millis(ms));
+}
+
 // GT911 reset sequence via CH422G (non-blocking).
 // Returns immediately - GT911 boots in background.
 void resetGT911(TwoWire &wire, uint8_t &shadow) {
   // Step 1: INT pin LOW (selects GT911 I2C address 0x5D).
   pinMode(GT911_INT_PIN, OUTPUT);
   digitalWrite(GT911_INT_PIN, LOW);
-  delay(10);
+  sleep_ms(10);
 
   // Step 2: Assert GT911 reset via CH422G.
   shadow = (1 << EXIO_LCD_RST) | (1 << EXIO_LCD_BL);
   writeEXIO(wire, shadow, EXIO_TP_RST, LOW);
-  delay(100);
+  sleep_ms(100);
 
   // Step 3: Release reset - GT911 boots in background.
   writeEXIO(wire, shadow, EXIO_TP_RST, HIGH);
@@ -134,7 +140,7 @@ bool WaveshareEsp32s3TouchLcd43::initTransport() {
 
   // Initialize I2C bus.
   wire_.begin(I2C_SDA, I2C_SCL, I2C_FREQ);
-  delay(10);  // Allow bus to stabilize.
+  sleep_ms(10);  // Allow bus to stabilize.
 
   // Perform GT911 reset via CH422G.
   // Returns immediately - GT911 boots in background.

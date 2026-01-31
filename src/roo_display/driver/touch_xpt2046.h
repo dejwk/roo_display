@@ -45,6 +45,8 @@ class TouchXpt2046 : public BasicTouchDevice<1> {
  public:
   explicit TouchXpt2046(Spi spi = Spi());
 
+  virtual void initTouch() override { device_.init(); }
+
  protected:
   int readTouch(TouchPoint* points) override;
 

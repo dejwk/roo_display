@@ -13,6 +13,9 @@
 #ifndef SPI_MOSI_DLEN_REG
 #define SPI_MOSI_DLEN_REG(x) SPI_MS_DLEN_REG(x)
 #endif
+#ifndef SPI_MISO_DLEN_REG
+#define SPI_MISO_DLEN_REG(x) SPI_MS_DLEN_REG(x)
+#endif
 #endif
 
 // ESP32C3 and S3 require an update signal after writing FIFO/DMA buffers.
@@ -353,11 +356,46 @@ class SpiTransport {
     need_sync_ = true;
   }
 
-  uint8_t transfer(uint8_t data) { return spi_.transfer(data); }
+  uint8_t transfer(uint8_t data) __attribute__((always_inline)) {
+    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 7);
+#if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32
+    WRITE_PERI_REG(SPI_MISO_DLEN_REG(spi_port), 7);
+#endif
+    WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
+    SpiTxStart(spi_port);
+    SpiTxWait(spi_port);
+    return READ_PERI_REG(SPI_W0_REG(spi_port)) & 0xFF;
+  }
 
-  uint16_t transfer16(uint16_t data) { return spi_.transfer16(data); }
+  uint16_t transfer16(uint16_t data) __attribute__((always_inline)) {
+    // Apply byte-swapping for MSBFIRST (wr_bit_order = 0)
+    data = roo_io::htobe(data);
+    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 15);
+#if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32
+    WRITE_PERI_REG(SPI_MISO_DLEN_REG(spi_port), 15);
+#endif
+    WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
+    SpiTxStart(spi_port);
+    SpiTxWait(spi_port);
+    uint16_t result = READ_PERI_REG(SPI_W0_REG(spi_port)) & 0xFFFF;
+    // Apply byte-swapping for MSBFIRST (rd_bit_order = 0)
+    return roo_io::betoh(result);
+  }
 
-  uint32_t transfer32(uint32_t data) { return spi_.transfer32(data); }
+  uint32_t transfer32(uint32_t data) __attribute__((always_inline)) {
+    // Apply byte-swapping for MSBFIRST (wr_bit_order = 0)
+    data = roo_io::htobe(data);
+    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
+#if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32
+    WRITE_PERI_REG(SPI_MISO_DLEN_REG(spi_port), 31);
+#endif
+    WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
+    SpiTxStart(spi_port);
+    SpiTxWait(spi_port);
+    uint32_t result = READ_PERI_REG(SPI_W0_REG(spi_port));
+    // Apply byte-swapping for MSBFIRST (rd_bit_order = 0)
+    return roo_io::betoh(result);
+  }
 
  private:
   decltype(SPI)& spi_;

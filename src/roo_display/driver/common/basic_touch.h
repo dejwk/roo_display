@@ -70,6 +70,8 @@ TouchResult BasicTouchDevice<max_touch_points>::getTouch(TouchPoint* points,
   }
   TouchPoint readout[max_touch_points];
   int points_touched = readTouch(readout);
+  DCHECK_GE(points_touched, 0);
+  DCHECK_LE(points_touched, max_touch_points);
   if (points_touched == 0) {
     if (dt < roo_time::Millis(config_.touch_intertia_ms)) {
       // We did not detect touch, but the latest confirmed touch was not long
@@ -111,7 +113,7 @@ TouchResult BasicTouchDevice<max_touch_points>::getTouch(TouchPoint* points,
   // Copy over and report.
   detection_timestamp_ = now;
   points_touched_ = points_touched;
-  std::copy(readout, readout + points_touched, touch_points_);
+  std::copy(&readout[0], &readout[points_touched], touch_points_);
   return pushResult(points, max_points);
 }
 

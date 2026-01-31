@@ -128,7 +128,9 @@ class TestDevice : public AddrWindowDevice<TestTarget<ColorMode, byte_order>> {
   typedef AddrWindowDevice<TestTarget<ColorMode, byte_order>> Base;
 
   TestDevice(int16_t width, int16_t height, Color color)
-      : Base(TestTarget<ColorMode, byte_order>(width, height, color)) {}
+      : Base(TestTarget<ColorMode, byte_order>(width, height, color)) {
+    Base::init();
+  }
 
   const Color* data() const { return Base::target_.data(); }
 };

@@ -120,7 +120,8 @@ void TestFillVLines(BlendingMode blending_mode, Orientation orientation) {
 }
 
 template <typename TestedDevice, typename ReferenceDevice>
-void TestFillDegeneratePixels(BlendingMode blending_mode, Orientation orientation) {
+void TestFillDegeneratePixels(BlendingMode blending_mode,
+                              Orientation orientation) {
   TestDisplayDevice<TestedDevice, ReferenceDevice> screen(30, 33,
                                                           Color(0xFF101050));
   screen.setOrientation(orientation);
@@ -183,7 +184,8 @@ void TestWriteVLines(BlendingMode blending_mode, Orientation orientation) {
 }
 
 template <typename TestedDevice, typename ReferenceDevice>
-void TestWriteDegeneratePixels(BlendingMode blending_mode, Orientation orientation) {
+void TestWriteDegeneratePixels(BlendingMode blending_mode,
+                               Orientation orientation) {
   TestDisplayDevice<TestedDevice, ReferenceDevice> screen(32, 36,
                                                           Color(0xFF101050));
   screen.setOrientation(orientation);
@@ -207,7 +209,8 @@ void TestWritePixels(BlendingMode blending_mode, Orientation orientation) {
 }
 
 template <typename TestedDevice, typename ReferenceDevice>
-void TestWritePixelsStress(BlendingMode blending_mode, Orientation orientation) {
+void TestWritePixelsStress(BlendingMode blending_mode,
+                           Orientation orientation) {
   TestDisplayDevice<TestedDevice, ReferenceDevice> screen(50, 90,
                                                           Color(0x12345678));
   screen.setOrientation(orientation);
@@ -354,7 +357,8 @@ void fillRandom(TestDisplayDevice<TestedDevice, ReferenceDevice>* screen,
 }
 
 template <typename TestedDevice, typename ReferenceDevice>
-void TestWriteRectWindowSimple(BlendingMode blending_mode, Orientation orientation) {
+void TestWriteRectWindowSimple(BlendingMode blending_mode,
+                               Orientation orientation) {
   TestDisplayDevice<TestedDevice, ReferenceDevice> screen(8, 12,
                                                           Color(0x00000000));
   screen.setOrientation(orientation);
@@ -363,7 +367,8 @@ void TestWriteRectWindowSimple(BlendingMode blending_mode, Orientation orientati
 }
 
 template <typename TestedDevice, typename ReferenceDevice>
-void TestWriteRectWindowStress(BlendingMode blending_mode, Orientation orientation) {
+void TestWriteRectWindowStress(BlendingMode blending_mode,
+                               Orientation orientation) {
   TestDisplayDevice<TestedDevice, ReferenceDevice> screen(50, 90,
                                                           Color(0x12345678));
   screen.setOrientation(orientation);

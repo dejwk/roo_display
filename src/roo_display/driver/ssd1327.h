@@ -1,8 +1,6 @@
 #pragma once
 
 #include <Arduino.h>
-#include <SPI.h>
-
 #include "roo_display/core/orientation.h"
 #include "roo_display/core/raster.h"
 #include "roo_display/driver/common/buffered_addr_window_device.h"
@@ -18,7 +16,7 @@ enum Command { CASET = 0x15, RASET = 0x75 };
 static const int16_t kWidth = 128;
 static const int16_t kHeight = 128;
 
-typedef SpiSettings<16000000, MSBFIRST, SPI_MODE0> DefaultSpiSettings;
+typedef SpiSettings<16000000, kSpiMsbFirst, kSpiMode0> DefaultSpiSettings;
 
 template <typename Transport>
 class Ssd1327Target {

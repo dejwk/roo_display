@@ -1,8 +1,6 @@
 #pragma once
 
 #include <Arduino.h>
-#include <SPI.h>
-
 #include "roo_display/driver/common/addr_window_device.h"
 #include "roo_display/driver/st77xx.h"
 #include "roo_display/transport/spi.h"
@@ -10,7 +8,7 @@
 namespace roo_display {
 namespace st7789 {
 
-typedef SpiSettings<40000000, MSBFIRST, SPI_MODE3> DefaultSpiSettings;
+typedef SpiSettings<40000000, kSpiMsbFirst, kSpiMode3> DefaultSpiSettings;
 
 struct Init {
   template <typename Target>

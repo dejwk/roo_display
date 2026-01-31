@@ -1,8 +1,6 @@
 #pragma once
 
 #include <Arduino.h>
-#include <SPI.h>
-
 #include "roo_display/driver/common/addr_window_device.h"
 #include "roo_display/driver/st77xx.h"
 #include "roo_display/transport/spi.h"
@@ -11,9 +9,9 @@ namespace roo_display {
 
 namespace st7796s {
 
-static const uint32_t SpiFrequency = 80 * 1000 * 1000;
+static const uint32_t kSpiFrequency = 80 * 1000 * 1000;
 
-typedef SpiSettings<SpiFrequency, MSBFIRST, SPI_MODE0> DefaultSpiSettings;
+typedef SpiSettings<kSpiFrequency, kSpiMsbFirst, kSpiMode0> DefaultSpiSettings;
 
 enum Command {
   DIC = 0xB4,

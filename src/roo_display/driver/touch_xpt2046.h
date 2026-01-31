@@ -10,7 +10,7 @@ namespace roo_display {
 
 static const int kSpiTouchFrequency = 2500000;
 
-typedef SpiSettings<kSpiTouchFrequency, MSBFIRST, SPI_MODE0>
+typedef SpiSettings<kSpiTouchFrequency, kSpiMsbFirst, kSpiMode0>
     TouchXpt2046SpiSettings;
 
 // If two subsequent reads are further apart than this parameter, in either

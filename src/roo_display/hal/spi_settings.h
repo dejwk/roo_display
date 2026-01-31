@@ -2,11 +2,15 @@
 
 namespace roo_display {
 
-template <uint32_t _clock, uint8_t _bit_order, uint8_t _data_mode>
+enum SpiDataMode { kSpiMode0 = 0, kSpiMode1 = 1, kSpiMode2 = 2, kSpiMode3 = 3 };
+
+enum SpiBitOrder { kSpiMsbFirst = 0, kSpiLsbFirst = 1 };
+
+template <uint32_t _clock, SpiBitOrder _bit_order, SpiDataMode _data_mode>
 struct SpiSettings {
   static constexpr uint32_t clock = _clock;
-  static constexpr uint8_t bit_order = _bit_order;
-  static constexpr uint8_t data_mode = _data_mode;
+  static constexpr SpiBitOrder bit_order = _bit_order;
+  static constexpr SpiDataMode data_mode = _data_mode;
 };
 
 }  // namespace roo_display

@@ -1,8 +1,6 @@
 #pragma once
 
 #include <Arduino.h>
-#include <SPI.h>
-
 #include "roo_display/driver/common/addr_window_device.h"
 #include "roo_display/transport/spi.h"
 #include "roo_threads.h"
@@ -46,9 +44,9 @@ class Rgb666h {
 static const int16_t kDefaultWidth = 320;
 static const int16_t kDefaultHeight = 480;
 
-static const uint32_t SpiFrequency = 20 * 1000 * 1000;
+static const uint32_t kSpiFrequency = 20 * 1000 * 1000;
 
-typedef SpiSettings<SpiFrequency, MSBFIRST, SPI_MODE0> DefaultSpiSettings;
+typedef SpiSettings<kSpiFrequency, kSpiMsbFirst, kSpiMode0> DefaultSpiSettings;
 
 enum Command {
   NOP = 0x00,

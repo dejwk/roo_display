@@ -22,6 +22,12 @@ class ArduinoSpi {
 
   ArduinoSpi(decltype(SPI)& spi = SPI) : spi_(spi) {}
 
+  void init() { spi_.begin(); }
+
+  void init(uint8_t sck, uint8_t miso, uint8_t mosi) {
+    spi_.begin(sck, miso, mosi);
+  }
+
  private:
   template <typename SpiSettings>
   friend class ArduinoSpiDevice;

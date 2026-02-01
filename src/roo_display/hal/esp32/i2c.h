@@ -49,8 +49,7 @@ class Esp32I2cMasterBusHandle {
 
 class Esp32I2cSlaveDevice {
  public:
-  Esp32I2cSlaveDevice(Esp32I2cMasterBusHandle& bus_handle,
-                      uint8_t slave_address)
+  Esp32I2cSlaveDevice(Esp32I2cMasterBusHandle bus_handle, uint8_t slave_address)
       : bus_handle_(bus_handle), slave_address_(slave_address) {}
 
   void init() {
@@ -78,7 +77,7 @@ class Esp32I2cSlaveDevice {
   }
 
  private:
-  Esp32I2cMasterBusHandle& bus_handle_;
+  Esp32I2cMasterBusHandle bus_handle_;
   uint8_t slave_address_;
   i2c_master_dev_handle_t dev_handle_;
 };

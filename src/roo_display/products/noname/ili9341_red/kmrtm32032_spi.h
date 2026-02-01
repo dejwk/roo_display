@@ -84,9 +84,9 @@ class Kmrtm32032Spi : public ComboDevice {
     display_.setOrientation(orientation);
   }
 
-  #if defined(ARDUINO)
+#if defined(ARDUINO)
   void initTransport() { spi_.init(); }
-  #endif
+#endif
 
   void initTransport(uint8_t sck, uint8_t miso, uint8_t mosi) {
     spi_.init(sck, miso, mosi);

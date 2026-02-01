@@ -86,9 +86,8 @@ class Esp32Spi {
   }
 
 #else
-  Esp32Spi() : spi_(SPI2_HOST) {}
-
-  Esp32Spi(spi_host_device_t spi) : spi_(spi) {}
+  // The host enum is one-off from the spi_port.
+  Esp32Spi() : spi_((spi_host_device_t)(spi_port - 1)) {}
 
   void init() {
     spi_bus_config_t config = {
@@ -514,12 +513,25 @@ class Esp32SpiDevice {
   bool need_sync_ = false;
 };
 
-#if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2 || \
-    CONFIG_IDF_TARGET_ESP32S3
-using Vspi = Esp32Spi<0>;
-using Hspi = Esp32Spi<1>;
-#endif
+// Original ESP32: SPI0 (none), FSPI -> SPI1, HSPI -> SPI2, VSPI -> SPI3.
+// ESP32S2/S3/P4: FSPI -> SPI2, HSPI -> SPI3.
+// Others: FSPI -> SPI2.
+//
+// Based on
+// https://github.com/espressif/arduino-esp32/blob/master/cores/esp32/esp32-hal-spi.h
+// and
+// https://github.com/espressif/arduino-esp32/blob/master/cores/esp32/esp32-hal-spi.c.
+#if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3 || \
+    CONFIG_IDF_TARGET_ESP32P4
 using Fspi = Esp32Spi<2>;
+using Hspi = Esp32Spi<3>;
+#elif CONFIG_IDF_TARGET_ESP32
+using Fspi = Esp32Spi<1>;
+using Hspi = Esp32Spi<2>;
+using Vspi = Esp32Spi<3>;
+#else  // ESP32C2, C3, C5, C6, C61, H2
+using Fspi = Esp32Spi<2>;
+#endif
 
 }  // namespace esp32
 }  // namespace roo_display

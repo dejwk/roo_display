@@ -1,6 +1,10 @@
 #pragma once
 
+#if defined(ARDUINO)
 #include <Arduino.h>
+
+#include "roo_backport.h"
+#include "roo_backport/byte.h"
 
 // Generic Arduino implementation.
 
@@ -58,3 +62,5 @@ class ArduinoI2cSlaveDevice {
 };
 
 }  // namespace roo_display
+
+#endif  // defined(ARDUINO)

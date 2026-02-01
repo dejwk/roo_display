@@ -1,7 +1,11 @@
 #pragma once
 
+#if defined(ESP_PLATFORM)
+
 #include "driver/i2c.h"
 #include "driver/i2c_master.h"
+#include "roo_backport.h"
+#include "roo_backport/byte.h"
 
 namespace roo_display {
 
@@ -80,3 +84,5 @@ class Esp32I2cSlaveDevice {
 };
 
 }  // namespace roo_display
+
+#endif  // defined(ESP_PLATFORM)

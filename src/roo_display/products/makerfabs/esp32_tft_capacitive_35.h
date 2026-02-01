@@ -16,15 +16,25 @@ namespace roo_display::products::makerfabs {
 
 class Esp32TftCapacitive35 : public ComboDevice {
  public:
+#if defined(ARDUINO)
+  // You can use non-default I2C interface by providing a custom instance of
+  // TwoWire as the i2c parameter.
   Esp32TftCapacitive35(
       Orientation orientation = Orientation(),
       roo_display::I2cMasterBusHandle i2c = roo_display::I2cMasterBusHandle())
-      : spi_(roo_display::esp32::Hspi()),
-        i2c_(i2c),
-        display_(spi_),
-        touch_(i2c_) {
+      : hspi_(HSPI), spi_(hspi_), i2c_(i2c), display_(spi_), touch_(i2c_) {
     display_.setOrientation(orientation);
   }
+#else
+  // You can use non-default I2C interface by providing a specific
+  // i2c_port_num_t as the i2c parameter.
+  Esp32TftCapacitive35(
+      Orientation orientation = Orientation(),
+      roo_display::I2cMasterBusHandle i2c = roo_display::I2cMasterBusHandle())
+      : spi_(), i2c_(i2c), display_(spi_), touch_(i2c_) {
+    display_.setOrientation(orientation);
+  }
+#endif
 
   void initTransport() {
     spi_.init(14, 12, 13);
@@ -47,7 +57,15 @@ class Esp32TftCapacitive35 : public ComboDevice {
 
   constexpr int8_t pin_sd_cs() const { return 4; }
 
+#if defined(ARDUINO)
+  decltype(SPI)& spi() { return hspi_; }
+#endif
+
  private:
+#if defined(ARDUINO)
+  decltype(SPI) hspi_;
+#endif
+
   roo_display::esp32::Hspi spi_;
   roo_display::I2cMasterBusHandle i2c_;
   roo_display::Ili9488spi<15, 33, 26, esp32::Hspi> display_;

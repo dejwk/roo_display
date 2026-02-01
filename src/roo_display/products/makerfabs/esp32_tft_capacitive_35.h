@@ -4,6 +4,11 @@
 // Maker: MakerFabs
 // Product Code: ESPTFT35CA
 
+#include "roo_display/hal/config.h"
+#if !defined(ESP_PLATFORM) || !CONFIG_IDF_TARGET_ESP32
+#warning "This driver requires ESP32 SoC."
+#else
+
 #include "roo_display/core/device.h"
 #include "roo_display/core/orientation.h"
 #include "roo_display/driver/ili9488.h"
@@ -73,3 +78,5 @@ class Esp32TftCapacitive35 : public ComboDevice {
 };
 
 }  // namespace roo_display::products::makerfabs
+
+#endif  // !defined(ESP_PLATFORM) || !CONFIG_IDF_TARGET_ESP32

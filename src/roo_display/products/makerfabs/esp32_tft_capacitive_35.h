@@ -44,6 +44,10 @@ class Esp32TftCapacitive35 : public ComboDevice {
   void initTransport() {
     spi_.init(14, 12, 13);
     i2c_.init(26, 27);
+    // In case the SD card is unused, its CS pin should be held HIGH, so that
+    // doesn't interfere with the display.
+    DefaultGpio::setOutput(pin_sd_cs());
+    DefaultGpio::setHigh(pin_sd_cs());
   }
 
   DisplayDevice& display() override { return display_; }

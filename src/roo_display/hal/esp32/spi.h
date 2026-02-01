@@ -126,6 +126,9 @@ class Esp32Spi {
 #endif
 };
 
+// Note: hardcoding the spi_port, making register accesses compile-time
+// constants, does bring tangible performance improvements; ~2% in 'Lines' test
+// in the Adafruit benchmark.
 template <uint8_t spi_port, typename SpiSettings>
 class Esp32SpiDevice {
  public:

@@ -35,7 +35,7 @@ static int16_t readWord(const roo::byte* PROGMEM ptr) {
   return (pgm_read_byte(ptr) << 8) | pgm_read_byte(ptr + 1);
 }
 
-class GlyphMetadataReader {
+class SmoothFont::GlyphMetadataReader {
  public:
   GlyphMetadataReader(const SmoothFont& font, const roo::byte* PROGMEM ptr)
       : font_(font), ptr_(ptr + font.encoding_bytes_) {}
@@ -330,7 +330,7 @@ class GlyphPairIterator {
           GlyphMetrics(0, 0, -1, -1, font_->default_space_width_);
       *mutable_right_data_offset() = 0;
     } else {
-      class GlyphMetadataReader glyph_meta(*font_, glyph);
+      SmoothFont::GlyphMetadataReader glyph_meta(*font_, glyph);
       *mutable_right_metrics() = glyph_meta.readMetrics(
           FONT_LAYOUT_HORIZONTAL, mutable_right_compressed());
       *mutable_right_data_offset() = glyph_meta.data_offset();

@@ -38,8 +38,9 @@ class SmoothFont : public Font {
   bool rle() const { return compression_method_ > 0; }
   int16_t kerning(char32_t left, char32_t right) const;
 
-  friend class GlyphMetadataReader;
   friend class GlyphPairIterator;
+
+  class GlyphMetadataReader;
 
   // Binary-search for the glyph data.
   const roo::byte* PROGMEM findGlyph(char32_t code) const;

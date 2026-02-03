@@ -54,7 +54,6 @@ class GlyphMetadataReader {
       uint16_t b = readWord(ptr_ + 0);
       compressed = ((b >> 15) == ((b >> 14) & 1));
       glyphXMin = (int16_t)(b ^ ((!compressed) << 14));
-      glyphXMin = readWord(ptr_ + 0);
       glyphYMin = readWord(ptr_ + 2);
       glyphXMax = readWord(ptr_ + 4);
       glyphYMax = readWord(ptr_ + 6);
@@ -156,7 +155,7 @@ SmoothFont::SmoothFont(const roo::byte* font_data PROGMEM)
   //                " glyphs, size " + (ascent - descent));
 }
 
-bool is_space(char32_t code) {
+inline bool is_space(char32_t code) {
   // http://en.cppreference.com/w/cpp/string/wide/iswspace; see POSIX
   return code == 0x0020 || code == 0x00A0 ||
          (code >= 0x0009 && code <= 0x000D) || code == 0x1680 ||
@@ -551,12 +550,12 @@ template <int encoding_bytes>
 char32_t read_unicode(const roo::byte* PROGMEM address);
 
 template <>
-char32_t read_unicode<1>(const roo::byte* PROGMEM address) {
+inline char32_t read_unicode<1>(const roo::byte* PROGMEM address) {
   return pgm_read_byte(address);
 }
 
 template <>
-char32_t read_unicode<2>(const roo::byte* PROGMEM address) {
+inline char32_t read_unicode<2>(const roo::byte* PROGMEM address) {
   return ((char32_t)pgm_read_byte(address) << 8) | pgm_read_byte(address + 1);
 }
 

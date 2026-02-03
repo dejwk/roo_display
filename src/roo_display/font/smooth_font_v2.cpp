@@ -290,7 +290,7 @@ void SmoothFontV2::drawKernedGlyphsModeFill(
   }
 }
 
-class GlyphPairIterator {
+class SmoothFontV2::GlyphPairIterator {
  public:
   GlyphPairIterator(const SmoothFontV2* font) : font_(font), swapped_(false) {}
 

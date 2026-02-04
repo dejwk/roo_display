@@ -28,6 +28,7 @@ MARKDOWN_SUPPORT       = YES
 AUTOLINK_SUPPORT       = YES
 FULL_PATH_NAMES        = NO
 STRIP_FROM_PATH        = src include
+IMAGE_PATH             = doc/images
 SOURCE_BROWSER         = YES
 INLINE_SOURCES         = NO
 HTML_OUTPUT            = html

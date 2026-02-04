@@ -45,7 +45,7 @@ void loop() {}
 
 This application configures an ILI 9341 display, using the default SPI interface with default pins (on ESP32, these are 18 for SCK, 23 for MOSI, and 19 for MISO), as well as GPIO 5 for CS, GPIO 2 for DC, and GPIO 4 for RST. The screen is left-rotated, i.e. in a 320x240 portrait mode.
 
-> If you have a touch display or an integrated device (display + microcontroller), look at the [products](https://github.com/dejwk/roo_display/tree/master/roo_display/products) subdirectory for a simpler way to configure your hardware.
+> If you have a touch display or an integrated device (display + microcontroller), look at the [products](https://github.com/dejwk/roo_display/tree/master/src/roo_display/products) subdirectory for a simpler way to configure your hardware.
 
 We will now look at the steps in more detail.
 
@@ -198,7 +198,7 @@ void loop() {
 
 ![img1](images/img1.png)
 
-In a [later section](programming_guide.md#drawing-shapes), we will explore how to draw other shapes, and how to use anti-aliasing.
+In a [later section](#drawing-shapes), we will explore how to draw other shapes, and how to use anti-aliasing.
 
 ### Color
 
@@ -1071,7 +1071,7 @@ void loop() {
 
 ![img40](images/img40.png)
 
-Note that the coordinates of smooth shapes are floating-point. It allows defing the shapes with sub-pixel precision, for example to implement extremely smooth animations (we will see examples of that [later](programming_guide.md#advanced-example-animated-analog-gauge)). But it also requires that we begin thinking of pixels as 'squares'. The integer values of the coordinates not correspond to the _centers_ of the pixels. Consequently, a pixel with integer coordinates (x, y) now has the floating-point bounds of (x - 0.5, y - 0.5, x + 0.5, y + 0.5). The top-left corner of a display with resolution (width x height) is at (-0.5, -0.5), and the bottom-right corner is at (width - 0.5, height - 0.5).
+Note that the coordinates of smooth shapes are floating-point. It allows defing the shapes with sub-pixel precision, for example to implement extremely smooth animations (we will see examples of that [later](#advanced-example-animated-analog-gauge)). But it also requires that we begin thinking of pixels as 'squares'. The integer values of the coordinates not correspond to the _centers_ of the pixels. Consequently, a pixel with integer coordinates (x, y) now has the floating-point bounds of (x - 0.5, y - 0.5, x + 0.5, y + 0.5). The top-left corner of a display with resolution (width x height) is at (-0.5, -0.5), and the bottom-right corner is at (width - 0.5, height - 0.5).
 
 For 'outlined' shapes, we now need to think about the 'thickness' of the outline, which, in the case above, is equal to 1 pixel. The circle radiuses and rectangle extents that you specify correspond to the _middle_ of the outline. Consequently, the outer extents of a rounded rectangle, as well as an outer radius of a circle, is larger by 0.5 than the specified extents and the radius, and conversely, the inner extents / radius are smaller by 0.5 than the specified extents / radius. This is why we used different specs for the filled circle and round rect: compared to the non-filled counterparts, we extended them by 0.5 on each side. It causes the entire pixel 'rectangles' at boundaries to be considered as belonging to the filled shape. (But experiment and see what would happen if we didn't.)
 
@@ -1398,7 +1398,7 @@ void loop() {
 
 ![img53](images/img53.png)
 
-[Later](programming_guide.md#advanced-example-animated-analog-gauge), we will see how to animate these without flicker.
+[Later](#advanced-example-animated-analog-gauge), we will see how to animate these without flicker.
 
 #### Pies
 
@@ -1436,7 +1436,7 @@ Anti-aliased graphics can work wonders on low-resolution displays, increasing th
 
 Smooth primitives will generally only look good on single-color backgrounds, and you need to be careful to set the background color correctly.
 
-For anti-aliasing to work with non-monochrome background, you need a display driver that natively supports alpha-blending (e.g. using a parallel driver for ESP32-S3), or you need to use an intermediate memory buffer (described [later](programming_guide.md#using-off-screen-buffers)).
+For anti-aliasing to work with non-monochrome background, you need a display driver that natively supports alpha-blending (e.g. using a parallel driver for ESP32-S3), or you need to use an intermediate memory buffer (described [later](#using-off-screen-buffers)).
 
 ##### Low-color modes
 
@@ -1766,7 +1766,7 @@ The parameterized color mode can be passed as an argument to raster and image co
 
 Additionally, for multiple-bytes-per-pixel modes, you can parameterize the `Raster` template class by specifying the byte order (big endian or little endian), and for sub-byte pixel modes (e.g. Gray4, Alpha4, Indexed4, Indexed2, Indexed1), you can specify the pixel order within byte (most-significant-first or least-significant-first). See the documentation of the `Raster` template for details.
 
-This flexibility means that if you happen to have some existing uncompressed image data, there are good chances that you will be able to render it with `roo_display`. Moreover, if your color mode is unsupported, writing your own is not very hard. For example, the [implementation of RGBA 8888](https://github.com/dejwk/roo_display/blob/896a4ab04b8a4442e0aa9340ae235796a5b7067c/roo_display/color/color_modes.h#L46) fits in 20 lines of code. As long as your custom color mode uses 1, 2, 4, 8, 16, 24, or 32 bits per pixel, the `Offscreen`, `Raster` and the `RleImage` template classes will automatically support it.
+This flexibility means that if you happen to have some existing uncompressed image data, there are good chances that you will be able to render it with `roo_display`. Moreover, if your color mode is unsupported, writing your own is not very hard. For example, the [implementation of RGBA 8888](https://github.com/dejwk/roo_display/blob/master/src/roo_display/color/color_modes.h#L46) fits in 20 lines of code. As long as your custom color mode uses 1, 2, 4, 8, 16, 24, or 32 bits per pixel, the `Offscreen`, `Raster` and the `RleImage` template classes will automatically support it.
 
 In addition to the general-purpose `RleImage`, the library supports an alternative RLE encoding format, `RleImage4bppxBiased`, designed specifically for 4bpp color modes. This format is intended for cases when the 'boundary' colors, encoded as 0x0 and 0xF, occur significantly more frequently than the 'intermediate' colors 0x1 - 0xE. The main application is to compress Alpha4-encoded, monochrome, antialiased content, such as font glyphs and icons. In these cases, 0x0 represents the fully transparent 'background' and 0xF represents the fully opaque 'foreground', and the intermediate values correspond to different grades of translucency, used for antialiased 'edges'.
 
@@ -2137,7 +2137,7 @@ The solution it to call `setBlendingMode(BLENDING_MODE_SOURCE)` on the DrawingCo
 
 > Note: you don't need to use alpha channel just to draw translucent content to an offscreen, as long as the result itself can be opaque.
 
-Blending mode can be adjusted for any drawing context, not just for the offscreens. It is rarely useful for physical devices, though, because they operate in RGB (e.g. RGB565), without alpha, so there is rarely any need to output translucent colors to them and expect anything else than alpha-blending over the background bolor (or existing contents if they support that). We will look at other use cases of blending modes later, in a [dedicated section](programming_guide.md#blending-modes).
+Blending mode can be adjusted for any drawing context, not just for the offscreens. It is rarely useful for physical devices, though, because they operate in RGB (e.g. RGB565), without alpha, so there is rarely any need to output translucent colors to them and expect anything else than alpha-blending over the background bolor (or existing contents if they support that). We will look at other use cases of blending modes later, in a [dedicated section](#blending-modes).
 
 #### Extents and alignment
 
@@ -2184,7 +2184,7 @@ The baseline contract of a `Drawable` is to be able to draw itself to a `Surface
 
 Out of the drawable classes that we encountered so far, `Raster`, `Offscreen`, and all the smooth shapes, are rasterizable, and `RleImage` and `RleImage4bppBiased` are streamable.
 
-In this section, we will focus on rasterizables, leaving streamables for the later section on [dynamic composition](programming_guide.md#dynamic-composition).
+In this section, we will focus on rasterizables, leaving streamables for the later section on [dynamic composition](#dynamic-composition).
 
 So why are rasterizables useful? The most immediate benefit is that you can use them as backgrounds. Anything you draw on top of them will be anti-aliased and alpha-blended correctly.
 
@@ -2755,7 +2755,7 @@ Checking for clipping at every item adds some overhead, so it is better to optim
 
 ### Blending modes
 
-By default, when you are drawing to an offscreen, or to a device with a framebuffer, everything you draw is alpha-blended over pre-existing content. In the section about [offscreens](programming_guide.md#using-off-screen-buffers), we saw how to override this behavior by setting the blending mode to `BLENDING_MODE_SOURCE`, causing the new content to simply replace pre-existing content.
+By default, when you are drawing to an offscreen, or to a device with a framebuffer, everything you draw is alpha-blended over pre-existing content. In the section about [offscreens](#using-off-screen-buffers), we saw how to override this behavior by setting the blending mode to `BLENDING_MODE_SOURCE`, causing the new content to simply replace pre-existing content.
 
 What else can you do with blending modes?
 

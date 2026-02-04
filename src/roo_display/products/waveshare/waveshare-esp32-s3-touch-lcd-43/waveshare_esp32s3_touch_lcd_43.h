@@ -1,5 +1,7 @@
 #pragma once
 
+#include "roo_display/hal/config.h"
+
 #if !defined(ESP32) || !(CONFIG_IDF_TARGET_ESP32S3)
 #warning Compilation target must be ESP32_S3 for this device.
 #else
@@ -12,7 +14,6 @@
 #include "roo_display/driver/esp32s3_dma_parallel_rgb565.h"
 #include "roo_display/driver/touch_gt911.h"
 #include "roo_display/products/combo_device.h"
-
 
 namespace roo_display::products::waveshare {
 

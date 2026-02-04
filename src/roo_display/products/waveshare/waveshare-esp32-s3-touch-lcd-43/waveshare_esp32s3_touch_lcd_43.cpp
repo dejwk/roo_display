@@ -1,14 +1,15 @@
 // Waveshare ESP32-S3-Touch-LCD-4.3
 // Implementation file
 
+#include "roo_display/hal/config.h"
+
 #if !defined(ESP32) || !(CONFIG_IDF_TARGET_ESP32S3)
 #else
-
-#include "waveshare_esp32s3_touch_lcd_43.h"
 
 #include "roo_logging.h"
 #include "roo_threads.h"
 #include "roo_threads/thread.h"
+#include "waveshare_esp32s3_touch_lcd_43.h"
 
 namespace roo_display::products::waveshare {
 

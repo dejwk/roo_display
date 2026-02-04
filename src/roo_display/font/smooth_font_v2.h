@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <type_traits>
 
 #include "font.h"
@@ -38,6 +39,14 @@ class SmoothFontV2 : public Font {
  private:
   class GlyphPairIterator;
   class GlyphMetadataReader;
+  struct CmapEntry {
+    uint16_t range_start;
+    uint16_t range_end;
+    uint16_t glyph_id_offset;
+    uint16_t data_entries_count;
+    uint32_t data_offset;
+    uint8_t format;
+  };
 
   bool rle() const { return compression_method_ > 0; }
   int16_t kerning(char32_t left, char32_t right) const;
@@ -72,7 +81,6 @@ class SmoothFontV2 : public Font {
                     Color bgColor, BlendingMode blending_mode) const;
 
   int glyph_count_;
-  int cmap_entries_count_;
   int glyph_metadata_size_;
   int alpha_bits_;
   int encoding_bytes_;
@@ -88,6 +96,9 @@ class SmoothFontV2 : public Font {
   const roo::byte* glyph_metadata_begin_ PROGMEM;
   const roo::byte* glyph_kerning_begin_ PROGMEM;
   const roo::byte* glyph_data_begin_ PROGMEM;
+  // Cached for performance; improves glyph lookup speed slightly.
+  int cmap_entries_count_;
+  std::unique_ptr<CmapEntry[]> cmap_entries_;
 };
 
 }  // namespace roo_display

@@ -95,6 +95,7 @@ class SmoothFontV2::GlyphMetadataReader {
   const roo::byte* PROGMEM ptr_;
 };
 
+
 SmoothFontV2::SmoothFontV2(const roo::byte* font_data PROGMEM)
     : glyph_count_(0), default_glyph_(0), default_space_width_(0) {
   roo_io::UnsafeGenericMemoryIterator<const roo::byte PROGMEM*> reader(
@@ -145,17 +146,26 @@ SmoothFontV2::SmoothFontV2(const roo::byte* font_data PROGMEM)
   font_begin_ = font_data;
   cmap_entries_begin_ = reader.ptr();
   const int kCmapEntrySize = 12;
+  if (cmap_entries_count_ > 0) {
+    cmap_entries_ = std::unique_ptr<CmapEntry[]>(
+        new CmapEntry[cmap_entries_count_]);
+  }
   const roo::byte* PROGMEM cmap_entries_end =
       cmap_entries_begin_ + cmap_entries_count_ * kCmapEntrySize;
   uint32_t max_indirection_end = (uint32_t)(cmap_entries_end - font_begin_);
   for (int i = 0; i < cmap_entries_count_; ++i) {
     const roo::byte* PROGMEM entry = cmap_entries_begin_ + i * kCmapEntrySize;
-    uint16_t data_entries_count = readUWord(entry + 6);
-    uint32_t data_offset = readTriWord(entry + 8);
-    uint8_t format = readByte(entry + 11);
-    CHECK_LT(data_offset, (1u << 24)) << "Cmap data offset out of range";
-    if (format == 1 && data_entries_count != 0) {
-      uint32_t end = data_offset + data_entries_count * 2;
+    CmapEntry& dst = cmap_entries_[i];
+    dst.range_start = readUWord(entry + 0);
+    uint16_t range_length = readUWord(entry + 2);
+    dst.range_end = (uint32_t)dst.range_start + range_length;
+    dst.glyph_id_offset = readUWord(entry + 4);
+    dst.data_entries_count = readUWord(entry + 6);
+    dst.data_offset = readTriWord(entry + 8);
+    dst.format = readByte(entry + 11);
+    CHECK_LT(dst.data_offset, (1u << 24)) << "Cmap data offset out of range";
+    if (dst.format == 1 && dst.data_entries_count != 0) {
+      uint32_t end = dst.data_offset + dst.data_entries_count * 2;
       if (end > max_indirection_end) max_indirection_end = end;
     }
   }
@@ -577,30 +587,22 @@ bool SmoothFontV2::getGlyphMetrics(char32_t code, FontLayout layout,
 int SmoothFontV2::findGlyphIndex(char32_t code) const {
   if (code > 0xFFFF) return -1;
   uint16_t ucode = (uint16_t)code;
-  const int kCmapEntrySize = 12;
   for (int i = 0; i < cmap_entries_count_; ++i) {
-    const roo::byte* PROGMEM entry = cmap_entries_begin_ + i * kCmapEntrySize;
-    uint16_t range_start = readUWord(entry + 0);
-    if (ucode < range_start) return -1;
-    uint16_t range_length = readUWord(entry + 2);
-    uint32_t range_end = (uint32_t)range_start + range_length;
-    if (ucode >= range_end) continue;
-    uint16_t glyph_id_offset = readUWord(entry + 4);
-    uint8_t format = readByte(entry + 11);
-    uint16_t rel = (uint16_t)(ucode - range_start);
-    if (format == 0) {
-      return glyph_id_offset + rel;
+    const CmapEntry& entry = cmap_entries_[i];
+    if (ucode < entry.range_start) return -1;
+    if (ucode >= entry.range_end) continue;
+    uint16_t rel = (uint16_t)(ucode - entry.range_start);
+    if (entry.format == 0) {
+      return entry.glyph_id_offset + rel;
     }
-    if (format == 1) {
-      uint16_t data_entries_count = readUWord(entry + 6);
-      uint32_t data_offset = readTriWord(entry + 8);
-      const roo::byte* PROGMEM data = font_begin_ + data_offset;
+    if (entry.format == 1) {
+      const roo::byte* PROGMEM data = font_begin_ + entry.data_offset;
       int lo = 0;
-      int hi = (int)data_entries_count - 1;
+      int hi = (int)entry.data_entries_count - 1;
       while (lo <= hi) {
         int mid = (lo + hi) / 2;
         uint16_t val = readUWord(data + mid * 2);
-        if (val == rel) return glyph_id_offset + mid;
+        if (val == rel) return entry.glyph_id_offset + mid;
         if (rel < val) {
           hi = mid - 1;
         } else {

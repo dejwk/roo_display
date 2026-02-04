@@ -49,7 +49,9 @@ class SmoothFontV2 : public Font {
   };
 
   bool rle() const { return compression_method_ > 0; }
-  int16_t kerning(char32_t left, char32_t right) const;
+  int16_t kerning(int left_glyph_index, int right_glyph_index) const;
+  int16_t kerningWithClassFormat(int left_glyph_index,
+                                 int right_glyph_index) const;
 
   // Lookup the glyph index in the cmap ranges.
   int findGlyphIndex(char32_t code) const;
@@ -86,15 +88,24 @@ class SmoothFontV2 : public Font {
   int encoding_bytes_;
   int font_metric_bytes_;
   int offset_bytes_;
+  int glyph_index_bytes_;
   int compression_method_;
   int kerning_pairs_count_;
   int glyph_kerning_size_;
+  uint8_t kerning_format_;
+  uint16_t kerning_class_count_;
+  uint16_t kerning_source_count_;
+  int kerning_source_index_bytes_;
+  int kerning_class_entries_count_;
   char32_t default_glyph_;
   int default_space_width_;
   const roo::byte* font_begin_ PROGMEM;
   const roo::byte* cmap_entries_begin_ PROGMEM;
   const roo::byte* glyph_metadata_begin_ PROGMEM;
   const roo::byte* glyph_kerning_begin_ PROGMEM;
+  const roo::byte* kerning_source_table_begin_ PROGMEM;
+  const roo::byte* kerning_class_table_begin_ PROGMEM;
+  const roo::byte* kerning_class_entries_begin_ PROGMEM;
   const roo::byte* glyph_data_begin_ PROGMEM;
   // Cached for performance; improves glyph lookup speed slightly.
   int cmap_entries_count_;

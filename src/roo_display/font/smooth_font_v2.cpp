@@ -1,3 +1,71 @@
+// SmoothFontV2 binary format (version 0x0200)
+//
+// All multi-byte integers are big-endian. Offsets are from the start of the
+// font data buffer.
+//
+// Header (variable size; depends on font_metric_bytes and encoding_bytes):
+//   u16  version                 = 0x0200
+//   u8   alpha_bits              (must be 4)
+//   u8   encoding_bytes          (1=ASCII, 2=Unicode BMP)
+//   u8   font_metric_bytes       (1 or 2)
+//   u8   offset_bytes            (1..3)
+//   u8   compression_method      (0=none, 1=RLE)
+//   u16  glyph_count
+//   u16  cmap_entries_count
+//   s8/s16 metrics[11]           (xMin, yMin, xMax, yMax, ascent, descent,
+//                                linegap, min_advance, max_advance,
+//                                max_right_overhang, default_space_width)
+//   u8/u16 default_glyph_code
+//   u8   kerning_flags           (bits 1..0: 0=none, 1=pairs, 2=classes)
+//   u16  glyph_metrics_offset    (absolute offset to glyph metrics section)
+//   u24  glyph_data_offset       (absolute offset to glyph data)
+//   u8   reserved                (must be 0)
+//   u8   reserved                (must be 0)
+//
+// Cmap section (variable):
+//   Repeated cmap_entries_count times (12 bytes each):
+//     u16 range_start
+//     u16 range_length
+//     u16 glyph_id_offset
+//     u16 data_entries_count
+//     u24 data_offset             (to sparse indirection table)
+//     u8  format                  (0=dense, 1=sparse)
+//   Sparse indirection tables: for each sparse entry, data_entries_count
+//   u16 values listing glyph offsets in the range.
+//
+// Glyph metrics section (offset = glyph_metrics_offset):
+//   glyph_count entries, each:
+//     s8/s16 xMin   (top two bits encode compression flag; see encoder)
+//     s8/s16 yMin
+//     s8/s16 xMax
+//     s8/s16 yMax
+//     s8/s16 advance
+//     u8/u16/u24 data_offset       (offset into glyph data)
+//
+// Kerning section (starts immediately after glyph metrics):
+//   Kerning header (type-specific):
+//     format 1 (pairs): u16 kerning_pairs_count
+//     format 2 (classes):
+//       u16 kerning_class_count
+//       u16 kerning_source_count
+//       u16 kerning_class_entries_count
+//   format 0: no data
+//   format 1 (pairs): kerning_pairs_count entries (glyph indices):
+//     u8/u16 left_glyph_index
+//     u8/u16 right_glyph_index
+//     u8     weight
+//   format 2 (classes, glyph indices):
+//     source table (kerning_source_count entries):
+//       u8/u16 glyph_index, u8 class_id
+//     class table (kerning_class_count entries):
+//       u16 entry_offset, u16 entry_count
+//     class entries (kerning_class_entries_count entries):
+//       u8/u16 dest_glyph_index, u8 weight
+//
+// Glyph data section (offset = glyph_data_offset):
+//   Concatenated glyph bitmaps, each compressed or uncompressed per
+//   glyph metadata flag.
+
 #include "roo_display/font/smooth_font_v2.h"
 
 #include "roo_display/core/raster.h"
@@ -9,6 +77,12 @@
 #include "roo_logging.h"
 
 namespace roo_display {
+
+namespace {
+constexpr uint8_t kKerningFormatNone = 0;
+constexpr uint8_t kKerningFormatPairs = 1;
+constexpr uint8_t kKerningFormatClasses = 2;
+}  // namespace
 
 class FontMetricReader {
  public:
@@ -95,7 +169,6 @@ class SmoothFontV2::GlyphMetadataReader {
   const roo::byte* PROGMEM ptr_;
 };
 
-
 SmoothFontV2::SmoothFontV2(const roo::byte* font_data PROGMEM)
     : glyph_count_(0), default_glyph_(0), default_space_width_(0) {
   roo_io::UnsafeGenericMemoryIterator<const roo::byte PROGMEM*> reader(
@@ -121,7 +194,7 @@ SmoothFontV2::SmoothFontV2(const roo::byte* font_data PROGMEM)
       << "Unsupported compression method: " << compression_method_;
 
   glyph_count_ = roo_io::ReadBeU16(reader);
-  kerning_pairs_count_ = roo_io::ReadBeU16(reader);
+  kerning_pairs_count_ = 0;
   cmap_entries_count_ = roo_io::ReadBeU16(reader);
 
   FontMetricReader fm_reader(reader, font_metric_bytes_);
@@ -143,16 +216,25 @@ SmoothFontV2::SmoothFontV2(const roo::byte* font_data PROGMEM)
     default_glyph_ = roo_io::ReadBeU16(reader);
   }
 
+  uint8_t kerning_flags = roo_io::ReadU8(reader);
+  kerning_format_ = kerning_flags & 0x03;
+  uint16_t glyph_metrics_offset = roo_io::ReadBeU16(reader);
+  uint32_t glyph_data_offset = ((uint32_t)roo_io::ReadU8(reader) << 16) |
+                               ((uint32_t)roo_io::ReadU8(reader) << 8) |
+                               (uint32_t)roo_io::ReadU8(reader);
+  roo_io::ReadU8(reader);  // Reserved.
+  roo_io::ReadU8(reader);  // Reserved.
+  kerning_class_count_ = 0;
+  kerning_source_count_ = 0;
+  kerning_class_entries_count_ = 0;
+
   font_begin_ = font_data;
   cmap_entries_begin_ = reader.ptr();
   const int kCmapEntrySize = 12;
   if (cmap_entries_count_ > 0) {
-    cmap_entries_ = std::unique_ptr<CmapEntry[]>(
-        new CmapEntry[cmap_entries_count_]);
+    cmap_entries_ =
+        std::unique_ptr<CmapEntry[]>(new CmapEntry[cmap_entries_count_]);
   }
-  const roo::byte* PROGMEM cmap_entries_end =
-      cmap_entries_begin_ + cmap_entries_count_ * kCmapEntrySize;
-  uint32_t max_indirection_end = (uint32_t)(cmap_entries_end - font_begin_);
   for (int i = 0; i < cmap_entries_count_; ++i) {
     const roo::byte* PROGMEM entry = cmap_entries_begin_ + i * kCmapEntrySize;
     CmapEntry& dst = cmap_entries_[i];
@@ -164,32 +246,59 @@ SmoothFontV2::SmoothFontV2(const roo::byte* font_data PROGMEM)
     dst.data_offset = readTriWord(entry + 8);
     dst.format = readByte(entry + 11);
     CHECK_LT(dst.data_offset, (1u << 24)) << "Cmap data offset out of range";
-    if (dst.format == 1 && dst.data_entries_count != 0) {
-      uint32_t end = dst.data_offset + dst.data_entries_count * 2;
-      if (end > max_indirection_end) max_indirection_end = end;
-    }
   }
 
-  glyph_metadata_begin_ = font_begin_ + max_indirection_end;
+  glyph_metadata_begin_ = font_begin_ + glyph_metrics_offset;
   glyph_metadata_size_ = (5 * font_metric_bytes_) + offset_bytes_;
-  glyph_kerning_size_ = 2 * encoding_bytes_ + 1;
   glyph_kerning_begin_ =
       glyph_metadata_begin_ + glyph_metadata_size_ * glyph_count_;
-  glyph_data_begin_ =
-      glyph_kerning_begin_ + glyph_kerning_size_ * kerning_pairs_count_;
+  glyph_data_begin_ = font_begin_ + glyph_data_offset;
+  glyph_index_bytes_ = (glyph_count_ < (1 << 8)) ? 1 : 2;
+
+  kerning_source_table_begin_ = nullptr;
+  kerning_class_table_begin_ = nullptr;
+  kerning_class_entries_begin_ = nullptr;
+  kerning_source_index_bytes_ = 0;
+  kerning_class_entries_count_ = 0;
+  glyph_kerning_size_ = 0;
+
+  if (kerning_format_ == kKerningFormatPairs) {
+    kerning_pairs_count_ = readUWord(glyph_kerning_begin_ + 0);
+    glyph_kerning_begin_ += 2;
+    glyph_kerning_size_ = 2 * glyph_index_bytes_ + 1;
+    // glyph_data_begin_ already set from header.
+  } else if (kerning_format_ == kKerningFormatClasses) {
+    kerning_class_count_ = readUWord(glyph_kerning_begin_ + 0);
+    kerning_source_count_ = readUWord(glyph_kerning_begin_ + 2);
+    kerning_class_entries_count_ = readUWord(glyph_kerning_begin_ + 4);
+    glyph_kerning_begin_ += 6;
+    kerning_source_index_bytes_ = glyph_index_bytes_;
+    kerning_source_table_begin_ = glyph_kerning_begin_;
+    int source_entry_size = kerning_source_index_bytes_ + 1;
+    int source_table_size = kerning_source_count_ * source_entry_size;
+    kerning_class_table_begin_ =
+        kerning_source_table_begin_ + source_table_size;
+    kerning_class_entries_begin_ =
+        kerning_class_table_begin_ + kerning_class_count_ * 4;
+    // kerning_class_entries_count_ read from header.
+  } else {
+    glyph_data_begin_ = glyph_kerning_begin_;
+  }
 
   Font::init(
       FontMetrics(ascent, descent, linegap, xMin, yMin, xMax, yMax,
                   max_right_overhang),
-      FontProperties(encoding_bytes_ > 1 ? FontProperties::CHARSET_UNICODE_BMP
-                                         : FontProperties::CHARSET_ASCII,
-                     min_advance == max_advance && kerning_pairs_count_ == 0
-                         ? FontProperties::SPACING_MONOSPACE
-                         : FontProperties::SPACING_PROPORTIONAL,
-                     alpha_bits_ > 1 ? FontProperties::SMOOTHING_GRAYSCALE
-                                     : FontProperties::SMOOTHING_NONE,
-                     kerning_pairs_count_ > 0 ? FontProperties::KERNING_PAIRS
-                                              : FontProperties::KERNING_NONE));
+      FontProperties(
+          encoding_bytes_ > 1 ? FontProperties::CHARSET_UNICODE_BMP
+                              : FontProperties::CHARSET_ASCII,
+          min_advance == max_advance && kerning_format_ == kKerningFormatNone
+              ? FontProperties::SPACING_MONOSPACE
+              : FontProperties::SPACING_PROPORTIONAL,
+          alpha_bits_ > 1 ? FontProperties::SMOOTHING_GRAYSCALE
+                          : FontProperties::SMOOTHING_NONE,
+          kerning_format_ != kKerningFormatNone
+              ? FontProperties::KERNING_PAIRS
+              : FontProperties::KERNING_NONE));
 
   // Serial.println(String() + "Loaded font with " + glyph_count_ +
   //                " glyphs, size " + (ascent - descent));
@@ -353,12 +462,21 @@ class SmoothFontV2::GlyphPairIterator {
     return swapped_ ? compressed_1_ : compressed_2_;
   }
 
+  int left_glyph_index() const {
+    return swapped_ ? glyph_index_2_ : glyph_index_1_;
+  }
+
+  int right_glyph_index() const {
+    return swapped_ ? glyph_index_1_ : glyph_index_2_;
+  }
+
   void push(char32_t code) {
     swapped_ = !swapped_;
     if (is_space(code)) {
       *mutable_right_metrics() =
           GlyphMetrics(0, 0, -1, -1, font_->default_space_width_);
       *mutable_right_data_offset() = 0;
+      *mutable_right_glyph_index() = -1;
       return;
     }
     int glyph_index = font_->findGlyphIndex(code);
@@ -369,21 +487,30 @@ class SmoothFontV2::GlyphPairIterator {
       *mutable_right_metrics() =
           GlyphMetrics(0, 0, -1, -1, font_->default_space_width_);
       *mutable_right_data_offset() = 0;
+      *mutable_right_glyph_index() = -1;
     } else {
       class GlyphMetadataReader glyph_meta(*font_, glyph_index);
       *mutable_right_metrics() = glyph_meta.readMetrics(
           FONT_LAYOUT_HORIZONTAL, mutable_right_compressed());
       *mutable_right_data_offset() = glyph_meta.data_offset();
+      *mutable_right_glyph_index() = glyph_index;
     }
   }
 
-  void pushNull() { swapped_ = !swapped_; }
+  void pushNull() {
+    swapped_ = !swapped_;
+    *mutable_right_glyph_index() = -1;
+  }
 
  private:
   GlyphMetrics* mutable_right_metrics() { return swapped_ ? &m1_ : &m2_; }
 
   long* mutable_right_data_offset() {
     return swapped_ ? &data_offset_1_ : &data_offset_2_;
+  }
+
+  int* mutable_right_glyph_index() {
+    return swapped_ ? &glyph_index_1_ : &glyph_index_2_;
   }
 
   bool& mutable_right_compressed() {
@@ -396,6 +523,8 @@ class SmoothFontV2::GlyphPairIterator {
   GlyphMetrics m2_;
   long data_offset_1_;
   long data_offset_2_;
+  int glyph_index_1_ = -1;
+  int glyph_index_2_ = -1;
   bool compressed_1_;
   bool compressed_2_;
 };
@@ -422,7 +551,7 @@ GlyphMetrics SmoothFontV2::getHorizontalStringMetrics(const char* utf8_data,
     int16_t kern;
     if (has_more) {
       glyphs.push(next_code);
-      kern = kerning(code, next_code);
+      kern = kerning(glyphs.left_glyph_index(), glyphs.right_glyph_index());
     } else {
       next_code = 0;
       glyphs.pushNull();
@@ -468,7 +597,7 @@ uint32_t SmoothFontV2::getHorizontalStringGlyphMetrics(
     int16_t kern;
     if (has_more) {
       glyphs.push(next_code);
-      kern = kerning(code, next_code);
+      kern = kerning(glyphs.left_glyph_index(), glyphs.right_glyph_index());
     } else {
       next_code = 0;
       glyphs.pushNull();
@@ -514,7 +643,7 @@ void SmoothFontV2::drawHorizontalString(const Surface& s, const char* utf8_data,
     int16_t kern;
     if (has_more) {
       glyphs.push(next_code);
-      kern = kerning(code, next_code);
+      kern = kerning(glyphs.left_glyph_index(), glyphs.right_glyph_index());
     } else {
       next_code = 0;
       glyphs.pushNull();
@@ -616,63 +745,103 @@ int SmoothFontV2::findGlyphIndex(char32_t code) const {
   return -1;
 }
 
-template <int encoding_bytes>
-char32_t read_unicode(const roo::byte* PROGMEM address);
-
-template <>
-char32_t read_unicode<1>(const roo::byte* PROGMEM address) {
-  return pgm_read_byte(address);
-}
-
-template <>
-char32_t read_unicode<2>(const roo::byte* PROGMEM address) {
-  return ((char32_t)pgm_read_byte(address) << 8) | pgm_read_byte(address + 1);
-}
-
-template <int encoding_bytes>
-const roo::byte* PROGMEM kernIndexSearch(uint32_t lookup,
-                                         const roo::byte* PROGMEM data,
-                                         int kern_size, int start, int stop) {
-  int pivot = (start + stop) / 2;
-  const roo::byte* PROGMEM pivot_ptr = data + (pivot * kern_size);
-  uint16_t left = read_unicode<encoding_bytes>(pivot_ptr);
-  uint16_t right = read_unicode<encoding_bytes>(pivot_ptr + encoding_bytes);
-  uint32_t pivot_value = left << 16 | right;
-  if (lookup == pivot_value) {
-    return pivot_ptr;
-  }
-  if (start >= stop) {
-    return nullptr;
-  }
-  if (lookup < pivot_value)
-    return kernIndexSearch<encoding_bytes>(lookup, data, kern_size, start,
-                                           pivot - 1);
-  return kernIndexSearch<encoding_bytes>(lookup, data, kern_size, pivot + 1,
-                                         stop);
+static uint16_t read_glyph_index(const roo::byte* PROGMEM address,
+                                 int index_bytes) {
+  return index_bytes == 1 ? pgm_read_byte(address) : readUWord(address);
 }
 
 const roo::byte* PROGMEM SmoothFontV2::findKernPair(char32_t left,
                                                     char32_t right) const {
-  uint32_t lookup = left << 16 | right;
-  switch (encoding_bytes_) {
-    case 1:
-      return kernIndexSearch<1>(lookup, glyph_kerning_begin_,
-                                glyph_kerning_size_, 0, kerning_pairs_count_);
-    case 2:
-      return kernIndexSearch<2>(lookup, glyph_kerning_begin_,
-                                glyph_kerning_size_, 0, kerning_pairs_count_);
-    default:
-      return nullptr;
-  }
+  // Legacy API no longer used; keep for compatibility if needed.
+  return nullptr;
 }
 
-int16_t SmoothFontV2::kerning(char32_t left, char32_t right) const {
-  const roo::byte* PROGMEM kern = findKernPair(left, right);
-  if (kern == 0) {
+int16_t SmoothFontV2::kerning(int left_glyph_index,
+                              int right_glyph_index) const {
+  if (left_glyph_index < 0 || right_glyph_index < 0) return 0;
+  if (kerning_format_ == kKerningFormatPairs) {
+    // Pair format: binary search over sorted (left,right) glyph index pairs.
+    int lo = 0;
+    int hi = kerning_pairs_count_ - 1;
+    while (lo <= hi) {
+      int mid = (lo + hi) / 2;
+      const roo::byte* PROGMEM entry =
+          glyph_kerning_begin_ + mid * glyph_kerning_size_;
+      uint16_t left = read_glyph_index(entry, glyph_index_bytes_);
+      uint16_t right =
+          read_glyph_index(entry + glyph_index_bytes_, glyph_index_bytes_);
+      if (left == left_glyph_index && right == right_glyph_index) {
+        return pgm_read_byte(entry + 2 * glyph_index_bytes_);
+      }
+      if (left < left_glyph_index ||
+          (left == left_glyph_index && right < right_glyph_index)) {
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
     return 0;
-  } else {
-    return pgm_read_byte(kern + 2 * encoding_bytes_);
   }
+  if (kerning_format_ == kKerningFormatClasses) {
+    return kerningWithClassFormat(left_glyph_index, right_glyph_index);
+  }
+  return 0;
+}
+
+int16_t SmoothFontV2::kerningWithClassFormat(int left_glyph_index,
+                                             int right_glyph_index) const {
+  if (kerning_source_count_ == 0 || kerning_class_count_ == 0) return 0;
+
+  // 1) Find the class assigned to the left glyph using binary search
+  //    over the source table (glyph_index -> class_id).
+  int entry_size = kerning_source_index_bytes_ + 1;
+  int lo = 0;
+  int hi = kerning_source_count_ - 1;
+  uint8_t class_id = 0xFF;
+
+  while (lo <= hi) {
+    int mid = (lo + hi) / 2;
+    const roo::byte* PROGMEM entry =
+        kerning_source_table_begin_ + mid * entry_size;
+    uint16_t glyph_index = read_glyph_index(entry, kerning_source_index_bytes_);
+    if (glyph_index == left_glyph_index) {
+      class_id = pgm_read_byte(entry + kerning_source_index_bytes_);
+      break;
+    }
+    if (glyph_index < left_glyph_index) {
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+
+  if (class_id == 0xFF || class_id >= kerning_class_count_) return 0;
+
+  // 2) Look up the class entry range (offset,count).
+  const roo::byte* PROGMEM cls = kerning_class_table_begin_ + class_id * 4;
+  uint16_t offset = readUWord(cls + 0);
+  uint16_t count = readUWord(cls + 2);
+  if (count == 0) return 0;
+
+  // 3) Binary search within the class entries for the right glyph index.
+  const roo::byte* PROGMEM entries =
+      kerning_class_entries_begin_ + offset * entry_size;
+  lo = 0;
+  hi = count - 1;
+  while (lo <= hi) {
+    int mid = (lo + hi) / 2;
+    const roo::byte* PROGMEM entry = entries + mid * entry_size;
+    uint16_t glyph_index = read_glyph_index(entry, kerning_source_index_bytes_);
+    if (glyph_index == right_glyph_index) {
+      return pgm_read_byte(entry + kerning_source_index_bytes_);
+    }
+    if (glyph_index < right_glyph_index) {
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return 0;
 }
 
 }  // namespace roo_display

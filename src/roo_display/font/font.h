@@ -3,9 +3,9 @@
 #include <assert.h>
 #include <inttypes.h>
 
+#include "roo_backport/string_view.h"
 #include "roo_display/core/device.h"
 #include "roo_display/core/drawable.h"
-#include "roo_backport/string_view.h"
 
 namespace roo_display {
 
@@ -148,50 +148,51 @@ class GlyphMetrics {
   /// Advance in pixels.
   int advance() const { return advance_; }
 
-/// Abstract font interface.
-class Font {
+ private:
   Box bbox_;  // In screen coordinates; i.e. positive Y down.
-  /// Return font metrics.
   int advance_;
-  /// Return font properties.
 };
 
-  /// Retrieve glyph metrics for a code point and layout.
+/// Abstract font interface.
 class Font {
  public:
+  /// Return font metrics.
   const FontMetrics &metrics() const { return metrics_; }
-  /// Draw a UTF-8 string horizontally using a string view.
-  ///
-  /// See https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html
+  /// Return font properties.
+  const FontProperties &properties() const { return properties_; }
 
+  /// Retrieve glyph metrics for a code point and layout.
   virtual bool getGlyphMetrics(char32_t code, FontLayout layout,
                                GlyphMetrics *result) const = 0;
 
-  // See https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html
-  /// Draw a UTF-8 string horizontally.
-
+  /// Draw a UTF-8 string horizontally using a string view.
+  ///
+  /// See https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html
   void drawHorizontalString(const Surface &s, roo::string_view text,
                             Color color) const {
-  /// Return metrics of the specified string as if it were a single glyph.
+    drawHorizontalString(s, text.data(), text.size(), color);
   }
 
+  /// Draw a UTF-8 string horizontally.
   virtual void drawHorizontalString(const Surface &s, const char *utf8_data,
                                     uint32_t size, Color color) const = 0;
-  /// Return metrics of the specified UTF-8 string as if it were a single glyph.
 
-  // Returns metrics of the specified string, as if it was a single glyph.
+  /// Return metrics of the specified UTF-8 string as if it were a single
+  /// glyph.
   GlyphMetrics getHorizontalStringMetrics(roo::string_view text) const {
+    return getHorizontalStringMetrics(text.data(), text.size());
+  }
+
+  /// Return metrics of the specified UTF-8 string as if it were a single
+  /// glyph.
+  virtual GlyphMetrics getHorizontalStringMetrics(const char *utf8_data,
+                                                  uint32_t size) const = 0;
+
   /// Return metrics for consecutive glyphs in the UTF-8 string.
   ///
   /// Glyphs may overlap due to kerning. The number of glyphs written is
   /// limited by `max_count`. Returns the number of glyphs measured, which
   /// may be smaller than `max_count` if the input string is shorter.
-  // Returns metrics of the consecutive glyphs of the specified string,
-  // beginning at the specified `offset`, and stores them in the `result`. The
-  // glyphs may be overlapping due to kerning. The number of glyphs in the
-  // result is limited by `max_count`. Returns the number of glyphs actually
-  // measured, which may be smaller than `max_count` if the input string is
-  // shorter.
   uint32_t getHorizontalStringGlyphMetrics(roo::string_view text,
                                            GlyphMetrics *result,
                                            uint32_t offset,

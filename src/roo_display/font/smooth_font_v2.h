@@ -42,7 +42,7 @@ class SmoothFontV2 : public Font {
   bool rle() const { return compression_method_ > 0; }
   int16_t kerning(char32_t left, char32_t right) const;
 
-  // Binary-search for the glyph index in the cmap.
+  // Lookup the glyph index in the cmap ranges.
   int findGlyphIndex(char32_t code) const;
   const roo::byte* PROGMEM findKernPair(char32_t left, char32_t right) const;
 
@@ -72,6 +72,7 @@ class SmoothFontV2 : public Font {
                     Color bgColor, BlendingMode blending_mode) const;
 
   int glyph_count_;
+  int cmap_entries_count_;
   int glyph_metadata_size_;
   int alpha_bits_;
   int encoding_bytes_;
@@ -82,7 +83,8 @@ class SmoothFontV2 : public Font {
   int glyph_kerning_size_;
   char32_t default_glyph_;
   int default_space_width_;
-  const roo::byte* glyph_cmap_begin_ PROGMEM;
+  const roo::byte* font_begin_ PROGMEM;
+  const roo::byte* cmap_entries_begin_ PROGMEM;
   const roo::byte* glyph_metadata_begin_ PROGMEM;
   const roo::byte* glyph_kerning_begin_ PROGMEM;
   const roo::byte* glyph_data_begin_ PROGMEM;

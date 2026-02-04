@@ -2,6 +2,7 @@
 
 #include "roo_display/core/device.h"
 #include "roo_display/driver/common/basic_touch.h"
+#include "roo_display/driver/common/gpio_setter.h"
 #include "roo_display/hal/i2c.h"
 #include "roo_threads.h"
 #include "roo_threads/atomic.h"
@@ -9,16 +10,28 @@
 
 namespace roo_display {
 
+// Note: this driver doesn't support interrupt-driven read explicitly. You can
+// still use interrupts, if you want to, by registering an interrupt handler on
+// the pinIntr pin externally, and then reacting to the interrupt signal by
+// calling readTouch().
+//
+// Even if you're not using interrupts, you should still provide the pinIntr to
+// the driver - or, alternatively, pull it low (e.g. tie it to GND). This is
+// necessary because the GT911 uses the pin to select between two I2C addresses
+// during initialization. This driver always uses the 0x5D address, which is
+// selected by pulling the pin low during reset.
 class TouchGt911 : public BasicTouchDevice<5> {
  public:
   // Constructs the driver assuming the default I2C bus.
-  TouchGt911(int8_t pinIntr, int8_t pinRst, long reset_low_hold_ms = 1);
+  // For GpioSetter, you can pass pin numbers, or a custom implementation.
+  TouchGt911(GpioSetter pinIntr, GpioSetter pinRst, long reset_low_hold_ms = 1);
 
   // Constructs the driver using the specified I2C bus (passed as the first
   // argument).
   // When using Arduino, you can pass a Wire& object reference.
   // When using esp-idf, you can pass an i2c_port_num_t.
-  TouchGt911(I2cMasterBusHandle i2c, int8_t pinIntr, int8_t pinRst,
+  // For GpioSetter, you can pass pin numbers, or a custom implementation.
+  TouchGt911(I2cMasterBusHandle i2c, GpioSetter pinIntr, GpioSetter pinRst,
              long reset_low_hold_ms = 1);
 
   // Initializes the driver (performing GPIO setup and calling reset()).
@@ -35,8 +48,8 @@ class TouchGt911 : public BasicTouchDevice<5> {
   void readBlock(roo::byte* buf, uint16_t reg, uint8_t size);
 
   int8_t addr_;
-  int8_t pinIntr_;
-  int8_t pinRst_;
+  GpioSetter pinIntr_;
+  GpioSetter pinRst_;
   I2cSlaveDevice i2c_slave_;
   long reset_low_hold_ms_;
 

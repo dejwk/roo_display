@@ -27,22 +27,13 @@ TouchPoint ReadPoint(const roo::byte* data) {
 
 }  // namespace
 
-void TouchGt911::initTouch() {
-  DefaultGpio::setOutput(pinRst_);
-  DefaultGpio::setLow(pinRst_);
-  if (pinIntr_ >= 0) {
-    DefaultGpio::setOutput(pinIntr_);
-    DefaultGpio::setLow(pinIntr_);
-  }
-  i2c_slave_.init();
-  reset();
-}
-
-TouchGt911::TouchGt911(int8_t pinIntr, int8_t pinRst, long reset_low_hold_ms)
-    : TouchGt911(I2cMasterBusHandle(), pinIntr, pinRst, reset_low_hold_ms) {}
-
-TouchGt911::TouchGt911(I2cMasterBusHandle i2c, int8_t pinIntr, int8_t pinRst,
+TouchGt911::TouchGt911(GpioSetter pinIntr, GpioSetter pinRst,
                        long reset_low_hold_ms)
+    : TouchGt911(I2cMasterBusHandle(), std::move(pinIntr), std::move(pinRst),
+                 reset_low_hold_ms) {}
+
+TouchGt911::TouchGt911(I2cMasterBusHandle i2c, GpioSetter pinIntr,
+                       GpioSetter pinRst, long reset_low_hold_ms)
     : BasicTouchDevice<5>(Config{.min_sampling_interval_ms = 20,
                                  .touch_intertia_ms = 30,
                                  .smoothing_factor = 0.0}),
@@ -53,6 +44,17 @@ TouchGt911::TouchGt911(I2cMasterBusHandle i2c, int8_t pinIntr, int8_t pinRst,
       reset_low_hold_ms_(reset_low_hold_ms),
       ready_(false) {}
 
+void TouchGt911::initTouch() {
+  pinRst_.init();
+  pinRst_.setLow();
+  if (pinIntr_.isDefined()) {
+    pinIntr_.init();
+    pinIntr_.setLow();
+  }
+  i2c_slave_.init();
+  reset();
+}
+
 void TouchGt911::reset() {
   if (reset_thread_.joinable()) {
     return;
@@ -60,23 +62,23 @@ void TouchGt911::reset() {
   ready_ = false;
   // Initialize the reset asynchronously to avoid blocking the main thread.
   reset_thread_ = roo::thread([this]() {
-    if (pinIntr_ >= 0) {
-      DefaultGpio::setLow(pinIntr_);
+    if (pinIntr_.isDefined()) {
+      pinIntr_.setLow();
     }
-    DefaultGpio::setLow(pinRst_);
+    pinRst_.setLow();
     roo::this_thread::sleep_for(roo_time::Millis((reset_low_hold_ms_)));
-    if (pinIntr_ >= 0) {
+    if (pinIntr_.isDefined()) {
       if (addr_ == kAddr1) {
-        DefaultGpio::setHigh(pinIntr_);
+        pinIntr_.setHigh();
       } else {
-        DefaultGpio::setLow(pinIntr_);
+        pinIntr_.setLow();
       }
       roo::this_thread::sleep_for(roo_time::Millis(1));
     }
-    DefaultGpio::setHigh(pinRst_);
-    if (pinIntr_ >= 0) {
+    pinRst_.setHigh();
+    if (pinIntr_.isDefined()) {
       roo::this_thread::sleep_for(roo_time::Millis(5));
-      DefaultGpio::setLow(pinIntr_);
+      pinIntr_.setLow();
     }
     // Note: the programming guide for 911 says that it is at least 50ms until
     // the interrupts start working, and up to 100 ms before scan starts

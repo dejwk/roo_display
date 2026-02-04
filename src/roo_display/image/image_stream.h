@@ -6,8 +6,9 @@
 #include "roo_display/core/streamable.h"
 #include "roo_display/io/memory.h"
 
-// Image streams used by supported image types. Don't use these directly;
-// use "image.h" instead.
+/// Internal image stream implementations.
+///
+/// Use the public APIs in `image.h` instead of these classes directly.
 
 namespace roo_display {
 

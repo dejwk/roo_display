@@ -8,119 +8,134 @@
 
 namespace roo_display {
 
-// Color is represented in ARGB8888, and stored as 32-bit unsigned integer. It
-// is a lightweight trivially-constructible type; i.e. it can be treated as
-// uint32 for all intents and purposes (e.g., passed by value), except that it
-// has convenience methods and is type-safe.
+/// ARGB8888 color stored as a 32-bit unsigned integer.
+///
+/// This is a lightweight, trivially-constructible type that can be passed by
+/// value, with convenience accessors and type safety.
 class Color {
  public:
+  /// Construct transparent black.
   Color() : argb_(0) {}
 
+  /// Construct opaque color from RGB.
   constexpr Color(uint8_t r, uint8_t g, uint8_t b)
       : argb_(0xFF000000LL | (r << 16) | (g << 8) | b) {}
 
+  /// Construct ARGB color from components.
   constexpr Color(uint8_t a, uint8_t r, uint8_t g, uint8_t b)
       : argb_((a << 24) | (r << 16) | (g << 8) | b) {}
 
+  /// Construct from a packed ARGB value.
   constexpr Color(uint32_t argb) : argb_(argb) {}
 
+  /// Return packed ARGB value.
   constexpr uint32_t asArgb() const { return argb_; }
 
+  /// Alpha channel.
   constexpr uint8_t a() const { return (argb_ >> 24) & 0xFF; }
+  /// Red channel.
   constexpr uint8_t r() const { return (argb_ >> 16) & 0xFF; }
+  /// Green channel.
   constexpr uint8_t g() const { return (argb_ >> 8) & 0xFF; }
+  /// Blue channel.
   constexpr uint8_t b() const { return argb_ & 0xFF; }
 
+  /// Set alpha channel.
   void set_a(uint8_t a) {
     argb_ &= 0x00FFFFFF;
     argb_ |= ((uint32_t)a) << 24;
   }
 
+  /// Set red channel.
   void set_r(uint8_t r) {
     argb_ &= 0xFF00FFFF;
     argb_ |= ((uint32_t)r) << 16;
   }
 
+  /// Set green channel.
   void set_g(uint8_t g) {
     argb_ &= 0xFFFF00FF;
     argb_ |= ((uint32_t)g) << 8;
   }
 
+  /// Set blue channel.
   void set_b(uint8_t g) {
     argb_ &= 0xFFFFFF00;
     argb_ |= ((uint32_t)g);
   }
 
-  // Returns a new color, which is identical to this color except it has
-  // the specified alpha component.
+  /// Return a copy with the specified alpha channel.
   constexpr Color withA(uint8_t a) const {
     return Color(a << 24 | (argb_ & 0x00FFFFFF));
   }
 
-  // Returns a new color, which is identical to this color except it has
-  // the specified red component.
+  /// Return a copy with the specified red channel.
   constexpr Color withR(uint8_t r) const {
     return Color(r << 16 | (argb_ & 0xFF00FFFF));
   }
 
-  // Returns a new color, which is identical to this color except it has
-  // the specified green component.
+  /// Return a copy with the specified green channel.
   constexpr Color withG(uint8_t g) const {
     return Color(g << 8 | (argb_ & 0xFFFF00FF));
   }
 
-  // Returns a new color, which is identical to this color except it has
-  // the specified blue component.
+  /// Return a copy with the specified blue channel.
   constexpr Color withB(uint8_t b) const {
     return Color(b << 0 | (argb_ & 0xFFFFFF00));
   }
 
-  // Returns true if the color is fully opaque; i.e. if the alpha value = 255.
+  /// Return true if the color is fully opaque (alpha = 255).
   constexpr bool isOpaque() const { return a() == 0xFF; }
 
-  // Makes the color fully opaque by setting its alpha value to 255.
+  /// Return a fully opaque copy (alpha = 255).
   constexpr Color toOpaque() { return Color(asArgb() | 0xFF000000); }
 
  private:
   uint32_t argb_;
 };
 
+/// Equality operator for colors.
 inline constexpr bool operator==(const Color &a, const Color &b) {
   return a.asArgb() == b.asArgb();
 }
 
+/// Inequality operator for colors.
 inline constexpr bool operator!=(const Color &a, const Color &b) {
   return a.asArgb() != b.asArgb();
 }
 
-// Utility function to quickly fill an array with a single color.
+/// Fill an array with a single color.
 inline void FillColor(Color *buf, uint32_t count, Color color) {
   roo_io::PatternFill<sizeof(Color)>((roo::byte *)buf, count,
                                      (const roo::byte *)(&color));
 }
 
 template <typename ColorMode>
+/// Truncate a color to a given color mode and back to ARGB.
 inline constexpr Color TruncateColor(Color color,
                                      ColorMode mode = ColorMode()) {
   return mode.toArgbColor(mode.fromArgbColor(color));
 }
 
-// Convenience function to return an opaque gray with r = g = b = level.
+/// Return an opaque gray with r = g = b = level.
 inline constexpr Color Graylevel(uint8_t level) {
   return Color(level, level, level);
 }
 
 namespace color {
 
-// When drawn in FILL_MODE_RECTANGLE, substituted by the current surface's
-// background color. When drawn in FILL_MODE_VISIBLE, the pixels are not
-// actually pushed to the underlying device, leaving the previous content
-// intact.
+/// Transparent color (special behavior in fills).
+///
+/// When drawn in `FILL_MODE_RECTANGLE`, substituted by the current surface's
+/// background color. When drawn in `FILL_MODE_VISIBLE`, pixels are not pushed
+/// to the device, leaving previous content intact.
 static constexpr auto Transparent = Color(0);
 
-// Substituted by the current surface's background color when drawn,
-// regardless of the fill mode. Use it as a background color if you want
-// the pixels actually pushed to the device, even in FILL_MODE_VISIBLE.
+/// Background color placeholder.
+///
+/// Substituted by the current surface background regardless of fill mode.
+/// Use this to force background pixels to be pushed even in
+/// `FILL_MODE_VISIBLE`.
 static constexpr auto Background = Color(0x00FFFFFF);
 
 }  // namespace color

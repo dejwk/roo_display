@@ -51,6 +51,7 @@ constexpr esp32s3_dma::Config kTftConfig = {.width = 800,
                                             .bswap = false};
 }
 
+/// Makerfabs ESP32-S3 4.3" parallel IPS capacitive device.
 class Esp32s3ParallelIpsCapacitive43 : public ComboDevice {
  public:
   Esp32s3ParallelIpsCapacitive43(
@@ -65,19 +66,26 @@ class Esp32s3ParallelIpsCapacitive43 : public ComboDevice {
     display_.setOrientation(orientation);
   }
 
+  /// Initialize I2C transport for touch.
   void initTransport() { i2c_.init(17, 18); }
 
+  /// Return display device.
   DisplayDevice& display() override { return display_; }
 
+  /// Return touch device.
   TouchDevice* touch() override { return &touch_; }
 
+  /// Return touch calibration.
   TouchCalibration touch_calibration() override {
     return TouchCalibration(0, 0, 800, 480);
   }
 
+  /// Return SPI bus handle.
   roo_display::DefaultSpi& spi() { return spi_; }
+  /// SD card CS pin.
   constexpr int8_t sd_cs() const { return 10; }
 
+  /// Return backlight controller.
   Backlit& backlit() { return backlit_; }
 
  private:

@@ -6,32 +6,34 @@
 
 namespace roo_display {
 
-// A 'filtering' device, which delegates the actual drawing to another device,
-// but blends pixels with the specified 'rasterizable' image according to
-// the algorithm supplied in the template.
-// The Blender template agrees with BlendOp, i.e.:
-//
-// struct T {
-//   Color operator()(Color dst, Color src) const;
-// };
-//
-// where `dst` is the raster color, and `src` is a drawable color.
-//
+/// Filtering device that blends with a rasterizable image.
+///
+/// The Blender template matches `BlendOp`:
+/// ```
+/// struct T {
+///   Color operator()(Color dst, Color src) const;
+/// };
+/// ```
+/// where `dst` is the raster color and `src` is the drawable color.
 template <typename Blender>
 class BlendingFilter : public DisplayOutput {
  public:
+  /// Create a blending filter with default blender and no offset.
   BlendingFilter(DisplayOutput& output, const Rasterizable* raster,
                  Color bgcolor = color::Transparent)
       : BlendingFilter(output, Blender(), raster, bgcolor) {}
 
+  /// Create a blending filter with an offset.
   BlendingFilter(DisplayOutput& output, const Rasterizable* raster, int16_t dx,
                  int16_t dy, Color bgcolor = color::Transparent)
       : BlendingFilter(output, Blender(), raster, dx, dy, bgcolor) {}
 
+  /// Create a blending filter with a custom blender.
   BlendingFilter(DisplayOutput& output, Blender blender,
                  const Rasterizable* raster, Color bgcolor = color::Transparent)
       : BlendingFilter(output, std::move(blender), raster, 0, 0, bgcolor) {}
 
+  /// Create a blending filter with a custom blender and offset.
   BlendingFilter(DisplayOutput& output, Blender blender,
                  const Rasterizable* raster, int16_t dx, int16_t dy,
                  Color bgcolor = color::Transparent)
@@ -47,6 +49,7 @@ class BlendingFilter : public DisplayOutput {
 
   virtual ~BlendingFilter() {}
 
+  /// Replace the underlying output.
   void setOutput(DisplayOutput& output) { output_ = &output; }
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,

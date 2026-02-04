@@ -5,65 +5,85 @@
 
 namespace roo_display {
 
+/// Geometric transformation: swap, scale, translate, rotate, clip.
 class Transformation {
  public:
+  /// Construct a transformation with swap, scale, and translation.
   Transformation(bool xy_swap, int16_t x_scale, int16_t y_scale,
                  int16_t y_offset, int16_t x_offset);
 
+  /// Construct a transformation with optional clip box.
   Transformation(bool xy_swap, int16_t x_scale, int16_t y_scale,
                  int16_t y_offset, int16_t x_offset, bool clipped,
                  Box clip_rect);
 
+  /// Identity transformation.
   Transformation();
 
+  /// Swap x/y axes.
   Transformation swapXY() const;
+  /// Flip across the Y axis.
   Transformation flipX() const;
+  /// Flip across the X axis.
   Transformation flipY() const;
+  /// Scale along both axes.
   Transformation scale(int16_t x_scale, int16_t y_scale) const;
+  /// Translate by offsets.
   Transformation translate(int16_t x_offset, int16_t y_offset) const;
+  /// Intersect with a clip box.
   Transformation clip(Box clip_box) const;
+  /// Rotate 90 degrees clockwise.
   Transformation rotateRight() const;
+  /// Rotate 90 degrees counter-clockwise.
   Transformation rotateLeft() const;
+  /// Rotate 180 degrees.
   Transformation rotateUpsideDown() const;
+  /// Rotate clockwise by `turns` (multiples of 90 degrees).
   Transformation rotateClockwise(int turns) const;
+  /// Rotate counter-clockwise by `turns` (multiples of 90 degrees).
   Transformation rotateCounterClockwise(int turns) const;
 
+  /// Whether x/y axes are swapped.
   bool xy_swap() const { return xy_swap_; }
+  /// X scale factor.
   int16_t x_scale() const { return x_scale_; }
+  /// Y scale factor.
   int16_t y_scale() const { return y_scale_; }
+  /// X translation.
   int16_t x_offset() const { return x_offset_; }
+  /// Y translation.
   int16_t y_offset() const { return y_offset_; }
+  /// Whether clipping is enabled.
   bool clipped() const { return clipped_; }
+  /// Effective clip box.
   Box clip_box() const { return clipped_ ? clip_box_ : Box::MaximumBox(); }
 
-  // Returns whether the object has scale different than 1 along any axes.
+  /// Returns true if scale differs from 1 on any axis.
   bool is_rescaled() const { return x_scale_ != 1 || y_scale_ != 1; }
 
-  // Returns whether the object has scale different than 1 or -1 along any axes.
+  /// Returns true if scale differs from 1 or -1 on any axis.
   bool is_abs_rescaled() const {
     return (x_scale_ != 1 && x_scale_ != -1) ||
            (y_scale_ != 1 && y_scale_ != -1);
   }
 
+  /// Returns true if translation is non-zero.
   bool is_translated() const { return x_offset_ != 0 || y_offset_ != 0; }
 
-  // Applies the transformation to the specified rectangle, assuming that if the
-  // Transformation has swapped coordinates, the rectangle comes with
-  // coordinates already swapped.
+  /// Apply transformation to a rectangle without swapping input coordinates.
+  ///
+  /// If the transformation swaps axes, the input rectangle is assumed already
+  /// swapped.
   void transformRectNoSwap(int16_t &x0, int16_t &y0, int16_t &x1,
                            int16_t &y1) const;
 
-  // Applies the transformation the specified box.
+  /// Apply the transformation to a box.
   Box transformBox(Box in) const;
 
-  // Calculates the smallest rectangle in the destination (screen) coordinates
-  // that will completely enclose the given `rect` expressed in the object
-  // (non-transformed) coordinates.
+  /// Smallest rectangle in destination coordinates enclosing `rect`.
   Box smallestEnclosingRect(const Box &rect) const;
 
-  // Returns the smallest bounding rectangle in the destination (screen)
-  // coordinates that will cover the clip box of the transformation, which is
-  // expresses in the object (non-translated) coordinates.
+  /// Smallest bounding rect covering the clip box in destination coordinates.
   Box smallestBoundingRect() const;
 
  private:
@@ -76,8 +96,10 @@ class Transformation {
   Box clip_box_;
 };
 
+/// Display output wrapper that applies a `Transformation`.
 class TransformedDisplayOutput : public DisplayOutput {
  public:
+  /// Construct a transformed output.
   TransformedDisplayOutput(DisplayOutput &delegate,
                            Transformation transformation)
       : delegate_(delegate),
@@ -106,6 +128,7 @@ class TransformedDisplayOutput : public DisplayOutput {
   void fillRects(BlendingMode mode, Color color, int16_t *x0, int16_t *y0,
                  int16_t *x1, int16_t *y1, uint16_t count) override;
 
+  /// Return the effective clip box.
   const Box &clip_box() const { return clip_box_; }
 
  private:
@@ -118,8 +141,10 @@ class TransformedDisplayOutput : public DisplayOutput {
   int16_t y_cursor_;
 };
 
+/// Drawable wrapper that applies a `Transformation`.
 class TransformedDrawable : public Drawable {
  public:
+  /// Construct a transformed drawable.
   TransformedDrawable(Transformation transformation, const Drawable *delegate)
       : transformation_(std::move(transformation)), delegate_(delegate) {}
 

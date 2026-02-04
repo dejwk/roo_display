@@ -7,6 +7,7 @@
 
 namespace roo_display {
 
+/// Size of the coarse background grid in pixels.
 static const int kBgFillOptimizerWindowSize = 4;
 
 // Display device filter which reduces the amount of redundant background
@@ -47,57 +48,48 @@ static const int kBgFillOptimizerWindowSize = 4;
 // That is, the (0, 0) nibble of the background mask corresponds to the output
 // rectangle (0, 0, kBgFillOptimizerWindowSize - 1, kBgFillOptimizerWindowSize -
 // 1).
+/// Display output filter that avoids redundant background fills.
 class BackgroundFillOptimizer : public DisplayOutput {
  public:
+  /// Backing buffer for the optimizer state.
   class FrameBuffer {
    public:
-    // returns the buffer size, in bytes, needed to accommodate the device with
-    // the specified dimensions.
+    /// Return buffer size in bytes for a given device size.
     static constexpr size_t SizeForDimensions(int16_t w, int16_t h) {
       return ((((w - 1) / kBgFillOptimizerWindowSize + 1) + 1) / 2) *
              ((((h - 1) / kBgFillOptimizerWindowSize + 1) + 1) / 2) * 2;
     }
 
-    // Creates a new frame buffer, for the underlying display output of the
-    // specified dimensions. Frame buffer is allocated dynamically and
-    // preinitialized to zero. Before the framebuffer is used, its palette
-    // should be initialized by calling setPalette().
+    /// Create a frame buffer with dynamic allocation.
+    ///
+    /// Buffer is zero-initialized. Call `setPalette()` before use.
     FrameBuffer(int16_t width, int16_t height);
 
-    // Creates a new frame buffer, for the underlying display output of the
-    // specified dimensions, using the specified byte buffer. The byte buffer is
-    // not cleared. The byte buffer is expected to have sufficient size to cover
-    // the entire area of the underlying display output. For example, For a
-    // display output sized 480x320, and assuming the default
-    // kBkFillOptimizerWindowSize == 4, the byte buffer should be 480 / 4 / 2
-    // (nibbles per byte) * 320 / 4 = 60 * 80 = 4800 bytes. (Note: if either
-    // width or height is odd, it must be rounded up to the nearest even number
-    // for the purpose of byte buffer size calculations).
-    // Before the framebuffer is used, its palette should be initialized by
-    // calling setPalette().
+    /// Create a frame buffer using caller-provided storage.
+    ///
+    /// The buffer is not cleared. It must be large enough for the device
+    /// dimensions (see `SizeForDimensions()`). Call `setPalette()` before use.
     FrameBuffer(int16_t width, int16_t height, roo::byte* buffer);
 
-    // Makes this framebuffer use the specified palette. The palette size
-    // is expected to be <= 15.
-    // Unless the buffer is already known to be all clear it should be
-    // invalidated after a palette change.
+    /// Set the palette (size must be <= 15).
+    ///
+    /// If the buffer is not known to be clear, call `invalidate()` after
+    /// changing the palette.
     void setPalette(const Color* palette, uint8_t palette_size);
 
-    // Notifies the frame buffer that the underlying screen is prefilled with
-    // the specific color. The buffer is initialized accordingly.
+    /// Mark the underlying screen as prefilled with the given color.
     void setPrefilled(Color color);
 
-    // As above, but using an initializer list.
+    /// Set palette using an initializer list.
     void setPalette(std::initializer_list<Color> palette);
 
-    // Clear the entire background mask to zero.
+    /// Clear the entire background mask.
     void invalidate();
 
+    /// Set whether the underlying display swaps x/y.
     void setSwapXY(bool swap);
 
-    // Clears the background mask to zero, for the area that fully covers the
-    // specified target rectangle. Useful e.g. if the display has been drawn to
-    // out-of-bounds, i.e. directly via the device.
+    /// Clear the mask for the area covering `rect`.
     void invalidateRect(const Box& rect);
 
     const Color* palette() const { return palette_; }
@@ -119,9 +111,7 @@ class BackgroundFillOptimizer : public DisplayOutput {
     std::unique_ptr<roo::byte[]> owned_buffer_;
   };
 
-  // Creates the instance of a background fill optimizer filter, delegating to
-  // the specified display output (which usually should be a physical device),
-  // using the specified frame buffer.
+  /// Create a background fill optimizer filter.
   BackgroundFillOptimizer(DisplayOutput& output, FrameBuffer& frame_buffer);
 
   virtual ~BackgroundFillOptimizer() {}
@@ -172,13 +162,17 @@ class BackgroundFillOptimizer : public DisplayOutput {
   int16_t cursor_y_;
 };
 
+/// Display device wrapper that applies background fill optimization.
 class BackgroundFillOptimizerDevice : public DisplayDevice {
  public:
+  /// Create a wrapper device.
   BackgroundFillOptimizerDevice(DisplayDevice& device);
 
+  /// Set the palette and optional prefilled color.
   void setPalette(const Color* palette, uint8_t palette_size,
                   Color prefilled = color::Transparent);
 
+  /// Set palette using an initializer list.
   void setPalette(std::initializer_list<Color> palette,
                   Color prefilled = color::Transparent);
 

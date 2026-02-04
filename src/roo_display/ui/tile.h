@@ -69,37 +69,22 @@ class TileBase : public Drawable {
 
 }  // namespace internal
 
-// Tile is a rectangular drawable with a single-colored background and an
-// arbitrary interior (represented by a separate drawable). Tile is useful
-// for drawing UI widgets, such as icons, text boxes, etc., which occupy
-// rectangluar spaces. Tile handles auto-alignment and flickerless
-// redraws.
-//
-// Alignment: the Tile re-posiions the interior within its bounding rectangle,
-// according to the alignment specification, separately for horizontal and
-// vertical axes ({ TOP, MIDDLE, BOTTOM }, { LEFT, CENTER, RIGHT }), with
-// optional absolute offsets. The original absolute extents of the interior
-// are ignored in that case; only the width and height of the interior are
-// affecting its position within the tile. Alternatively, you can also disable
-// re-positioning, and use the interior's absolute extents.
-//
-// Flickerless redraws: A naive way to draw the tile would be to fill-rect the
-// background, and then draw the interior. That, however, would draw certain
-// pixels twice, causing flicker and slowness. To minimize or avoid this effect,
-// the tile is drawn as (up to) 5 non-overlapping sections: top border, left
-// border, interior, right border, bottom border. If the interior itself
-// supports no-flicker redraws, the tile is redrawn completely without flicker.
-//
-// The Tile can be created with a (semi)transparent background. In this case,
-// bgcolor provided when the tile is drawn will dictate the effective
-// background color of the tile: the effective background color will be
-// the tile's bgcolor alpha-blended over the bgcolor specified at draw time.
-// This feature is useful e.g. to visually differentiate state of UI widgets,
-// e.g. active, inactive, selected, clicked, etc.
+/// Rectangular drawable with background and aligned interior.
+///
+/// Useful for UI widgets (icons, text boxes, etc.). Handles alignment and
+/// flicker-minimized redraws.
+///
+/// Alignment: the interior is positioned inside the tile using the alignment
+/// specification (horizontal and vertical anchors plus optional offsets).
+///
+/// Flickerless redraws: the tile is drawn as up to 5 non-overlapping sections
+/// (top, left, interior, right, bottom) to avoid double draws.
+///
+/// Semi-transparent backgrounds are supported. The tile background is
+/// alpha-blended over the draw-time background color.
 class Tile : public internal::TileBase {
  public:
-  // Creates a tile with the specified interior, extents, alignment, and
-  // optionally background color.
+  /// Create a tile with the specified interior, extents, and alignment.
   Tile(const Drawable *interior, Box extents, Alignment alignment,
        Color bgcolor = color::Background)
       : internal::TileBase(*interior, extents, alignment, bgcolor),
@@ -113,15 +98,13 @@ class Tile : public internal::TileBase {
   const Drawable *interior_;
 };
 
-// Similar to Tile, but rather than requiring the interior to be defined
-// as a separate object, allows for it to be embedded in this one. Useful e.g.
-// when you need to create and return a tile, which thus cannot refer to
-// another non-owned object.
+/// Tile with embedded interior object.
+///
+/// Useful when returning a tile without keeping a separate interior object.
 template <typename DrawableType>
 class TileOf : public internal::TileBase {
  public:
-  // Creates a tile with the specified interior, alignment, and optionally
-  // background color.
+  /// Create a tile with embedded interior and alignment.
   TileOf(DrawableType interior, Box extents, Alignment alignment,
          Color bgcolor = color::Background)
       : internal::TileBase(interior, extents, alignment, bgcolor),
@@ -133,8 +116,7 @@ class TileOf : public internal::TileBase {
   DrawableType interior_;
 };
 
-// Convenience function that creates a tile with a specified interior and an
-// optional alignment.
+/// Convenience factory for a `TileOf`.
 template <typename DrawableType>
 TileOf<DrawableType> MakeTileOf(DrawableType interior, Box extents,
                                 Alignment alignment = kNoAlign,

@@ -8,10 +8,13 @@
 
 namespace roo_display {
 
+/// Stream of pixels in row-major order.
 class PixelStream {
  public:
+  /// Read up to `size` pixels into `buf`.
   virtual void Read(Color* buf, uint16_t size) = 0;
 
+  /// Skip `count` pixels.
   virtual void Skip(uint32_t count) {
     Color buf[kPixelWritingBufferSize];
     while (count > kPixelWritingBufferSize) {
@@ -400,6 +403,7 @@ inline SubRectangleStream<Stream> MakeSubRectangle(Stream stream,
 }  // namespace internal
 
 template <typename Stream>
+/// Create a pixel stream over a sub-rectangle of a larger stream.
 inline std::unique_ptr<PixelStream> SubRectangle(Stream stream,
                                                  const Box& extents,
                                                  const Box& bounds) {
@@ -413,21 +417,22 @@ inline std::unique_ptr<PixelStream> SubRectangle(Stream stream,
       line_offset));
 }
 
+/// Drawable that can provide a sequential pixel stream.
 class Streamable : public virtual Drawable {
  public:
-  // createStream creates the stream of pixels that should be drawn to
-  // the extents box.
+  /// Create a stream covering the full `extents()`.
   virtual std::unique_ptr<PixelStream> createStream() const = 0;
 
+  /// Create a stream for the given clipped bounds.
   virtual std::unique_ptr<PixelStream> createStream(
       const Box& clip_box) const = 0;
 
-  // getTransparencyMode is an optimization hint that a streamable can
-  // give to the renderer. The default, safe to use, is TRANSPARENCY_GRADUAL,
-  // putting no restrictions on the pixels generated. But if this streamable
-  // knows that all pixels in the stream will be fully opaque
-  // (TRANSPARENCY_NONE) or have 1-bit alpha (TRANSPARENCY_BINARY), by saying
-  // so, it may allow the renderer to use more efficient blending algorithm.
+  /// Return the transparency mode for pixels in this stream.
+  ///
+  /// This is an optimization hint. The default is `TRANSPARENCY_GRADUAL`, which
+  /// is always safe. If pixels are guaranteed fully opaque or 1-bit alpha,
+  /// return `TRANSPARENCY_NONE` or `TRANSPARENCY_BINARY` to enable faster
+  /// blending paths.
   virtual TransparencyMode getTransparencyMode() const {
     return TRANSPARENCY_GRADUAL;
   }
@@ -449,20 +454,22 @@ class Streamable : public virtual Drawable {
   }
 };
 
-// Convenience wrapper for image classes that are read from a byte stream
-// (as opposed to e.g. generated on the fly).
+/// Convenience wrapper for images backed by a byte stream.
 template <typename Iterable, typename ColorMode, typename StreamType>
 class SimpleStreamable : public Streamable {
  public:
+  /// Construct from width/height and a resource.
   SimpleStreamable(int16_t width, int16_t height, Iterable resource,
                    const ColorMode& color_mode = ColorMode())
       : SimpleStreamable(Box(0, 0, width - 1, height - 1), std::move(resource),
                          std::move(color_mode)) {}
 
+  /// Construct from extents and a resource.
   SimpleStreamable(Box extents, Iterable resource,
                    const ColorMode& color_mode = ColorMode())
       : SimpleStreamable(extents, extents, std::move(resource), color_mode) {}
 
+  /// Construct from extents, anchor extents, and a resource.
   SimpleStreamable(Box extents, Box anchor_extents, Iterable resource,
                    const ColorMode& color_mode = ColorMode())
       : extents_(std::move(extents)),
@@ -470,31 +477,41 @@ class SimpleStreamable : public Streamable {
         resource_(std::move(resource)),
         color_mode_(color_mode) {}
 
+  /// Set the color mode.
   void setColorMode(const ColorMode& color_mode) { color_mode_ = color_mode; }
 
+  /// Return extents of the image.
   Box extents() const override { return extents_; }
 
+  /// Return anchor extents used for alignment.
   Box anchorExtents() const override { return anchor_extents_; }
 
+  /// Access underlying resource.
   const Iterable& resource() const { return resource_; }
+  /// Access color mode (const).
   const ColorMode& color_mode() const { return color_mode_; }
+  /// Access color mode (mutable).
   ColorMode& color_mode() { return color_mode_; }
 
+  /// Create a pixel stream for the full extents.
   std::unique_ptr<PixelStream> createStream() const override {
     return std::unique_ptr<PixelStream>(
         new StreamType(resource_.iterator(), color_mode_));
   }
 
+  /// Create a pixel stream for a clipped box.
   std::unique_ptr<PixelStream> createStream(const Box& bounds) const override {
     return SubRectangle(StreamType(resource_.iterator(), color_mode_),
                         extents(), bounds);
   }
 
+  /// Create the raw stream type.
   std::unique_ptr<StreamType> createRawStream() const {
     return std::unique_ptr<StreamType>(
         new StreamType(resource_.iterator(), color_mode_));
   }
 
+  /// Return transparency mode derived from color mode.
   TransparencyMode getTransparencyMode() const override {
     return color_mode_.transparency();
   }

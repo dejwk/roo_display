@@ -17,6 +17,7 @@
 
 namespace roo_display::products::lilygo {
 
+/// LILYGO T-Display S3 device wrapper.
 class TDisplayS3 : public ComboDevice {
  public:
   TDisplayS3(Orientation orientation = Orientation())
@@ -34,12 +35,15 @@ class TDisplayS3 : public ComboDevice {
     display_.setOrientation(orientation);
   }
 
+  /// Initialize transport/backlight.
   void initTransport() {
     backlit_.begin();
   }
 
+  /// Return display device.
   DisplayDevice& display() override { return display_; }
 
+  /// Return backlight controller.
   Backlit& backlit() { return backlit_; }
 
  private:

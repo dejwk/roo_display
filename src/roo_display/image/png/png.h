@@ -17,8 +17,10 @@
 
 namespace roo_display {
 
+/// PNG decoder (stateful, reusable).
 class PngDecoder {
  public:
+  /// Construct a PNG decoder instance.
   PngDecoder();
 
  private:
@@ -45,8 +47,10 @@ class PngDecoder {
   Palette palette_;
 };
 
+/// Drawable PNG image backed by a multipass resource.
 class PngImage : public Drawable {
  public:
+  /// Create a PNG image using a decoder and resource.
   PngImage(PngDecoder& decoder, roo_io::MultipassResource& resource)
       : decoder_(decoder), resource_(resource) {
     decoder_.getDimensions(resource_, width_, height_);
@@ -69,14 +73,18 @@ class PngImage : public Drawable {
 };
 
 #ifdef ARDUINO
+/// Drawable PNG image backed by a file resource (Arduino).
 class PngFile : public Drawable {
  public:
+  /// Create a PNG file drawable using an Arduino FS and path.
   PngFile(PngDecoder& decoder, ::fs::FS& fs, String path)
       : resource_(fs, path.c_str()), img_(decoder, resource_) {}
 
+  /// Create a PNG file drawable using a roo_io filesystem and Arduino String.
   PngFile(PngDecoder& decoder, roo_io::Filesystem& fs, String path)
       : resource_(fs, path.c_str()), img_(decoder, resource_) {}
 
+  /// Create a PNG file drawable using a roo_io filesystem and std::string.
   PngFile(PngDecoder& decoder, roo_io::Filesystem& fs, std::string path)
       : resource_(fs, path.c_str()), img_(decoder, resource_) {}
 
@@ -89,8 +97,10 @@ class PngFile : public Drawable {
   PngImage img_;
 };
 #else
+/// Drawable PNG image backed by a file resource (non-Arduino).
 class PngFile : public Drawable {
  public:
+  /// Create a PNG file drawable using a roo_io filesystem and path.
   PngFile(PngDecoder& decoder, roo_io::Filesystem& fs, std::string path)
       : resource_(fs, std::move(path)), img_(decoder, resource_) {}
 

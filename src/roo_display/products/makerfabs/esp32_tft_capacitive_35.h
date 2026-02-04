@@ -19,6 +19,7 @@
 
 namespace roo_display::products::makerfabs {
 
+/// Makerfabs ESP32 3.5" TFT capacitive touch device.
 class Esp32TftCapacitive35 : public ComboDevice {
  public:
 #if defined(ARDUINO)
@@ -41,6 +42,7 @@ class Esp32TftCapacitive35 : public ComboDevice {
   }
 #endif
 
+  /// Initialize SPI/I2C transport and SD card CS pin.
   void initTransport() {
     spi_.init(14, 12, 13);
     i2c_.init(26, 27);
@@ -50,20 +52,29 @@ class Esp32TftCapacitive35 : public ComboDevice {
     DefaultGpio::setHigh(pin_sd_cs());
   }
 
+  /// Return display device.
   DisplayDevice& display() override { return display_; }
 
+  /// Return touch device.
   TouchDevice* touch() override { return &touch_; }
 
+  /// Return touch calibration.
   TouchCalibration touch_calibration() override {
     return TouchCalibration(0, 20, 309, 454, Orientation::RightDown());
   }
 
+  /// SPI SCK pin.
   constexpr int8_t pin_sck() const { return 14; }
+  /// SPI MISO pin.
   constexpr int8_t pin_miso() const { return 12; }
+  /// SPI MOSI pin.
   constexpr int8_t pin_mosi() const { return 13; }
+  /// I2C SDA pin.
   constexpr int8_t pin_sda() const { return 26; }
+  /// I2C SCL pin.
   constexpr int8_t pin_scl() const { return 27; }
 
+  /// SD card CS pin.
   constexpr int8_t pin_sd_cs() const { return 4; }
 
 #if defined(ARDUINO)

@@ -16,14 +16,15 @@
 
 namespace roo_display {
 
+/// Stream type produced by a resource iterable.
 template <typename Resource>
 using StreamType = decltype(std::declval<Resource>().iterator());
 
-// Helper to iterate over pixels read from some underlying resource.
-// Default implementation for color modes with multiple pixels per byte.
-// The resource is interpreted by this reader simply as a non-compressed
-// stream of bytes, containing consecutive pixels. Any semantics of lines and
-// columns of pixels must be handled by the caller.
+/// Pixel stream that reads from a raw byte resource.
+///
+/// Default implementation for color modes with multiple pixels per byte.
+/// The resource is interpreted as a non-compressed stream of consecutive
+/// pixels. Line/column semantics are handled by the caller.
 template <typename Resource, typename ColorMode, ColorPixelOrder pixel_order,
           ByteOrder byte_order,
           int pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte>
@@ -123,7 +124,7 @@ struct ColorReader<ByteStream, ColorMode, pixel_order, byte_order, 4> {
   }
 };
 
-// Specialization for color multibyte-pixel color modes (e.g. RGB565).
+/// Specialization for color modes with at least one byte per pixel.
 template <typename Resource, typename ColorMode, ColorPixelOrder pixel_order,
           ByteOrder byte_order>
 class RasterPixelStream<Resource, ColorMode, pixel_order, byte_order, 1>
@@ -223,12 +224,11 @@ struct PtrTypeResolver<const uint8_t*> {
 
 }  // namespace internal
 
-// The raster does not own its buffer. The representation of a raster it
-// reasonably small (22-26 bytes, depending on the color mode), and can be
-// passed by value.
-//
-// Don't use explicitly; prefer either of DramRaster, ConstDramRaster, or
-// ProgMemRaster.
+/// Non-owning raster view over a pixel buffer.
+///
+/// The raster representation is small and can be passed by value. Prefer using
+/// `DramRaster`, `ConstDramRaster`, or `ProgMemRaster` aliases instead of this
+/// template directly.
 template <typename PtrTypeT, typename ColorModeT,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = roo_io::kBigEndian>
@@ -243,19 +243,23 @@ class Raster : public Rasterizable {
 
   using Reader = internal::Reader<ColorMode, pixel_order, byte_order>;
 
+  /// Construct a raster for a width/height buffer.
   Raster(int16_t width, int16_t height, PtrTypeT ptr,
          const ColorMode& color_mode = ColorMode())
       : Raster(Box(0, 0, width - 1, height - 1),
                Box(0, 0, width - 1, height - 1), ptr, std::move(color_mode)) {}
 
+  /// Construct a raster with custom extents and buffer dimensions.
   Raster(int16_t width, int16_t height, Box extents, PtrTypeT ptr,
          const ColorMode& color_mode = ColorMode())
       : Raster(extents, Box(0, 0, width - 1, height - 1), ptr,
                std::move(color_mode)) {}
 
+  /// Construct a raster with extents and a buffer pointer.
   Raster(Box extents, PtrTypeT ptr, const ColorMode& color_mode = ColorMode())
       : Raster(extents, extents, ptr, std::move(color_mode)) {}
 
+  /// Construct a raster with extents and anchor extents.
   Raster(Box extents, Box anchor_extents, PtrTypeT ptr,
          const ColorMode& color_mode = ColorMode())
       : extents_(std::move(extents)),

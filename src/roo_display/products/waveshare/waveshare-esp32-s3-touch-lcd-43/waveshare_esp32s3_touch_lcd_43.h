@@ -6,8 +6,7 @@
 #warning Compilation target must be ESP32_S3 for this device.
 #else
 
-// Waveshare ESP32-S3-Touch-LCD-4.3
-// Hardware configuration for roo_display library
+/// Waveshare ESP32-S3 Touch LCD 4.3" device wrapper.
 
 #include <Wire.h>
 
@@ -17,24 +16,28 @@
 
 namespace roo_display::products::waveshare {
 
+/// Waveshare ESP32-S3 Touch LCD 4.3" device wrapper.
 class WaveshareEsp32s3TouchLcd43 : public ComboDevice {
  public:
-  // Constructor: No bus initialization, just object setup.
-  // Call initTransport() to initialize hardware.
+  /// Construct the device (no bus initialization).
+  ///
+  /// Call `initTransport()` to initialize hardware.
   WaveshareEsp32s3TouchLcd43(Orientation orientation = Orientation(),
                              decltype(Wire) &wire = Wire);
 
-  // Verifies PSRAM availability and initializes I2C bus.
-  // Performs GT911 reset via CH422G; GT911 completes initialization
-  // ~300ms after display.init() is called.
+  /// Initialize PSRAM and I2C; reset GT911 via CH422G.
+  ///
+  /// GT911 completes initialization ~300ms after `display.init()`.
   bool initTransport();
 
-  // ComboDevice interface.
+  /// Return display device.
   DisplayDevice &display() override;
+  /// Return touch device.
   TouchDevice *touch() override;
+  /// Return touch calibration.
   TouchCalibration touch_calibration() override;
 
-  // Backlight control.
+  /// Backlight control.
   void setBacklight(bool on);
 
  private:

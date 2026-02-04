@@ -6,6 +6,7 @@
 
 namespace roo_display {
 
+/// Anchor point used for alignment.
 enum Anchor {
   ANCHOR_ORIGIN = 0,  // Point with the zero coordinate.
   ANCHOR_MIN = 1,     // Left or top.
@@ -63,18 +64,16 @@ class AlignBase {
 
 }  // namespace internal
 
-// Represents a horizontal alignment. Consists of three components:
-// 1. the 'source' anchor, determining which coordinate of the source should get
-// aligned (left, center, right, or the origin)
-// 2. the 'destination' anchor, determining to which coordinate of the
-// destination should the source be aligned (like above)
-// 3. an additional absolute offset (padding).
-//
-// You generally shouldn't construct these directly. Instead, start with one
-// of the constants and customize it, e.g.:
-//
-// kLeft.toCenter().shiftBy(5) - aligns the left boundary of the source to be
-// 5 pixels to the right of the center of the destination.
+/// Horizontal alignment.
+///
+/// Consists of:
+/// 1) source anchor (left/center/right/origin)
+/// 2) destination anchor (left/center/right/origin)
+/// 3) absolute offset (padding)
+///
+/// Prefer using the constants and modifying them, e.g.
+/// `kLeft.toCenter().shiftBy(5)` aligns the left boundary of the source
+/// to be 5 pixels to the right of the destination center.
 class HAlign : public internal::AlignBase {
  public:
   using AlignBase::AlignBase;
@@ -103,30 +102,28 @@ class HAlign : public internal::AlignBase {
   }
 };
 
-// Left-to-left with no shift.
+/// Left-to-left with no shift.
 static constexpr HAlign kLeft = HAlign(ANCHOR_MIN, ANCHOR_MIN, 0);
 
-// Center-to-center with no shirt.
+/// Center-to-center with no shift.
 static constexpr HAlign kCenter = HAlign(ANCHOR_MID, ANCHOR_MID, 0);
 
-// Right-to-right with no shift.
+/// Right-to-right with no shift.
 static constexpr HAlign kRight = HAlign(ANCHOR_MAX, ANCHOR_MAX, 0);
 
-// Origin-to-origin with no shift. (I.e. pretty much no alignment at all).
+/// Origin-to-origin with no shift.
 static constexpr HAlign kOrigin = HAlign(ANCHOR_ORIGIN, ANCHOR_ORIGIN, 0);
 
-// Represents a vertical alignment. Consists of three components:
-// 1. the 'source' anchor, determining which coordinate of the source should get
-// aligned (top, middle, bottom, or the baseline = coordinate zero)
-// 2. the 'destination' anchor, determining to which coordinate of the
-// destination should the source be aligned (like above)
-// 3. an additional absolute offset (padding).
-//
-// You generally shouldn't construct these directly. Instead, start with one
-// of the constants and customize it, e.g.:
-//
-// kTop.toMiddle().shiftBy(5) - aligns the top boundary of the source to be
-// 5 pixels to the bottom of the middle of the destination.
+/// Vertical alignment.
+///
+/// Consists of:
+/// 1) source anchor (top/middle/bottom/baseline)
+/// 2) destination anchor (top/middle/bottom/baseline)
+/// 3) absolute offset (padding)
+///
+/// Prefer using the constants and modifying them, e.g.
+/// `kTop.toMiddle().shiftBy(5)` aligns the top boundary of the source
+/// to be 5 pixels below the destination middle.
 class VAlign : public internal::AlignBase {
  public:
   using AlignBase::AlignBase;
@@ -155,16 +152,16 @@ class VAlign : public internal::AlignBase {
   }
 };
 
-// Top-to-top with no shift.
+/// Top-to-top with no shift.
 static constexpr VAlign kTop = VAlign(ANCHOR_MIN, ANCHOR_MIN, 0);
 
-// Middle-to-middle with no shift.
+/// Middle-to-middle with no shift.
 static constexpr VAlign kMiddle = VAlign(ANCHOR_MID, ANCHOR_MID, 0);
 
-// Bottom-to-bottom with no shift.
+/// Bottom-to-bottom with no shift.
 static constexpr VAlign kBottom = VAlign(ANCHOR_MAX, ANCHOR_MAX, 0);
 
-// Baseline-to-baseline with no shift. (I.e., pretty much no alignment).
+/// Baseline-to-baseline with no shift.
 static constexpr VAlign kBaseline = VAlign(ANCHOR_ORIGIN, ANCHOR_ORIGIN, 0);
 
 struct Offset {
@@ -172,9 +169,10 @@ struct Offset {
   int16_t dy;
 };
 
-// Combines the horizontal and vertical alignments. Lightweight enough to
-// be passed by value.
-// Can be constructed using the '|' operator, e.g.: kTop.shift(5) | kMiddle.
+/// Combines horizontal and vertical alignment.
+///
+/// Lightweight and pass-by-value. Use `|` to compose, e.g.
+/// `kTop.shiftBy(5) | kMiddle`.
 class Alignment {
  public:
   constexpr Alignment() : h_(), v_() {}
@@ -213,16 +211,15 @@ class Alignment {
   VAlign v_;
 };
 
-// Absolute alignment - the content is not repositioned either
-// horizontally or vertically.
+/// Absolute alignment (no repositioning).
 static constexpr Alignment kNoAlign = Alignment();
 
-// Combines the horizontal and vertical alignments.
+/// Combine horizontal and vertical alignments.
 inline constexpr Alignment operator|(HAlign h, VAlign v) {
   return Alignment(h, v);
 }
 
-// Combines the horizontal and vertical alignments.
+/// Combine vertical and horizontal alignments.
 inline constexpr Alignment operator|(VAlign v, HAlign h) {
   return Alignment(h, v);
 }

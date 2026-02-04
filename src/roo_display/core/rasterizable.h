@@ -8,60 +8,52 @@
 
 namespace roo_display {
 
-// Drawable that can provide a color of any point within the extents, given the
-// coordinates. Rasterizables can be used as overlays, backgrounds, and filters.
-//
-// Rasterizable is automatically Drawable and Streamable. All you need to do to
-// implement it is to implement readColors(). That is, if your class has a
-// way of generating a stream of pixels or drawing itself that is more efficient
-// than going pixel-by-pixel, you may want to override those methods. Also, if
-// your rasterizable possibly returns the same color for large areas, you may
-// want to override readColorRect, as it can improve drawing performance when
-// this rasterizable is used e.g. as an overlay or a background.
+/// Drawable that can provide a color for any point within its extents.
+///
+/// Rasterizables can be used as overlays, backgrounds, and filters. A
+/// `Rasterizable` is also a `Streamable`. The minimum requirement is to
+/// implement `readColors()`. If your class can stream pixels or draw more
+/// efficiently than per-pixel access, override `createStream()` and/or
+/// `drawTo()`. If large areas share the same color, override `readColorRect()`
+/// to improve performance.
 class Rasterizable : public virtual Streamable {
  public:
-  // Read colors corresponding to the specified collection of points, and store
-  // the results in the result array. The caller must ensure that the points are
-  // within this rasterizable's bounds.
+  /// Read colors for the given points.
+  ///
+  /// The caller must ensure all points are within bounds.
   virtual void readColors(const int16_t* x, const int16_t* y, uint32_t count,
                           Color* result) const = 0;
 
-  // Read colors corresponding to the specified collection of points, and store
-  // the results in the result array. The points may be outside of this
-  // rasterizable's bounds. This function calls readColors after isolating the
-  // points that are within the bounds. For the pixels that are indeed out of
-  // bounds, the function returns out_of_bounds_color.
+  /// Read colors for points that may be out of bounds.
+  ///
+  /// Out-of-bounds points are set to `out_of_bounds_color`.
   void readColorsMaybeOutOfBounds(
       const int16_t* x, const int16_t* y, uint32_t count, Color* result,
       Color out_of_bounds_color = color::Transparent) const;
 
-  // Read colors corresponding to the specified rectangle. Returns true if all
-  // colors are known to be the same. In this case, only the result[0] is
-  // supposed to be read. Otherwise, the result array is filled with colors
-  // corresponding to all the pixels corresponding to the rectangle. The caller
-  // must ensure that the points are within this rasterizable's bounds.
+  /// Read colors for a rectangle.
+  ///
+  /// Returns true if all colors are identical (then only result[0] is valid).
+  /// The caller must ensure the rectangle is within bounds.
   virtual bool readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
                              int16_t yMax, Color* result) const;
 
-  // Default implementation of createStream(), using readColors() to determine
-  // colors of subsequent pixels.
+  /// Default `createStream()` using `readColors()`.
   std::unique_ptr<PixelStream> createStream() const override;
 
-  // Default implementation of createStream(), using readColors() to determine
-  // colors of subsequent pixels.
+  /// Default `createStream()` for a clipped box using `readColors()`.
   std::unique_ptr<PixelStream> createStream(const Box& bounds) const override;
 
  protected:
-  // Default implementation of drawTo(), using readColors() to determine
-  // colors of subsequent pixels.
+  /// Default `drawTo()` using `readColors()`.
   void drawTo(const Surface& s) const override;
 };
 
-// Takes a function object, overriding:
-//
-//   Color operator(int16_t x, int16_t y)
-//
-// and turns it into a rasterizable.
+/// Wrap a function object into a `Rasterizable`.
+///
+/// The getter must implement:
+///
+///   `Color operator()(int16_t x, int16_t y)`
 template <typename Getter>
 class SimpleRasterizable : public Rasterizable {
  public:
@@ -88,14 +80,14 @@ class SimpleRasterizable : public Rasterizable {
 };
 
 template <typename Getter>
+/// Create a `SimpleRasterizable` from a getter function.
 SimpleRasterizable<Getter> MakeRasterizable(
     Box extents, Getter getter,
     TransparencyMode transparency = TRANSPARENCY_GRADUAL) {
   return SimpleRasterizable<Getter>(extents, getter, transparency);
 }
 
-// 'Infinite-size' rasterizable background, created by tiling the specified
-// raster.
+/// "Infinite" rasterizable background by tiling a finite raster.
 template <typename Getter>
 class SimpleTiledRasterizable : public Rasterizable {
  public:
@@ -137,6 +129,7 @@ class SimpleTiledRasterizable : public Rasterizable {
 };
 
 template <typename Getter>
+/// Create a tiled rasterizable from a getter function.
 SimpleTiledRasterizable<Getter> MakeTiledRasterizable(
     Box extents, Getter getter,
     TransparencyMode transparency = TRANSPARENCY_GRADUAL) {
@@ -144,12 +137,14 @@ SimpleTiledRasterizable<Getter> MakeTiledRasterizable(
 }
 
 template <typename Raster>
+/// Create a tiled rasterizable from a raster.
 SimpleTiledRasterizable<const Raster&> MakeTiledRaster(const Raster* raster) {
   return SimpleTiledRasterizable<const Raster&>(
       raster->extents(), *raster, raster->color_mode().transparency());
 }
 
 template <typename Raster>
+/// Create a tiled rasterizable from a raster with offsets.
 SimpleTiledRasterizable<const Raster&> MakeTiledRaster(const Raster* raster,
                                                        int16_t x_offset,
                                                        int16_t y_offset) {

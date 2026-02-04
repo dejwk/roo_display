@@ -6,99 +6,88 @@
 
 namespace roo_display {
 
+/// Line ending style for smooth shapes.
 enum EndingStyle {
   ENDING_ROUNDED = 0,
   ENDING_FLAT = 1,
 };
 
-// Represents one of the supported smooth shapes. We use a common class, because
-// these shapes overlap; e.g. all of them can be reduced to a filled circle.
+/// Represents one of the supported smooth shapes.
+///
+/// A common representation is used because shapes overlap (e.g., many reduce
+/// to a filled circle).
 class SmoothShape;
 
-// Creates a simple 1-pixel-wide anti-aliased line between two points.
+/// Create a 1-pixel-wide anti-aliased line.
 SmoothShape SmoothLine(FpPoint a, FpPoint b, Color color);
 
-// Creates a line from a to b, with the specified width, and a specified ending
-// style.
+/// Create a line with width and ending style.
 SmoothShape SmoothThickLine(FpPoint a, FpPoint b, float width, Color color,
                             EndingStyle ending_style = ENDING_ROUNDED);
 
-// Creates a 'wedged' line from a to b, with specified start and end widths,
-// and a specified ending style.
+/// Create a wedged line with different start/end widths.
 SmoothShape SmoothWedgedLine(FpPoint a, float width_a, FpPoint b, float width_b,
                              Color color,
                              EndingStyle ending_style = ENDING_ROUNDED);
 
-// Creates an outlined, round-cornered rectangle with the specified bounds,
-// corner radius, color, and (optionally) interior color, defaulting
-// to transparent.
+/// Create an outlined round-rect.
 SmoothShape SmoothRoundRect(float x0, float y0, float x1, float y1,
                             float radius, Color color,
                             Color interior_color = color::Transparent);
 
-// Creates an outlined, round-cornered rectangle with the specified bounds,
-// corner radius, thickness, color, and (optionally) interior color, defaulting
-// to transparent.
+/// Create an outlined round-rect with thickness.
 SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
                                  float radius, float thickness, Color color,
                                  Color interior_color = color::Transparent);
 
-// Creates a round-rectangle with the specified bounds, corner radius, and
-// color.
+/// Create a filled round-rect.
 SmoothShape SmoothFilledRoundRect(float x0, float y0, float x1, float y1,
                                   float radius, Color color);
 
 // SmoothShape SmoothFilledRect(float x0, float y0, float x1, float y1,
 //                                   Color color);
 
-// Creates a circle with the specified center, radius, color, and
-// optionally interior color (defaulting to transparent).
+/// Create a circle (optionally with interior color).
 SmoothShape SmoothCircle(FpPoint center, float radius, Color color,
                          Color interior_color = color::Transparent);
 
-// Creates a circle with the specified center, radius, thickness,
-// color, and optionally interior color (defaulting to transparent).
+/// Create a circle with thickness (ring).
 SmoothShape SmoothThickCircle(FpPoint center, float radius, float thickness,
                               Color color,
                               Color interior_color = color::Transparent);
 
-// Creates a filled circle with the specified center, radius, and color.
+/// Create a filled circle.
 SmoothShape SmoothFilledCircle(FpPoint center, float radius, Color color);
 
-// Creates a rotated filled rectangle with the specified center point, with,
-// height, rotation angle, and color.
+/// Create a rotated filled rectangle.
 SmoothShape SmoothRotatedFilledRect(FpPoint center, float width, float height,
                                     float angle, Color color);
 
-// Creates a 1-pixel-wide arc with the given center, radius, start and end
-// angles, and color.
+/// Create a 1-pixel-wide arc.
 SmoothShape SmoothArc(FpPoint center, float radius, float angle_start,
                       float angle_end, Color color);
 
-// Creates an arc with the given center, radius, and thickness, start and eng
-// angles, color, and an optional ending style.
+/// Create an arc with thickness.
 SmoothShape SmoothThickArc(FpPoint center, float radius, float thickness,
                            float angle_start, float angle_end, Color color,
                            EndingStyle ending_style = ENDING_ROUNDED);
 
-// Creates a pie with the given center, radius, start and eng
-// angles, and color.
+/// Create a pie slice.
 SmoothShape SmoothPie(FpPoint center, float radius, float angle_start,
                       float angle_end, Color color);
 
-// Creates an arc with the given center, radius, and thickness, start and end
-// angles, and color, and additionally, the color of the complement of the arc,
-// the color of the circle inside the arc, and the ending style.
+/// Create an arc with background and interior colors.
 SmoothShape SmoothThickArcWithBackground(
     FpPoint center, float radius, float thickness, float angle_start,
     float angle_end, Color active_color, Color inactive_color,
     Color interior_color, EndingStyle ending_style = ENDING_ROUNDED);
 
-// Creates a filled triangle with the specified corners and color.
+/// Create a filled triangle.
 SmoothShape SmoothFilledTriangle(FpPoint a, FpPoint b, FpPoint c, Color color);
 
 // Implementation details follow.
 
+/// Smooth (anti-aliased) shape rasterizable.
 class SmoothShape : public Rasterizable {
  public:
   struct Wedge {

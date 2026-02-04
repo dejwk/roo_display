@@ -1,21 +1,15 @@
 #pragma once
 
-// Utilities for buffering pixel writes before they are sent out to underlying
-// device drivers. The buffering has enormous performance impact:
-// * for hardware devices, e.g. SPI-based displays, it allows the driver to
-//   optimize commands by noticing patterns like horizontal or vertical streaks,
-//   and to amortize per-command overheads in the protocol layer.
-// * for in-memory buffers, eliminating per-pixel virtual calls leads to
-//   massive performance improvements as well.
-//
-// Specific utility classes are provided for combinations of:
-// * various write patterns: writing random pixels, subsequent pixels,
-//   horizontal lines, vertical lines, rectangles;
-// * using different colors (*Writer) vs a single color (*Filler);
-// * additionally performing pre-clipping (Clipping* variants) or not.
-//   The non-clipping variants can be used (and will be slightly faster) when
-//   it is known that all drawn primitives fit in the pre-assumed clipping
-//   rectangle (e.g., within the hardware-supported bounds).
+/// Utilities for buffering pixel writes before sending to device drivers.
+///
+/// Buffering has a large performance impact:
+/// - Hardware drivers (e.g., SPI displays) can batch and optimize transfers.
+/// - In-memory buffers avoid per-pixel virtual calls.
+///
+/// Utility classes cover common patterns:
+/// - random pixels, sequences, lines, rectangles
+/// - per-pixel colors (*Writer) vs single color (*Filler)
+/// - optional pre-clipping (Clipping* variants)
 
 #include <memory>
 
@@ -36,8 +30,10 @@ static const uint8_t kPixelWritingBufferSize = 5;
 static const uint8_t kRectWritingBufferSize = 5;
 #endif
 
+/// Buffered writer for arbitrary pixels with per-pixel colors.
 class BufferedPixelWriter {
  public:
+  /// Construct a writer targeting `device` using `blending_mode`.
   BufferedPixelWriter(DisplayOutput& device, BlendingMode blending_mode)
       : device_(device), blending_mode_(blending_mode), buffer_size_(0) {}
 
@@ -47,6 +43,7 @@ class BufferedPixelWriter {
   BufferedPixelWriter& operator=(const BufferedPixelWriter&) = delete;
   BufferedPixelWriter& operator=(BufferedPixelWriter&&) = delete;
 
+  /// Write a single pixel (buffered).
   void writePixel(int16_t x, int16_t y, Color color) {
     if (buffer_size_ == kPixelWritingBufferSize) flush();
     if (color.asArgb() == 0 &&
@@ -61,6 +58,7 @@ class BufferedPixelWriter {
 
   ~BufferedPixelWriter() { flush(); }
 
+  /// Flush any buffered pixels.
   void flush() {
     if (buffer_size_ == 0) return;
     device_.writePixels(blending_mode_, color_buffer_, x_buffer_, y_buffer_,
@@ -78,11 +76,13 @@ class BufferedPixelWriter {
 };
 
 template <typename PixelWriter>
+/// Adapter that turns a pixel writer into a single-color filler.
 class BufferedPixelWriterFillAdapter {
  public:
   BufferedPixelWriterFillAdapter(PixelWriter& writer, Color color)
       : writer_(writer), color_(color) {}
 
+  /// Fill a pixel using the configured color.
   void fillPixel(int16_t x, int16_t y) { writer_.writePixel(x, y, color_); }
 
  private:
@@ -90,6 +90,7 @@ class BufferedPixelWriterFillAdapter {
   Color color_;
 };
 
+/// Buffered pixel writer with a clipping box.
 class ClippingBufferedPixelWriter {
  public:
   ClippingBufferedPixelWriter(DisplayOutput& device, Box clip_box,
@@ -99,12 +100,14 @@ class ClippingBufferedPixelWriter {
   ClippingBufferedPixelWriter(ClippingBufferedPixelWriter&) = delete;
   ClippingBufferedPixelWriter(const ClippingBufferedPixelWriter&) = delete;
 
+  /// Write a pixel if it lies within `clip_box()`.
   void writePixel(int16_t x, int16_t y, Color color) {
     if (clip_box_.contains(x, y)) {
       writer_.writePixel(x, y, color);
     }
   }
 
+  /// Flush any buffered pixels.
   void flush() { writer_.flush(); }
 
   const Box& clip_box() const { return clip_box_; }
@@ -116,8 +119,10 @@ class ClippingBufferedPixelWriter {
   Box clip_box_;
 };
 
+/// Default pixel writer type (with clipping).
 using PixelWriter = ClippingBufferedPixelWriter;
 
+/// Buffered filler for arbitrary pixels using a single color.
 class BufferedPixelFiller {
  public:
   BufferedPixelFiller(DisplayOutput& device, Color color,
@@ -127,6 +132,7 @@ class BufferedPixelFiller {
         blending_mode_(blending_mode),
         buffer_size_(0) {}
 
+  /// Fill a pixel (buffered).
   void fillPixel(int16_t x, int16_t y) {
     if (buffer_size_ == kPixelWritingBufferSize) flush();
     x_buffer_[buffer_size_] = x;
@@ -136,6 +142,7 @@ class BufferedPixelFiller {
 
   ~BufferedPixelFiller() { flush(); }
 
+  /// Flush any buffered pixels.
   void flush() {
     if (buffer_size_ == 0) return;
     device_.fillPixels(blending_mode_, color_, x_buffer_, y_buffer_,
@@ -152,18 +159,21 @@ class BufferedPixelFiller {
   int16_t y_buffer_[kPixelWritingBufferSize];
 };
 
+/// Buffered pixel filler with a clipping box.
 class ClippingBufferedPixelFiller {
  public:
   ClippingBufferedPixelFiller(DisplayOutput& device, Color color, Box clip_box,
                               BlendingMode blending_mode)
       : filler_(device, color, blending_mode), clip_box_(std::move(clip_box)) {}
 
+  /// Fill a pixel if it lies within `clip_box()`.
   void fillPixel(int16_t x, int16_t y) {
     if (clip_box_.contains(x, y)) {
       filler_.fillPixel(x, y);
     }
   }
 
+  /// Flush any buffered pixels.
   void flush() { filler_.flush(); }
 
   const Box& clip_box() const { return clip_box_; }
@@ -175,18 +185,20 @@ class ClippingBufferedPixelFiller {
   Box clip_box_;
 };
 
+/// Buffered writer for sequential color values (used with `setAddress()`).
 class BufferedColorWriter {
  public:
   BufferedColorWriter(DisplayOutput& device)
       : device_(device), buffer_size_(0) {}
 
+  /// Write a single color value.
   void writeColor(Color color) {
     color_buffer_[buffer_size_] = color;
     ++buffer_size_;
     if (buffer_size_ == kPixelWritingBufferSize) flush();
   }
 
-  // Writes a number of pixels with the same color.
+  /// Write `count` pixels with the same color.
   void writeColorN(Color color, uint16_t count) {
     uint16_t batch = kPixelWritingBufferSize - buffer_size_;
     if (count < batch) {
@@ -209,7 +221,7 @@ class BufferedColorWriter {
     }
   }
 
-  // Writes a number of pixels with distinct colors.
+  /// Write `count` pixels with distinct colors.
   void writeColors(Color* colors, uint16_t count) {
     uint16_t batch = kPixelWritingBufferSize - buffer_size_;
     if (count < batch) {
@@ -236,18 +248,15 @@ class BufferedColorWriter {
     }
   }
 
-  // Returns the number of colors that will stil fit in the buffer
-  // before it needs to be flushed.
+  /// Return remaining buffer capacity before a flush is needed.
   uint16_t remaining_buffer_space() const {
     return kPixelWritingBufferSize - buffer_size_;
   }
 
-  // Gives raw access to the buffer at the current write position.
+  /// Return raw access to the buffer at the current write position.
   Color* buffer_ptr() { return color_buffer_ + buffer_size_; }
 
-  // Indicates that the subsequent colors have been directly written to the
-  // buffer (via buffer_ptr()), and are considered ready to be written to the
-  // device.
+  /// Advance the buffer after direct writes via `buffer_ptr()`.
   void advance_buffer_ptr(uint16_t count) {
     buffer_size_ += count;
     if (buffer_size_ >= kPixelWritingBufferSize) {
@@ -256,8 +265,7 @@ class BufferedColorWriter {
     }
   }
 
-  // Writes no more pixels that can still fit in the memory buffer. If the
-  // buffer gets full, flushes it. Returns the number of colors actually
+  /// Write up to the remaining buffer space and return count written.
   // written.
   uint16_t writeColorsAligned(Color* colors, uint16_t count) {
     uint16_t batch = kPixelWritingBufferSize - buffer_size_;

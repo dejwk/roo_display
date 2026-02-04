@@ -55,8 +55,10 @@
 namespace roo_display::products::waveshare {
 
 template <int8_t pinCs, int8_t pinDc, int8_t pinReset = -1>
+/// Waveshare 0.96" ST7735 LCD module (160x80).
 class LcdModule_160x80 : public St7735spi_80x160_inv<pinCs, pinDc, pinReset> {
  public:
+  /// Create device with orientation and SPI instance.
   LcdModule_160x80(Orientation orientation = Orientation().rotateLeft(),
                    roo_display::DefaultSpi spi = roo_display::DefaultSpi())
       : St7735spi_80x160_inv<pinCs, pinDc, pinReset>(orientation, spi) {}

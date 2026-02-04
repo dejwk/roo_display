@@ -1,0 +1,33 @@
+PROJECT_NAME           = "roo_display"
+PROJECT_BRIEF          = "Graphics and UI library for embedded displays"
+OUTPUT_DIRECTORY       = docs/doxygen
+INPUT                  = README.md \
+                         doc/programming_guide.md \
+                         src/roo_display/core \
+                         src/roo_display/color \
+                         src/roo_display/font \
+                         src/roo_display/shape \
+                         src/roo_display/ui \
+                         src/roo_display/products \
+                         src/roo_display/composition \
+                         src/roo_display/filter \
+                         src/roo_display/image \
+                         src/roo_display/touch
+FILE_PATTERNS          = *.h
+RECURSIVE              = YES
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
+QUIET                  = YES
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+USE_MDFILE_AS_MAINPAGE = README.md
+MARKDOWN_SUPPORT       = YES
+AUTOLINK_SUPPORT       = YES
+FULL_PATH_NAMES        = NO
+STRIP_FROM_PATH        = src include
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+HTML_OUTPUT            = html

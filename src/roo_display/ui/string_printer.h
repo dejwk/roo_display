@@ -11,14 +11,14 @@
 
 namespace roo_display {
 
-// prefer roo_io::StringPrintf in new code.
+/// Prefer `roo_io::StringPrintf` in new code.
 std::string StringPrintf(const char* format, ...);
 
-// prefer roo_io::StringVPrintf in new code.
+/// Prefer `roo_io::StringVPrintf` in new code.
 std::string StringVPrintf(const char* format, va_list arg);
 
 #ifdef ARDUINO
-// StringPrinter is a utility that allows formatted writing to std::string.
+/// Utility that formats into a `std::string` via `Print`.
 class StringPrinter : public Print {
  public:
   const std::string& get() const& { return s_; }

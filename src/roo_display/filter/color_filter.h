@@ -5,17 +5,19 @@
 
 namespace roo_display {
 
-// Modifies the color of the pixels written using some transformation that only
-// depends on the color, and not on the position. For example, changing
-// translucency, changing color parameters (saturation, hue, brightness, etc.),
-// applying (translucent) overlays.
+/// Color-only filter that transforms pixels before writing.
+///
+/// The filter depends only on the color, not position. Examples: translucency
+/// adjustments, color transforms, overlays.
 template <typename Filter>
 class ColorFilter : public DisplayOutput {
  public:
+  /// Create a filter with a custom filter functor.
   ColorFilter(DisplayOutput& output, Filter filter,
               Color bgcolor = color::Transparent)
       : output_(output), filter_(filter), bgcolor_(bgcolor) {}
 
+  /// Create a filter using the default-constructed functor.
   ColorFilter(DisplayOutput& output, Color bgcolor = color::Transparent)
       : ColorFilter(output, Filter(), bgcolor) {}
 
@@ -88,6 +90,7 @@ class ColorFilter : public DisplayOutput {
   Color bgcolor_;
 };
 
+/// Filter functor that scales alpha (0..127).
 class Opaqueness {
  public:
   // Sets opaqueness of the input color. 127 = opaque (no effect). 0 = fully
@@ -103,6 +106,7 @@ class Opaqueness {
   uint8_t opaqueness_;
 };
 
+/// Filter functor that always returns the background color.
 class Erasure {
  public:
   // Always writes the bgcolor.
@@ -111,8 +115,7 @@ class Erasure {
   Color operator()(Color c, Color bg) const { return bg; }
 };
 
-// Specialization of ColorFilter for Erasure is able to avoid some memory
-// copying and use more performant device operations.
+/// Specialization for `Erasure` with more efficient operations.
 template <>
 class ColorFilter<Erasure> : public DisplayOutput {
  public:
@@ -164,6 +167,7 @@ class ColorFilter<Erasure> : public DisplayOutput {
   Color bgcolor_;
 };
 
+/// Filter functor that alpha-blends a fixed overlay color.
 class Overlay {
  public:
   Overlay(Color color) : color_(color) {}
@@ -176,11 +180,10 @@ class Overlay {
   Color color_;
 };
 
-// A 'filtering' device that adds translucency (specified in the [0-128] range).
+/// Filter that adds translucency (opaqueness in [0, 128]).
 typedef ColorFilter<Opaqueness> TranslucencyFilter;
 
-// A 'filtering' device that super-imposes a (usually semi-transparent) overlay
-// color.
+/// Filter that super-imposes a (usually semi-transparent) overlay color.
 typedef ColorFilter<Overlay> OverlayFilter;
 
 namespace internal {
@@ -196,6 +199,7 @@ struct Disablement {
 
 }  // namespace internal
 
+/// Filter that applies a disabled/gray appearance.
 typedef ColorFilter<internal::Disablement> DisablementFilter;
 
 }  // namespace roo_display

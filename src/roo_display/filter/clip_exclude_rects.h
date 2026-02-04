@@ -5,15 +5,19 @@
 
 namespace roo_display {
 
+/// Union of rectangles used as an exclusion mask.
 class RectUnion {
  public:
+  /// Construct a rect union from a range.
   RectUnion(const Box* begin, const Box* end) : begin_(begin), end_(end) {}
 
+  /// Reset to a new range.
   void reset(const Box* begin, const Box* end) {
     begin_ = begin;
     end_ = end;
   }
 
+  /// Return whether the union contains a point.
   inline bool contains(int16_t x, int16_t y) const {
     for (const Box* box = begin_; box != end_; ++box) {
       if (box->contains(x, y)) return true;
@@ -21,7 +25,7 @@ class RectUnion {
     return false;
   }
 
-  // Returns true if the rectangle union intersects the rect.
+  /// Return whether the union intersects a rectangle.
   inline bool intersects(const Box& rect) const {
     for (const Box* box = begin_; box != end_; ++box) {
       if (box->intersects(rect)) return true;
@@ -29,8 +33,10 @@ class RectUnion {
     return false;
   }
 
+  /// Return the number of rectangles in the union.
   size_t size() const { return end_ - begin_; }
 
+  /// Return the rectangle at index `idx`.
   const Box& at(int idx) const { return *(begin_ + idx); }
 
  private:
@@ -38,11 +44,10 @@ class RectUnion {
   const Box* end_;
 };
 
-// A 'filtering' device, which delegates the actual drawing to another device,
-// but only passes through the pixels that are not blocked by the specified clip
-// mask, consisting of a union of rectangles.
+/// Filtering device that excludes a union of rectangles.
 class RectUnionFilter : public DisplayOutput {
  public:
+  /// Create a filter with an exclusion union.
   RectUnionFilter(DisplayOutput& output, const RectUnion* exclusion)
       : output_(&output),
         exclusion_(exclusion),
@@ -52,6 +57,7 @@ class RectUnionFilter : public DisplayOutput {
 
   virtual ~RectUnionFilter() {}
 
+  /// Replace the underlying output.
   void setOutput(DisplayOutput& output) {
     output_ = &output;
   }

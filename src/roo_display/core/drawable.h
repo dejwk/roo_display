@@ -9,51 +9,58 @@ namespace roo_display {
 class DisplayOutput;
 class Drawable;
 
-// FillMode specifies whether the Drawable should fill the entire extents box,
-// including the pixels that are fully transparent.
+/// Specifies whether a `Drawable` should fill its entire extents box,
+/// including fully transparent pixels.
 enum FillMode {
-  // Specifies that the entire extents box should get filled (possibly with
-  // fully transparent pixels). It is useful e.g. when the image is drawn
-  // over a synthetic background, and we want to have previous content
-  // replaces with the background.
+  /// Fill the entire extents box (possibly with fully transparent pixels).
+  ///
+  /// Useful when drawing over a synthetic background and you want previous
+  /// content replaced with that background.
   FILL_MODE_RECTANGLE = 0,
 
-  // Specifies that the fully-transparent pixels don't need to get filled.
+  /// Fully transparent pixels do not need to be filled.
   FILL_MODE_VISIBLE = 1
 };
 
 class Rasterizable;
 
-// Low-level 'handle' to draw to an underlying device. Passed by the library
-// to Drawable.draw() (see below). Don't create directly.
-//
-// Note that the device uses an absolute coordinate system starting at (0, 0).
-// In order to translate the object's extents to device coordinates in
-// accordance with the surface's possible translation offset, use the following
-// formula:
-//
-//   extents.translate(s.dx(), s.dy())
-//
-// Additionally, make sure that the above box is constrained to the clip_box;
-// e.g:
-//
-//   Box::Intersect(s.clip_box(), extents.translate(s.dx(), s.dy()))
-//
-// It is often useful to quickly reject objects that are entirely outside the
-// clip box:
-//
-//   Box bounds =
-//     Box::Intersect(s.clip_box(), extents.translate(s.dx(), s.dy()));
-//   if (bounds.empty()) return;
-//
-// In order to compute the clipped bounding box in the object's coordinates,
-// the transformation can be applied in the other direction:
-//
-//   Box clipped =
-//     Box::Intersect(s.clip_box().translace(-s.dx(), -s.dy()), extents);
-//
+/// Low-level handle used to draw to an underlying device.
+///
+/// This is passed by the library to `Drawable::drawTo()`; do not create it
+/// directly.
+///
+/// The device uses absolute coordinates starting at (0, 0). To translate an
+/// object's extents into device coordinates, apply the surface offsets:
+///
+///   extents.translate(s.dx(), s.dy())
+///
+/// Constrain to `clip_box()` when drawing:
+///
+///   Box::Intersect(s.clip_box(), extents.translate(s.dx(), s.dy()))
+///
+/// To quickly reject objects outside the clip box:
+///
+///   Box bounds =
+///     Box::Intersect(s.clip_box(), extents.translate(s.dx(), s.dy()));
+///   if (bounds.empty()) return;
+///
+/// To compute clipped bounds in object coordinates:
+///
+///   Box clipped =
+///     Box::Intersect(s.clip_box().translate(-s.dx(), -s.dy()), extents);
+///
 class Surface {
  public:
+  /// Create a surface targeting a device output.
+  ///
+  /// @param out Output device.
+  /// @param dx X offset to apply to drawn objects.
+  /// @param dy Y offset to apply to drawn objects.
+  /// @param clip Clip box in device coordinates.
+  /// @param is_write_once Whether this surface is write-once.
+  /// @param bg Background color used for blending.
+  /// @param fill_mode Fill behavior for transparent pixels.
+  /// @param blending_mode Default blending mode.
   Surface(DisplayOutput &out, int16_t dx, int16_t dy, Box clip,
           bool is_write_once, Color bg = color::Transparent,
           FillMode fill_mode = FILL_MODE_VISIBLE,
@@ -71,6 +78,14 @@ class Surface {
     }
   }
 
+  /// Create a surface targeting a device output with no offset.
+  ///
+  /// @param out Output device.
+  /// @param clip Clip box in device coordinates.
+  /// @param is_write_once Whether this surface is write-once.
+  /// @param bg Background color used for blending.
+  /// @param fill_mode Fill behavior for transparent pixels.
+  /// @param blending_mode Default blending mode.
   Surface(DisplayOutput *out, Box clip, bool is_write_once,
           Color bg = color::Transparent, FillMode fill_mode = FILL_MODE_VISIBLE,
           BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER)
@@ -91,65 +106,70 @@ class Surface {
   Surface(Surface &&other) = default;
   Surface(const Surface &other) = default;
 
-  // Returns the device to which to draw.
+  /// Return the device output.
   DisplayOutput &out() const { return *out_; }
 
+  /// Replace the output device pointer.
   void set_out(DisplayOutput *out) { out_ = out; }
 
-  // Returns the x offset that should be applied to the drawn object.
+  /// Return the x offset to apply to drawn objects.
   int16_t dx() const { return dx_; }
 
-  // Returns the y offset that should be applied to the drawn object.
+  /// Return the y offset to apply to drawn objects.
   int16_t dy() const { return dy_; }
 
+  /// Return whether this surface is write-once.
   bool is_write_once() const { return is_write_once_; }
 
-  // Returns the clip box, in the device coordinates (independent of
-  // the x, y offset), that must be respected by the drawn object.
+  /// Return the clip box in device coordinates (independent of offsets).
   const Box &clip_box() const { return clip_box_; }
 
+  /// Set the clip box in device coordinates.
   void set_clip_box(const Box &clip_box) { clip_box_ = clip_box; }
 
-  // Returns the background color that should be applied in case when the
-  // drawn object has any non-fully-opaque content.
+  /// Return the background color used for blending.
   Color bgcolor() const { return bgcolor_; }
 
+  /// Set the background color used for blending.
   void set_bgcolor(Color bgcolor) { bgcolor_ = bgcolor; }
 
-  // Returns the fill mode that should be observed by the drawn object.
-  // If FILL_MODE_RECTANGLE, the drawn object MUST fill its entire
-  // (clipped) extents, even if some pixels are completely transparent.
-  // If FILL_MODE_VISIBLE, the drawn object may omit completely transparent
-  // pixels. Note that it is OK to omit such pixels even if a background
-  // color is also specified. This fill mode essentially assumes that the
-  // appropriate background has been pre-applied.
+  /// Return the fill mode the drawable should observe.
+  ///
+  /// If `FILL_MODE_RECTANGLE`, the drawable must fill its entire (clipped)
+  /// extents even if some pixels are completely transparent. If
+  /// `FILL_MODE_VISIBLE`, the drawable may omit fully transparent pixels.
+  /// This assumes the appropriate background has been pre-applied.
   FillMode fill_mode() const { return fill_mode_; }
 
+  /// Set the fill mode for drawables.
   void set_fill_mode(FillMode fill_mode) { fill_mode_ = fill_mode; }
 
-  // Returns the blending mode that should generally be passed to the device
-  // when the object is drawn. Defaults to BLENDING_MODE_SOURCE_OVER.
-  // If the mode is BLENDING_MODE_SOURCE_OVER, the object may replace it
-  // with BLENDING_MODE_SOURCE when it is certain that all pixels it
-  // writes are completely opaque. Note that in case when the background
-  // is specified and completely opaque, BLENDING_MODE_SOURCE_OVER is
-  // automatically replaced with BLENDING_MODE_SOURCE.
+  /// Return the default blending mode for drawing.
+  ///
+  /// If the mode is `BLENDING_MODE_SOURCE_OVER`, a drawable may replace it
+  /// with `BLENDING_MODE_SOURCE` when all pixels it writes are fully opaque.
+  /// If an opaque background is specified, `BLENDING_MODE_SOURCE_OVER` is
+  /// automatically replaced with `BLENDING_MODE_SOURCE`.
   BlendingMode blending_mode() const { return blending_mode_; }
 
+  /// Set the default blending mode.
   void set_blending_mode(BlendingMode blending_mode) {
     blending_mode_ = blending_mode;
   }
 
+  /// Set the x offset applied to drawables.
   void set_dx(int16_t dx) { dx_ = dx; }
+  /// Set the y offset applied to drawables.
   void set_dy(int16_t dy) { dy_ = dy; }
 
-  // Draws the specified drawable object to this surface. Intended for custom
-  // implementations of Drawable (below), to draw other objects as part of
-  // drawing itself.
+  /// Draw a drawable object to this surface.
+  ///
+  /// Intended for custom `Drawable` implementations to draw child objects.
   inline void drawObject(const Drawable &object) const;
 
-  // Draws the specified drawable object to this surface, at the specified
-  // offset. A convenience wrapper around drawObject().
+  /// Draw a drawable object with an additional offset.
+  ///
+  /// Convenience wrapper around `drawObject()`.
   inline void drawObject(const Drawable &object, int16_t dx, int16_t dy) const {
     if (dx == 0 && dy == 0) {
       drawObject(object);
@@ -161,6 +181,7 @@ class Surface {
     s.drawObject(object);
   }
 
+  /// Clip the given extents to the surface clip box.
   Box::ClipResult clipToExtents(Box extents) {
     return clip_box_.clip(extents.translate(dx_, dy_));
   }
@@ -185,61 +206,55 @@ class Surface {
   BlendingMode blending_mode_;
 };
 
-// Interface implemented by any class that represents things (like images in
-// various formats) that can be drawn to an output device (such as a TFT
-// screen, or an off-screen buffer).
-//
-// Implementations must override two methods:
-// * either drawTo or drawInteriorTo (see below), to implement the actual
-//   drawing logic;
-// * extents(), returning a bounding box which the drawing fits into,
-//   assuming it were drawn at (0, 0).
+/// Interface for objects that can be drawn to an output device.
+///
+/// Examples include images, shapes, and UI widgets. Implementations must:
+/// - Override `extents()` to return the bounding box at (0, 0).
+/// - Override either `drawTo()` or `drawInteriorTo()` to implement drawing.
 class Drawable {
  public:
   virtual ~Drawable() {}
 
-  // Returns the bounding box encompassing all pixels that need to be drawn.
-  //
-  // Thie method should is called during an SPI transaction, and should not
-  // block or perform I/O.
+  /// Return the bounding box encompassing all pixels that need to be drawn.
+  ///
+  /// This method is called during a transaction and must not block or perform
+  /// I/O.
   virtual Box extents() const = 0;
 
-  // Returns the boundaries to be used when aligning this drawable. By default,
-  // equivalent to extents(). Some drawables, notably text labels, may want to
-  // use different bounds for alignment.
-  //
-  // Thie method should is called during an SPI transaction, and should not
-  // block or perform I/O.
+  /// Return the bounds used for alignment.
+  ///
+  /// Defaults to `extents()`. Some drawables (notably text labels) may want
+  /// different alignment bounds.
+  ///
+  /// This method is called during a transaction and must not block or perform
+  /// I/O.
   virtual Box anchorExtents() const { return extents(); }
 
-  // A singleton, representing a 'no-op' drawable with no bounding box.
+  /// A singleton representing a no-op drawable with no bounding box.
   static const Drawable *Empty();
 
  private:
   friend void Surface::drawObject(const Drawable &object) const;
 
-  // Draws this object's content, respecting the fill mode. That is, if
-  // s.fill_mode() == FILL_MODE_RECTANGLE, the method must fill the entire
-  // (clipped) extents() rectangle (using s.bgcolor() for transparent parts).
-  //
-  // The default implementation fills the clipped extents() rectangle
-  // with bgcolor, and then calls drawInteriorTo. That causes flicker, so you
-  // should try to override this method if a better implementation is possible.
-  //
-  // The implementation must also respect the other surface's parameters,
-  // particularly the clip_box - i.e. it is not allowed to draw to output
-  // outside of the clip_box.
-  //
-  // The surface's clip-box is always pre-clipped to fit within this drawable's
-  // extents().
-  //
+  /// Draw this object's content, respecting the fill mode.
+  ///
+  /// If `s.fill_mode() == FILL_MODE_RECTANGLE`, the method must fill the entire
+  /// (clipped) `extents()` rectangle (using `s.bgcolor()` for transparent
+  /// parts).
+  ///
+  /// The default implementation fills the clipped `extents()` rectangle with
+  /// `bgcolor` and then calls `drawInteriorTo()`. That can cause flicker, so
+  /// override this method if a better implementation is possible.
+  ///
+  /// The implementation must respect surface parameters, particularly
+  /// `clip_box()`, and must not draw outside it. The surface clip box is
+  /// pre-clipped to fit within this drawable's `extents()`.
   virtual void drawTo(const Surface &s) const;
 
-  // Draws this object's content, ignoring s.fill_mode(). See drawTo().
-  //
-  // The implementation most respect the other surface's parameters,
-  // particularly the clip_box - i.e. it is not allowed to draw to output
-  // outside of the clip_box.
+  /// Draw this object's content, ignoring `s.fill_mode()`. See `drawTo()`.
+  ///
+  /// The implementation must respect surface parameters, particularly
+  /// `clip_box()`, and must not draw outside it.
   virtual void drawInteriorTo(const Surface &s) const {}
 };
 

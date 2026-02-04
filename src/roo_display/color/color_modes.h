@@ -8,27 +8,28 @@
 
 namespace roo_display {
 
-// ColorMode is the following template contract:
-// class T {
-//  public:
-//   // How many bits are needed to represent a single pixel.
-//   static const int8_t bits_per_pixel = ...;
-//
-//   // Converts raw value to ARGB8888 color. If bits_per_pixel < 8, the raw
-//   // value will be passed in the low-order bits.
-//   inline Color toArgbColor(storage_type in) const;
-//
-//   // Converts ARGB8888 color to a raw value. If bits_per_pixel < 8, the raw
-//   // value is written to the low-order bits.
-//   inline storage_type fromArgbColor(Color color) const;
-//
-//   // Returns the value that specifies what are possible values of alpha.
-//   TransparencyMode transparency() const { return TRANSPARENCY_GRADUAL; }
-// };
-//
-// Additionally, when adding a color mode, you may want to implement a
-// specialized version of RawBlender.
+/// ColorMode template contract.
+///
+/// A color mode `T` must provide:
+/// ```
+/// static const int8_t bits_per_pixel;
+/// Color toArgbColor(storage_type in) const;
+/// storage_type fromArgbColor(Color color) const;
+/// TransparencyMode transparency() const;
+/// ```
+///
+/// Meaning and expectations:
+/// - `bits_per_pixel`: how many bits encode a single pixel in this mode.
+/// - `toArgbColor(in)`: convert a raw pixel value to ARGB8888. If
+///   `bits_per_pixel < 8`, the value is stored in the low-order bits of `in`.
+/// - `fromArgbColor(color)`: convert ARGB8888 to a raw pixel value. If
+///   `bits_per_pixel < 8`, the return value must be in the low-order bits.
+/// - `transparency()`: indicates the alpha capabilities of the mode (opaque,
+///   binary, or gradual). Used as a rendering optimization hint.
+///
+/// For optimized blending, consider specializing `RawBlender`.
 
+/// 32-bit ARGB color mode.
 class Argb8888 {
  public:
   static const int8_t bits_per_pixel = 32;
@@ -44,6 +45,7 @@ class Argb8888 {
   }
 };
 
+/// 32-bit RGBA color mode.
 class Rgba8888 {
  public:
   static const int8_t bits_per_pixel = 32;
@@ -77,6 +79,7 @@ inline static constexpr uint32_t TruncTo6bit(uint8_t c) {
 
 }  // namespace internal
 
+/// 24-bit RGB color mode (opaque).
 class Rgb888 {
  public:
   static const int8_t bits_per_pixel = 24;
@@ -92,6 +95,7 @@ class Rgb888 {
   constexpr TransparencyMode transparency() const { return TRANSPARENCY_NONE; }
 };
 
+/// 24-bit ARGB 6-6-6-6 color mode.
 class Argb6666 {
  public:
   static const int8_t bits_per_pixel = 24;
@@ -125,6 +129,7 @@ class Argb6666 {
   }
 };
 
+/// 16-bit ARGB 4-4-4-4 color mode.
 class Argb4444 {
  public:
   static const int8_t bits_per_pixel = 16;
@@ -157,7 +162,7 @@ class Argb4444 {
   }
 };
 
-// The most common mode used by microcontrollers.
+/// 16-bit RGB565 color mode (opaque).
 class Rgb565 {
  public:
   static const int8_t bits_per_pixel = 16;
@@ -208,8 +213,7 @@ inline constexpr uint16_t Resolve565Transparency(uint16_t c, uint16_t t) {
 }
 }  // namespace internal
 
-// Variant of Rgb565 that reserves one 16-bit value to represent transparent
-// color.
+/// RGB565 with a reserved value representing transparency.
 class Rgb565WithTransparency {
  public:
   static const int8_t bits_per_pixel = 16;

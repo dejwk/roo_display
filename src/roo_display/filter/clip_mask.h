@@ -8,32 +8,35 @@
 
 namespace roo_display {
 
-// Represents a binary clip mask. Takes a raw data region, where each bit
-// represents a single pixel, and a rectangle that determines the position and
-// size of the mask.
-// The mask is always byte-aligned; i.e., each row always starts on a new byte.
-// It is recommended that the clip mask is aligned within 8-pixels to the
-// underlying device coordinates. It may help avoid needless redraws in case
-// when some low-res framebuf is used under the clip mask.
+/// Binary clip mask using a packed bit buffer.
+///
+/// Each bit represents a pixel within `bounds`. Rows are byte-aligned. For
+/// best performance, align the mask to 8-pixel boundaries in device
+/// coordinates.
 class ClipMask {
  public:
+  /// Construct a clip mask.
   ClipMask(const roo::byte* data, Box bounds, bool inverted = false)
       : data_(data),
         bounds_(std::move(bounds)),
         inverted_(inverted),
         line_width_bytes_((bounds.width() + 7) / 8) {}
 
-  // Deprecated, use the constructor accepting the byte buffer.
+  /// Deprecated: use the `roo::byte*` constructor instead.
   template <typename U = uint8_t,
             typename std::enable_if<!std::is_same<U, roo::byte>::value,
                                     int>::type = 0>
   ClipMask(const U* data, Box bounds)
       : ClipMask((const roo::byte*)data, bounds) {}
 
+  /// Return raw data buffer.
   const roo::byte* data() const { return data_; }
+  /// Return mask bounds.
   const Box& bounds() const { return bounds_; }
+  /// Return inversion flag.
   bool inverted() const { return inverted_; }
 
+  /// Return whether a point is masked out.
   inline bool isMasked(int16_t x, int16_t y) const {
     if (!bounds_.contains(x, y)) return inverted_;
     x -= bounds_.xMin();
@@ -44,18 +47,21 @@ class ClipMask {
     return (bool)(b & (roo::byte{0x80} >> pixel_index)) ^ inverted_;
   }
 
+  /// Return whether all bits in a block are masked.
   inline bool isAllMasked(int16_t x, int16_t y, roo::byte mask,
                           uint8_t lines) const {
     return inverted_ ? isAllUnset(x, y, mask, ~lines)
                      : isAllSet(x, y, mask, lines);
   }
 
+  /// Return whether all bits in a block are unmasked.
   inline bool isAllUnmasked(int16_t x, int16_t y, roo::byte mask,
                             uint8_t lines) const {
     return inverted_ ? isAllSet(x, y, mask, ~lines)
                      : isAllUnset(x, y, mask, lines);
   }
 
+  /// Set inversion behavior.
   void setInverted(bool inverted) { inverted_ = inverted; }
 
  private:
@@ -92,9 +98,7 @@ class ClipMask {
   uint32_t line_width_bytes_;
 };
 
-// A 'filtering' device, which delegates the actual drawing to another device,
-// but only passes through the pixels that are not blocked by a specified clip
-// mask.
+/// Filtering device that applies a clip mask.
 class ClipMaskFilter : public DisplayOutput {
  public:
   ClipMaskFilter(DisplayOutput& output, const ClipMask* clip_mask,

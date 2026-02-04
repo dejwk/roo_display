@@ -71,66 +71,55 @@ class PaletteIndex {
 
 }  // namespace internal
 
-// Used with IndexedN color modes to store the color palette.
+/// Palette storage for `IndexedN` color modes.
 class Palette {
  public:
-  // Creates a dummy palette with a single transparent color.
+  /// Create a dummy palette with a single transparent color.
   Palette();
 
-  // Creates an immutable, read-only palette that uses the specified colors.
-  // The color array is not copied, and it must remain unchanged for as long as
-  // this palette is in use. The palette cannot be used for inverse-lookup, i.e.
-  // to resolve ARGB colors to indexes, needed e.g. by Offscreens. For that, use
-  // `ReadWrite()` or `Dynamic()`.
-  //
-  // The transparency mode of the palette is auto-determined by evaluating the
-  // colors.
-  //
+  /// Create a read-only palette backed by the given colors.
+  ///
+  /// The color array is not copied and must remain valid. Read-only palettes
+  /// cannot be used for inverse lookup (ARGB -> index); use `ReadWrite()` or
+  /// `Dynamic()` for that. Transparency is auto-detected.
   static Palette ReadOnly(const Color* colors, int size);
 
-  // Similar to the above, but uses the provided transparency mode. Saves some
-  // CPU on determining the transparency mode.
+  /// Read-only palette with explicit transparency mode.
   static Palette ReadOnly(const Color* colors, int size,
                           TransparencyMode transparency_mode);
 
-  // Creates an immutable palette that uses the specified colors. The color
-  // array is not copied, and it must remain unchanged for as long as this
-  // palette is in use. The palette can be used for inverse-lookup, i.e. to
-  // resolve ARGB colors to indexes. Hence, it can be used with the Offscreen.
-  //
-  // The transparency mode of the palette is auto-determined by evaluating the
-  // colors.
-  //
+  /// Create a read/write palette backed by the given colors.
+  ///
+  /// Enables inverse lookup (ARGB -> index), e.g. for Offscreen. The array is
+  /// not copied and must remain valid. Transparency is auto-detected.
   static Palette ReadWrite(const Color* colors, int size);
 
-  // Similar to the above, but uses the provided transparency mode. Saves some
-  // CPU on determining the transparency mode.
+  /// Read/write palette with explicit transparency mode.
   static Palette ReadWrite(const Color* colors, int size,
                            TransparencyMode transparency_mode);
 
-  // Creates an empty 'dynamic' palette for drawing to offscreens. The colors
-  // will be automatically added to the palette up to the specified size.
-  // After the size is exhausted, new missing colors will be replaced by the
-  // first color added to the palette (i.e. the color with index 0).
+  /// Create a dynamic palette for drawing to offscreens.
+  ///
+  /// Colors are added up to `max_size`. After that, missing colors map to
+  /// index 0.
   static Palette Dynamic(int max_size);
 
-  // Returns the pointer to the color table of this palette.
+  /// Return pointer to the color table.
   const Color* colors() const { return colors_; }
 
-  // Returns the size of this palette.
+  /// Return palette size.
   int size() const { return size_; }
 
-  // Returns the `idx`-th color from the palette.
+  /// Return the `idx`-th color.
   inline Color getColorAt(int idx) const { return colors_[idx]; }
 
+  /// Return palette transparency mode.
   TransparencyMode transparency_mode() const { return transparency_mode_; }
 
-  // Returns the index of a specified color. Should not be called (and will
-  // assert-fail) if the palette has been created as read-only. If the color is
-  // not found, the behavior depends further on how the palette was created: if
-  // the palette is dynamic, and the current size is smaller than the maximum
-  // size, the color is added at the next available position. Otherwise, if the
-  // size is maxed out or the palette is not dynamic, returns zero.
+  /// Return the index of a specified color.
+  ///
+  /// Not valid for read-only palettes. For dynamic palettes, missing colors
+  /// are added up to `max_size`; otherwise returns 0 when not found.
   uint8_t getIndexOfColor(Color color);
 
  private:
@@ -149,6 +138,7 @@ class Palette {
 
 namespace internal {
 
+/// Indexed color mode with `bits` bits per pixel.
 template <uint8_t bits>
 class Indexed {
  public:

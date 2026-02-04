@@ -9,59 +9,47 @@
 #include "roo_display/internal/raw_streamable.h"
 #include "roo_display/io/memory.h"
 
-// Images are drawables that render a rectangular area based on data from some
-// underlying immutable data source. Image classes are templated on Resource,
-// which specifies the source of input data, such as DRAM memory, flash memory,
-// or SD card. Specific Resource classes are included in the io/ subdictory; you
-// could also roll your own based on those.
-//
-// Each image class recognizes a particular image data format, such as
-// raster bitmap, or RLE-encoded image data.
-//
-// Images do not have a common base class. Every image can be used as a
-// Drawable; many are Streamable (see core/streamable.h), and some might be
-// Rasterizable (see core/rasterizable.h).
+/// Image helpers and type aliases.
+///
+/// Images are drawables that render a rectangular area based on data from an
+/// immutable data source. Image classes are templated on `Resource`, which
+/// specifies the input source (e.g., DRAM, flash, SD card). Resource helpers
+/// live in the io/ directory, but you can define your own.
+///
+/// Each image alias recognizes a specific data format (e.g., raster bitmap or
+/// RLE-encoded data). Every image is a `Drawable`; many are `Streamable`, and
+/// some may be `Rasterizable`.
 
-// Streamable and Rasterizable images can be super-imposed (and alpha-blended)
-// over each other, and over other Streamables, without needing to store the
-// entire content in DRAM. A common use case is to super-impose semi-transparent
-// images over solid backgrounds. For example, you can define a button with a
-// single image label, and varying background color depending on button state.
+/// Streamable and Rasterizable images can be alpha-blended without full
+/// buffering. Common use: semi-transparent images over solid backgrounds.
 //
-// Note: for simple raster (uncompressed) images, stored in native ColorMode
-// formats, use Raster from core/raster.h.
+/// Note: for uncompressed images in native color modes, use `Raster`.
 //
-// How to implement a new Streamable image class:
-// 1. Implement a new 'stream' type, with methods Color next() and skip(int),
-//    that will return pixels of your image from the top-left corner
-// 2. In a typical case when your image is rendering the entire stream
-//    and is backed by a memory pointer, it generally suffices to typedef
-//    it as SimpleStreamable<YourStreamType>
-// 3. If the image represents a clipped sub-rectangle of the stream, use
-//    ClippedStreamable instead of SimpleStreamable.
-// 4. If you need a more customized constructor, inherit rather than
-//    typedef, and delegate your constructor. See XBitmap, below.
+/// How to implement a new Streamable image class:
+/// 1) Implement a stream type with `Color next()` and `skip(int)`.
+/// 2) For full-stream images backed by memory, typedef
+///    `SimpleStreamable<YourStreamType>`.
+/// 3) For clipped sub-rectangles, use `Clipping<SimpleStreamable<...>>`.
+/// 4) For custom constructors, inherit and delegate (see `XBitmap`).
 
 namespace roo_display {
 
-// Run-length-encoded image, for color modes with >= 8 bits_per_pixel.
+/// Run-length-encoded image for color modes with >= 8 bits per pixel.
 template <typename ColorMode, typename Resource = ProgMemPtr>
 using RleImage =
     SimpleStreamable<Resource, ColorMode,
                      internal::RleStreamUniform<Resource, ColorMode>>;
 
-// Run-length-encoded 4-bit image, for color modes with 4 bits_per_pixel, with
-// preferrential RLE encoding for extreme values (0x0 and 0xF). Particularly
-// useful with Alpha4, e.g. for font glyphs.
+/// RLE 4-bit image with bias for extreme values (0x0/0xF).
 template <typename ColorMode, typename Resource = ProgMemPtr>
 using RleImage4bppxBiased =
     SimpleStreamable<Resource, ColorMode,
                      internal::RleStream4bppxBiased<Resource, ColorMode>>;
 
-// Convenience definition for icons and other small anti-aliased mono artwork.
+/// Convenience alias for small anti-aliased monochrome artwork.
 using Pictogram = RleImage4bppxBiased<Alpha4>;
 
-// Uncompressed image.
+/// Uncompressed image.
 template <typename Resource, typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = roo_io::kBigEndian>
@@ -69,53 +57,63 @@ using SimpleImage = SimpleStreamable<
     Resource, ColorMode,
     RasterPixelStream<Resource, ColorMode, pixel_order, byte_order>>;
 
+/// Uncompressed ARGB8888 image.
 template <typename Resource, ByteOrder byte_order = roo_io::kBigEndian>
 using SimpleImageArgb8888 =
     SimpleImage<Resource, Argb8888, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
 
+/// Uncompressed ARGB6666 image.
 template <typename Resource, ByteOrder byte_order = roo_io::kBigEndian>
 using SimpleImageArgb6666 =
     SimpleImage<Resource, Argb6666, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
 
+/// Uncompressed ARGB4444 image.
 template <typename Resource, ByteOrder byte_order = roo_io::kBigEndian>
 using SimpleImageArgb4444 =
     SimpleImage<Resource, Argb4444, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
 
+/// Uncompressed RGB565 image.
 template <typename Resource, ByteOrder byte_order = roo_io::kBigEndian>
 using SimpleImageRgb565 =
     SimpleImage<Resource, Rgb565, COLOR_PIXEL_ORDER_MSB_FIRST, byte_order>;
 
+/// Uncompressed RGB565 image with reserved transparency.
 template <typename Resource, ByteOrder byte_order = roo_io::kBigEndian>
 using SimpleImageRgb565WithTransparency =
     SimpleImage<Resource, Rgb565WithTransparency, COLOR_PIXEL_ORDER_MSB_FIRST,
                 byte_order>;
 
+/// Uncompressed Grayscale8 image.
 template <typename Resource>
 using SimpleImageGrayscale8 =
     SimpleImage<Resource, Grayscale8, COLOR_PIXEL_ORDER_MSB_FIRST,
                 roo_io::kBigEndian>;
 
+/// Uncompressed Alpha8 image.
 template <typename Resource>
 using SimpleImageAlpha8 =
     SimpleImage<Resource, Alpha8, COLOR_PIXEL_ORDER_MSB_FIRST,
                 roo_io::kBigEndian>;
 
+/// Uncompressed Grayscale4 image.
 template <typename Resource,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>
 using SimpleImageGrayscale4 =
     SimpleImage<Resource, Grayscale4, pixel_order, roo_io::kBigEndian>;
 
+/// Uncompressed Alpha4 image.
 template <typename Resource,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>
 using SimpleImageAlpha4 =
     SimpleImage<Resource, Alpha4, pixel_order, roo_io::kBigEndian>;
 
+/// Uncompressed monochrome image.
 template <typename Resource,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>
 using SimpleImageMonochrome =
     SimpleImage<Resource, Monochrome, pixel_order, roo_io::kBigEndian>;
 
-// A simple monochrome bit raster. Lines rounded to 8 pixel width.
+/// Monochrome XBitmap image (rows rounded to 8 pixels).
 template <typename Resource = ProgMemPtr>
 class XBitmap
     : public Clipping<

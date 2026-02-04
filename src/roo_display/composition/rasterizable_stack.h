@@ -8,11 +8,13 @@
 
 namespace roo_display {
 
-// RasterizableStack represents a multi-layered stack of rasterizables.
+/// Multi-layer stack of rasterizables composited in order.
 class RasterizableStack : public Rasterizable {
  public:
+  /// An input layer in the stack.
   class Input {
    public:
+    /// Create an input layer using the source extents.
     Input(const Rasterizable* obj, Box extents)
         : obj_(obj),
           extents_(extents),
@@ -20,6 +22,7 @@ class RasterizableStack : public Rasterizable {
           dy_(0),
           blending_mode_(BLENDING_MODE_SOURCE_OVER) {}
 
+    /// Create an input layer with an offset.
     Input(const Rasterizable* obj, Box extents, uint16_t dx, uint16_t dy)
         : obj_(obj),
           extents_(extents.translate(dx, dy)),
@@ -27,15 +30,21 @@ class RasterizableStack : public Rasterizable {
           dy_(dy),
           blending_mode_(BLENDING_MODE_SOURCE_OVER) {}
 
+    /// Return extents in stack coordinates.
     const Box& extents() const { return extents_; }
 
+    /// X offset applied to the input.
     int16_t dx() const { return dx_; }
+    /// Y offset applied to the input.
     int16_t dy() const { return dy_; }
 
+    /// Source rasterizable.
     const Rasterizable* source() const { return obj_; }
 
+    /// Blending mode used for this input.
     BlendingMode blending_mode() const { return blending_mode_; }
 
+    /// Set blending mode for this input.
     Input& withMode(BlendingMode mode) {
       blending_mode_ = mode;
       return *this;
@@ -49,29 +58,29 @@ class RasterizableStack : public Rasterizable {
     BlendingMode blending_mode_;
   };
 
-  // creates new RasterizableStack with the given extents.
+  /// Create a stack with the given extents.
   RasterizableStack(const Box& extents)
       : extents_(extents), anchor_extents_(extents) {}
 
-  // Adds a new input to the stack.
+  /// Add an input using its full extents.
   Input& addInput(const Rasterizable* input) {
     inputs_.emplace_back(input, input->extents());
     return inputs_.back();
   }
 
-  // Adds a new clipped input to the stack.
+  /// Add an input clipped to `clip_box`.
   Input& addInput(const Rasterizable* input, Box clip_box) {
     inputs_.emplace_back(input, Box::Intersect(input->extents(), clip_box));
     return inputs_.back();
   }
 
-  // Adds a new input to the stack, with the specified offset.
+  /// Add an input with an offset.
   Input& addInput(const Rasterizable* input, uint16_t dx, uint16_t dy) {
     inputs_.emplace_back(input, input->extents(), dx, dy);
     return inputs_.back();
   }
 
-  // Adds a new clipped input to the stack, with the specified offset.
+  /// Add an input with an offset and clip box.
   Input& addInput(const Rasterizable* input, Box clip_box, uint16_t dx,
                   uint16_t dy) {
     inputs_.emplace_back(input, Box::Intersect(input->extents(), clip_box), dx,
@@ -79,12 +88,12 @@ class RasterizableStack : public Rasterizable {
     return inputs_.back();
   }
 
-  // Returns the overall extents of the stack.
+  /// Return the overall extents of the stack.
   Box extents() const override { return extents_; }
 
   Box anchorExtents() const override { return anchor_extents_; }
 
-  // Returns minimal extents that will fit all components without clipping.
+  /// Return minimal extents that fit all inputs without clipping.
   Box naturalExtents() {
     if (inputs_.empty()) return Box(0, 0, -1, -1);
     Box result = inputs_[0].extents();
@@ -94,10 +103,10 @@ class RasterizableStack : public Rasterizable {
     return result;
   }
 
-  // Overrides this stack's extents.
+  /// Set the stack extents.
   void setExtents(const Box& extents) { extents_ = extents; }
 
-  // Sets this stack's anchor extents.
+  /// Set anchor extents used for alignment.
   void setAnchorExtents(const Box& anchor_extents) {
     anchor_extents_ = anchor_extents;
   }

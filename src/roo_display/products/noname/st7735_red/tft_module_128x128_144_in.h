@@ -62,9 +62,11 @@
 namespace roo_display::products::noname::st7735_red {
 
 template <int8_t pinCs, int8_t pinDc, int8_t pinReset = -1>
+/// Noname 1.44" ST7735 SPI module (128x128).
 class TftModule_128x128_144in
     : public St7735spi_128x128<pinCs, pinDc, pinReset> {
  public:
+   /// Create device with orientation and SPI instance.
     TftModule_128x128_144in(
             Orientation orientation = Orientation().rotateRight(),
             roo_display::DefaultSpi spi = roo_display::DefaultSpi())

@@ -6,29 +6,26 @@
 
 namespace roo_display {
 
-// Interpolates between the two colors using the specified `fraction`, in the
-// 0-256 range. 0 means result = c1; 256 means result = c2; 128 means 50/50.
+/// Interpolate between two colors with `fraction` in [0, 256].
+///
+/// 0 means result = c1; 256 means result = c2; 128 means 50/50.
 Color InterpolateColors(Color c1, Color c2, int16_t fraction);
 
-// Interpolates between the two colors, presumed opaque, using the specified
-// `fraction`, in the 0-256 range. 0 means result = c1; 256 means result = c2;
-// 128 means 50/50.
+/// Interpolate between two opaque colors with `fraction` in [0, 256].
 Color InterpolateOpaqueColors(Color c1, Color c2, int16_t fraction);
 
-// Equivalent to InterpolateColors(Transparency, c, fraction_color).
+/// Equivalent to InterpolateColors(Transparent, c, fraction_color).
 Color InterpolateColorWithTransparency(Color c, int16_t fraction_color);
 
-// Equivalent to InterpolateColors(Transparency, c, fraction_color), when
-// c is opaque.
+/// Equivalent to InterpolateColors(Transparent, c, fraction_color) for opaque c.
 inline Color InterpolateOpaqueColorWithTransparency(Color c,
                                                     int16_t fraction_color) {
   return c.withA(fraction_color);
 }
 
-// Default implementation, specialized in color_modes.h.
-// Given that color_mode.transparency() is usually a compile-time constant, this
-// implementation should perform reasonably well with all RGB, ARGB, and RGBA
-// modes.
+/// Default raw color interpolator (specialized in color_modes.h).
+///
+/// Uses the color mode transparency to choose an appropriate interpolation.
 template <typename ColorMode>
 struct RawColorInterpolator {
   Color operator()(ColorStorageType<ColorMode> c1,

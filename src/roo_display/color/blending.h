@@ -11,6 +11,7 @@
 
 namespace roo_display {
 
+/// Porter-Duff style blending modes.
 enum BlendingMode {
 
   // The new ARGB8888 value completely replaces the old one.
@@ -65,11 +66,14 @@ enum BlendingMode {
   BLENDING_MODE_DESTINATION_OVER_OPAQUE,
 };
 
+/// Transparency information for a stream or color mode.
 enum TransparencyMode {
-  TRANSPARENCY_NONE,    // All colors are fully opaque.
-  TRANSPARENCY_BINARY,  // Colors are either fully opaque or fully transparent.
-  TRANSPARENCY_GRADUAL  // Colors may include partial transparency (alpha
-                        // channel).
+  /// All colors are fully opaque.
+  TRANSPARENCY_NONE,
+  /// Colors are fully opaque or fully transparent.
+  TRANSPARENCY_BINARY,
+  /// Colors may include partial transparency (alpha channel).
+  TRANSPARENCY_GRADUAL
 };
 
 namespace internal {

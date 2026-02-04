@@ -1,6 +1,6 @@
 #pragma once
 
-// Support for drawing to in-memory buffers, using various color modes.
+/// Support for drawing to in-memory buffers, using various color modes.
 
 #include "roo_display/color/color.h"
 #include "roo_display/core/raster.h"
@@ -106,24 +106,17 @@ class AddressWindow {
 // Note: to use the content of the offscreen as Stremable, e.g. to super-impose
 // the content over / under another streamable, use raster().
 
-// The OffscreenDevice class is an in-memory implementation of DisplayDevice. It
-// can be used just like a regular display device, to buffer arbitrary images
-// and display operations.
-//
-// OffscreenDevice supports arbitrary color modes, byte orders, and pixel
-// orders, which can be specified as template parameters:
-// * pixel_order applies to sub-byte color modes, and specifies if, within
-//   a single byte, the left-most pixel is mapped to the most or the least
-//   significant bit(s).
-// * byte_order applies to multi-byte color modes, and specifies if the bytes
-//   representing a single pixel are stored in big or little endian.
-//
-// Offscreen supports device orientation. When created, the Offscreen has the
-// default orientation (Right-Down). You can modify the orientation at any time,
-// using setOrientation(). New orientation will not affect existing content, but
-// it will affect all future write operations. For example, setting the
-// orientation to 'Orientation::Default().rotateLeft()' allows to render content
-// rotated counter-clockwise by 90 degrees.
+/// In-memory `DisplayDevice` backed by a pixel buffer.
+///
+/// Supports arbitrary color modes, byte orders, and pixel orders via template
+/// parameters:
+/// - `pixel_order` applies to sub-byte modes (MSB/LSB first).
+/// - `byte_order` applies to multi-byte modes (big/little endian).
+///
+/// Orientation affects how content is written to the buffer. Existing content
+/// is not rotated when orientation changes, but subsequent writes are. For
+/// example, `Orientation::Default().rotateLeft()` renders content rotated
+/// 90 degrees counter-clockwise.
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = roo_io::kBigEndian,
@@ -131,10 +124,11 @@ template <typename ColorMode,
           typename storage_type = ColorStorageType<ColorMode>>
 class OffscreenDevice : public DisplayDevice {
  public:
-  // Creates an offscreen device with specified geometry, using the designated
-  // buffer. The buffer must have sufficient capacity, determined as (width *
-  // height * ColorMode::bits_per_pixel + 7) / 8. The buffer is not modified; it
-  // can contain pre-existing content.
+  /// Create an offscreen device with the given geometry and buffer.
+  ///
+  /// The buffer must have capacity
+  /// $(width * height * ColorMode::bits_per_pixel + 7) / 8$ bytes. The buffer
+  /// is not modified on construction.
   OffscreenDevice(int16_t width, int16_t height, roo::byte* buffer,
                   ColorMode color_mode)
       : DisplayDevice(width, height),
@@ -144,6 +138,7 @@ class OffscreenDevice : public DisplayDevice {
 
   OffscreenDevice(OffscreenDevice&& other) = delete;
 
+  /// Update orientation-dependent state.
   void orientationUpdated();
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
@@ -163,7 +158,9 @@ class OffscreenDevice : public DisplayDevice {
   void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override;
 
+  /// Access color mode.
   ColorMode& color_mode() { return color_mode_; }
+  /// Access color mode (const).
   const ColorMode& color_mode() const { return color_mode_; }
 
   // const Raster<const roo::byte *, ColorMode, pixel_order, byte_order>
@@ -172,10 +169,12 @@ class OffscreenDevice : public DisplayDevice {
   //   return raster_;
   // }
 
+  /// Return a raster view of the full buffer.
   const ConstDramRaster<ColorMode, pixel_order, byte_order> raster() const {
     return raster(0, 0);
   }
 
+  /// Return a raster view of the buffer with an offset.
   const ConstDramRaster<ColorMode, pixel_order, byte_order> raster(
       int16_t dx, int16_t dy) const {
     return ConstDramRaster<ColorMode, pixel_order, byte_order>(
@@ -196,11 +195,14 @@ class OffscreenDevice : public DisplayDevice {
   //   raster().readColors(x, y, count, result);
   // }
 
-  // Allows direct access to the underlying buffer.
+  /// Direct access to the underlying buffer.
   roo::byte* buffer() { return buffer_; }
+  /// Direct access to the underlying buffer (const).
   const roo::byte* buffer() const { return buffer_; }
 
+  /// Current address window x cursor.
   int16_t window_x() const { return window_.x(); }
+  /// Current address window y cursor.
   int16_t window_y() const { return window_.y(); }
 
  private:
@@ -236,9 +238,14 @@ class OffscreenDevice : public DisplayDevice {
   BlendingMode blending_mode_;
 };
 
-// Offscreen<Rgb565> offscreen;
-// DrawingContext dc(offscreen);
-// dc.draw(...);
+/// Offscreen rasterizable that writes into a pixel buffer.
+///
+/// Example:
+/// ```
+/// Offscreen<Rgb565> offscreen;
+/// DrawingContext dc(offscreen);
+/// dc.draw(...);
+/// ```
 template <typename ColorMode,
           ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
           ByteOrder byte_order = roo_io::kBigEndian,
@@ -249,10 +256,11 @@ class Offscreen : public Rasterizable {
   using RasterType =
       Raster<const roo::byte*, ColorMode, pixel_order, byte_order>;
 
-  // Creates an offscreen with specified geometry, using the designated buffer.
-  // The buffer must have sufficient capacity, determined as (width * height *
-  // ColorMode::bits_per_pixel + 7) / 8. The buffer is not modified; it can
-  // contain pre-existing content.
+  /// Create an offscreen with the given geometry and buffer.
+  ///
+  /// The buffer must have capacity
+  /// $(width * height * ColorMode::bits_per_pixel + 7) / 8$ bytes. The buffer
+  /// is not modified on construction.
   Offscreen(int16_t width, int16_t height, roo::byte* buffer,
             ColorMode color_mode = ColorMode())
       : Offscreen(Box(0, 0, width - 1, height - 1), buffer, color_mode) {}

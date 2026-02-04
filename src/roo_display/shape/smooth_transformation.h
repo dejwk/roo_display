@@ -9,94 +9,91 @@
 
 namespace roo_display {
 
-// Transformation classes describe various types of transformations.
-// Translation, Scaling, and Rotation are primitive transformations.
-// AffineTransformation is a combination of translations, scalings, and
-// rotations. Use 'then()' (described below) to compose transformations.
+/// Transformation classes for smooth shapes.
+///
+/// Translation, scaling, and rotation are primitive transformations.
+/// `AffineTransformation` combines translation, scaling, and rotation. Use
+/// `then()` to compose transformations.
+///
+/// Common methods:
+/// - `apply(FpPoint)` transforms a point.
+/// - `then(T)` composes with another transformation.
+/// - `inversion()` returns the inverse transformation.
+/// - `transformExtents(Box)` returns a bounding box covering transformed
+///   pixels.
+///
+/// Prefer using the factory functions below and `auto`.
 
-// All transformation classes have some common methods:
-// * apply(FpPoint): calculate the transformation for a given point.
-// * then(TransformationType t): composes t with this transformation, returning
-//   a new composed transformation.
-// * inversion(): returns a transformation that is the inverse of this
-//   transformation.
-// * transformExtents(Box): calculates a bouding box that encapsulates all
-//   transformed pixels from the specified box.
-
-// Avoid declaring transformations explicitly; prefer auto and the construction
-// methods defined below.
-
+/// Identity transformation.
 class IdentityTransformation;
+/// Translation transformation.
 class Translation;
+/// Scaling transformation.
 class Scaling;
+/// Rotation transformation.
 class Rotation;
+/// Affine transformation (composition of translation, scaling, rotation).
 class AffineTransformation;
 
-// Returns a translation by the specified vector.
+/// Return a translation by the specified vector.
 Translation Translate(float dx, float dy);
 
-// Returns scaling relative to the origin (0, 0) by the specified magnitude in
-// the x and y direction.
+/// Return a scaling about the origin.
 Scaling Scale(float sx, float sy);
 
-// Returns scaling relative to the specified center point by the specified
-// magnitude in the x and y direction.
+/// Return a scaling about a given center.
 AffineTransformation ScaleAbout(float sx, float sy, const FpPoint& center);
 
-// Returns a rotation about the origin (0, 0) by the specified angle, clockwise.
+/// Return a clockwise rotation about the origin.
 Rotation RotateRight(float angle);
 
-// Returns a rotation about the origin (0, 0) clockwise by 90 degrees.
+/// Return a 90-degree clockwise rotation about the origin.
 Rotation RotateRight();
 
-// Returns a rotation about the specified point by the specified angle,
-// clockwise.
+/// Return a clockwise rotation about a point.
 AffineTransformation RotateRightAbout(float angle, const FpPoint& center);
 
-// Returns a rotation about the specified point clockwise by 90 degrees.
+/// Return a 90-degree clockwise rotation about a point.
 AffineTransformation RotateRightAbout(const FpPoint& center);
 
-// Returns a rotation about the origin (0, 0) by the specified angle,
-// counter-clockwise.
+/// Return a counter-clockwise rotation about the origin.
 Rotation RotateLeft(float angle);
 
-// Returns a rotation about the origin (0, 0) counter-clockwise by 90 degrees.
+/// Return a 90-degree counter-clockwise rotation about the origin.
 Rotation RotateLeft();
 
-// Returns a rotation about the specified point counter-clockwise by 90 degrees.
+/// Return a 90-degree counter-clockwise rotation about a point.
 AffineTransformation RotateLeftAbout(float angle, const FpPoint& center);
 
-// Returns a shear, rooted at the origin.
+/// Return a shear rooted at the origin.
 AffineTransformation Shear(float sx, float sy);
 
-// Returns a shear, rooted at the specified point.
+/// Return a shear rooted at the specified point.
 AffineTransformation Shear(float sx, float sy, const FpPoint& base);
 
-// Returns a horizontal shear of the specified magnitude, rooted at the origin.
+/// Return a horizontal shear rooted at the origin.
 AffineTransformation ShearHorizontally(float sx);
 
-// Returns a horizontal shear of the specified magnitude, rooted at the
-// specified y coordinate.
+/// Return a horizontal shear rooted at `base_y`.
 AffineTransformation ShearHorizontallyAbout(float sx, float base_y);
 
-// Returns a vertical shear of the specified magnitude, rooted at the origin.
+/// Return a vertical shear rooted at the origin.
 AffineTransformation ShearVertically(float sy);
 
-// Returns a horizontal shear of the specified magnitude, rooted at the
-// specified x coordinate.
+/// Return a vertical shear rooted at `base_x`.
 AffineTransformation ShearVerticallyAbout(float sy, float base_x);
 
 template <typename RasterType, typename TransformationType>
 class TransformedRaster;
 
-// Returns a rasterizable representation of the specified raster, transformed
-// using the specified transformation.
+/// Return a rasterizable representation of a transformed raster.
 template <typename RasterType, typename TransformationType>
 TransformedRaster<RasterType, TransformationType> TransformRaster(
     RasterType& original, TransformationType transformation);
 
 // Implementation details.
 
+/// Identity transformation.
 class IdentityTransformation {
  public:
   IdentityTransformation() {}
@@ -113,6 +110,7 @@ class IdentityTransformation {
   Box transformExtents(Box extents) const { return extents; }
 };
 
+/// Translation by (dx, dy).
 class Translation {
  public:
   Translation(float dx, float dy) : dx_(dx), dy_(dy) {}
@@ -141,6 +139,7 @@ class Translation {
   float dx_, dy_;
 };
 
+/// Scaling by (sx, sy).
 class Scaling {
  public:
   Scaling(float sx, float sy) : sx_(sx), sy_(sy) {}
@@ -173,6 +172,7 @@ class Scaling {
   float sx_, sy_;
 };
 
+/// Rotation by angle in radians (clockwise).
 class Rotation {
  public:
   Rotation(float theta)
@@ -201,6 +201,7 @@ class Rotation {
   float theta_, sin_theta_, cos_theta_;
 };
 
+/// General affine transformation.
 class AffineTransformation {
  public:
   AffineTransformation(float a11, float a12, float a21, float a22, float tx,

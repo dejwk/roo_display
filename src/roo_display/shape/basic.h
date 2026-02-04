@@ -7,8 +7,10 @@
 
 namespace roo_display {
 
+/// Base class for simple colored shapes.
 class BasicShape : virtual public Drawable {
  public:
+  /// Return the shape color.
   Color color() const { return color_; }
 
  protected:
@@ -18,6 +20,7 @@ class BasicShape : virtual public Drawable {
   Color color_;
 };
 
+/// A straight line segment between two points.
 class Line : public BasicShape {
  public:
   Line(Point a, Point b, Color color) : Line(a.x, a.y, b.x, b.y, color) {}
@@ -50,6 +53,7 @@ class Line : public BasicShape {
   Diagonal diag_;
 };
 
+/// Base class for axis-aligned rectangle shapes.
 class RectBase : public BasicShape {
  public:
   RectBase(int16_t x0, int16_t y0, int16_t x1, int16_t y1, Color color)
@@ -67,6 +71,7 @@ class RectBase : public BasicShape {
   int16_t y1_;
 };
 
+/// Outline rectangle.
 class Rect : public RectBase {
  public:
   Rect(const Box &box, Color color)
@@ -79,6 +84,7 @@ class Rect : public RectBase {
   void drawTo(const Surface &s) const override;
 };
 
+/// Rectangle border with configurable thickness on each side.
 class Border : public RectBase {
  public:
   Border(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t border,
@@ -121,6 +127,7 @@ class Border : public RectBase {
   void drawTo(const Surface &s) const override;
 };
 
+/// Filled rectangle (rasterizable).
 class FilledRect : public RectBase, public Rasterizable {
  public:
   FilledRect(const Box &box, Color color)
@@ -147,6 +154,7 @@ class FilledRect : public RectBase, public Rasterizable {
   void drawTo(const Surface &s) const override;
 };
 
+/// Base class for rounded rectangles.
 class RoundRectBase : public BasicShape {
  public:
   RoundRectBase(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t radius,
@@ -170,6 +178,7 @@ class RoundRectBase : public BasicShape {
   int16_t radius_;
 };
 
+/// Outline rounded rectangle.
 class RoundRect : public RoundRectBase {
  public:
   RoundRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t radius,
@@ -180,6 +189,7 @@ class RoundRect : public RoundRectBase {
   void drawInteriorTo(const Surface &s) const override;
 };
 
+/// Filled rounded rectangle.
 class FilledRoundRect : public RoundRectBase {
  public:
   FilledRoundRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
@@ -190,6 +200,7 @@ class FilledRoundRect : public RoundRectBase {
   void drawTo(const Surface &s) const override;
 };
 
+/// Base class for circles.
 class CircleBase : public BasicShape {
  public:
   Box extents() const override {
@@ -205,6 +216,7 @@ class CircleBase : public BasicShape {
   int16_t diameter_;
 };
 
+/// Outline circle.
 class Circle : public CircleBase {
  public:
   static Circle ByRadius(Point center, int16_t radius, Color color) {
@@ -233,6 +245,7 @@ class Circle : public CircleBase {
   void drawInteriorTo(const Surface &s) const override;
 };
 
+/// Filled circle.
 class FilledCircle : public CircleBase {
  public:
   static FilledCircle ByRadius(Point center, int16_t radius, Color color) {

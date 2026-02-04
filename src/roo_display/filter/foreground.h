@@ -5,8 +5,7 @@
 
 namespace roo_display {
 
-// A 'filtering' device, which delegates the actual drawing to another device,
-// but applies the specified 'rasterizable' foreground.
+/// Filtering device that blends with a rasterizable foreground.
 using ForegroundFilter = BlendingFilter<BlendOp<BLENDING_MODE_DESTINATION_OVER>>;
 
 }  // namespace roo_display

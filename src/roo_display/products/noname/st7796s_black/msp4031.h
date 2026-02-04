@@ -77,8 +77,10 @@
 namespace roo_display::products::noname::st7796s_black {
 
 template <int8_t pinLcdCs, int8_t pinLcdDc, int8_t pinLcdReset = -1>
+/// Noname 4.0" ST7796S SPI module (MSP4031).
 class Msp4031 : public ComboDevice {
  public:
+  /// Create device with orientation, SPI, and I2C instances.
   Msp4031(
       Orientation orientation = Orientation().rotateLeft(),
       roo_display::DefaultSpi spi = roo_display::DefaultSpi(),
@@ -88,22 +90,27 @@ class Msp4031 : public ComboDevice {
   }
 
 #if defined(ARDUINO)
+  /// Initialize transport using default SPI/I2C pins (Arduino).
   void initTransport() {
     spi_.init();
     i2c_.init();
   }
 #endif
 
+  /// Initialize transport using explicit SPI/I2C pins.
   void initTransport(uint8_t sck, uint8_t miso, uint8_t mosi, uint8_t sda,
                      uint8_t scl) {
     spi_.init(sck, miso, mosi);
     i2c_.init(sda, scl);
   }
 
+  /// Return display device.
   DisplayDevice& display() override { return display_; }
 
+  /// Return touch device.
   TouchDevice* touch() override { return &touch_; }
 
+  /// Return touch calibration.
   TouchCalibration touch_calibration() override {
     return TouchCalibration(0, 0, 319, 479,
                             roo_display::Orientation::RightDown());

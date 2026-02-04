@@ -2,8 +2,9 @@
 
 #include "roo_display/color/color.h"
 
-// Defines 140 opaque 'HTML' named color constants. See
-// https://www.w3schools.com/colors/colors_groups.asp.
+/// Defines 140 opaque HTML named colors.
+///
+/// See https://www.w3schools.com/colors/colors_groups.asp.
 
 namespace roo_display {
 

@@ -12,31 +12,31 @@
 
 namespace roo_display {
 
-// A single-line, single-colored. text label, with extents that have height
-// based only on the font size, but not on the specific text. The origin is at
-// the text's reference point; i.e. at the text baseline, and horizontally
-// affected by the text's bearing.
-//
-// When using smooth fonts, you should generally specify bgcolor when drawing
-// text labels, even over pre-filled solid backgrounds. This is because device
-// drivers often do not support alpha-blending, which is required for properly
-// rendering smooth font edges. The exception is when you draw to Offscreen, or
-// double-buffered devices, or devices whose drivers that do actually support
-// alpha-blending, AND when you want to preserve the existing non-solid
-// background.
-//
-// When using for text fields whose values may be changing on the screen,
-// you want to enclose TextLabel in a Tile, which supports flicker-less
-// redrawing.
-//
-// See also StringViewLabel.
+/// Single-line, single-color text label.
+///
+/// Extents have height based on the font size, not the specific text. The
+/// origin is at the text baseline, and horizontally affected by the text
+/// bearing.
+///
+/// When using smooth fonts, you should generally specify `bgcolor` when
+/// drawing text labels, even over pre-filled solid backgrounds. This is
+/// because many device drivers don't support alpha blending, which is required
+/// for smooth font edges. Exceptions: offscreen/double-buffered devices, or
+/// drivers that do support alpha blending, when you want to preserve the
+/// existing non-solid background.
+///
+/// For changing text fields, wrap `TextLabel` in a `Tile` to reduce flicker.
+///
+/// See also `StringViewLabel`.
 class TextLabel : public Drawable {
  public:
+  /// Construct from a string-like value (moves into internal storage).
   template <typename String>
   TextLabel(const String& label, const Font& font, Color color,
             FillMode fill_mode = FILL_MODE_VISIBLE)
       : TextLabel(std::string(std::move(label)), font, color, fill_mode) {}
 
+  /// Construct from an owned string.
   TextLabel(std::string label, const Font& font, Color color,
             FillMode fill_mode = FILL_MODE_VISIBLE)
       : font_(&font),
@@ -60,13 +60,20 @@ class TextLabel : public Drawable {
                metrics_.advance() - 1, -font().metrics().descent());
   }
 
+  /// Return the font used by the label.
   const Font& font() const { return *font_; }
+  /// Return cached string metrics.
   const GlyphMetrics& metrics() const { return metrics_; }
+  /// Return the label text.
   const std::string& label() const { return label_; }
+  /// Return the label color.
   const Color color() const { return color_; }
+  /// Return the fill mode.
   const FillMode fill_mode() const { return fill_mode_; }
 
+  /// Set the label color.
   void setColor(Color color) { color_ = color; }
+  /// Set the fill mode.
   void setFillMode(FillMode fill_mode) { fill_mode_ = fill_mode; }
 
  private:
@@ -77,10 +84,10 @@ class TextLabel : public Drawable {
   GlyphMetrics metrics_;
 };
 
-// A single-line, single-colored. text label, with extents equal to the
-// bounding box of the rendered text; i.e. the smallest rectangle that fits
-// all pixels. The origin is at the text's reference point; i.e. at the text
-// baseline, and horizontally affected by the text's bearing.
+/// Single-line, single-color label with tight extents.
+///
+/// Extents are the smallest rectangle that fits all rendered pixels. The
+/// origin is at the text baseline and horizontally affected by the bearing.
 class ClippedTextLabel : public TextLabel {
  public:
   using TextLabel::TextLabel;
@@ -97,17 +104,19 @@ class ClippedTextLabel : public TextLabel {
   Box anchorExtents() const override { return metrics().screen_extents(); }
 };
 
-// Similar to TextLabel, but the text content is not owned. Does not use any
-// dynamic memory allocation. Perfect when the labels are const literals, or if
-// the label is created temporarily during drawing.
+/// Like `TextLabel`, but does not own the text content.
+///
+/// Uses no dynamic allocation. Ideal for string literals or temporary labels.
 class StringViewLabel : public Drawable {
  public:
+  /// Construct from a string-like value without copying.
   template <typename String>
   StringViewLabel(String& label, const Font& font, const Color color,
                   FillMode fill_mode = FILL_MODE_VISIBLE)
       : StringViewLabel(roo::string_view(std::move(label)), font, color,
                         fill_mode) {}
 
+  /// Construct from a `string_view`.
   StringViewLabel(roo::string_view label, const Font& font, Color color,
                   FillMode fill_mode = FILL_MODE_VISIBLE)
       : font_(&font),
@@ -131,13 +140,20 @@ class StringViewLabel : public Drawable {
                metrics_.advance() - 1, -font().metrics().descent());
   }
 
+  /// Return the font used by the label.
   const Font& font() const { return *font_; }
+  /// Return cached string metrics.
   const GlyphMetrics& metrics() const { return metrics_; }
+  /// Return the label text view.
   const roo::string_view label() const { return label_; }
+  /// Return the label color.
   const Color color() const { return color_; }
+  /// Return the fill mode.
   const FillMode fill_mode() const { return fill_mode_; }
 
+  /// Set the label color.
   void setColor(Color color) { color_ = color; }
+  /// Set the fill mode.
   void setFillMode(FillMode fill_mode) { fill_mode_ = fill_mode; }
 
  private:
@@ -148,9 +164,9 @@ class StringViewLabel : public Drawable {
   GlyphMetrics metrics_;
 };
 
-// Similar to ClippedTextLabel, but the text content is not owned. Does not use
-// any dynamic memory allocation. Perfect when the labels are const literals, or
-// if the label is created temporarily during drawing.
+/// Like `ClippedTextLabel`, but does not own the text content.
+///
+/// Uses no dynamic allocation. Ideal for string literals or temporary labels.
 class ClippedStringViewLabel : public StringViewLabel {
  public:
   using StringViewLabel::StringViewLabel;

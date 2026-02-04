@@ -14,16 +14,16 @@
 
 namespace roo_display {
 
-// General specification of a multi-point gradient.
+/// Multi-point gradient specification.
 class ColorGradient {
  public:
-  // A single node in the gradient.
+  /// A single node in the gradient.
   struct Node {
     float value;
     Color color;
   };
 
-  // Determines gradient behaves outside its bounds.
+  /// Boundary behavior outside gradient range.
   enum Boundary {
     // Boundary values are extended to infinity.
     EXTENDED,
@@ -36,23 +36,20 @@ class ColorGradient {
     PERIODIC,
   };
 
-  // Creates a gradient specification, given the list of nodes and an option al
-  // boundary specification. The node list must contain at least one node for
-  // EXTENTED and TRUNCATED gradients, and at least two nodes with different
-  // values for PERIODIC gradients. The nodes must be sorted by value. The
-  // values in successive nodes can be equal; such condition indicates a sharp
-  // color transition.
+  /// Create a gradient specification.
+  ///
+  /// Node list must contain at least one node for EXTENDED/TRUNCATED, and at
+  /// least two nodes with different values for PERIODIC. Nodes must be sorted
+  /// by value. Equal successive values create sharp transitions.
   ColorGradient(std::vector<Node> gradient, Boundary boundary = EXTENDED);
 
-  // Returns a color corresponding to the specified numeric value. The color is
-  // a linear interpolation of the colors of two nodes that the value is between
-  // of. If the value is outside of the gradient range, the value is calculated
-  // according to the boundary specification.
+  /// Return the color for a given value.
+  ///
+  /// Color is linearly interpolated between surrounding nodes. Values outside
+  /// the range follow the boundary specification.
   Color getColor(float value) const;
 
-  // Returns the transparency mode of the gradient. If all nodes are opaque, it
-  // is TRANSPARENCY_NONE. Otherwise, if any node has a non-zero alpha, it is
-  // TRANSPARENCY_GRADUAL. Otherwise, it is TRANSPARENCY_BINARY.
+  /// Return the transparency mode of the gradient.
   TransparencyMode getTransparencyMode() const { return transparency_mode_; }
 
  private:
@@ -62,19 +59,14 @@ class ColorGradient {
   float inv_period_;
 };
 
-// Represents a radial gradient, in which the value depends solely on the
-// distance of the target point from the gradient's center.
+/// Radial gradient based on distance from the center.
 class RadialGradient : public Rasterizable {
  public:
-  // Creates a radial gradient with the specified center, gradient
-  // specification, and an optional bounding box. The value used to calculate
-  // the gradient's color is the distance between the target point and the
-  // `center`.
-  //
-  // This class does not perform anti-aliasing, so if you want to avoid jarred
-  // circles, maintain distances between node point values to be at least 1. In
-  // particular, if you want a smooth outer circle, add an artificial terminator
-  // node with color::Transparent and the value 1 greater than its predecessor.
+  /// Create a radial gradient.
+  ///
+  /// Value equals distance from `center`. No anti-aliasing is performed; keep
+  /// node distances >= 1 to avoid jagged rings. For smooth outer edges, add a
+  /// terminal node with `color::Transparent` at +1 distance.
   RadialGradient(FpPoint center, ColorGradient gradient,
                  Box extents = Box::MaximumBox());
 
@@ -90,17 +82,12 @@ class RadialGradient : public Rasterizable {
   Box extents_;
 };
 
-// Similar to RadialGradient, but uses the square of point distance to calculate
-// the value. These gradients may sometimes look better, since the value covered
-// by a given color is constant per area, rather than per distance. They also
-// render faster, by avoiding the sqrtf calculation.
+/// Radial gradient using squared distance (faster, area-uniform).
 class RadialGradientSq : public Rasterizable {
  public:
-  // Creates a radial gradient with the specified center, gradient
-  // specification, and an optional bounding box. The value used to calculate
-  // the gradient's color is the sqare of the distance between the target point
-  // and the `center`. Consequently, the node values must be distances squared
-  // as well.
+  /// Create a radial gradient using squared distance.
+  ///
+  /// Node values must be squared distances.
   RadialGradientSq(Point center, ColorGradient gradient,
                    Box extents = Box::MaximumBox());
 
@@ -116,19 +103,16 @@ class RadialGradientSq : public Rasterizable {
   Box extents_;
 };
 
-// Represents an arbitrary linear gradient (horizontal, vertical, or skewed).
+/// Linear gradient (horizontal, vertical, or skewed).
 class LinearGradient : public Rasterizable {
  public:
-  // Creates a linear gradient. The color value is calculated as:
-  //
-  // (x - origin.x) * dx + (y - origin.y) * dy
-  //
-  // Where (x, y) is the target point. Use dx = 0 for vertical gradients, and dy
-  // = 0 for horizontal gradients.
-  //
-  // This class does not perform anti-aliasing, so if you use skewed gradients,
-  // avoid sharp color transitions by maintaining a minimum distance of
-  // sqrt(1/dx^2 + 1/dy^2) between the node values.
+  /// Create a linear gradient.
+  ///
+  /// Color value is computed as:
+  /// $(x - origin.x) * dx + (y - origin.y) * dy$.
+  /// Use `dx = 0` for vertical, `dy = 0` for horizontal gradients.
+  /// No anti-aliasing is performed; for skewed gradients keep a minimum node
+  /// spacing of $\sqrt{1/dx^2 + 1/dy^2}$.
   LinearGradient(Point origin, float dx, float dy, ColorGradient gradient,
                  Box extents = Box::MaximumBox());
 
@@ -149,39 +133,27 @@ class LinearGradient : public Rasterizable {
   Box extents_;
 };
 
-// Creates a vertical gradient, in which the color value depends solely on the x
-// coordinate:
-//
-// val = (x - x0) * dx
+/// Create a vertical gradient: $val = (x - x0) * dx$.
 inline LinearGradient VerticalGradient(int16_t x0, float dx,
                                        ColorGradient gradient,
                                        Box extents = Box::MaximumBox()) {
   return LinearGradient({x0, 0}, dx, 0, gradient, extents);
 }
 
-// Creates a horizontal gradient, in which the color value depends solely on the
-// y coordinate:
-//
-// val = (y - y0) * dy
+/// Create a horizontal gradient: $val = (y - y0) * dy$.
 inline LinearGradient HorizontalGradient(int16_t y0, float dy,
                                          ColorGradient gradient,
                                          Box extents = Box::MaximumBox()) {
   return LinearGradient({0, y0}, 0, dy, gradient, extents);
 }
 
-// Represents an angular gradient, in which the color depends on an angle
-// between the 'Y' axis (facing 'North') and a 'redius' line from the target
-// point to the `center`.
+/// Angular gradient based on angle around `center`.
 class AngularGradient : public Rasterizable {
  public:
-  // Creates the angular gradient, with the specified `center`, `gradient`
-  // specification, and the optional extents.
-  //
-  // Gradient specification is assumed to go from -M_PI corresponding to
-  // 'South', through -M_PI/2 corresponding to 'West', to 0 corresponding to
-  // 'North', to M_PI/2 corresponding to 'East', to M_PI corresponding to
-  // 'South' again. If your gradient spec is defined using different angle
-  // boundaries, you may want to use a periodic specification.
+  /// Create an angular gradient.
+  ///
+  /// Gradient values are interpreted from $-\pi$ (South) through $0$ (North)
+  /// to $\pi$ (South). For other angle conventions, use a periodic gradient.
   AngularGradient(FpPoint center, ColorGradient gradient,
                   Box extents = Box::MaximumBox());
 

@@ -4,8 +4,10 @@
 
 namespace roo_display {
 
+/// Rasterizable drop shadow for rounded rectangles.
 class RoundRectShadow : public Rasterizable {
  public:
+  /// Shadow specification parameters.
   struct Spec {
     // Extents of the shadow.
     int16_t x, y, w, h;
@@ -24,12 +26,11 @@ class RoundRectShadow : public Rasterizable {
     uint16_t alpha_step;
   };
 
-  // Extents are given for the original area to which the shadow is to be
-  // applied. Color is the color of the shadow in its darkest place.
-  // The `blur_radius` signifies the object's elevation, i.e. how much larger
-  // the shadow is compared to the object casting the shadow. A non-zero
-  // 'corner_radius' indicates that corners of the object casting shadow are
-  // themselves rounded.
+  /// Construct a rounded-rect shadow.
+  ///
+  /// `extents` refer to the original object area. `blur_radius` approximates
+  /// elevation (shadow growth). `corner_radius` indicates rounded corners of
+  /// the casting object.
   RoundRectShadow(roo_display::Box extents, Color color, uint8_t blur_radius,
                   uint8_t dx, uint8_t dy, uint8_t corner_radius);
 

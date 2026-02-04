@@ -20,8 +20,10 @@
 
 namespace roo_display {
 
+/// JPEG decoder (stateful, reusable).
 class JpegDecoder {
  public:
+  /// Construct a JPEG decoder instance.
   JpegDecoder();
 
  private:
@@ -47,8 +49,10 @@ class JpegDecoder {
   const Surface* surface_;
 };
 
+/// Drawable JPEG image backed by a multipass resource.
 class JpegImage : public Drawable {
  public:
+  /// Create a JPEG image using a decoder and resource.
   JpegImage(JpegDecoder& decoder, roo_io::MultipassResource& resource)
       : decoder_(decoder), resource_(resource) {
     decoder_.getDimensions(resource_, width_, height_);
@@ -69,14 +73,18 @@ class JpegImage : public Drawable {
 };
 
 #ifdef ARDUINO
+/// Drawable JPEG image backed by a file resource (Arduino).
 class JpegFile : public Drawable {
  public:
+  /// Create a JPEG file drawable using an Arduino FS and path.
   JpegFile(JpegDecoder& decoder, ::fs::FS& fs, String path)
       : resource_(fs, path.c_str()), img_(decoder, resource_) {}
 
+  /// Create a JPEG file drawable using a roo_io filesystem and Arduino String.
   JpegFile(JpegDecoder& decoder, roo_io::Filesystem& fs, String path)
       : resource_(fs, path.c_str()), img_(decoder, resource_) {}
 
+  /// Create a JPEG file drawable using a roo_io filesystem and std::string.
   JpegFile(JpegDecoder& decoder, roo_io::Filesystem& fs, std::string path)
       : resource_(fs, std::move(path)), img_(decoder, resource_) {}
 
@@ -89,8 +97,10 @@ class JpegFile : public Drawable {
   JpegImage img_;
 };
 #else
+/// Drawable JPEG image backed by a file resource (non-Arduino).
 class JpegFile : public Drawable {
  public:
+  /// Create a JPEG file drawable using a roo_io filesystem and path.
   JpegFile(JpegDecoder& decoder, roo_io::Filesystem& fs, std::string path)
       : resource_(fs, std::move(path)), img_(decoder, resource_) {}
 

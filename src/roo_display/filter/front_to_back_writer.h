@@ -8,10 +8,15 @@
 
 namespace roo_display {
 
+/// Writer that ensures front-most pixels are written first.
+///
+/// Uses an offscreen mask to avoid overwriting already-drawn pixels.
 class FrontToBackWriter : public DisplayOutput {
  public:
-  // The caller must guarantee that bounds are within the area accepted by the
-  // output, and that there will be no write out ouf bounds.
+  /// Construct a front-to-back writer for a given bounds rectangle.
+  ///
+  /// The caller must guarantee bounds are within the output area and no writes
+  /// go out of bounds.
   FrontToBackWriter(DisplayOutput& output, Box bounds)
       : offscreen_(bounds, color::Transparent),
         mask_(offscreen_.buffer(), bounds),

@@ -1,9 +1,9 @@
 #pragma once
 
-// Defines 140 opaque 'HTML' named color constants, adjusted to be directly
-// representible in RGB565. Similar to html.h, except that each color defined
-// here will roundtrip to itself when truncated to RGB565 and then converted
-// back to ARGB888.
+/// Defines 140 opaque HTML named colors, adjusted for RGB565.
+///
+/// Each color round-trips to itself when truncated to RGB565 and converted
+/// back to ARGB8888.
 
 namespace roo_display {
 

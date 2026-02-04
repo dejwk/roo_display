@@ -13,13 +13,16 @@
 
 namespace roo_display::products::waveshare {
 
+/// Default touch calibration for the Waveshare 4" shield.
 static constexpr TouchCalibration kTft4inDefaultCalibration = TouchCalibration(
     161, 140, 3965, 3837, roo_display::Orientation::RightDown());
 
 template <int8_t pinLcdCs, int8_t pinTouchCs, int8_t pinLcdDc,
           int8_t pinLcdReset = -1, int8_t pinLcdBacklit = -1>
+/// Waveshare 4" TFT touch shield.
 class TftTouchShield4in : public ComboDevice {
  public:
+  /// Create device with orientation and SPI instance.
   TftTouchShield4in(Orientation orientation = Orientation(),
                     roo_display::DefaultSpi spi = roo_display::DefaultSpi())
       : spi_(spi), display_(spi_), touch_(spi_) {
@@ -27,17 +30,22 @@ class TftTouchShield4in : public ComboDevice {
   }
 
 #if defined(ARDUINO)
+  /// Initialize transport using default SPI pins (Arduino).
   void initTransport() { spi_.init(); }
 #endif
 
+  /// Initialize transport using explicit SPI pins.
   void initTransport(uint8_t sck, uint8_t miso, uint8_t mosi) {
     spi_.init(sck, miso, mosi);
   }
 
+  /// Return display device.
   DisplayDevice& display() override { return display_; }
 
+  /// Return touch device.
   TouchDevice* touch() override { return &touch_; }
 
+  /// Return touch calibration.
   TouchCalibration touch_calibration() override {
     return kTft4inDefaultCalibration;
   }

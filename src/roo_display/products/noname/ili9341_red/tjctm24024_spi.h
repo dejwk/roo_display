@@ -76,8 +76,10 @@ namespace roo_display::products::noname::ili9341_red {
 
 template <int8_t pinLcdCs, int8_t pinTouchCs, int8_t pinLcdDc,
           int8_t pinLcdReset = -1>
+/// Noname 2.4" ILI9341 SPI module (TJCTM24024).
 class Tjctm24024Spi : public ComboDevice {
  public:
+  /// Create device with orientation and SPI instance.
   Tjctm24024Spi(Orientation orientation = Orientation().rotateLeft(),
                 roo_display::DefaultSpi spi = roo_display::DefaultSpi())
       : spi_(spi), display_(spi), touch_() {
@@ -85,17 +87,22 @@ class Tjctm24024Spi : public ComboDevice {
   }
 
   #if defined(ARDUINO)
+  /// Initialize transport using default SPI pins (Arduino).
   void initTransport() { spi_.init(); }
   #endif
 
+  /// Initialize transport using explicit SPI pins.
   void initTransport(uint8_t sck, uint8_t miso, uint8_t mosi) {
     spi_.init(sck, miso, mosi);
   }
 
+  /// Return display device.
   DisplayDevice& display() override { return display_; }
 
+  /// Return touch device.
   TouchDevice* touch() override { return &touch_; }
 
+  /// Return touch calibration.
   TouchCalibration touch_calibration() override {
     return TouchCalibration(318, 346, 3824, 3909,
                             roo_display::Orientation::RightUp());

@@ -43,13 +43,16 @@ SHOW_USED_FILES        = NO
 SHOW_INCLUDE_FILES     = NO
 FULL_SIDEBAR           = NO
 HTML_COLORSTYLE        = LIGHT
-HTML_HEADER            =
-HTML_STYLESHEET        = docs/doxygen-awesome.css
+HTML_HEADER            = docs/header.html
+HTML_STYLESHEET        =
 FULL_PATH_NAMES        = NO
 STRIP_FROM_PATH        = src include
 IMAGE_PATH             = doc/images
 TREEVIEW_WIDTH         = 335
-HTML_EXTRA_STYLESHEET  =
+HTML_EXTRA_STYLESHEET  = docs/doxygen-awesome.css \
+                         docs/doxygen-awesome-sidebar-only.css \
+                         docs/doxygen-awesome-sidebar-only-darkmode-toggle.css \
+                         docs/doxygen-custom.css
 HTML_EXTRA_FILES       = docs/doxygen-awesome-darkmode-toggle.js
 SOURCE_BROWSER         = YES
 INLINE_SOURCES         = NO

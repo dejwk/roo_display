@@ -109,10 +109,10 @@ class LinearGradient : public Rasterizable {
   /// Create a linear gradient.
   ///
   /// Color value is computed as:
-  /// $(x - origin.x) * dx + (y - origin.y) * dy$.
+  /// \f$(x - origin.x) * dx + (y - origin.y) * dy\f$.
   /// Use `dx = 0` for vertical, `dy = 0` for horizontal gradients.
   /// No anti-aliasing is performed; for skewed gradients keep a minimum node
-  /// spacing of $\sqrt{1/dx^2 + 1/dy^2}$.
+  /// spacing of \f$\sqrt{1/dx^2 + 1/dy^2}\f$.
   LinearGradient(Point origin, float dx, float dy, ColorGradient gradient,
                  Box extents = Box::MaximumBox());
 
@@ -133,14 +133,14 @@ class LinearGradient : public Rasterizable {
   Box extents_;
 };
 
-/// Create a vertical gradient: $val = (x - x0) * dx$.
+/// Create a vertical gradient: \f$val = (x - x0) * dx\f$.
 inline LinearGradient VerticalGradient(int16_t x0, float dx,
                                        ColorGradient gradient,
                                        Box extents = Box::MaximumBox()) {
   return LinearGradient({x0, 0}, dx, 0, gradient, extents);
 }
 
-/// Create a horizontal gradient: $val = (y - y0) * dy$.
+/// Create a horizontal gradient: \f$val = (y - y0) * dy\f$.
 inline LinearGradient HorizontalGradient(int16_t y0, float dy,
                                          ColorGradient gradient,
                                          Box extents = Box::MaximumBox()) {
@@ -152,8 +152,9 @@ class AngularGradient : public Rasterizable {
  public:
   /// Create an angular gradient.
   ///
-  /// Gradient values are interpreted from $-\pi$ (South) through $0$ (North)
-  /// to $\pi$ (South). For other angle conventions, use a periodic gradient.
+  /// Gradient values are interpreted from \f$-\pi\f$ (South) through
+  /// \f$0\f$ (North) to \f$\pi\f$ (South). For other angle conventions, use a
+  /// periodic gradient.
   AngularGradient(FpPoint center, ColorGradient gradient,
                   Box extents = Box::MaximumBox());
 

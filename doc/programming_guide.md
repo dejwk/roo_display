@@ -1001,6 +1001,7 @@ Digits are often monotype, even in proportional fonts. Sometimes you can use thi
 
 Be careful, though: even though the _anchor_ extents of all digits may be the same, the regular extents are not. The bounding box of digit '1' is going to be narrower than that of digit '0', even though they have the same advance. For this reason, you may still need to use `Tile` when rendering numeric content.
 
+\anchor drawing-shapes
 ### Drawing shapes
 
 #### Basic shapes
@@ -1916,6 +1917,7 @@ Note that the icons usually need to be drawn tiled, because their extents may be
 
 > Note: due to the sheer volume, full compilation of icon files may take a few minutes. (No worries, though: only the icons that you _actually use_ get linked into your binary). If the compilation times bother you, delete icon files that you are not going to use.
 
+\anchor using-off-screen-buffers
 ### Using off-screen buffers
 
 The `Offscreen` class allows you to draw to a memory buffer, instead of directly to the screen. It can be particularly useful in a couple of scenarios:
@@ -2753,6 +2755,7 @@ Checking for clipping at every item adds some overhead, so it is better to optim
 
 ## Part 3: Advanced topics
 
+\anchor blending-modes
 ### Blending modes
 
 By default, when you are drawing to an offscreen, or to a device with a framebuffer, everything you draw is alpha-blended over pre-existing content. In the section about [offscreens](#using-off-screen-buffers), we saw how to override this behavior by setting the blending mode to `BLENDING_MODE_SOURCE`, causing the new content to simply replace pre-existing content.
@@ -2819,6 +2822,7 @@ Note that this example required an offscreen that supported transparency. We use
 
 > In the future, more blending modes will be added, e.g. using [ImageMagick](https://imagemagick.org/script/compose.php) as a source of inspiration.
 
+\anchor dynamic-composition
 ### Dynamic composition
 
 Wouldn't it be great if you could compose drawables using blending modes, as we did in the previous section, but without needing to render the result to a temporary offscreen?
@@ -3266,6 +3270,7 @@ Once enabled, the 'write-once' mode cannot be turned off - it is active until th
 
 Implementation-wise, the 'write-once' mode uses a clip-mask-based filter that internally 'masks out' pixels that has already been drawn to. The clip mask is allocated when `setWriteOnce()` is called for the first time. Consequently, the feature has a memory footprint of 1 bit per pixel of the affected drawing context.
 
+\anchor advanced-example-animated-analog-gauge
 ### Advanced example: animated analog gauge
 
 We now put together some of the techniques discussed so far, including: the write-once mode, clip masks, and smooth primitives, to write a complete analog gauge widget with a smoothly animated, anti-aliased needle:

@@ -1,0 +1,10 @@
+@import url("https://unpkg.com/doxygen-awesome-css@2.3.4/doxygen-awesome.css");
+@import url("https://unpkg.com/doxygen-awesome-css@2.3.4/doxygen-awesome-sidebar-only.css");
+
+:root {
+  --primary-color: #6200ee;
+  --primary-dark-color: #3700b3;
+  --primary-light-color: #bb86fc;
+  --page-background-color: #f7f8fb;
+  --code-background: #f3f4f6;
+}

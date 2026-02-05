@@ -45,7 +45,7 @@ void loop() {}
 
 This application configures an ILI 9341 display, using the default SPI interface with default pins (on ESP32, these are 18 for SCK, 23 for MOSI, and 19 for MISO), as well as GPIO 5 for CS, GPIO 2 for DC, and GPIO 4 for RST. The screen is left-rotated, i.e. in a 320x240 portrait mode.
 
-> If you have a touch display or an integrated device (display + microcontroller), look at the [products](https://github.com/dejwk/roo_display/tree/master/src/roo_display/products) subdirectory for a simpler way to configure your hardware.
+> If you have a touch display or an integrated device (display + microcontroller), look at the [products](../src/roo_display/products) subdirectory for a simpler way to configure your hardware.
 
 We will now look at the steps in more detail.
 
@@ -1767,7 +1767,7 @@ The parameterized color mode can be passed as an argument to raster and image co
 
 Additionally, for multiple-bytes-per-pixel modes, you can parameterize the `Raster` template class by specifying the byte order (big endian or little endian), and for sub-byte pixel modes (e.g. Gray4, Alpha4, Indexed4, Indexed2, Indexed1), you can specify the pixel order within byte (most-significant-first or least-significant-first). See the documentation of the `Raster` template for details.
 
-This flexibility means that if you happen to have some existing uncompressed image data, there are good chances that you will be able to render it with `roo_display`. Moreover, if your color mode is unsupported, writing your own is not very hard. For example, the [implementation of RGBA 8888](https://github.com/dejwk/roo_display/blob/master/src/roo_display/color/color_modes.h#L46) fits in 20 lines of code. As long as your custom color mode uses 1, 2, 4, 8, 16, 24, or 32 bits per pixel, the `Offscreen`, `Raster` and the `RleImage` template classes will automatically support it.
+This flexibility means that if you happen to have some existing uncompressed image data, there are good chances that you will be able to render it with `roo_display`. Moreover, if your color mode is unsupported, writing your own is not very hard. For example, the [implementation of RGBA 8888](../src/roo_display/color/color_modes.h) fits in 20 lines of code. As long as your custom color mode uses 1, 2, 4, 8, 16, 24, or 32 bits per pixel, the `Offscreen`, `Raster` and the `RleImage` template classes will automatically support it.
 
 In addition to the general-purpose `RleImage`, the library supports an alternative RLE encoding format, `RleImage4bppxBiased`, designed specifically for 4bpp color modes. This format is intended for cases when the 'boundary' colors, encoded as 0x0 and 0xF, occur significantly more frequently than the 'intermediate' colors 0x1 - 0xE. The main application is to compress Alpha4-encoded, monochrome, antialiased content, such as font glyphs and icons. In these cases, 0x0 represents the fully transparent 'background' and 0xF represents the fully opaque 'foreground', and the intermediate values correspond to different grades of translucency, used for antialiased 'edges'.
 

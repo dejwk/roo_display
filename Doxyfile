@@ -54,7 +54,9 @@ HTML_EXTRA_STYLESHEET  = docs/doxygen-awesome.css \
                          docs/doxygen-awesome-sidebar-only.css \
                          docs/doxygen-awesome-sidebar-only-darkmode-toggle.css \
                          docs/doxygen-custom.css
-HTML_EXTRA_FILES       = docs/doxygen-awesome-darkmode-toggle.js
+HTML_EXTRA_FILES       = docs/doxygen-awesome-darkmode-toggle.js \
+                         src \
+                         include
 SOURCE_BROWSER         = YES
 INLINE_SOURCES         = NO
 HTML_OUTPUT            = html

@@ -4,11 +4,11 @@
 
 At this time, `roo_display` natively supports fewer devices than TFT_eSPI.
 
-Luckily, if you have a working TFT_eSPI setup, you can still use `roo_display` via an [adapter driver](https://github.com/dejwk/roo_display/blob/master/roo_display/driver/TFT_eSPI_adapter.h). The adapter driver relies on low-level routines provided by TFT_eSPI, namely: `setWindow`, `pushBlock`, and `pushPixels`.
+Luckily, if you have a working TFT_eSPI setup, you can still use `roo_display` via an [adapter driver](../src/roo_display/driver/TFT_eSPI_adapter.h). The adapter driver relies on low-level routines provided by TFT_eSPI, namely: `setWindow`, `pushBlock`, and `pushPixels`.
 
 ## Performance
 
-Generally, `roo_display` matches performance of TFT_eSPI. See [bechmark results](https://github.com/dejwk/roo_display/blob/master/benchmarks/adafruit.ino). In some areas, e.g. text display, it can be significantly faster.
+Generally, `roo_display` matches performance of TFT_eSPI. See [bechmark results](../benchmarks/adafruit.ino). In some areas, e.g. text display, it can be significantly faster.
 
 Native SPI drivers of `roo_display` utilize some of the same low-level SPI optimizations as TFT_eSPI, with some new additions. For example, the drivers are vectorized, amortizing the overhead of virtual method calls. Drawing adjacent pixels get optimized by the driver to minimize SPI overhead.
 
@@ -22,7 +22,7 @@ Native SPI drivers of `roo_display` utilize some of the same low-level SPI optim
 * full support for transparency and translucency;
 * compositing: alpha-blending, backgrounds, overlays, Porter-Duff, blending modes;
 * touch: excellent quality drivers; supporting multi-touch on compliant devices;
-* companion collection of [Material icons](https://github.com/dejwk/roo_display/blob/master/doc/programming_guide.md#using-the-material-icons-collection);
+* companion collection of [Material icons](programming_guide.md#using-the-material-icons-collection);
 * extensibility: it is easy to add your own drawables that will be rendered with excellent performance.
 
 See [programming guide](programming_guide.md) for details.
@@ -63,11 +63,11 @@ The `DrawingContext` contains only very few drawing routines. You will mostly us
 
 The actual stuff that you can draw is spread across several header files:
 
-* Basic shapes: [roo_display/shapes/basic.h](https://github.com/dejwk/roo_display/blob/master/roo_display/shape/basic.h)
-* Smooth (anti-aliased) shapes: [roo_display/shapes/smooth.h](https://github.com/dejwk/roo_display/blob/master/roo_display/shape/smooth.h)
-* Text: [roo_display/ui/text_label.h](https://github.com/dejwk/roo_display/blob/master/roo_display/ui/text_label.h)
-* Images (JPEG, PNG, custom formats): [roo_display/image/](https://github.com/dejwk/roo_display/blob/master/roo_display/image/)
-* Memory buffers: [roo_display/core/raster.h](https://github.com/dejwk/roo_display/blob/master/roo_display/core/raster.h)
+* Basic shapes: [roo_display/shape/basic.h](../src/roo_display/shape/basic.h)
+* Smooth (anti-aliased) shapes: [roo_display/shape/smooth.h](../src/roo_display/shape/smooth.h)
+* Text: [roo_display/ui/text_label.h](../src/roo_display/ui/text_label.h)
+* Images (JPEG, PNG, custom formats): [roo_display/image/](../src/roo_display/image/)
+* Memory buffers: [roo_display/core/raster.h](../src/roo_display/core/raster.h)
 
 ### Color
 
@@ -77,7 +77,7 @@ Most SPI displays are RGB565, but there are exceptions. In particular, the ILI94
 
 ### In-memory buffers ('sprites')
 
-Support for drawing to memory buffers is provided by the [Offscreen](https://github.com/dejwk/roo_display/blob/master/doc/programming_guide.md#using-off-screen-buffers) template class, defined in [roo_display/core/offscreen.h](https://github.com/dejwk/roo_display/blob/master/roo_display/core/offscreen.h). To draw to an offscreen, you can simply create a `DrawingContext` for it, as if it was a 'virtual' display.
+Support for drawing to memory buffers is provided by the [Offscreen](programming_guide.md#using-off-screen-buffers) template class, defined in [roo_display/core/offscreen.h](../src/roo_display/core/offscreen.h). To draw to an offscreen, you can simply create a `DrawingContext` for it, as if it was a 'virtual' display.
 
 Offscreens are themselves drawable. To draw an offscreen to the screen, you just call `DrawingContext::draw(offscreen)` on the screen's drawing context.
 
@@ -96,5 +96,5 @@ They will internally call the optimized routines for 'horizontal' and 'vertical'
 
 ### Images
 
-In addition to out-of-the-box support for [JPEG](https://github.com/dejwk/roo_display/blob/master/doc/programming_guide.md#jpeg) and [PNG](https://github.com/dejwk/roo_display/blob/master/doc/programming_guide.md#png), `roo_display` provides custom, [RLE-encoded image format](https://github.com/dejwk/roo_display/blob/master/doc/programming_guide.md#built-in-image-format) with a dedicated importer. The images can be stored in and drawn from PROGMEM or a filesystem (SPIFFS, SD).
+In addition to out-of-the-box support for [JPEG](programming_guide.md#jpeg) and [PNG](programming_guide.md#png), `roo_display` provides custom, [RLE-encoded image format](programming_guide.md#built-in-image-format) with a dedicated importer. The images can be stored in and drawn from PROGMEM or a filesystem (SPIFFS, SD).
 

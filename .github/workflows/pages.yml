@@ -25,6 +25,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y doxygen graphviz
 
+      - name: Download Doxygen Awesome assets
+        run: |
+          curl -L -o docs/doxygen-awesome.css \
+            https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/v2.4.1/doxygen-awesome.css
+          curl -L -o docs/doxygen-awesome-sidebar-only.css \
+            https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/v2.4.1/doxygen-awesome-sidebar-only.css
+          curl -L -o docs/doxygen-awesome-sidebar-only-darkmode-toggle.css \
+            https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/v2.4.1/doxygen-awesome-sidebar-only-darkmode-toggle.css
+          curl -L -o docs/doxygen-awesome-darkmode-toggle.js \
+            https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/v2.4.1/doxygen-awesome-darkmode-toggle.js
+
       - name: Build docs
         run: doxygen
 

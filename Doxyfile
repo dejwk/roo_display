@@ -28,10 +28,19 @@ GENERATE_TREEVIEW      = YES
 USE_MDFILE_AS_MAINPAGE = README.md
 MARKDOWN_SUPPORT       = YES
 AUTOLINK_SUPPORT       = YES
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
+HTML_COLORSTYLE        = LIGHT
+HTML_HEADER            = docs/header.html
+HTML_STYLESHEET        = docs/doxygen-awesome.css
 FULL_PATH_NAMES        = NO
 STRIP_FROM_PATH        = src include
 IMAGE_PATH             = doc/images
-HTML_EXTRA_STYLESHEET  = docs/doxygen-awesome.css
+TREEVIEW_WIDTH         = 335
+HTML_EXTRA_STYLESHEET  = docs/doxygen-awesome-sidebar-only.css \
+                         docs/doxygen-awesome-sidebar-only-darkmode-toggle.css \
+                         docs/doxygen-custom.css
+HTML_EXTRA_FILES       = docs/doxygen-awesome-darkmode-toggle.js
 SOURCE_BROWSER         = YES
 INLINE_SOURCES         = NO
 HTML_OUTPUT            = html

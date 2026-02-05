@@ -86,10 +86,10 @@ class Tjctm24024Spi : public ComboDevice {
     display_.setOrientation(orientation);
   }
 
-  #if defined(ARDUINO)
+#if defined(ARDUINO)
   /// Initialize transport using default SPI pins (Arduino).
   void initTransport() { spi_.init(); }
-  #endif
+#endif
 
   /// Initialize transport using explicit SPI pins.
   void initTransport(uint8_t sck, uint8_t miso, uint8_t mosi) {

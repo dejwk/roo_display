@@ -50,13 +50,9 @@ class AlignBase {
            resolveAnchor<Dim>(src(), first_inner, last_inner) + shift();
   }
 
-  bool operator==(AlignBase other) const {
-    return rep_ == other.rep_;
-  }
+  bool operator==(AlignBase other) const { return rep_ == other.rep_; }
 
-  bool operator!=(AlignBase other) const {
-    return rep_ != other.rep_;
-  }
+  bool operator!=(AlignBase other) const { return rep_ != other.rep_; }
 
  protected:
   uint16_t rep_;

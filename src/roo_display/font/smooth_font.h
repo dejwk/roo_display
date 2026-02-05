@@ -11,14 +11,14 @@ namespace roo_display {
 /// Anti-aliased font implementation based on PROGMEM data.
 class SmoothFont : public Font {
  public:
-    /// Legacy constructor for fonts using `uint8_t` byte data.
+  /// Legacy constructor for fonts using `uint8_t` byte data.
   template <typename U = uint8_t,
             typename std::enable_if<!std::is_same<U, roo::byte>::value,
                                     int>::type = 0>
   SmoothFont(const U* font_data PROGMEM)
       : SmoothFont((const roo::byte* PROGMEM)font_data) {}
 
-    /// Construct from PROGMEM font data.
+  /// Construct from PROGMEM font data.
   SmoothFont(const roo::byte* font_data PROGMEM);
   void drawHorizontalString(const Surface& s, const char* utf8_data,
                             uint32_t size, Color color) const override;

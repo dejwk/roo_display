@@ -58,9 +58,7 @@ class RectUnionFilter : public DisplayOutput {
   virtual ~RectUnionFilter() {}
 
   /// Replace the underlying output.
-  void setOutput(DisplayOutput& output) {
-    output_ = &output;
-  }
+  void setOutput(DisplayOutput& output) { output_ = &output; }
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
                   BlendingMode mode) override {
@@ -189,7 +187,7 @@ class RectUnionFilter : public DisplayOutput {
     {
       Box rect(x0, y0, x1, y1);
       while (mask_idx < exclusion_->size() &&
-            !exclusion_->at(mask_idx).intersects(rect)) {
+             !exclusion_->at(mask_idx).intersects(rect)) {
         ++mask_idx;
       }
     }
@@ -197,7 +195,8 @@ class RectUnionFilter : public DisplayOutput {
       filler->fillRect(x0, y0, x1, y1);
       return;
     }
-    Box intruder = Box::Intersect(exclusion_->at(mask_idx), Box(x0, y0, x1, y1));
+    Box intruder =
+        Box::Intersect(exclusion_->at(mask_idx), Box(x0, y0, x1, y1));
     if (intruder.yMin() > y0) {
       fillRect(x0, y0, x1, intruder.yMin() - 1, mask_idx + 1, filler);
       y0 = intruder.yMin();

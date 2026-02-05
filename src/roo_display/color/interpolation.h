@@ -17,7 +17,8 @@ Color InterpolateOpaqueColors(Color c1, Color c2, int16_t fraction);
 /// Equivalent to InterpolateColors(Transparent, c, fraction_color).
 Color InterpolateColorWithTransparency(Color c, int16_t fraction_color);
 
-/// Equivalent to InterpolateColors(Transparent, c, fraction_color) for opaque c.
+/// Equivalent to InterpolateColors(Transparent, c, fraction_color) for opaque
+/// c.
 inline Color InterpolateOpaqueColorWithTransparency(Color c,
                                                     int16_t fraction_color) {
   return c.withA(fraction_color);

@@ -25,21 +25,21 @@ namespace roo_display::products::makerfabs {
 
 class Esp32s3ParallelIpsCapacitive : public ComboDevice {
  public:
-    /// Supported panel resolutions.
+  /// Supported panel resolutions.
   enum Resolution { k800x480, k1024x600 };
-    /// Create a device for the given resolution and orientation.
+  /// Create a device for the given resolution and orientation.
   Esp32s3ParallelIpsCapacitive(Resolution resolution,
                                Orientation orientation = Orientation(),
                                I2cMasterBusHandle i2c = I2cMasterBusHandle());
 
-    /// Initialize I2C transport for touch.
+  /// Initialize I2C transport for touch.
   void initTransport() { i2c_.init(17, 18); }
 
   DisplayDevice& display() override { return display_; }
 
   TouchDevice* touch() override { return &touch_; }
 
-    /// Return touch calibration for the panel.
+  /// Return touch calibration for the panel.
   TouchCalibration touch_calibration() override;
 
  private:

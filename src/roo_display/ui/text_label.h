@@ -4,11 +4,11 @@
 
 #include <string>
 
+#include "roo_backport/string_view.h"
 #include "roo_display/core/drawable.h"
 #include "roo_display/filter/transformation.h"
 #include "roo_display/font/font.h"
 #include "roo_display/ui/tile.h"
-#include "roo_backport/string_view.h"
 
 namespace roo_display {
 

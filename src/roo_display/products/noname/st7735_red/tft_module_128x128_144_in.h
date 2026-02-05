@@ -66,11 +66,11 @@ template <int8_t pinCs, int8_t pinDc, int8_t pinReset = -1>
 class TftModule_128x128_144in
     : public St7735spi_128x128<pinCs, pinDc, pinReset> {
  public:
-   /// Create device with orientation and SPI instance.
-    TftModule_128x128_144in(
-            Orientation orientation = Orientation().rotateRight(),
-            roo_display::DefaultSpi spi = roo_display::DefaultSpi())
-            : St7735spi_128x128<pinCs, pinDc, pinReset>(orientation, spi) {}
+  /// Create device with orientation and SPI instance.
+  TftModule_128x128_144in(
+      Orientation orientation = Orientation().rotateRight(),
+      roo_display::DefaultSpi spi = roo_display::DefaultSpi())
+      : St7735spi_128x128<pinCs, pinDc, pinReset>(orientation, spi) {}
 };
 
 }  // namespace roo_display::products::noname::st7735_red

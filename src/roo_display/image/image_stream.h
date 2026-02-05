@@ -328,9 +328,7 @@ class NibbleReader {
     }
   }
 
-  bool ok() const {
-    return input_.status() == roo_io::kOk;
-  }
+  bool ok() const { return input_.status() == roo_io::kOk; }
 
  private:
   StreamType input_;
@@ -455,9 +453,7 @@ class RleStream4bppxBiased<Resource, ColorMode, 4> : public PixelStream {
 
   TransparencyMode transparency() const { return color_mode_.transparency(); }
 
-  bool ok() const {
-    return reader_.ok();
-  }
+  bool ok() const { return reader_.ok(); }
 
  private:
   inline Color color(uint8_t nibble) { return color_mode_.toArgbColor(nibble); }

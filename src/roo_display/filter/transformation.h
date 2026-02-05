@@ -114,7 +114,8 @@ class TransformedDisplayOutput : public DisplayOutput {
 
   void write(Color *color, uint32_t pixel_count) override;
 
-  // virtual void fill(BlendingMode mode, Color color, uint32_t pixel_count) = 0;
+  // virtual void fill(BlendingMode mode, Color color, uint32_t pixel_count) =
+  // 0;
 
   void writePixels(BlendingMode mode, Color *color, int16_t *x, int16_t *y,
                    uint16_t pixel_count) override;
@@ -162,7 +163,8 @@ class TransformedDrawable : public Drawable {
         transformation_.translate(s.dx(), s.dy()).clip(s.clip_box());
     TransformedDisplayOutput new_output(s.out(), adjusted);
     Surface news(&new_output, adjusted.smallestBoundingRect(),
-                 s.is_write_once(), s.bgcolor(), s.fill_mode(), s.blending_mode());
+                 s.is_write_once(), s.bgcolor(), s.fill_mode(),
+                 s.blending_mode());
     news.drawObject(*delegate_);
   }
 

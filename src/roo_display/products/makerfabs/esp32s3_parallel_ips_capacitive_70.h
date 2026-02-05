@@ -3,7 +3,6 @@
 namespace roo_display::products::makerfabs {
 
 /// Alias for Makerfabs 7.0" (800x480) device.
-using Esp32s3ParallelIpsCapacitive70 =
-    Esp32s3ParallelIpsCapacitive800x480;
+using Esp32s3ParallelIpsCapacitive70 = Esp32s3ParallelIpsCapacitive800x480;
 
-}
+}  // namespace roo_display::products::makerfabs

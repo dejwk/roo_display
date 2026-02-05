@@ -6,6 +6,7 @@
 namespace roo_display {
 
 /// Filtering device that blends with a rasterizable foreground.
-using ForegroundFilter = BlendingFilter<BlendOp<BLENDING_MODE_DESTINATION_OVER>>;
+using ForegroundFilter =
+    BlendingFilter<BlendOp<BLENDING_MODE_DESTINATION_OVER>>;
 
 }  // namespace roo_display

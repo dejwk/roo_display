@@ -231,6 +231,8 @@ class Drawable {
   virtual Box anchorExtents() const { return extents(); }
 
   /// A singleton representing a no-op drawable with no bounding box.
+  ///
+  /// @return Pointer to a shared empty drawable instance.
   static const Drawable *Empty();
 
  private:

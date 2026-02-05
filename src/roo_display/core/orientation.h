@@ -34,16 +34,30 @@ class Orientation {
   static constexpr Orientation Default() { return RightDown(); }
 
   /// Return a specific orientation value.
+  ///
+  /// Each static factory describes how logical x/y axes map to physical
+  /// directions, using the naming convention {x-direction}{y-direction}.
+  /// For example, RightDown means x increases to the right and y increases
+  /// downward.
   static constexpr Orientation RightDown() { return Orientation(0); }
+  /// Return orientation where x increases downward and y increases to the right.
   static constexpr Orientation DownRight() { return Orientation(1); }
+  /// Return orientation where x increases to the left and y increases downward.
   static constexpr Orientation LeftDown() { return Orientation(2); }
+  /// Return orientation where x increases downward and y increases to the left.
   static constexpr Orientation DownLeft() { return Orientation(3); }
+  /// Return orientation where x increases to the right and y increases upward.
   static constexpr Orientation RightUp() { return Orientation(4); }
+  /// Return orientation where x increases upward and y increases to the right.
   static constexpr Orientation UpRight() { return Orientation(5); }
+  /// Return orientation where x increases to the left and y increases upward.
   static constexpr Orientation LeftUp() { return Orientation(6); }
+  /// Return orientation where x increases upward and y increases to the left.
   static constexpr Orientation UpLeft() { return Orientation(7); }
 
   /// Return the default orientation rotated by `count` * 90 degrees.
+  ///
+  /// @param count Number of 90-degree clockwise steps (negative allowed).
   static Orientation RotatedByCount(int count) {
     return Default().rotateClockwise(count);
   }

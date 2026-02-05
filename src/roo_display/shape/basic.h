@@ -219,20 +219,42 @@ class CircleBase : public BasicShape {
 /// Outline circle.
 class Circle : public CircleBase {
  public:
+  /// Create an outline circle by center point and radius.
+  ///
+  /// @param center Circle center.
+  /// @param radius Radius in pixels.
+  /// @param color Outline color.
   static Circle ByRadius(Point center, int16_t radius, Color color) {
     return ByRadius(center.x, center.y, radius, color);
   }
 
+  /// Create an outline circle by center coordinates and radius.
+  ///
+  /// @param x_center Center x-coordinate.
+  /// @param y_center Center y-coordinate.
+  /// @param radius Radius in pixels.
+  /// @param color Outline color.
   static Circle ByRadius(int16_t x_center, int16_t y_center, int16_t radius,
                          Color color) {
     return Circle(x_center - radius, y_center - radius, (radius << 1) + 1,
                   color);
   }
 
+  /// Create an outline circle by top-left and diameter.
+  ///
+  /// @param top_left Top-left corner of the bounding square.
+  /// @param diameter Diameter in pixels.
+  /// @param color Outline color.
   static Circle ByExtents(Point top_left, int16_t diameter, Color color) {
     return ByExtents(top_left.x, top_left.y, diameter, color);
   }
 
+  /// Create an outline circle by top-left coordinates and diameter.
+  ///
+  /// @param x0 Top-left x-coordinate of the bounding square.
+  /// @param y0 Top-left y-coordinate of the bounding square.
+  /// @param diameter Diameter in pixels.
+  /// @param color Outline color.
   static Circle ByExtents(int16_t x0, int16_t y0, int16_t diameter,
                           Color color) {
     return Circle(x0, y0, diameter, color);
@@ -248,20 +270,42 @@ class Circle : public CircleBase {
 /// Filled circle.
 class FilledCircle : public CircleBase {
  public:
+  /// Create a filled circle by center point and radius.
+  ///
+  /// @param center Circle center.
+  /// @param radius Radius in pixels.
+  /// @param color Fill color.
   static FilledCircle ByRadius(Point center, int16_t radius, Color color) {
     return ByRadius(center.x, center.y, radius, color);
   }
 
+  /// Create a filled circle by center coordinates and radius.
+  ///
+  /// @param x_center Center x-coordinate.
+  /// @param y_center Center y-coordinate.
+  /// @param radius Radius in pixels.
+  /// @param color Fill color.
   static FilledCircle ByRadius(int16_t x_center, int16_t y_center,
                                int16_t radius, Color color) {
     return FilledCircle(x_center - radius, y_center - radius, (radius << 1) + 1,
                         color);
   }
 
+  /// Create a filled circle by top-left and diameter.
+  ///
+  /// @param top_left Top-left corner of the bounding square.
+  /// @param diameter Diameter in pixels.
+  /// @param color Fill color.
   static FilledCircle ByExtents(Point top_left, int16_t diameter, Color color) {
     return ByExtents(top_left.x, top_left.y, diameter, color);
   }
 
+  /// Create a filled circle by top-left coordinates and diameter.
+  ///
+  /// @param x0 Top-left x-coordinate of the bounding square.
+  /// @param y0 Top-left y-coordinate of the bounding square.
+  /// @param diameter Diameter in pixels.
+  /// @param color Fill color.
   static FilledCircle ByExtents(int16_t x0, int16_t y0, int16_t diameter,
                                 Color color) {
     return FilledCircle(x0, y0, diameter, color);

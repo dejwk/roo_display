@@ -55,6 +55,10 @@ class BackgroundFillOptimizer : public DisplayOutput {
   class FrameBuffer {
    public:
     /// Return buffer size in bytes for a given device size.
+    ///
+    /// @param w Device width in pixels.
+    /// @param h Device height in pixels.
+    /// @return Required backing buffer size in bytes.
     static constexpr size_t SizeForDimensions(int16_t w, int16_t h) {
       return ((((w - 1) / kBgFillOptimizerWindowSize + 1) + 1) / 2) *
              ((((h - 1) / kBgFillOptimizerWindowSize + 1) + 1) / 2) * 2;

@@ -82,9 +82,18 @@ class Palette {
   /// The color array is not copied and must remain valid. Read-only palettes
   /// cannot be used for inverse lookup (ARGB -> index); use `ReadWrite()` or
   /// `Dynamic()` for that. Transparency is auto-detected.
+  ///
+  /// @param colors Palette colors (array must outlive the palette).
+  /// @param size Number of colors in the palette.
+  /// @return Read-only palette instance.
   static Palette ReadOnly(const Color* colors, int size);
 
   /// Read-only palette with explicit transparency mode.
+  ///
+  /// @param colors Palette colors (array must outlive the palette).
+  /// @param size Number of colors in the palette.
+  /// @param transparency_mode Explicit transparency mode to use.
+  /// @return Read-only palette instance.
   static Palette ReadOnly(const Color* colors, int size,
                           TransparencyMode transparency_mode);
 
@@ -92,9 +101,18 @@ class Palette {
   ///
   /// Enables inverse lookup (ARGB -> index), e.g. for Offscreen. The array is
   /// not copied and must remain valid. Transparency is auto-detected.
+  ///
+  /// @param colors Palette colors (array must outlive the palette).
+  /// @param size Number of colors in the palette.
+  /// @return Read/write palette instance.
   static Palette ReadWrite(const Color* colors, int size);
 
   /// Read/write palette with explicit transparency mode.
+  ///
+  /// @param colors Palette colors (array must outlive the palette).
+  /// @param size Number of colors in the palette.
+  /// @param transparency_mode Explicit transparency mode to use.
+  /// @return Read/write palette instance.
   static Palette ReadWrite(const Color* colors, int size,
                            TransparencyMode transparency_mode);
 
@@ -102,6 +120,9 @@ class Palette {
   ///
   /// Colors are added up to `max_size`. After that, missing colors map to
   /// index 0.
+  ///
+  /// @param max_size Maximum number of colors to store.
+  /// @return Dynamic palette instance.
   static Palette Dynamic(int max_size);
 
   /// Return pointer to the color table.

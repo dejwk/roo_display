@@ -1,3 +1,8 @@
+/**
+ * @file roo_display.h
+ * @brief Public API surface for roo_display display, touch, and drawing
+ * utilities.
+ */
 #pragma once
 
 #include <functional>
@@ -17,28 +22,35 @@ namespace roo_display {
 
 class FrontToBackWriter;
 
+/**
+ * @brief Wrapper providing calibrated touch input for a display device.
+ */
 class TouchDisplay {
  public:
+  /// Constructs a touch display wrapper.
   TouchDisplay(DisplayDevice& display_device, TouchDevice& touch_device,
                TouchCalibration touch_calibration = TouchCalibration())
       : display_device_(display_device),
         touch_device_(touch_device),
         touch_calibration_(touch_calibration) {}
 
+  /// Initializes the touch device.
   void init() { touch_device_.initTouch(); }
 
-  // Calibrated, and using the display coordinates.
+  /// Returns calibrated touch points in display coordinates.
   TouchResult getTouch(TouchPoint* points, int max_points);
 
-  // Uncalibrated, and using the absolute coordinates: 0-4095.
+  /// Returns raw touch points in absolute 0-4095 coordinates.
   TouchResult getRawTouch(TouchPoint* points, int max_points) {
     return touch_device_.getTouch(points, max_points);
   }
 
+  /// Sets the touch calibration mapping.
   void setCalibration(TouchCalibration touch_calibration) {
     touch_calibration_ = touch_calibration;
   }
 
+  /// Returns the current touch calibration.
   const TouchCalibration& calibration() const { return touch_calibration_; }
 
  private:
@@ -51,102 +63,118 @@ class TouchDisplay {
   int16_t raw_touch_z_;
 };
 
+/**
+ * @brief Display facade that owns a display device and optional touch input.
+ */
 class Display {
  public:
+  /// Constructs a display without touch support.
   Display(DisplayDevice& display_device)
       : Display(display_device, nullptr, TouchCalibration()) {}
 
+  /// Constructs a display with touch support and optional calibration.
   Display(DisplayDevice& display_device, TouchDevice& touch_device,
           TouchCalibration touch_calibration = TouchCalibration())
       : Display(display_device, &touch_device, touch_calibration) {}
 
+  /// Constructs a display from a combo device.
   Display(ComboDevice& device)
       : Display(device.display(), device.touch(), device.touch_calibration()) {}
 
+  /// Returns the total pixel area of the raw device.
   int32_t area() const {
     return display_device_.raw_width() * display_device_.raw_height();
   }
 
+  /// Returns the current extents used by this display.
   const Box& extents() const { return extents_; }
 
+  /// Returns the width in pixels of the current extents.
   int16_t width() const { return extents_.width(); }
+  /// Returns the height in pixels of the current extents.
   int16_t height() const { return extents_.height(); }
 
-  // Initializes the device.
+  /// Initializes the display and touch devices.
   void init() {
     display_device_.init();
     touch_.init();
   }
 
-  // Initializes the device, fills screen with the specified color, and sets
-  // that color as the defaul background hint.
+  /// Initializes the device, fills the screen with the specified color, and
+  /// sets that color as the default background hint.
   void init(Color bgcolor);
 
-  // Sets the orientation of the display. Setting the orientation resets
-  // the clip box to the maximum display area.
+  /// Sets the display orientation. Resets the clip box to the max display area.
   void setOrientation(Orientation orientation);
 
+  /// Returns the current orientation.
   Orientation orientation() const { return orientation_; }
 
+  /// Returns the touch calibration for the display.
   const TouchCalibration& touchCalibration() const {
     return touch_.calibration();
   }
 
+  /// Returns mutable access to the display output.
   DisplayOutput& output() { return display_device_; }
+  /// Returns const access to the display output.
   const DisplayOutput& output() const { return display_device_; }
 
-  // If touch has not been registered, returns {.touch_points = 0 } and does not
-  // modify `points'. If k touch points have been registered, sets max(k,
-  // max_points) `points`, and returns {.touch_points = k}. In both cases,
-  // returned timestamp specifies the detection time.
+  /// Returns calibrated touch points in display coordinates.
+  ///
+  /// If no touch has been registered, returns {.touch_points = 0} and does not
+  /// modify `points`. If k touch points have been registered, sets up to
+  /// max_points entries in `points`, and returns {.touch_points = k}. In both
+  /// cases, the returned timestamp specifies the detection time.
   TouchResult getTouch(TouchPoint* points, int max_points) {
     return touch_.getTouch(points, max_points);
   }
 
-  // As above, but results use absolute coordinates (0-4095) and ignore
-  // touch calibration settings.
+  /// Returns raw touch points in absolute coordinates (0-4095).
   TouchResult getRawTouch(TouchPoint* points, int max_points) {
     return touch_.getRawTouch(points, max_points);
   }
 
-  // If touched, returns true and sets the touch (x, y) coordinates (in device
-  // coordinates). If not touched, returns false and does not modify (x, y).
+  /// Returns true and sets (x, y) if touched; otherwise returns false.
   bool getTouch(int16_t& x, int16_t& y);
 
-  // Resets the clip box to the maximum device-allowed values.
+  /// Resets the clip box to the maximum device-allowed values.
   void resetExtents() {
     extents_ = Box(0, 0, display_device_.effective_width() - 1,
                    display_device_.effective_height() - 1);
   }
 
-  // Sets a default clip box, inherited by all derived contexts.
+  /// Sets a default clip box, inherited by derived contexts.
   void setExtents(const Box& extents) {
     resetExtents();
     extents_ = Box::Intersect(extents_, extents);
   }
 
-  // Sets a rasterizable background to be used by all derived contexts.
+  /// Sets a rasterizable background for all derived contexts.
   void setBackground(const Rasterizable* bg) {
     background_ = bg;
     bgcolor_ = color::Transparent;
   }
 
+  /// Sets the touch calibration mapping.
   void setTouchCalibration(TouchCalibration touch_calibration) {
     touch_.setCalibration(touch_calibration);
   }
 
+  /// Returns the rasterizable background for derived contexts.
   const Rasterizable* getRasterizableBackground() const { return background_; }
 
-  // Sets a background color to be used by all derived contexts.
-  // Initially set to color::Transparent.
+  /// Sets a background color used by all derived contexts.
+  /// Initially set to color::Transparent.
   void setBackgroundColor(Color bgcolor) {
     bgcolor_ = bgcolor;
     display_device_.setBgColorHint(bgcolor);
   }
 
+  /// Returns the background color for derived contexts.
   Color getBackgroundColor() const { return bgcolor_; }
 
-  // Clears the display, respecting the clip box, and background settings.
+  /// Clears the display, respecting the clip box and background settings.
   void clear();
 
  private:
@@ -183,68 +211,72 @@ class Display {
   const Rasterizable* background_;
 };
 
-// Primary top-level interface for drawing to screens, off-screen buffers,
-// or other devices. Supports rectangular clip regions, as well as arbitrary
-// clip masks.
-//
-// Able to render two types of objects:
-// * Objects implementing the Drawable interface. These are capable of
-//   drawing themselves to a device.
-// * Objects implementing the template contract of a 'streamable'. These are
-//   capable of generating a stream of colors, representing pixels corresponding
-//   to a rectangular shape, row-order, top-to-bottom and left-to-right.
-//   (Non-rectangular shapes can be provided by using transparency as a color.)
-//
-// The streamable contract is only implemented by some specific but important
-// types of drawable objects, such as images. The streamables have one important
-// benefit, which is the sole motivation for the existence of this interface:
-// two (or more) streamables, which may be partially overlapping, and which may
-// have transparency, can be rendered together to an underlying device, alpha-
-// blended when necessary, such that each pixel is only drawn once (i.e. no
-// flicker), but without using any additional memory buffers. An important use
-// case is rendering of kern pairs of font glyphs (e.g. AV) without using extra
-// buffers and yet without any flicker, which normally happens if glyphs are
-// drawn one after another.
-//
-// Note: streamable is a template contract, rather than a virtual method
-// contract, so that the code for overlaying the images can be optimized by the
-// compiler, and tuned to the specific types. It yields the best possible
-// performance, although it has a drawback of increasing program size. TODO: if
-// program sizes turn out to be a problem, it may be worth exploring virtual
-// version of this contract, using vector APIs (i.e., returning a large, e.g.
-// O(100), number of pixels from a single virtual call) which may be a good
-// balance between performance and program size.
+/**
+ * @brief Primary top-level interface for drawing to screens, off-screen
+ * buffers, or other devices.
+ *
+ * Supports rectangular clip regions, as well as arbitrary clip masks.
+ *
+ * Able to render two types of objects:
+ * - Objects implementing the Drawable interface. These are capable of
+ *   drawing themselves to a device.
+ * - Objects implementing the template contract of a 'streamable'. These are
+ *   capable of generating a stream of colors, representing pixels
+ *   corresponding to a rectangular shape, row-order, top-to-bottom and
+ *   left-to-right. (Non-rectangular shapes can be provided by using
+ *   transparency as a color.)
+ *
+ * The streamable contract is only implemented by some specific but important
+ * types of drawable objects, such as images. The streamables have one
+ * important benefit, which is the sole motivation for the existence of this
+ * interface: two (or more) streamables, which may be partially overlapping,
+ * and which may have transparency, can be rendered together to an underlying
+ * device, alpha-blended when necessary, such that each pixel is only drawn
+ * once (i.e. no flicker), but without using any additional memory buffers.
+ * An important use case is rendering of kern pairs of font glyphs (e.g. AV)
+ * without using extra buffers and yet without any flicker, which normally
+ * happens if glyphs are drawn one after another.
+ *
+ * @note A streamable is a template contract, rather than a virtual method
+ * contract, so that the code for overlaying the images can be optimized by
+ * the compiler, and tuned to the specific types. It yields the best possible
+ * performance, although it has a drawback of increasing program size.
+ * TODO: if program sizes turn out to be a problem, it may be worth exploring
+ * a virtual version of this contract, using vector APIs (i.e., returning a
+ * large, e.g. O(100), number of pixels from a single virtual call) which may
+ * be a good balance between performance and program size.
+ */
 class DrawingContext {
  public:
-  // Constructs a drawing context covering the entire display.
+  /// Constructs a drawing context covering the entire display.
   template <typename Display>
   DrawingContext(Display& display)
       : DrawingContext(display, 0, 0, display.extents()) {}
 
-  // Constructs a drawing context covering the specified bounds, relative to the
-  // display's extents. If bounds exceed the display's extents, they will be
-  // clipped accordingly, but the requested bounds will still be used for
-  // alignment purposes. For example, drawing a centered object will center it
-  // relative to the bounds(), even if they exceed the display's extents.
+  /// Constructs a drawing context covering the specified bounds, relative to
+  /// the display's extents. If bounds exceed the display's extents, they will
+  /// be clipped accordingly, but the requested bounds will still be used for
+  /// alignment purposes. For example, drawing a centered object will center it
+  /// relative to the bounds(), even if they exceed the display's extents.
   template <typename Display>
   DrawingContext(Display& display, Box bounds)
       : DrawingContext(display, 0, 0, bounds) {}
 
-  // Constructs a drawing context covering the entire display, with device
-  // coordinates offset by the specified amounts.
+  /// Constructs a drawing context covering the entire display, with device
+  /// coordinates offset by the specified amounts.
   template <typename Display>
   DrawingContext(Display& display, int16_t x_offset, int16_t y_offset)
       : DrawingContext(display, x_offset, y_offset,
                        display.extents().translate(-x_offset, -y_offset)) {}
 
-  // Constructs a drawing context covering the specified bounds, with device
-  // coordinates offset by the specified amounts. The bounds are expressed
-  // post-translation. That is, bounds corresponding to the entire display
-  // surface would be equal to display.extents().translate(-x_offset,
-  // -y_offset). If bounds exceed the display's extents, they will be clipped
-  // accordingly, but the requested bounds will still be used for alignment
-  // purposes. For example, drawing a centered object will center it relative to
-  // the requested bounds, even if they exceed the display's extents.
+  /// Constructs a drawing context covering the specified bounds, with device
+  /// coordinates offset by the specified amounts. The bounds are expressed
+  /// post-translation. That is, bounds corresponding to the entire display
+  /// surface would be equal to display.extents().translate(-x_offset,
+  /// -y_offset). If bounds exceed the display's extents, they will be clipped
+  /// accordingly, but the requested bounds will still be used for alignment
+  /// purposes. For example, drawing a centered object will center it relative
+  /// to the requested bounds, even if they exceed the display's extents.
   template <typename Display>
   DrawingContext(Display& display, int16_t x_offset, int16_t y_offset,
                  Box bounds)
@@ -269,13 +301,14 @@ class DrawingContext {
 
   ~DrawingContext();
 
-  // Returns the bounds used for alignment.
+  /// Returns the bounds used for alignment.
   const Box& bounds() const { return bounds_; }
 
-  // Returns the width of the drawing context. Equivalent to bounds().width().
+  /// Returns the width of the drawing context. Equivalent to bounds().width().
   const uint16_t width() const { return bounds_.width(); }
 
-  // Returns the height of the drawing context. Equivalent to bounds().height().
+  /// Returns the height of the drawing context. Equivalent to
+  /// bounds().height().
   const uint16_t height() const { return bounds_.height(); }
 
   void setBackground(const Rasterizable* bg) { background_ = bg; }
@@ -292,73 +325,73 @@ class DrawingContext {
     blending_mode_ = blending_mode;
   }
 
-  // Clears the display, respecting the clip box, and background settings.
+  /// Clears the display, respecting the clip box, and background settings.
   void clear();
 
-  // Fills the display with the specified color, respecting the clip box.
+  /// Fills the display with the specified color, respecting the clip box.
   void fill(Color color);
 
-  // Sets the clip box, intersected with the maximum allowed clip box.
-  // Expressed in device coordinates.
+  /// Sets the clip box, intersected with the maximum allowed clip box.
+  /// Expressed in device coordinates.
   void setClipBox(const Box& clip_box) {
     clip_box_ = Box::Intersect(clip_box, max_clip_box_);
   }
 
-  // Sets the clip box, intersected with the maximum allowed clip box.
-  // Expressed in device coordinates.
+  /// Sets the clip box, intersected with the maximum allowed clip box.
+  /// Expressed in device coordinates.
   void setClipBox(int16_t x0, int16_t y0, int16_t x1, int16_t y1) {
     setClipBox(Box(x0, y0, x1, y1));
   }
 
   void setClipMask(const ClipMask* clip_mask) { clip_mask_ = clip_mask; }
 
-  // Returns the current clip box, in device coordinates.
+  /// Returns the current clip box, in device coordinates.
   const Box& getClipBox() const { return clip_box_; }
 
   // void applyTransformation(Transformation t) {
   //   transformation_ = transformation_.transform(t);
   // }
 
-  // Sets a transformation to be applied to all drawn objects when converting
-  // the drawing coordinates to device coordinates.
+  /// Sets a transformation to be applied to all drawn objects when converting
+  /// the drawing coordinates to device coordinates.
   void setTransformation(Transformation t) {
     transformation_ = t;
     transformed_ = (t.xy_swap() || t.is_rescaled() || t.is_translated());
   }
 
-  // Returns the current transformation. (The identity transformation by
-  // default).
+  /// Returns the current transformation. (The identity transformation by
+  /// default).
   const Transformation& transformation() const { return transformation_; }
 
   void setWriteOnce();
 
   bool isWriteOnce() const { return write_once_; }
 
-  // Allows to efficiently draw pixels to the context, using a buffered
-  // pixel writer (avoiding virtual calls per pixel, and allowing for batch
-  // writes). The provided function `fn` will be called with a
-  // ClippingBufferedPixelWriter that respects the current clip box and
-  // uses the specified blending mode.
+  /// Allows to efficiently draw pixels to the context, using a buffered
+  /// pixel writer (avoiding virtual calls per pixel, and allowing for batch
+  /// writes). The provided function `fn` will be called with a
+  /// ClippingBufferedPixelWriter that respects the current clip box and
+  /// uses the specified blending mode.
   void drawPixels(const std::function<void(ClippingBufferedPixelWriter&)>& fn,
                   BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER);
 
-  // Draws the object using its inherent coordinates. The point (0, 0) in the
-  // object's coordinates maps to (0, 0) in the context's coordinates
-  // (subject to the optional transformation).
+  /// Draws the object using its inherent coordinates. The point (0, 0) in the
+  /// object's coordinates maps to (0, 0) in the context's coordinates
+  /// (subject to the optional transformation).
   inline void draw(const Drawable& object) {
     drawInternal(object, 0, 0, bgcolor_);
   }
 
-  // Draws the object using the specified absolute offset. The point (0, 0) in
-  // the object's coordinates maps to (dx, dy) in the context's coordinates
-  // (subject to the optional transformation).
+  /// Draws the object using the specified absolute offset. The point (0, 0) in
+  /// the object's coordinates maps to (dx, dy) in the context's coordinates
+  /// (subject to the optional transformation).
   inline void draw(const Drawable& object, int16_t dx, int16_t dy) {
     drawInternal(object, dx, dy, bgcolor_);
   }
 
-  // Draws the object applying the specified alignment, relative to the
-  // bounds(). For example, for with kMiddle | kCenter, the object will be
-  // centered relative to the bounds().
+  /// Draws the object applying the specified alignment, relative to the
+  /// bounds(). For example, for with kMiddle | kCenter, the object will be
+  /// centered relative to the bounds().
   void draw(const Drawable& object, Alignment alignment) {
     Box anchorExtents = object.anchorExtents();
     if (transformed_) {
@@ -368,16 +401,16 @@ class DrawingContext {
     drawInternal(object, offset.dx, offset.dy, bgcolor_);
   }
 
-  // Analogous to draw(object), but instead of drawing, replaces all the output
-  // pixels with the background color.
+  /// Analogous to draw(object), but instead of drawing, replaces all the output
+  /// pixels with the background color.
   void erase(const Drawable& object);
 
-  // Analogous to draw(object, dx, dy), but instead of drawing, replaces all the
-  // output pixels with the background color.
+  /// Analogous to draw(object, dx, dy), but instead of drawing, replaces all
+  /// the output pixels with the background color.
   void erase(const Drawable& object, int16_t dx, int16_t dy);
 
-  // Analogous to draw(object, alignment), but instead of drawing, replaces all
-  // the output pixels with the background color.
+  /// Analogous to draw(object, alignment), but instead of drawing, replaces all
+  /// the output pixels with the background color.
   void erase(const Drawable& object, Alignment alignment);
 
  private:
@@ -393,21 +426,21 @@ class DrawingContext {
 
   DisplayOutput& output_;
 
-  // Offset of the origin in the output coordinates. Empty Transformation maps
-  // (0, 0) in drawing coordinates onto (dx_, dy_) in device coordinates.
+  /// Offset of the origin in the output coordinates. Empty Transformation maps
+  /// (0, 0) in drawing coordinates onto (dx_, dy_) in device coordinates.
   int16_t dx_;
   int16_t dy_;
 
-  // Bounds used for alignment. Default to device extents. If different than
-  // device extents, they both constrain the initial and max clip box.
+  /// Bounds used for alignment. Default to device extents. If different than
+  /// device extents, they both constrain the initial and max clip box.
   Box bounds_;
 
-  // The maximum allowed clip box. setClipBox will intersect its argument
-  // with it. Equal to the intersection of bounds() and the original device
-  // extents.
+  /// The maximum allowed clip box. setClipBox will intersect its argument
+  /// with it. Equal to the intersection of bounds() and the original device
+  /// extents.
   const Box max_clip_box_;
 
-  // Absolute coordinates of the clip region in the device space. Inclusive.
+  /// Absolute coordinates of the clip region in the device space. Inclusive.
   Box clip_box_;
 
   std::function<void()> unnest_;
@@ -425,10 +458,14 @@ class DrawingContext {
   Transformation transformation_;
 };
 
-// Fill is an 'infinite' single-color area. When drawn, it will fill the
-// entire clip box with the given color.
+/**
+ * @brief Infinite single-color area.
+ *
+ * When drawn, it fills the entire clip box with the given color.
+ */
 class Fill : public Rasterizable {
  public:
+  /// Constructs a fill with a constant color.
   Fill(Color color) : color_(color) {}
 
   Box extents() const override { return Box::MaximumBox(); }
@@ -445,10 +482,15 @@ class Fill : public Rasterizable {
   Color color_;
 };
 
-// Clear is an 'infinite' transparent area. When drawn, it will fill the
-// entire clip box with the color implied by background settings.
+/**
+ * @brief Infinite transparent area.
+ *
+ * When drawn, it fills the entire clip box with the color implied by the
+ * background settings.
+ */
 class Clear : public Rasterizable {
  public:
+  /// Constructs a clear fill.
   Clear() {}
 
   Box extents() const override { return Box::MaximumBox(); }
@@ -463,28 +505,39 @@ class Clear : public Rasterizable {
   void drawTo(const Surface& s) const override;
 };
 
-// Utility that can be used while a DrawingContext is active, to temporarily
-// stop the underlying transport transaction, and release the bus (e.g. SPI). It
-// allows custom drawables to perform operations on the same bus (e.g., read
-// date from an SD card). When an instance of this class is alive, and unless
-// ResumeOutput is also used, DrawingContexts do not function, and no drawing
-// operations should be attempted.
-//
-// See jpeg.cpp and png.cpp for an application example.
+/**
+ * @brief Temporarily pauses the output transport while a DrawingContext is
+ * active.
+ *
+ * This releases the bus (e.g. SPI) to allow custom drawables to perform
+ * operations on the same bus (e.g. reading data from an SD card). When an
+ * instance of this class is alive, and unless ResumeOutput is also used,
+ * DrawingContexts do not function and no drawing operations should be
+ * attempted.
+ *
+ * See jpeg.cpp and png.cpp for an application example.
+ */
 class PauseOutput {
  public:
+  /// Ends the output transaction on construction.
   PauseOutput(DisplayOutput& out) : out_(out) { out_.end(); }
+  /// Restarts the output transaction on destruction.
   ~PauseOutput() { out_.begin(); }
 
  private:
   DisplayOutput& out_;
 };
 
-// The inverse of 'PauseOutput', above. It allows to resume drawing that was
-// paused by PauseOutput.
+/**
+ * @brief Resumes a paused output transaction.
+ *
+ * Inverse of PauseOutput; enables drawing while in scope.
+ */
 class ResumeOutput {
  public:
+  /// Begins the output transaction on construction.
   ResumeOutput(DisplayOutput& out) : out_(out) { out_.begin(); }
+  /// Ends the output transaction on destruction.
   ~ResumeOutput() { out_.end(); }
 
  private:

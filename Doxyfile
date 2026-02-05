@@ -1,7 +1,8 @@
 PROJECT_NAME           = "roo_display"
 PROJECT_BRIEF          = "Graphics and UI library for embedded displays"
 OUTPUT_DIRECTORY       = docs/doxygen
-INPUT                  = src/roo_display/core \
+INPUT                  = src/roo_display.h \
+                         src/roo_display/core \
                          src/roo_display/color \
                          src/roo_display/font \
                          src/roo_display/backlit \

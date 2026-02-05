@@ -17,6 +17,8 @@ INPUT                  = src/roo_display/core \
                          doc/for_tft_espi_users.md
 FILE_PATTERNS          = *.h
 RECURSIVE              = YES
+INCLUDE_PATH           = src include
+EXCLUDE_PATTERNS       = */image/png/lib/*
 EXTRACT_ALL            = YES
 EXTRACT_PRIVATE        = NO
 EXTRACT_STATIC         = NO
@@ -30,21 +32,24 @@ GENERATE_TREEVIEW      = YES
 USE_MDFILE_AS_MAINPAGE = README.md
 MARKDOWN_SUPPORT       = YES
 CLANG_ASSISTED_PARSING  = YES
-CLANG_OPTIONS          = -std=c++17 -DESP_PLATFORM -DDOXYGEN
-PREDEFINED             = ESP_PLATFORM DOXYGEN
+CLANG_OPTIONS          = -std=c++17 -I src -I include
+PREDEFINED             = ESP_PLATFORM ESP32
 AUTOLINK_SUPPORT       = YES
 DISABLE_INDEX          = NO
+REFERENCES_RELATION    = NO
+REFERENCED_BY_RELATION = NO
+REFERENCES_LINK_SOURCE = NO
+SHOW_USED_FILES        = NO
+SHOW_INCLUDE_FILES     = NO
 FULL_SIDEBAR           = NO
 HTML_COLORSTYLE        = LIGHT
-HTML_HEADER            = docs/header.html
+HTML_HEADER            =
 HTML_STYLESHEET        = docs/doxygen-awesome.css
 FULL_PATH_NAMES        = NO
 STRIP_FROM_PATH        = src include
 IMAGE_PATH             = doc/images
 TREEVIEW_WIDTH         = 335
-HTML_EXTRA_STYLESHEET  = docs/doxygen-awesome-sidebar-only.css \
-                         docs/doxygen-awesome-sidebar-only-darkmode-toggle.css \
-                         docs/doxygen-custom.css
+HTML_EXTRA_STYLESHEET  =
 HTML_EXTRA_FILES       = docs/doxygen-awesome-darkmode-toggle.js
 SOURCE_BROWSER         = YES
 INLINE_SOURCES         = NO

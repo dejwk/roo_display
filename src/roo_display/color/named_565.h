@@ -1,5 +1,9 @@
 #pragma once
 
+#include "roo_display/color/color.h"
+#include "roo_display/color/color_modes.h"
+#include "roo_display/color/named.h"
+
 /// Defines 140 opaque HTML named colors, adjusted for RGB565.
 ///
 /// Each color round-trips to itself when truncated to RGB565 and converted

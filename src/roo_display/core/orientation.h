@@ -40,7 +40,8 @@ class Orientation {
   /// For example, RightDown means x increases to the right and y increases
   /// downward.
   static constexpr Orientation RightDown() { return Orientation(0); }
-  /// Return orientation where x increases downward and y increases to the right.
+  /// Return orientation where x increases downward and y increases to the
+  /// right.
   static constexpr Orientation DownRight() { return Orientation(1); }
   /// Return orientation where x increases to the left and y increases downward.
   static constexpr Orientation LeftDown() { return Orientation(2); }

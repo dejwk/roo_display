@@ -2,9 +2,80 @@
 @import url("https://unpkg.com/doxygen-awesome-css@2.3.4/doxygen-awesome-sidebar-only.css");
 
 :root {
-  --primary-color: #6200ee;
-  --primary-dark-color: #3700b3;
-  --primary-light-color: #bb86fc;
-  --page-background-color: #f7f8fb;
-  --code-background: #f3f4f6;
+    --primary-color: #6200ee;
+    --primary-dark-color: #3700b3;
+    --primary-light-color: #bb86fc;
+    --page-background-color: #f7f8fb;
+    --code-background: #f3f4f6;
+}
+
+/* Fallback styling in case external CSS imports are blocked. */
+html, body {
+    background: var(--page-background-color);
+    color: #111827;
+    font-family: "Inter", "Roboto", "Segoe UI", "Helvetica Neue", Arial,
+                             "Noto Sans", sans-serif;
+}
+
+#titlearea,
+#projectalign,
+#projectbrief,
+#nav-tree,
+.tabs, .tabs2, .tabs3, .tabs4,
+.navpath,
+div.header {
+    background: #ffffff !important;
+    background-image: none !important;
+    border-bottom: 1px solid #e5e7eb;
+    box-shadow: none !important;
+}
+
+.tabs ul, .tabs2 ul, .tabs3 ul, .tabs4 ul {
+    background: #ffffff !important;
+}
+
+.tablist li a,
+.tablist li a:hover {
+    background: transparent !important;
+    color: #111827 !important;
+}
+
+#projectname {
+    font-weight: 600;
+}
+
+#nav-tree {
+    border-right: 1px solid #e5e7eb;
+}
+
+#nav-tree .selected {
+    background: #ede9fe !important;
+    color: #111827 !important;
+}
+
+.memtitle,
+.memproto,
+.memitem,
+.memdoc,
+table.directory,
+.directory table {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+pre.fragment,
+code,
+div.fragment {
+    background: var(--code-background) !important;
+    border-radius: 6px;
+}
+
+a {
+    color: var(--primary-color);
+}
+
+a:hover {
+    color: var(--primary-dark-color);
 }

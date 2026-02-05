@@ -418,6 +418,10 @@ inline std::unique_ptr<PixelStream> SubRectangle(Stream stream,
 }
 
 /// Drawable that can provide a sequential pixel stream.
+///
+/// Streamables allow the renderer to efficiently draw clipped rectangles and
+/// blend pixel data without per-pixel virtual calls.  This is commonly used by
+/// images and offscreen buffers, and it is also the base for Rasterizable.
 class Streamable : public virtual Drawable {
  public:
   /// Create a stream covering the full `extents()`.

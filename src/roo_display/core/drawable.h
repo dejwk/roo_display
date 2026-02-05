@@ -208,7 +208,13 @@ class Surface {
 
 /// Interface for objects that can be drawn to an output device.
 ///
-/// Examples include images, shapes, and UI widgets. Implementations must:
+/// Examples include images, shapes, and UI widgets. Some drawables also
+/// implement Streamable (including Rasterizable types). Streamable and
+/// Rasterizable objects can be used in specialized contexts that generic
+/// drawables cannot, such as backgrounds, overlays, and streamable or
+/// rasterizable stacks.
+///
+/// Implementations must:
 /// - Override `extents()` to return the bounding box at (0, 0).
 /// - Override either `drawTo()` or `drawInteriorTo()` to implement drawing.
 class Drawable {

@@ -1,8 +1,6 @@
-/**
- * @file roo_display.h
- * @brief Public API surface for roo_display display, touch, and drawing
- * utilities.
- */
+/// @file roo_display.h
+/// @brief Public API surface for roo_display display, touch, and drawing
+/// utilities.
 #pragma once
 
 #include <functional>
@@ -22,9 +20,7 @@ namespace roo_display {
 
 class FrontToBackWriter;
 
-/**
- * @brief Wrapper providing calibrated touch input for a display device.
- */
+/// @brief Wrapper providing calibrated touch input for a display device.
 class TouchDisplay {
  public:
   /// Constructs a touch display wrapper.
@@ -63,9 +59,7 @@ class TouchDisplay {
   int16_t raw_touch_z_;
 };
 
-/**
- * @brief Display facade that owns a display device and optional touch input.
- */
+/// @brief Display facade that owns a display device and optional touch input.
 class Display {
  public:
   /// Constructs a display without touch support.
@@ -211,41 +205,12 @@ class Display {
   const Rasterizable* background_;
 };
 
-/**
- * @brief Primary top-level interface for drawing to screens, off-screen
- * buffers, or other devices.
- *
- * Supports rectangular clip regions, as well as arbitrary clip masks.
- *
- * Able to render two types of objects:
- * - Objects implementing the Drawable interface. These are capable of
- *   drawing themselves to a device.
- * - Objects implementing the template contract of a 'streamable'. These are
- *   capable of generating a stream of colors, representing pixels
- *   corresponding to a rectangular shape, row-order, top-to-bottom and
- *   left-to-right. (Non-rectangular shapes can be provided by using
- *   transparency as a color.)
- *
- * The streamable contract is only implemented by some specific but important
- * types of drawable objects, such as images. The streamables have one
- * important benefit, which is the sole motivation for the existence of this
- * interface: two (or more) streamables, which may be partially overlapping,
- * and which may have transparency, can be rendered together to an underlying
- * device, alpha-blended when necessary, such that each pixel is only drawn
- * once (i.e. no flicker), but without using any additional memory buffers.
- * An important use case is rendering of kern pairs of font glyphs (e.g. AV)
- * without using extra buffers and yet without any flicker, which normally
- * happens if glyphs are drawn one after another.
- *
- * @note A streamable is a template contract, rather than a virtual method
- * contract, so that the code for overlaying the images can be optimized by
- * the compiler, and tuned to the specific types. It yields the best possible
- * performance, although it has a drawback of increasing program size.
- * TODO: if program sizes turn out to be a problem, it may be worth exploring
- * a virtual version of this contract, using vector APIs (i.e., returning a
- * large, e.g. O(100), number of pixels from a single virtual call) which may
- * be a good balance between performance and program size.
- */
+/// @brief Primary top-level interface for drawing to screens, off-screen
+/// buffers, or other devices.
+///
+/// Supports rectangular clip regions, as well as arbitrary clip masks.
+///
+/// Able to render objects implementing the Drawable interface.
 class DrawingContext {
  public:
   /// Constructs a drawing context covering the entire display.

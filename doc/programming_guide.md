@@ -106,7 +106,7 @@ The display object encapsulates the driver, and it is the 'root' of your future 
 
 Some displays provide a dedicated pin for backlit (brightness) control. You can connect it to VCC for full brightness. You can also connect it to a GPIO pin to control backlit programmatically (by sending a pulse-wave-modulated signal to the GPIO pin).
 
-Backlit is independent from the display driver. `roo_display` provides some utility classes to help manage backlit. Specifically, for Espressif-based controllers, you can use the `LedcBacklit` class:
+Backlit is independent from the display driver. `roo_display` provides some utility classes to help manage backlit. Specifically, for Espressif-based controllers, you can use the \ref roo_display::LedcBacklit class:
 
 ```cpp
 #include "roo_display/backlit/esp32_ledc.h"

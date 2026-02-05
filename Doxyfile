@@ -1,19 +1,20 @@
 PROJECT_NAME           = "roo_display"
 PROJECT_BRIEF          = "Graphics and UI library for embedded displays"
 OUTPUT_DIRECTORY       = docs/doxygen
-INPUT                  = README.md \
-                         doc/programming_guide.md \
-                         doc/for_tft_espi_users.md \
-                         src/roo_display/core \
+INPUT                  = src/roo_display/core \
                          src/roo_display/color \
                          src/roo_display/font \
+                         src/roo_display/backlit \
                          src/roo_display/shape \
                          src/roo_display/ui \
                          src/roo_display/products \
                          src/roo_display/composition \
                          src/roo_display/filter \
                          src/roo_display/image \
-                         src/roo_display/touch
+                         src/roo_display/touch \
+                         README.md \
+                         doc/programming_guide.md \
+                         doc/for_tft_espi_users.md
 FILE_PATTERNS          = *.h
 RECURSIVE              = YES
 EXTRACT_ALL            = YES
@@ -24,9 +25,13 @@ WARN_IF_DOC_ERROR      = YES
 QUIET                  = YES
 GENERATE_HTML          = YES
 GENERATE_LATEX         = NO
+USE_MATHJAX            = YES
 GENERATE_TREEVIEW      = YES
 USE_MDFILE_AS_MAINPAGE = README.md
 MARKDOWN_SUPPORT       = YES
+CLANG_ASSISTED_PARSING  = YES
+CLANG_OPTIONS          = -std=c++17 -DESP_PLATFORM -DDOXYGEN
+PREDEFINED             = ESP_PLATFORM DOXYGEN
 AUTOLINK_SUPPORT       = YES
 DISABLE_INDEX          = NO
 FULL_SIDEBAR           = NO

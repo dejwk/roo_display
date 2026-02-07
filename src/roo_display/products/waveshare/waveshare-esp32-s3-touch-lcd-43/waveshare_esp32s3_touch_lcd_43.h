@@ -18,9 +18,6 @@ namespace roo_display::products::waveshare
 {
 
 // Driver for the Waveshare ESP32-S3-Touch-LCD-4.3 combo device.
-// This device features an 800x480 RGB565 parallel display with GT911
-// capacitive touch controller. The GT911 reset pin is controlled via
-// a CH422G I/O expander rather than direct GPIO.
 class WaveshareEsp32s3TouchLcd43 : public ComboDevice {
  public:
   // Constructs the device driver with optional orientation and I2C bus handle.
@@ -62,4 +59,3 @@ class WaveshareEsp32s3TouchLcd43 : public ComboDevice {
 } // namespace roo_display::products::waveshare
 
 #endif  // ESP32 && CONFIG_IDF_TARGET_ESP32S3
-

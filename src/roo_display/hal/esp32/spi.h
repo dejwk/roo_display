@@ -233,23 +233,9 @@ class Esp32SpiDevice {
     need_sync_ = true;
   }
 
-  void write16be(uint16_t data) __attribute((always_inline)) {
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 15);
-    WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
-    SpiTxStart(spi_port);
-    SpiTxWait(spi_port);
-  }
-
   void write32(uint32_t data) __attribute__((always_inline)) {
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
     WRITE_PERI_REG(SPI_W0_REG(spi_port), roo_io::htobe(data));
-    SpiTxStart(spi_port);
-    SpiTxWait(spi_port);
-  }
-
-  void write32be(uint32_t data) __attribute__((always_inline)) {
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
-    WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
     SpiTxStart(spi_port);
     SpiTxWait(spi_port);
   }

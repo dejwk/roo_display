@@ -90,16 +90,8 @@ class SpiTransport {
     device_.write16x2_async(a, b);
   }
 
-  void write16be(uint16_t data) __attribute((always_inline)) {
-    device_.write16be(data);
-  }
-
   void write32(uint32_t data) __attribute__((always_inline)) {
     device_.write32(data);
-  }
-
-  void write32be(uint32_t data) __attribute__((always_inline)) {
-    device_.write32be(data);
   }
 
   void writeBytes_async(const roo::byte* data, uint32_t len) {

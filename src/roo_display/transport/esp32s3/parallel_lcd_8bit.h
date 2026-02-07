@@ -193,18 +193,12 @@ class ParallelLcd8Bit {
 
   void write16x2_async(uint16_t a, uint16_t b) { write16x2(a, b); }
 
-  // Writes 2-byte word that has been pre-converted to BE if needed.
-  void write16be(uint16_t data) { writeBytes((const roo::byte*)&data, 2); }
-
   void write32(uint32_t data) {
     write((data >> 24) & 0xFF);
     write((data >> 16) & 0xFF);
     write((data >> 8) & 0xFF);
     write(data & 0xFF);
   }
-
-  // Writes 4-byte word that has been pre-converted to BE if needed.
-  void write32be(uint32_t data) { writeBytes((const roo::byte*)&data, 4); }
 
   void fill16(const roo::byte* data, uint32_t repetitions) {
     while (repetitions-- > 0) {

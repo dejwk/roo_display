@@ -3573,7 +3573,7 @@ The implementation of most of the existing drivers, e.g. ILI9486, ILI9488, ILI94
 In order to support hardware-optimized, microcontroller-specific SPI and GPIO implementations, and to provide extensibility towards non-SPI transports, many drivers are templated on `Transport` and `Gpio` classes. The `Transport` provides the following methods:
 
 * `beginReadWriteTransaction()`, `beginWriteOnlyTransaction`, `endTransaction()`,
-* `write()`, `write16()`, `write16be()`, `write32()`, `write32be()`, `writeBytes()`, `fill16()`, `fill24be()`, and some asynchronous variants.
+* `write()`, `write16()`, `write32()`, `writeBytes()`, `fill16()`, `fill24()`, and some asynchronous variants.
 
 SPI drivers are specializations that use the `DefaultSpi` transport by default, which resolves to the platform-optimized implementation if it exists, and falls back to the default Arduino SPI interface otherwise.
 

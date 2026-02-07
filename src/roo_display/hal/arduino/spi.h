@@ -77,11 +77,7 @@ class ArduinoSpiDevice {
     spi_.write16(b);
   }
 
-  void write16be(uint16_t data) { spi_.writeBytes((uint8_t*)&data, 2); }
-
   void write32(uint32_t data) { spi_.write32(data); }
-
-  void write32be(uint32_t data) { spi_.writeBytes((uint8_t*)&data, 4); }
 
   // For whatever reasons, SPI.h doesn't have a const version of writeBytes, but
   // the data doesn't get mutated, so we can safely cast away constness here.

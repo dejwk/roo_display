@@ -12,7 +12,7 @@
 #include <utility>
 
 #include "esp_lcd_panel_io.h"
-#include "roo_display/hal/esp32s3/gpio.h"
+#include "roo_display/hal/esp32/gpio.h"
 #include "roo_display/internal/byte_order.h"
 #include "roo_io/data/byte_order.h"
 #include "soc/lcd_cam_reg.h"
@@ -163,11 +163,13 @@ class ParallelLcd8Bit {
 
   void cmdEnd() { LCD_CAM.lcd_misc.val = LCD_CAM_LCD_CD_IDLE_EDGE; }
 
-  void writeBytes(uint8_t* data, uint32_t len) {
-    while (len-- > 0) write(*data++);
+  void writeBytes(const roo::byte* data, uint32_t len) {
+    while (len-- > 0) write(static_cast<uint8_t>(*data++));
   }
 
-  void writeBytes_async(uint8_t* data, uint32_t len) { writeBytes(data, len); }
+  void writeBytes_async(const roo::byte* data, uint32_t len) {
+    writeBytes(data, len);
+  }
 
   void write(uint8_t data) {
     LCD_CAM.lcd_cmd_val.lcd_cmd_value = data;
@@ -192,7 +194,7 @@ class ParallelLcd8Bit {
   void write16x2_async(uint16_t a, uint16_t b) { write16x2(a, b); }
 
   // Writes 2-byte word that has been pre-converted to BE if needed.
-  void write16be(uint16_t data) { writeBytes((uint8_t*)&data, 2); }
+  void write16be(uint16_t data) { writeBytes((const roo::byte*)&data, 2); }
 
   void write32(uint32_t data) {
     write((data >> 24) & 0xFF);
@@ -202,19 +204,19 @@ class ParallelLcd8Bit {
   }
 
   // Writes 4-byte word that has been pre-converted to BE if needed.
-  void write32be(uint32_t data) { writeBytes((uint8_t*)&data, 4); }
+  void write32be(uint32_t data) { writeBytes((const roo::byte*)&data, 4); }
 
-  void fill16(uint16_t data, uint32_t len) {
-    fill16be(roo_io::htobe(data), len);
-  }
-
-  void fill16be(uint16_t data, uint32_t len) {
-    while (len-- > 0) {
-      write16be(data);
+  void fill16(const roo::byte* data, uint32_t repetitions) {
+    while (repetitions-- > 0) {
+      writeBytes(data, 2);
     }
   }
 
-  void fill16be_async(uint16_t data, uint32_t len) { fill16be(data, len); }
+  void fill16_async(const roo::byte* data, uint32_t repetitions) {
+    while (repetitions-- > 0) {
+      writeBytes(data, 2);
+    }
+  }
 
  private:
   int8_t pinCs_;

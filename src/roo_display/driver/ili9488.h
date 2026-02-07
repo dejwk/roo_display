@@ -4,6 +4,7 @@
 
 #include "roo_display/driver/common/addr_window_device.h"
 #include "roo_display/transport/spi.h"
+#include "roo_io/data/byte_order.h"
 #include "roo_threads.h"
 #include "roo_threads/thread.h"
 
@@ -204,24 +205,14 @@ class Ili9488Target {
     writeCommand(RAMWR);
   }
 
-  void ramWrite(uint32_t* data, size_t count) {
-    // Compact the buffer.
-    uint8_t* src = (uint8_t*)data;
-    uint8_t* dest = (uint8_t*)data;
-    size_t byte_count = count * 3;
-    while (count-- > 0) {
-      ++src;
-      *dest++ = *src++;
-      *dest++ = *src++;
-      *dest++ = *src++;
-    }
-    // Write the buffer.
+  void ramWrite(const roo::byte* data, size_t pixel_count) {
     transport_.sync();
-    transport_.writeBytes_async((uint8_t*)data, byte_count);
+    transport_.writeBytes_async(data, pixel_count * 3);
   }
 
-  void ramFill(uint32_t data, size_t count) __attribute__((always_inline)) {
-    transport_.fill24be_async(data, count);
+  void ramFill(const roo::byte* data, size_t pixel_count)
+      __attribute__((always_inline)) {
+    transport_.fill24_async(data, pixel_count);
   }
 
  private:

@@ -128,13 +128,15 @@ class St77xxTarget {
     writeCommand(RAMWR);
   }
 
-  void ramWrite(uint16_t* data, size_t count) __attribute__((always_inline)) {
+  void ramWrite(const roo::byte* data, size_t pixel_count)
+      __attribute__((always_inline)) {
     transport_.sync();
-    transport_.writeBytes_async((uint8_t*)data, count * 2);
+    transport_.writeBytes_async(data, pixel_count * 2);
   }
 
-  void ramFill(uint16_t data, size_t count) __attribute__((always_inline)) {
-    transport_.fill16be_async(data, count);
+  void ramFill(const roo::byte* data, size_t pixel_count)
+      __attribute__((always_inline)) {
+    transport_.fill16_async(data, pixel_count);
   }
 
   void writeCommand(uint8_t c) __attribute__((always_inline)) {

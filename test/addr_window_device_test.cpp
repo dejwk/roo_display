@@ -64,13 +64,13 @@ class TestTarget {
 
   void setOrientation(Orientation orientation) { orientation_ = orientation; }
 
-  void ramWrite(ColorStorageType<ColorMode>* raw_color, size_t count) {
+  void ramWrite(const roo::byte* raw_color, size_t count) {
     EXPECT_TRUE(inRamWrite_);
-    ColorMode color_mode;
+    ColorIo<ColorMode, byte_order> io;
     while (count-- > 0) {
-      Color color = color_mode.toArgbColor(
-          roo_io::toh<ColorStorageType<ColorMode>, byte_order>(*raw_color++));
+      Color color = io.load(raw_color);
       setPixel(xCursor_, yCursor_, color);
+      raw_color += ColorTraits<ColorMode>::bytes_per_pixel;
       xCursor_++;
       if (xCursor_ > xMax_) {
         xCursor_ = xMin_;
@@ -79,11 +79,9 @@ class TestTarget {
     }
   }
 
-  void ramFill(ColorStorageType<ColorMode> raw_color, size_t count) {
+  void ramFill(const roo::byte* raw_color, size_t count) {
     EXPECT_TRUE(inRamWrite_);
-    ColorMode color_mode;
-    Color color = color_mode.toArgbColor(
-        roo_io::toh<ColorStorageType<ColorMode>, byte_order>(raw_color));
+    Color color = ColorIo<ColorMode, byte_order>().load(raw_color);
     while (count-- > 0) {
       setPixel(xCursor_, yCursor_, color);
       xCursor_++;

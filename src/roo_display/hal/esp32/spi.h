@@ -8,6 +8,8 @@
 #include "esp_err.h"
 #endif
 
+#include "roo_backport.h"
+#include "roo_backport/byte.h"
 #include "roo_display/hal/spi_settings.h"
 #include "roo_io/data/byte_order.h"
 #include "soc/spi_reg.h"
@@ -252,8 +254,8 @@ class Esp32SpiDevice {
     SpiTxWait(spi_port);
   }
 
-  void writeBytes_async(uint8_t* data, uint32_t len) {
-    uint32_t* d32 = (uint32_t*)data;
+  void writeBytes_async(const roo::byte* data, uint32_t len) {
+    const uint32_t* d32 = reinterpret_cast<const uint32_t*>(data);
     if (len >= 64) {
       WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 511);
       while (true) {
@@ -319,14 +321,14 @@ class Esp32SpiDevice {
     need_sync_ = true;
   }
 
-  void fill16_async(uint16_t data, uint32_t len)
-      __attribute__((always_inline)) {
-    fill16be_async(roo_io::htobe(data), len);
-  }
-
-  void fill16be_async(uint16_t data, uint32_t len) {
-    uint32_t d32 = (data << 16) | data;
-    len *= 2;
+  void fill16_async(const roo::byte* data, uint32_t repetitions) {
+    // Note: ESP32 is little-endian, so we're byte-swapping to
+    // get the bytes sorted correctly in the output register.
+    uint16_t hi = static_cast<uint16_t>(data[1]);
+    uint16_t lo = static_cast<uint16_t>(data[0]);
+    uint16_t d16 = (hi << 8) | lo;
+    uint32_t d32 = (d16 << 16) | d16;
+    uint32_t len = repetitions * 2;
     if (len < 64) {
       WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), (len << 3) - 1);
       do {
@@ -403,16 +405,15 @@ class Esp32SpiDevice {
     }
   }
 
-  void fill24be_async(uint32_t data, uint32_t len) {
-    const uint8_t* buf = (const uint8_t*)(&data);
-    uint32_t r = buf[1];
-    uint32_t g = buf[2];
-    uint32_t b = buf[3];
+  void fill24_async(const roo::byte* data, uint32_t repetitions) {
+    uint32_t r = static_cast<uint8_t>(data[0]);
+    uint32_t g = static_cast<uint8_t>(data[1]);
+    uint32_t b = static_cast<uint8_t>(data[2]);
     // Concatenate 4 pixels into three 32 bit blocks.
     uint32_t d2 = b | r << 8 | g << 16 | b << 24;
     uint32_t d1 = d2 << 8 | g;
     uint32_t d0 = d1 << 8 | r;
-    len *= 3;
+    uint32_t len = repetitions * 3;
     if (len < 60) {
       WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), (len << 3) - 1);
       do {
@@ -485,15 +486,15 @@ class Esp32SpiDevice {
     }
   }
 
-  uint8_t transfer(uint8_t data) __attribute__((always_inline)) {
+  roo::byte transfer(roo::byte data) __attribute__((always_inline)) {
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 7);
 #if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32
     WRITE_PERI_REG(SPI_MISO_DLEN_REG(spi_port), 7);
 #endif
-    WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
+    WRITE_PERI_REG(SPI_W0_REG(spi_port), static_cast<uint8_t>(data));
     SpiTxStart(spi_port);
     SpiTxWait(spi_port);
-    return READ_PERI_REG(SPI_W0_REG(spi_port)) & 0xFF;
+    return static_cast<roo::byte>(READ_PERI_REG(SPI_W0_REG(spi_port)) & 0xFF);
   }
 
   uint16_t transfer16(uint16_t data) __attribute__((always_inline)) {

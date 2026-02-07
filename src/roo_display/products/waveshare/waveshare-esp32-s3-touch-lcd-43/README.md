@@ -31,7 +31,7 @@
 - Board: `Waveshare ESP32 S3 Touch LCD 4.3B`
 
 **Required Settings:**
-- USB CDC On Boot: `Disabled`
+- USB CDC On Boot: `Enabled`
 - PSRAM: Enabled `OPI PSRAM`
 
 ## Dependencies

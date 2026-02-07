@@ -167,7 +167,8 @@ class Rgb565 {
  public:
   static const int8_t bits_per_pixel = 16;
 
-  inline constexpr Color toArgbColor(uint16_t in) const {
+  inline constexpr Color toArgbColor(uint16_t in) const
+      __attribute__((always_inline)) {
     // uint32_t r = ((in >> 8) & 0xF8) | (in >> 13);
     // uint32_t g = ((in >> 3) & 0xFC) | ((in >> 9) & 0x03);
     // uint32_t b = ((in << 3) & 0xF8) | ((in >> 2) & 0x07);
@@ -176,7 +177,8 @@ class Rgb565 {
                  ((in << 3) & 0xF8) | ((in >> 2) & 0x07));
   }
 
-  inline constexpr uint16_t fromArgbColor(Color color) const {
+  inline constexpr uint16_t fromArgbColor(Color color) const
+      __attribute__((always_inline)) {
     // uint32_t argb = color.asArgb();
     // return ((color.asArgb() >> 8) & 0xF800) |
     //        ((color.asArgb() >> 5) & 0x07E0) |

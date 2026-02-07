@@ -547,24 +547,24 @@ class BlendingWriterOperator {
       : color_mode_(color_mode), color_(color) {}
 
   void operator()(roo::byte* p, uint32_t offset) {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    SubPixelColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
     RawBlender<ColorMode, blending_mode> blender;
-    auto color = blender(subpixel.ReadSubPixelColor(*target, pixel_index),
-                         *color_++, color_mode_);
-    subpixel.applySubPixelColor(color, target, pixel_index);
+    auto color =
+        blender(io.loadRaw(*target, pixel_index), *color_++, color_mode_);
+    io.storeRaw(color, target, pixel_index);
   }
 
   void operator()(roo::byte* p, uint32_t offset, uint32_t count) {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    SubPixelColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
     while (count-- > 0) {
       RawBlender<ColorMode, blending_mode> blender;
-      auto color = blender(subpixel.ReadSubPixelColor(*target, pixel_index),
-                           *color_++, color_mode_);
-      subpixel.applySubPixelColor(color, target, pixel_index);
+      auto color = blender(io.loadRaw(*target, pixel_index), *color_++,
+                           color_mode_);
+      io.storeRaw(color, target, pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;
         target++;
@@ -627,19 +627,19 @@ struct BlendingWriter {
 //       : color_mode_(color_mode), color_(color) {}
 
 //   void operator()(roo::byte *p, uint32_t offset) {
-//     SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+//     SubPixelColorIo<ColorMode, pixel_order> io;
 //     int pixel_index = offset % pixels_per_byte;
 //     roo::byte *target = p + offset / pixels_per_byte;
-//     subpixel.applySubPixelColor(color_mode_.fromArgbColor(*color_++), target,
+//     io.storeRaw(color_mode_.fromArgbColor(*color_++), target,
 //                                 pixel_index);
 //   }
 
 //   void operator()(roo::byte *p, uint32_t offset, uint32_t count) {
-//     SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+//     SubPixelColorIo<ColorMode, pixel_order> io;
 //     int pixel_index = offset % pixels_per_byte;
 //     roo::byte *target = p + offset / pixels_per_byte;
 //     while (count-- > 0) {
-//       subpixel.applySubPixelColor(color_mode_.fromArgbColor(*color_++),
+//       io.storeRaw(color_mode_.fromArgbColor(*color_++),
 //       target,
 //                                   pixel_index);
 //       if (++pixel_index == pixels_per_byte) {
@@ -697,25 +697,25 @@ class GenericWriter {
       : color_mode_(color_mode), color_(color), blending_mode_(blending_mode) {}
 
   void operator()(roo::byte* p, uint32_t offset) {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    SubPixelColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
-    auto color = ApplyRawBlending(
-        blending_mode_, subpixel.ReadSubPixelColor(*target, pixel_index),
-        *color_++, color_mode_);
-    subpixel.applySubPixelColor(color, target, pixel_index);
+    auto color =
+        ApplyRawBlending(blending_mode_, io.loadRaw(*target, pixel_index),
+                         *color_++, color_mode_);
+    io.storeRaw(color, target, pixel_index);
   }
 
   void operator()(roo::byte* p, uint32_t offset, uint32_t count) {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    SubPixelColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
     // TODO: this loop can be optimized to work on an array of color at a time.
     while (count-- > 0) {
-      auto color = ApplyRawBlending(
-          blending_mode_, subpixel.ReadSubPixelColor(*target, pixel_index),
-          *color_++, color_mode_);
-      subpixel.applySubPixelColor(color, target, pixel_index);
+      auto color = ApplyRawBlending(blending_mode_,
+                                    io.loadRaw(*target, pixel_index),
+                                    *color_++, color_mode_);
+      io.storeRaw(color, target, pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;
         target++;
@@ -775,24 +775,24 @@ class BlendingFillerOperator {
       : color_mode_(color_mode), color_(color) {}
 
   void operator()(roo::byte* p, uint32_t offset) {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    SubPixelColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
     RawBlender<ColorMode, blending_mode> blender;
-    auto color = blender(subpixel.ReadSubPixelColor(*target, pixel_index),
-                         color_, color_mode_);
-    subpixel.applySubPixelColor(color, target, pixel_index);
+    auto color =
+        blender(io.loadRaw(*target, pixel_index), color_, color_mode_);
+    io.storeRaw(color, target, pixel_index);
   }
 
   void operator()(roo::byte* p, uint32_t offset, uint32_t count) {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    SubPixelColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
     RawBlender<ColorMode, blending_mode> blender;
     while (count-- > 0) {
-      auto color = blender(subpixel.ReadSubPixelColor(*target, pixel_index),
-                           color_, color_mode_);
-      subpixel.applySubPixelColor(color, target, pixel_index);
+      auto color =
+          blender(io.loadRaw(*target, pixel_index), color_, color_mode_);
+      io.storeRaw(color, target, pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;
         target++;
@@ -847,23 +847,23 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
       : color_mode_(color_mode),
         raw_color_(color_mode_.fromArgbColor(color)),
         raw_color_full_byte_(
-            SubPixelColorHelper<ColorMode, pixel_order>().RawToFullByte(
+            SubPixelColorIo<ColorMode, pixel_order>().expandRaw(
                 raw_color_)) {}
 
   void operator()(roo::byte* p, uint32_t offset) const {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
-    subpixel.applySubPixelColor(raw_color_, p + offset / pixels_per_byte,
-                                offset % pixels_per_byte);
+    SubPixelColorIo<ColorMode, pixel_order> io;
+    io.storeRaw(raw_color_, p + offset / pixels_per_byte,
+                      offset % pixels_per_byte);
   }
 
   void operator()(roo::byte* p, uint32_t offset, uint32_t count) const {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    SubPixelColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
     if (pixel_index > 0) {
       do {
         if (count-- == 0) return;
-        subpixel.applySubPixelColor(raw_color_, target, pixel_index++);
+        io.storeRaw(raw_color_, target, pixel_index++);
       } while (pixel_index < pixels_per_byte);
       pixel_index = 0;
       ++target;
@@ -874,7 +874,7 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
     count = count % pixels_per_byte;
     target += contiguous_byte_count;
     for (int i = 0; i < count; ++i) {
-      subpixel.applySubPixelColor(raw_color_, target, i);
+      io.storeRaw(raw_color_, target, i);
     }
   }
 
@@ -1019,25 +1019,25 @@ class GenericFiller {
       : color_mode_(color_mode), color_(color), blending_mode_(blending_mode) {}
 
   void operator()(roo::byte* p, uint32_t offset) {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    SubPixelColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
-    auto color = ApplyRawBlending(
-        blending_mode_, subpixel.ReadSubPixelColor(*target, pixel_index),
-        color_, color_mode_);
-    subpixel.applySubPixelColor(color, target, pixel_index);
+    auto color =
+        ApplyRawBlending(blending_mode_, io.loadRaw(*target, pixel_index),
+                         color_, color_mode_);
+    io.storeRaw(color, target, pixel_index);
   }
 
   void operator()(roo::byte* p, uint32_t offset, uint32_t count) {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    SubPixelColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
     // TODO: this loop can be optimized to work on an array of color at a time.
     while (count-- > 0) {
-      auto color = ApplyRawBlending(
-          blending_mode_, subpixel.ReadSubPixelColor(*target, pixel_index),
-          color_, color_mode_);
-      subpixel.applySubPixelColor(color, target, pixel_index);
+      auto color = ApplyRawBlending(blending_mode_,
+                                    io.loadRaw(*target, pixel_index),
+                                    color_, color_mode_);
+      io.storeRaw(color, target, pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;
         target++;

@@ -5,7 +5,7 @@
 #include "gtest/gtest-param-test.h"
 #include "roo_display/color/color.h"
 #include "roo_display/core/offscreen.h"
-#include "roo_display/internal/color_subpixel.h"
+#include "roo_display/internal/color_io.h"
 #include "testing.h"
 
 using namespace testing;

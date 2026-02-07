@@ -9,7 +9,7 @@
 #include "roo_display/color/color.h"
 #include "roo_display/core/streamable.h"
 #include "roo_display/font/font.h"
-#include "roo_display/internal/color_subpixel.h"
+#include "roo_display/internal/color_io.h"
 #include "roo_fonts/NotoSans_Italic/12.h"
 #include "testing_display_device.h"
 
@@ -83,11 +83,11 @@ class RawColorReader<ColorMode, pixel_order, byte_order, uint8_t, 1,
   Color get(int16_t x, int16_t y) const {
     uint32_t offset =
         (x - extents_.xMin() + (y - extents_.yMin()) * extents_.width());
-    SubPixelColorHelper<ColorMode, pixel_order> helper;
+    SubPixelColorIo<ColorMode, pixel_order> helper;
     int32_t byte_offset = (offset + pixel_index_) / pixels_per_byte;
     int pixel_idx = (offset + pixel_index_) % pixels_per_byte;
     return color_mode_.toArgbColor(
-        helper.ReadSubPixelColor(data_[byte_offset], pixel_idx));
+        helper.loadRaw(data_[byte_offset], pixel_idx));
   }
 
  private:
@@ -280,9 +280,8 @@ class WriterTester {
       : color_mode_(color_mode),
         width_(width),
         height_(height),
-        actual_(
-            new roo::byte[(width * height * ColorMode::bits_per_pixel + 7) /
-                             8]),
+        actual_(new roo::byte[(width * height * ColorMode::bits_per_pixel + 7) /
+                              8]),
         expected_(new Color[width * height]) {
     Color bg = color_mode_.toArgbColor(0);
     for (int32_t i = 0;
@@ -650,15 +649,15 @@ class OffscreenDeviceForTest
     : public OffscreenDevice<ColorMode, pixel_order, byte_order,
                              pixels_per_byte, storage_type> {
  public:
-  typedef OffscreenDevice<ColorMode, pixel_order, byte_order,
-  pixels_per_byte,
+  typedef OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                           storage_type>
       Base;
 
   OffscreenDeviceForTest(int16_t width, int16_t height, Color bg)
-      : Base(width, height,
-             new roo::byte[(ColorMode::bits_per_pixel * width * height + 7) /
-             8], ColorMode()) {
+      : Base(
+            width, height,
+            new roo::byte[(ColorMode::bits_per_pixel * width * height + 7) / 8],
+            ColorMode()) {
     Base::fillRect(0, 0, width - 1, height - 1, bg);
   }
 

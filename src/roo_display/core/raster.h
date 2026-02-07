@@ -8,7 +8,7 @@
 #include "roo_display/core/streamable.h"
 #include "roo_display/hal/progmem.h"
 #include "roo_display/internal/byte_order.h"
-#include "roo_display/internal/color_subpixel.h"
+#include "roo_display/internal/color_io.h"
 #include "roo_io/data/byte_order.h"
 #include "roo_io/data/read.h"
 #include "roo_io/memory/load.h"
@@ -77,8 +77,8 @@ class RasterPixelStream : public PixelStream {
 
  private:
   void fetch() {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
-    subpixel.ReadSubPixelColorBulk(color_mode_, stream_.read(), cache_);
+    SubPixelColorIo<ColorMode, pixel_order> io;
+    io.loadRawBulk(color_mode_, stream_.read(), cache_);
   }
 
   StreamType<Resource> stream_;
@@ -167,11 +167,11 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           typename storage_type = ColorStorageType<ColorMode>>
 struct Reader {
-  storage_type operator()(const roo::byte* p, uint32_t offset) const {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+  uint8_t operator()(const roo::byte* p, uint32_t offset) const {
+    SubPixelColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     const roo::byte* target = p + offset / pixels_per_byte;
-    return subpixel.ReadSubPixelColor(*target, pixel_index);
+    return io.loadRaw(*target, pixel_index);
   }
 };
 

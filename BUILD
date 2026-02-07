@@ -370,6 +370,28 @@ cc_test(
 )
 
 cc_test(
+    name = "driver_compile_test",
+    srcs = [
+        "test/driver_compile_test.cpp",
+    ],
+    linkstatic = 1,
+    deps = [
+        ":testing",
+    ],
+)
+
+cc_test(
+    name = "products_compile_test",
+    srcs = [
+        "test/products_compile_test.cpp",
+    ],
+    linkstatic = 1,
+    deps = [
+        ":testing",
+    ],
+)
+
+cc_test(
     name = "addr_window_device_test",
     srcs = [
         "test/addr_window_device_test.cpp",

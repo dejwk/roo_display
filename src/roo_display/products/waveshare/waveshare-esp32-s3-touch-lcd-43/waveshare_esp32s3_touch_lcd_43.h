@@ -14,9 +14,8 @@
 #include "roo_display/hal/i2c.h"
 #include "roo_display/products/combo_device.h"
 
-namespace roo_display {
-namespace products {
-namespace waveshare {
+namespace roo_display::products::waveshare
+{
 
 // Driver for the Waveshare ESP32-S3-Touch-LCD-4.3 combo device.
 // This device features an 800x480 RGB565 parallel display with GT911
@@ -60,8 +59,7 @@ class WaveshareEsp32s3TouchLcd43 : public ComboDevice {
   void writeEXIO(uint8_t pin, bool state);
 };
 
-}  // namespace waveshare
-}  // namespace products
-}  // namespace roo_display
+} // namespace roo_display::products::waveshare
 
 #endif  // ESP32 && CONFIG_IDF_TARGET_ESP32S3
+

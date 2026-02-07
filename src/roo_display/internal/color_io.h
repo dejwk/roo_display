@@ -5,8 +5,95 @@
 #include "roo_backport/byte.h"
 #include "roo_display/color/color.h"
 #include "roo_display/color/traits.h"
+#include "roo_io/data/byte_order.h"
 
 namespace roo_display {
+
+template <typename ColorMode, roo_io::ByteOrder byte_order,
+          typename Enable = void>
+struct ColorIo {
+  void store(Color src, roo::byte *dest, const ColorMode &mode) const;
+  Color load(const roo::byte *src, const ColorMode &mode) const;
+};
+
+// 1-byte pixels.
+template <typename ColorMode, roo_io::ByteOrder byte_order>
+struct ColorIo<ColorMode, byte_order,
+               std::enable_if_t<ColorTraits<ColorMode>::bytes_per_pixel == 1 &&
+                                ColorTraits<ColorMode>::pixels_per_byte == 1>> {
+  void store(Color src, roo::byte *dest, const ColorMode &mode) const
+      __attribute__((always_inline)) {
+    dest[0] = mode.fromArgbColor(src);
+  }
+  Color load(const roo::byte *src, const ColorMode &mode) const
+      __attribute__((always_inline)) {
+    return mode.toArgbColor(static_cast<uint8_t>(src[0]));
+  }
+};
+
+// 2-byte pixels.
+template <typename ColorMode, roo_io::ByteOrder byte_order>
+struct ColorIo<ColorMode, byte_order,
+               std::enable_if_t<ColorTraits<ColorMode>::bytes_per_pixel == 2>> {
+  void store(Color src, roo::byte *dest, const ColorMode &mode) const
+      __attribute__((always_inline)) {
+    *(uint16_t *)dest =
+        roo_io::hto<uint16_t, byte_order>(mode.fromArgbColor(src));
+  }
+  Color load(const roo::byte *src, const ColorMode &mode) const
+      __attribute__((always_inline)) {
+    return mode.toArgbColor(
+        roo_io::toh<uint16_t, byte_order>(*(const uint16_t *)src));
+  }
+};
+
+// 3-byte pixels.
+template <typename ColorMode, roo_io::ByteOrder byte_order>
+struct ColorIo<ColorMode, byte_order,
+               std::enable_if_t<ColorTraits<ColorMode>::bytes_per_pixel == 3 &&
+                                ColorTraits<ColorMode>::pixels_per_byte == 1>> {
+  void store(Color src, roo::byte *dest, const ColorMode &mode) const
+      __attribute__((always_inline)) {
+    uint32_t raw = mode.fromArgbColor(src);
+    if constexpr (byte_order == roo_io::kBigEndian) {
+      dest[0] = static_cast<roo::byte>(raw >> 16);
+      dest[1] = static_cast<roo::byte>(raw >> 8);
+      dest[2] = static_cast<roo::byte>(raw >> 0);
+    } else {
+      dest[0] = static_cast<roo::byte>(raw >> 0);
+      dest[1] = static_cast<roo::byte>(raw >> 8);
+      dest[2] = static_cast<roo::byte>(raw >> 16);
+    }
+  }
+  Color load(const roo::byte *src, const ColorMode &mode) const
+      __attribute__((always_inline)) {
+    if constexpr (byte_order == roo_io::kBigEndian) {
+      return mode.toArgbColor((static_cast<uint32_t>(src[0]) << 16) |
+                              (static_cast<uint32_t>(src[1]) << 8) |
+                              (static_cast<uint32_t>(src[2]) << 0));
+    } else {
+      return mode.toArgbColor((static_cast<uint32_t>(src[0]) << 0) |
+                              (static_cast<uint32_t>(src[1]) << 8) |
+                              (static_cast<uint32_t>(src[2]) << 16));
+    }
+  }
+};
+
+// 4-byte pixels.
+template <typename ColorMode, roo_io::ByteOrder byte_order>
+struct ColorIo<ColorMode, byte_order,
+               std::enable_if_t<ColorTraits<ColorMode>::bytes_per_pixel == 4>> {
+  void store(Color src, roo::byte *dest, const ColorMode &mode) const
+      __attribute__((always_inline)) {
+    *(uint32_t *)dest =
+        roo_io::hto<uint32_t, byte_order>(mode.fromArgbColor(src));
+  }
+  Color load(const roo::byte *src, const ColorMode &mode) const
+      __attribute__((always_inline)) {
+    return mode.toArgbColor(
+        roo_io::toh<uint32_t, byte_order>(*(const uint32_t *)src));
+  }
+};
 
 // In case of color modes that store multiple pixels in a single byte,
 // specifies whether the leftmost pixel is mapped to the high or low order

@@ -20,6 +20,51 @@ namespace roo_display {
 template <typename Resource>
 using StreamType = decltype(std::declval<Resource>().iterator());
 
+template <typename ByteStream, typename ColorMode, ColorPixelOrder pixel_order,
+          ByteOrder byte_order,
+          int bytes_per_pixel = ColorTraits<ColorMode>::bytes_per_pixel>
+struct ColorReader;
+
+template <typename ByteStream, typename ColorMode, ColorPixelOrder pixel_order,
+          ByteOrder byte_order>
+struct ColorReader<ByteStream, ColorMode, pixel_order, byte_order, 1> {
+  Color operator()(ByteStream& in, const ColorMode& color_mode) const {
+    roo::byte buf[1];
+    in.read(buf, 1);
+    return ColorIo<ColorMode, byte_order>().load(buf, color_mode);
+  }
+};
+
+template <typename ByteStream, typename ColorMode, ColorPixelOrder pixel_order,
+          ByteOrder byte_order>
+struct ColorReader<ByteStream, ColorMode, pixel_order, byte_order, 2> {
+  Color operator()(ByteStream& in, const ColorMode& color_mode) const {
+    roo::byte buf[2];
+    in.read(buf, 2);
+    return ColorIo<ColorMode, byte_order>().load(buf, color_mode);
+  }
+};
+
+template <typename ByteStream, typename ColorMode, ColorPixelOrder pixel_order,
+          ByteOrder byte_order>
+struct ColorReader<ByteStream, ColorMode, pixel_order, byte_order, 3> {
+  Color operator()(ByteStream& in, const ColorMode& color_mode) const {
+    roo::byte buf[3];
+    in.read(buf, 3);
+    return ColorIo<ColorMode, byte_order>().load(buf, color_mode);
+  }
+};
+
+template <typename ByteStream, typename ColorMode, ColorPixelOrder pixel_order,
+          ByteOrder byte_order>
+struct ColorReader<ByteStream, ColorMode, pixel_order, byte_order, 4> {
+  Color operator()(ByteStream& in, const ColorMode& color_mode) const {
+    roo::byte buf[4];
+    in.read(buf, 4);
+    return ColorIo<ColorMode, byte_order>().load(buf, color_mode);
+  }
+};
+
 /// Pixel stream that reads from a raw byte resource.
 ///
 /// Default implementation for color modes with multiple pixels per byte.
@@ -87,43 +132,6 @@ class RasterPixelStream : public PixelStream {
   Color cache_[ColorTraits<ColorMode>::pixels_per_byte];
 };
 
-template <typename ByteStream, typename ColorMode, ColorPixelOrder pixel_order,
-          ByteOrder byte_order,
-          int bytes_per_pixel = ColorTraits<ColorMode>::bytes_per_pixel>
-struct ColorReader;
-
-template <typename ByteStream, typename ColorMode, ColorPixelOrder pixel_order,
-          ByteOrder byte_order>
-struct ColorReader<ByteStream, ColorMode, pixel_order, byte_order, 1> {
-  Color operator()(ByteStream& in, const ColorMode& color_mode) const {
-    return color_mode.toArgbColor(roo_io::ReadU8(in));
-  }
-};
-
-template <typename ByteStream, typename ColorMode, ColorPixelOrder pixel_order,
-          ByteOrder byte_order>
-struct ColorReader<ByteStream, ColorMode, pixel_order, byte_order, 2> {
-  Color operator()(ByteStream& in, const ColorMode& color_mode) const {
-    return color_mode.toArgbColor(roo_io::ReadU16<ByteStream, byte_order>(in));
-  }
-};
-
-template <typename ByteStream, typename ColorMode, ColorPixelOrder pixel_order,
-          ByteOrder byte_order>
-struct ColorReader<ByteStream, ColorMode, pixel_order, byte_order, 3> {
-  Color operator()(ByteStream& in, const ColorMode& color_mode) const {
-    return color_mode.toArgbColor(roo_io::ReadU24<ByteStream, byte_order>(in));
-  }
-};
-
-template <typename ByteStream, typename ColorMode, ColorPixelOrder pixel_order,
-          ByteOrder byte_order>
-struct ColorReader<ByteStream, ColorMode, pixel_order, byte_order, 4> {
-  Color operator()(ByteStream& in, const ColorMode& color_mode) const {
-    return color_mode.toArgbColor(roo_io::ReadU32<ByteStream, byte_order>(in));
-  }
-};
-
 /// Specialization for color modes with at least one byte per pixel.
 template <typename Resource, typename ColorMode, ColorPixelOrder pixel_order,
           ByteOrder byte_order>
@@ -167,35 +175,12 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           typename storage_type = ColorStorageType<ColorMode>>
 struct Reader {
-  uint8_t operator()(const roo::byte* p, uint32_t offset) const {
+  Color operator()(const roo::byte* p, uint32_t offset,
+                   const ColorMode& color_mode) const {
     SubPixelColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     const roo::byte* target = p + offset / pixels_per_byte;
-    return io.loadRaw(*target, pixel_index);
-  }
-};
-
-template <typename RawType, int bits_per_pixel, ByteOrder byte_order>
-struct ConstRawReader {
-  RawType operator()(const roo::byte* ptr, uint32_t offset) const {
-    return roo_io::LoadInteger<byte_order, RawType>(ptr +
-                                                    offset * sizeof(RawType));
-  }
-};
-
-template <>
-struct ConstRawReader<uint32_t, 24, roo_io::kBigEndian> {
-  uint32_t operator()(const roo::byte* ptr, uint32_t offset) const {
-    ptr += 3 * offset;
-    return roo_io::LoadBeU24(ptr);
-  }
-};
-
-template <>
-struct ConstRawReader<uint32_t, 24, roo_io::kLittleEndian> {
-  uint32_t operator()(const roo::byte* ptr, uint32_t offset) const {
-    ptr += 3 * offset;
-    return roo_io::LoadLeU24(ptr);
+    return color_mode.toArgbColor(io.loadRaw(*target, pixel_index));
   }
 };
 
@@ -203,11 +188,10 @@ struct ConstRawReader<uint32_t, 24, roo_io::kLittleEndian> {
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           typename storage_type>
 struct Reader<ColorMode, pixel_order, byte_order, 1, storage_type> {
-  storage_type operator()(const roo::byte* p, uint32_t offset) const {
-    ConstRawReader<ColorStorageType<ColorMode>, ColorMode::bits_per_pixel,
-                   byte_order>
-        read;
-    return read(p, offset);
+  Color operator()(const roo::byte* p, uint32_t offset,
+                   const ColorMode& color_mode) const {
+    const roo::byte* src = p + offset * ColorTraits<ColorMode>::bytes_per_pixel;
+    return ColorIo<ColorMode, byte_order>().load(src, color_mode);
   }
 };
 
@@ -296,8 +280,9 @@ class Raster : public Rasterizable {
                   Color* result) const override {
     Reader read;
     while (count-- > 0) {
-      *result++ = color_mode_.toArgbColor(read(
-          ptr_, *x++ - extents_.xMin() + (*y++ - extents_.yMin()) * width_));
+      *result++ =
+          read(ptr_, *x++ - extents_.xMin() + (*y++ - extents_.yMin()) * width_,
+               color_mode_);
     }
   }
 
@@ -309,8 +294,8 @@ class Raster : public Rasterizable {
 
   Color get(int16_t x, int16_t y) const {
     Reader read;
-    return color_mode_.toArgbColor(
-        read(ptr_, x - extents_.xMin() + (y - extents_.yMin()) * width_));
+    return read(ptr_, x - extents_.xMin() + (y - extents_.yMin()) * width_,
+                color_mode_);
   }
 
   const PtrType buffer() const { return ptr_; }

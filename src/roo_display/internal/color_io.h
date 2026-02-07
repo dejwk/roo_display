@@ -23,7 +23,7 @@ struct ColorIo<ColorMode, byte_order,
                                 ColorTraits<ColorMode>::pixels_per_byte == 1>> {
   void store(Color src, roo::byte *dest, const ColorMode &mode) const
       __attribute__((always_inline)) {
-    dest[0] = mode.fromArgbColor(src);
+    dest[0] = static_cast<roo::byte>(mode.fromArgbColor(src));
   }
   Color load(const roo::byte *src, const ColorMode &mode) const
       __attribute__((always_inline)) {

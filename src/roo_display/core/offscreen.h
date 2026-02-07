@@ -884,59 +884,6 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
   roo::byte raw_color_full_byte_;
 };
 
-// Used to convert a raw color to byte array, so that we can use it in
-// fill_pattern, respecting the byte order.
-template <typename storage_type, int bytes, ByteOrder byte_order>
-void ReadRaw(storage_type in, roo::byte* out);
-
-template <>
-inline void ReadRaw<uint8_t, 1, roo_io::kBigEndian>(uint8_t in,
-                                                    roo::byte* out) {
-  roo_io::StoreU8(in, out);
-}
-
-template <>
-inline void ReadRaw<uint8_t, 1, roo_io::kLittleEndian>(uint8_t in,
-                                                       roo::byte* out) {
-  roo_io::StoreU8(in, out);
-}
-
-template <>
-inline void ReadRaw<uint16_t, 2, roo_io::kBigEndian>(uint16_t in,
-                                                     roo::byte* out) {
-  roo_io::StoreBeU16(in, out);
-}
-
-template <>
-inline void ReadRaw<uint16_t, 2, roo_io::kLittleEndian>(uint16_t in,
-                                                        roo::byte* out) {
-  roo_io::StoreLeU16(in, out);
-}
-
-template <>
-inline void ReadRaw<uint32_t, 3, roo_io::kBigEndian>(uint32_t in,
-                                                     roo::byte* out) {
-  roo_io::StoreBeU24(in, out);
-}
-
-template <>
-inline void ReadRaw<uint32_t, 3, roo_io::kLittleEndian>(uint32_t in,
-                                                        roo::byte* out) {
-  roo_io::StoreLeU24(in, out);
-}
-
-template <>
-inline void ReadRaw<uint32_t, 4, roo_io::kBigEndian>(uint32_t in,
-                                                     roo::byte* out) {
-  roo_io::StoreBeU32(in, out);
-}
-
-template <>
-inline void ReadRaw<uint32_t, 4, roo_io::kLittleEndian>(uint32_t in,
-                                                        roo::byte* out) {
-  roo_io::StoreLeU32(in, out);
-}
-
 // For color modes in which a pixel takes up at least 1 byte.
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           typename storage_type>
@@ -945,9 +892,7 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
  public:
   BlendingFillerOperator(const ColorMode& color_mode, Color color)
       : color_mode_(color_mode) {
-    internal::ReadRaw<typename ColorTraits<ColorMode>::storage_type,
-                      ColorMode::bits_per_pixel / 8, byte_order>(
-        color_mode_.fromArgbColor(color), raw_color_);
+    ColorIo<ColorMode, byte_order>().store(color, raw_color_, color_mode_);
   }
 
   void operator()(roo::byte* p, uint32_t offset) const {

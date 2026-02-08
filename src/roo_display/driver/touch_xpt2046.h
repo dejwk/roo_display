@@ -73,8 +73,6 @@ TouchXpt2046<pinCS, Spi, Gpio>::TouchXpt2046(Spi spi)
 
 template <typename Spi>
 void get_raw_touch_xy(Spi& spi, uint16_t* x, uint16_t* y) {
-  uint16_t last_x = -1;
-  uint16_t last_y = -1;
   spi.transfer(roo::byte{0xd3});
   *x = spi.transfer16(0xd3) >> 3;
   *x = spi.transfer16(0xd3) >> 3;
@@ -170,7 +168,6 @@ int TouchXpt2046<pinCS, Spi, Gpio>::readTouch(TouchPoint* touch_point) {
       if (z_max < z_tmp) z_max = z_tmp;
       count++;
     }
-    int16_t x, y, z;
     if (settled_conversions >= kMinSettledConversions) {
       // We got enough settled conversions to return a result.
       if (touched) {

@@ -1,12 +1,15 @@
 
 #include "roo_display/core/offscreen.h"
 
+#include <limits>
 #include <memory>
 #include <random>
+#include <utility>
 
 #include "gtest/gtest-param-test.h"
 #include "roo_display.h"
 #include "roo_display/color/color.h"
+#include "roo_display/color/color_mode_indexed.h"
 #include "roo_display/core/streamable.h"
 #include "roo_display/font/font.h"
 #include "roo_display/internal/color_io.h"
@@ -18,6 +21,53 @@ using namespace testing;
 // static std::default_random_engine generator;
 
 namespace roo_display {
+
+namespace {
+
+void FillIndexedPalette(Color* colors, int size) {
+  colors[0] = color::Transparent;
+  for (int i = 1; i < size; ++i) {
+    colors[i] = Color((i * 37) & 0xFF, (i * 59) & 0xFF, (i * 83) & 0xFF);
+  }
+}
+
+Palette& IndexedPalette1() {
+  static Color colors[2];
+  static Palette palette = []() {
+    FillIndexedPalette(colors, 2);
+    return Palette::ReadWrite(colors, 2);
+  }();
+  return palette;
+}
+
+Palette& IndexedPalette2() {
+  static Color colors[4];
+  static Palette palette = []() {
+    FillIndexedPalette(colors, 4);
+    return Palette::ReadWrite(colors, 4);
+  }();
+  return palette;
+}
+
+Palette& IndexedPalette4() {
+  static Color colors[16];
+  static Palette palette = []() {
+    FillIndexedPalette(colors, 16);
+    return Palette::ReadWrite(colors, 16);
+  }();
+  return palette;
+}
+
+Palette& IndexedPalette8() {
+  static Color colors[256];
+  static Palette palette = []() {
+    FillIndexedPalette(colors, 256);
+    return Palette::ReadWrite(colors, 256);
+  }();
+  return palette;
+}
+
+}  // namespace
 
 // Trivial, byte-order-respecting, raw color reader, returning storage_type.
 template <ByteOrder byte_order>
@@ -52,7 +102,9 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
 class RawColorReader {
  public:
   RawColorReader(const roo::byte* data, Box extents, ColorMode color_mode)
-      : color_mode_(color_mode), data_(data), extents_(extents) {}
+    : color_mode_(std::move(color_mode)),
+      data_(data),
+      extents_(extents) {}
 
   Color get(int16_t x, int16_t y) const {
     int size = ColorMode::bits_per_pixel / 8;
@@ -75,7 +127,7 @@ class RawColorReader<ColorMode, pixel_order, byte_order, uint8_t, 1,
  public:
   RawColorReader(const roo::byte* data, Box extents, ColorMode color_mode,
                  int pixel_index = 0)
-      : color_mode_(color_mode),
+      : color_mode_(std::move(color_mode)),
         data_(data),
         extents_(extents),
         pixel_index_(pixel_index) {}
@@ -245,7 +297,7 @@ class TrivialWriter {
   }
 
  private:
-  const ColorMode& color_mode_;
+  ColorMode color_mode_;
   const Color* color_;
 };
 
@@ -266,7 +318,7 @@ class TrivialFiller {
   }
 
  private:
-  const ColorMode& color_mode_;
+  ColorMode color_mode_;
   Color color_;
 };
 
@@ -277,7 +329,7 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
 class WriterTester {
  public:
   WriterTester(int16_t width, int16_t height, ColorMode color_mode)
-      : color_mode_(color_mode),
+      : color_mode_(std::move(color_mode)),
         width_(width),
         height_(height),
         actual_(new roo::byte[(width * height * ColorMode::bits_per_pixel + 7) /
@@ -350,7 +402,9 @@ template <typename ColorMode>
 class ColorRandomizer {
  public:
   ColorRandomizer(int size, ColorMode color_mode = ColorMode())
-      : color_mode_(color_mode), distribution_(), colors_(new Color[size]) {
+      : color_mode_(std::move(color_mode)),
+        distribution_(0, MaxRawValue()),
+        colors_(new Color[size]) {
     for (int i = 0; i < size; ++i) {
       colors_[i] = next();
     }
@@ -359,6 +413,14 @@ class ColorRandomizer {
   Color* get() { return colors_.get(); }
 
  private:
+  static ColorStorageType<ColorMode> MaxRawValue() {
+    if (ColorMode::bits_per_pixel <= 8) {
+      return static_cast<ColorStorageType<ColorMode>>(
+          (1u << ColorMode::bits_per_pixel) - 1);
+    }
+    return std::numeric_limits<ColorStorageType<ColorMode>>::max();
+  }
+
   // Randomly choses a color from the target's color mode space.
   Color next() { return color_mode_.toArgbColor(distribution_(generator)); }
 
@@ -512,6 +574,10 @@ TEST(Writer, Argb4444) { TestWriter<Argb4444>(); }
 TEST(Writer, Rgb565) { TestWriter<Rgb565>(); }
 TEST(Writer, Alpha8) { TestWriter<Alpha8>(color::Black); }
 TEST(Writer, Alpha4) { TestWriter<Alpha4>(color::Black); }
+TEST(Writer, Indexed1) { TestWriter<Indexed1>(Indexed1(&IndexedPalette1())); }
+TEST(Writer, Indexed2) { TestWriter<Indexed2>(Indexed2(&IndexedPalette2())); }
+TEST(Writer, Indexed4) { TestWriter<Indexed4>(Indexed4(&IndexedPalette4())); }
+TEST(Writer, Indexed8) { TestWriter<Indexed8>(Indexed8(&IndexedPalette8())); }
 
 TEST(Writer, Rgb565WithTransparency) {
   TestWriter<Rgb565WithTransparency>(Rgb565WithTransparency(12));
@@ -573,6 +639,10 @@ TEST(Filler, Argb4444) { TestFiller<Argb4444>(); }
 TEST(Filler, Rgb565) { TestFiller<Rgb565>(); }
 TEST(Filler, Alpha8) { TestFiller<Alpha8>(color::Black); }
 TEST(Filler, Alpha4) { TestFiller<Alpha4>(color::Black); }
+TEST(Filler, Indexed1) { TestFiller<Indexed1>(Indexed1(&IndexedPalette1())); }
+TEST(Filler, Indexed2) { TestFiller<Indexed2>(Indexed2(&IndexedPalette2())); }
+TEST(Filler, Indexed4) { TestFiller<Indexed4>(Indexed4(&IndexedPalette4())); }
+TEST(Filler, Indexed8) { TestFiller<Indexed8>(Indexed8(&IndexedPalette8())); }
 
 TEST(Filler, Rgb565WithTransparency) {
   TestWriter<Rgb565WithTransparency>(Rgb565WithTransparency(12));

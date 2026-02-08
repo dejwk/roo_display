@@ -1,10 +1,12 @@
 #pragma once
 #include <cstring>
 #include <string>
+#include <utility>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "roo_display/color/color.h"
+#include "roo_display/color/color_mode_indexed.h"
 #include "roo_display/color/color_modes.h"
 #include "roo_display/color/named.h"
 #include "roo_display/core/device.h"
@@ -126,6 +128,34 @@ Color NextColorFromString<Grayscale4>(const Grayscale4& mode,
 template <>
 Color NextColorFromString<Alpha8>(const Alpha8& mode, std::istream& in) {
   return Color(((uint32_t)ParseHexByte(in)) << 24);
+}
+
+template <>
+Color NextColorFromString<internal::Indexed<1>>(const internal::Indexed<1>& mode,
+                                                std::istream& in) {
+  uint8_t idx = ParseHexNibble(in) & 0x01;
+  return mode.toArgbColor(idx);
+}
+
+template <>
+Color NextColorFromString<internal::Indexed<2>>(const internal::Indexed<2>& mode,
+                                                std::istream& in) {
+  uint8_t idx = ParseHexNibble(in) & 0x03;
+  return mode.toArgbColor(idx);
+}
+
+template <>
+Color NextColorFromString<internal::Indexed<4>>(const internal::Indexed<4>& mode,
+                                                std::istream& in) {
+  uint8_t idx = ParseHexNibble(in) & 0x0F;
+  return mode.toArgbColor(idx);
+}
+
+template <>
+Color NextColorFromString<internal::Indexed<8>>(const internal::Indexed<8>& mode,
+                                                std::istream& in) {
+  uint8_t idx = ParseHexByte(in);
+  return mode.toArgbColor(idx);
 }
 
 template <>
@@ -360,7 +390,7 @@ template <typename RawStreamable>
 class StreamablePrinter<RawStreamable, Monochrome> {
  public:
   StreamablePrinter(Monochrome color_mode)
-      : color_mode_(std::move(color_mode)) {}
+  : color_mode_(std::move(color_mode)) {}
 
   template <typename RawStream>
   void PrintContent(const RawStreamable& streamable, RawStream& os) {
@@ -555,7 +585,7 @@ char sixBitDigit(int d) {
 template <typename RawStreamable>
 class StreamablePrinter<RawStreamable, Rgb565> {
  public:
-  StreamablePrinter(Rgb565 mode) : mode_(mode) {}
+  StreamablePrinter(Rgb565 mode) : mode_(std::move(mode)) {}
 
   template <typename RawStream>
   void PrintContent(const RawStreamable& streamable, RawStream& os) {
@@ -587,7 +617,7 @@ class StreamablePrinter<RawStreamable, Rgb565> {
 template <typename RawStreamable>
 class StreamablePrinter<RawStreamable, Argb6666> {
  public:
-  StreamablePrinter(Argb6666 mode) : mode_(mode) {}
+  StreamablePrinter(Argb6666 mode) : mode_(std::move(mode)) {}
 
   template <typename RawStream>
   void PrintContent(const RawStreamable& streamable, RawStream& os) {
@@ -629,7 +659,7 @@ class StreamablePrinter<RawStreamable, Argb6666> {
 template <typename RawStreamable>
 class StreamablePrinter<RawStreamable, Rgb565WithTransparency> {
  public:
-  StreamablePrinter(Rgb565WithTransparency mode) : mode_(mode) {}
+  StreamablePrinter(Rgb565WithTransparency mode) : mode_(std::move(mode)) {}
 
   template <typename RawStream>
   void PrintContent(const RawStreamable& streamable, RawStream& os) {
@@ -656,6 +686,46 @@ class StreamablePrinter<RawStreamable, Rgb565WithTransparency> {
 
  private:
   Rgb565WithTransparency mode_;
+};
+
+template <typename RawStreamable, uint8_t bits>
+class StreamablePrinter<RawStreamable, internal::Indexed<bits>> {
+ public:
+  StreamablePrinter(internal::Indexed<bits> mode) : mode_(std::move(mode)) {}
+
+  template <typename RawStream>
+  void PrintContent(const RawStreamable& streamable, RawStream& os) {
+    auto stream = streamable.createRawStream();
+    for (int16_t j = 0; j < streamable.extents().height(); ++j) {
+      os << "\n          \"";
+      for (int16_t i = 0; i < streamable.extents().width(); ++i) {
+        Color color = stream->next();
+        int idx = FindIndex(color);
+        if (idx < 0) {
+          os << "x";
+        } else if (bits <= 4) {
+          os << hexDigit(idx);
+        } else {
+          PrintHexByte(idx, os);
+          if (i + 1 < streamable.extents().width()) os << " ";
+        }
+      }
+      os << "\"";
+    }
+  }
+
+ private:
+  int FindIndex(Color color) const {
+    const Palette* palette = mode_.palette();
+    const Color* colors = palette->colors();
+    int size = palette->size();
+    for (int i = 0; i < size; ++i) {
+      if (colors[i] == color) return i;
+    }
+    return -1;
+  }
+
+  internal::Indexed<bits> mode_;
 };
 
 }  // namespace internal
@@ -735,6 +805,12 @@ std::ostream& operator<<(std::ostream& os, Grayscale8 mode) {
   return os;
 }
 
+template <uint8_t bits>
+std::ostream& operator<<(std::ostream& os, const internal::Indexed<bits>&) {
+  os << "INDEXED_" << static_cast<int>(bits) << "BPP";
+  return os;
+}
+
 bool operator==(const Monochrome& a, const Monochrome& b) {
   return a.bg() == b.bg() && a.fg() == b.fg();
 }
@@ -759,6 +835,12 @@ bool operator==(const Rgb565WithTransparency& a,
                 const Rgb565WithTransparency& b) {
   return a.fromArgbColor(color::Transparent) ==
          b.fromArgbColor(color::Transparent);
+}
+
+template <uint8_t bits>
+bool operator==(const internal::Indexed<bits>& a,
+                const internal::Indexed<bits>& b) {
+  return a.palette() == b.palette();
 }
 
 // Prints the content of the specified streamable in a human-readable form,

@@ -5,12 +5,24 @@
 #include <random>
 
 #include "roo_display/color/color.h"
+#include "roo_display/color/color_mode_indexed.h"
 #include "roo_display/io/memory.h"
 #include "testing.h"
 
 using namespace testing;
 
 namespace roo_display {
+
+namespace {
+
+void FillIndexedPalette(Color* colors, int size) {
+  colors[0] = color::Transparent;
+  for (int i = 1; i < size; ++i) {
+    colors[i] = Color(i, i, i);
+  }
+}
+
+}  // namespace
 
 void Draw(DisplayDevice& output, int16_t x, int16_t y, const Box& clip_box,
           const Drawable& object, FillMode fill_mode = FILL_MODE_VISIBLE,
@@ -72,6 +84,110 @@ TEST(Raster, Grayscale4LsbFirst) {
   EXPECT_THAT(raster, MatchesContent(Grayscale4(), 3, 2,
                                      "1C6"
                                      "27E"));
+}
+
+TEST(Raster, Indexed1MsbFirst) {
+  roo::byte data[1] = {static_cast<roo::byte>(0x00)};
+  SubByteColorIo<Indexed1, COLOR_PIXEL_ORDER_MSB_FIRST> io;
+  const uint8_t indices[] = {0, 1, 1, 0, 1, 0, 0, 1};
+  for (int i = 0; i < 8; ++i) {
+    io.storeRaw(indices[i], &data[0], i);
+  }
+  Color colors[2];
+  FillIndexedPalette(colors, 2);
+  Palette palette = Palette::ReadOnly(colors, 2);
+  ConstDramRaster<Indexed1> raster(4, 2, data, Indexed1(&palette));
+  EXPECT_THAT(raster, MatchesContent(Indexed1(&palette), 4, 2,
+                                     "0110"
+                                     "1001"));
+}
+
+TEST(Raster, Indexed1LsbFirst) {
+  roo::byte data[1] = {static_cast<roo::byte>(0x00)};
+  SubByteColorIo<Indexed1, COLOR_PIXEL_ORDER_LSB_FIRST> io;
+  const uint8_t indices[] = {0, 1, 1, 0, 1, 0, 0, 1};
+  for (int i = 0; i < 8; ++i) {
+    io.storeRaw(indices[i], &data[0], i);
+  }
+  Color colors[2];
+  FillIndexedPalette(colors, 2);
+  Palette palette = Palette::ReadOnly(colors, 2);
+  ConstDramRaster<Indexed1, COLOR_PIXEL_ORDER_LSB_FIRST> raster(
+      4, 2, data, Indexed1(&palette));
+  EXPECT_THAT(raster, MatchesContent(Indexed1(&palette), 4, 2,
+                                     "0110"
+                                     "1001"));
+}
+
+TEST(Raster, Indexed2MsbFirst) {
+  roo::byte data[2] = {static_cast<roo::byte>(0x00),
+                       static_cast<roo::byte>(0x00)};
+  SubByteColorIo<Indexed2, COLOR_PIXEL_ORDER_MSB_FIRST> io;
+  const uint8_t indices[] = {0, 1, 2, 3, 3, 2, 1, 0};
+  for (int i = 0; i < 8; ++i) {
+    io.storeRaw(indices[i], &data[i / 4], i % 4);
+  }
+  Color colors[4];
+  FillIndexedPalette(colors, 4);
+  Palette palette = Palette::ReadOnly(colors, 4);
+  ConstDramRaster<Indexed2> raster(4, 2, data, Indexed2(&palette));
+  EXPECT_THAT(raster, MatchesContent(Indexed2(&palette), 4, 2,
+                                     "0123"
+                                     "3210"));
+}
+
+TEST(Raster, Indexed2LsbFirst) {
+  roo::byte data[2] = {static_cast<roo::byte>(0x00),
+                       static_cast<roo::byte>(0x00)};
+  SubByteColorIo<Indexed2, COLOR_PIXEL_ORDER_LSB_FIRST> io;
+  const uint8_t indices[] = {0, 1, 2, 3, 3, 2, 1, 0};
+  for (int i = 0; i < 8; ++i) {
+    io.storeRaw(indices[i], &data[i / 4], i % 4);
+  }
+  Color colors[4];
+  FillIndexedPalette(colors, 4);
+  Palette palette = Palette::ReadOnly(colors, 4);
+  ConstDramRaster<Indexed2, COLOR_PIXEL_ORDER_LSB_FIRST> raster(
+      4, 2, data, Indexed2(&palette));
+  EXPECT_THAT(raster, MatchesContent(Indexed2(&palette), 4, 2,
+                                     "0123"
+                                     "3210"));
+}
+
+TEST(Raster, Indexed4MsbFirst) {
+  unsigned char data[] = {0xC1, 0x26, 0xE7};
+  Color colors[16];
+  FillIndexedPalette(colors, 16);
+  Palette palette = Palette::ReadOnly(colors, 16);
+  ConstDramRaster<Indexed4> raster(3, 2, (const roo::byte*)data,
+                                  Indexed4(&palette));
+  EXPECT_THAT(raster, MatchesContent(Indexed4(&palette), 3, 2,
+                                     "C12"
+                                     "6E7"));
+}
+
+TEST(Raster, Indexed4LsbFirst) {
+  unsigned char data[] = {0xC1, 0x26, 0xE7};
+  Color colors[16];
+  FillIndexedPalette(colors, 16);
+  Palette palette = Palette::ReadOnly(colors, 16);
+  ConstDramRaster<Indexed4, COLOR_PIXEL_ORDER_LSB_FIRST> raster(
+      3, 2, (const roo::byte*)data, Indexed4(&palette));
+  EXPECT_THAT(raster, MatchesContent(Indexed4(&palette), 3, 2,
+                                     "1C6"
+                                     "27E"));
+}
+
+TEST(Raster, Indexed8) {
+  unsigned char data[] = {0xC1, 0x26, 0xE7, 0x54, 0xF3, 0x04};
+  Color colors[256];
+  FillIndexedPalette(colors, 256);
+  Palette palette = Palette::ReadOnly(colors, 256);
+  ConstDramRaster<Indexed8> raster(3, 2, (const roo::byte*)data,
+                                  Indexed8(&palette));
+  EXPECT_THAT(raster, MatchesContent(Indexed8(&palette), 3, 2,
+                                     "C1 26 E7"
+                                     "54 F3 04"));
 }
 
 TEST(Raster, Alpha4MsbFirst) {

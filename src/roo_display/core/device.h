@@ -182,6 +182,24 @@ class DisplayOutput {
   virtual void interpretRect(const roo::byte *data, size_t row_width_bytes,
                              int16_t x0, int16_t y0, int16_t x1, int16_t y1,
                              Color *output) = 0;
+
+  /// Draws a rectangle represented in the device's native format.
+  ///
+  /// Source data pointer correspond to the (0, 0) point in the source
+  /// coordinate system, with stride of `row_width_bytes`. The source rectangle
+  /// at (src_x0, src_y0, src_x1, src_y1) relative to the data pointer, gets
+  /// copied to the destination rectangle with top-left corner at `(dst_x0,
+  /// dst_y0)`. The caller must ensure that the destination rectangle fits
+  /// within the device's bounds.
+  ///
+  /// The default implementation processes the rectangle by small tiles,
+  /// converting the data to an array of regular colors, and calling regular
+  /// window functions to draw them. Specific devices can override this method
+  /// to provide a more efficient implementation that draws directly from the
+  /// source data.
+  virtual void drawDirectRect(const roo::byte *data, size_t row_width_bytes,
+                              int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                              int16_t src_y1, int16_t dst_x0, int16_t dst_y0);
 };
 
 /// Base class for display device drivers.

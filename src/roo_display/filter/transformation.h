@@ -129,6 +129,12 @@ class TransformedDisplayOutput : public DisplayOutput {
   void fillRects(BlendingMode mode, Color color, int16_t *x0, int16_t *y0,
                  int16_t *x1, int16_t *y1, uint16_t count) override;
 
+  void interpretRect(const roo::byte* data, size_t row_width_bytes,
+                     int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+                     Color* output) override {
+    delegate_.interpretRect(data, row_width_bytes, x0, y0, x1, y1, output);
+  }
+
   /// Return the effective clip box.
   const Box &clip_box() const { return clip_box_; }
 

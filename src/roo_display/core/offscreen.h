@@ -158,6 +158,10 @@ class OffscreenDevice : public DisplayDevice {
   void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override;
 
+  void interpretRect(const roo::byte* data, size_t row_width_bytes, int16_t x0,
+                     int16_t y0, int16_t x1, int16_t y1,
+                     Color* output) override;
+
   /// Access color mode.
   ColorMode& color_mode() { return color_mode_; }
   /// Access color mode (const).
@@ -562,8 +566,8 @@ class BlendingWriterOperator {
     roo::byte* target = p + offset / pixels_per_byte;
     while (count-- > 0) {
       RawBlender<ColorMode, blending_mode> blender;
-      auto color = blender(io.loadRaw(*target, pixel_index), *color_++,
-                           color_mode_);
+      auto color =
+          blender(io.loadRaw(*target, pixel_index), *color_++, color_mode_);
       io.storeRaw(color, target, pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;
@@ -712,9 +716,9 @@ class GenericWriter {
     roo::byte* target = p + offset / pixels_per_byte;
     // TODO: this loop can be optimized to work on an array of color at a time.
     while (count-- > 0) {
-      auto color = ApplyRawBlending(blending_mode_,
-                                    io.loadRaw(*target, pixel_index),
-                                    *color_++, color_mode_);
+      auto color =
+          ApplyRawBlending(blending_mode_, io.loadRaw(*target, pixel_index),
+                           *color_++, color_mode_);
       io.storeRaw(color, target, pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;
@@ -779,8 +783,7 @@ class BlendingFillerOperator {
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
     RawBlender<ColorMode, blending_mode> blender;
-    auto color =
-        blender(io.loadRaw(*target, pixel_index), color_, color_mode_);
+    auto color = blender(io.loadRaw(*target, pixel_index), color_, color_mode_);
     io.storeRaw(color, target, pixel_index);
   }
 
@@ -847,13 +850,12 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
       : color_mode_(color_mode),
         raw_color_(color_mode_.fromArgbColor(color)),
         raw_color_full_byte_(
-            SubPixelColorIo<ColorMode, pixel_order>().expandRaw(
-                raw_color_)) {}
+            SubPixelColorIo<ColorMode, pixel_order>().expandRaw(raw_color_)) {}
 
   void operator()(roo::byte* p, uint32_t offset) const {
     SubPixelColorIo<ColorMode, pixel_order> io;
     io.storeRaw(raw_color_, p + offset / pixels_per_byte,
-                      offset % pixels_per_byte);
+                offset % pixels_per_byte);
   }
 
   void operator()(roo::byte* p, uint32_t offset, uint32_t count) const {
@@ -967,9 +969,8 @@ class GenericFiller {
     SubPixelColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
-    auto color =
-        ApplyRawBlending(blending_mode_, io.loadRaw(*target, pixel_index),
-                         color_, color_mode_);
+    auto color = ApplyRawBlending(
+        blending_mode_, io.loadRaw(*target, pixel_index), color_, color_mode_);
     io.storeRaw(color, target, pixel_index);
   }
 
@@ -979,9 +980,9 @@ class GenericFiller {
     roo::byte* target = p + offset / pixels_per_byte;
     // TODO: this loop can be optimized to work on an array of color at a time.
     while (count-- > 0) {
-      auto color = ApplyRawBlending(blending_mode_,
-                                    io.loadRaw(*target, pixel_index),
-                                    color_, color_mode_);
+      auto color =
+          ApplyRawBlending(blending_mode_, io.loadRaw(*target, pixel_index),
+                           color_, color_mode_);
       io.storeRaw(color, target, pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;
@@ -1404,6 +1405,18 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
   } else {
     fillRectsAbsolute(blending_mode, color, x0, y0, x1, y1, count);
   }
+}
+
+template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
+          int8_t pixels_per_byte, typename storage_type>
+void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
+                     storage_type>::interpretRect(const roo::byte* data,
+                                                  size_t row_width_bytes,
+                                                  int16_t x0, int16_t y0,
+                                                  int16_t x1, int16_t y1,
+                                                  Color* output) {
+  ColorRectIo<ColorMode, byte_order, pixel_order> io;
+  io.interpret(data, row_width_bytes, x0, y0, x1, y1, output, color_mode_);
 }
 
 template <typename Filler>

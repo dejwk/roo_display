@@ -112,6 +112,12 @@ class FrontToBackWriter : public DisplayOutput {
     // //                                pixel_count);
   }
 
+  void interpretRect(const roo::byte* data, size_t row_width_bytes,
+                     int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+                     Color* output) override {
+    mask_filter_.interpretRect(data, row_width_bytes, x0, y0, x1, y1, output);
+  }
+
  private:
   BitMaskOffscreen offscreen_;
   ClipMask mask_;

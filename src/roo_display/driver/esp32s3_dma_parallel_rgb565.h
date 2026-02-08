@@ -12,6 +12,7 @@
 #include "roo_display/color/blending.h"
 #include "roo_display/core/device.h"
 #include "roo_display/core/offscreen.h"
+#include "roo_display/internal/color_io.h"
 
 namespace roo_display {
 
@@ -272,6 +273,13 @@ class ParallelRgb565 : public DisplayDevice {
 
   void fillRects(BlendingMode mode, Color color, int16_t *x0, int16_t *y0,
                  int16_t *x1, int16_t *y1, uint16_t count) override;
+
+  void interpretRect(const roo::byte *data, size_t row_width_bytes, int16_t x0,
+                     int16_t y0, int16_t x1, int16_t y1,
+                     Color *output) override {
+    ColorRectIo<Rgb565, roo_io::kLittleEndian> io;
+    io.interpret(data, row_width_bytes, x0, y0, x1, y1, output);
+  }
 
   void orientationUpdated() override {
     if (buffer_ != nullptr) {

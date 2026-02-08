@@ -137,6 +137,12 @@ class BackgroundFillOptimizer : public DisplayOutput {
   void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override;
 
+  void interpretRect(const roo::byte* data, size_t row_width_bytes, int16_t x0,
+                     int16_t y0, int16_t x1, int16_t y1,
+                     Color* output) override {
+    output_.interpretRect(data, row_width_bytes, x0, y0, x1, y1, output);
+  }
+
  private:
   friend class BackgroundFillOptimizerDevice;
 
@@ -222,6 +228,12 @@ class BackgroundFillOptimizerDevice : public DisplayDevice {
   void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override {
     optimizer_.fillPixels(mode, color, x, y, pixel_count);
+  }
+
+  void interpretRect(const roo::byte* data, size_t row_width_bytes, int16_t x0,
+                     int16_t y0, int16_t x1, int16_t y1,
+                     Color* output) override {
+    device_.interpretRect(data, row_width_bytes, x0, y0, x1, y1, output);
   }
 
  private:

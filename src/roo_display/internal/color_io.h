@@ -1,6 +1,7 @@
 #pragma once
 
 #include <inttypes.h>
+#include <stddef.h>
 
 #include "roo_backport/byte.h"
 #include "roo_display/color/color.h"
@@ -261,6 +262,98 @@ struct SubPixelColorIo<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST, 4> {
     result[1] = mode.toArgbColor((uint8_t)((in >> 2) & roo::byte{0x03}));
     result[2] = mode.toArgbColor((uint8_t)((in >> 4) & roo::byte{0x03}));
     result[3] = mode.toArgbColor((uint8_t)(in >> 6));
+  }
+};
+
+template <typename ColorMode, roo_io::ByteOrder byte_order,
+          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
+          typename Enable = void>
+struct ColorRectIo;
+
+// Default implementation for sub-byte modes.
+template <typename ColorMode, roo_io::ByteOrder byte_order,
+          ColorPixelOrder pixel_order>
+struct ColorRectIo<
+    ColorMode, byte_order, pixel_order,
+    std::enable_if_t<ColorTraits<ColorMode>::pixels_per_byte != 1>> {
+  void interpret(const roo::byte *data, size_t row_width_bytes, int16_t x0,
+                 int16_t y0, int16_t x1, int16_t y1, Color *output,
+                 const ColorMode &mode = ColorMode()) const {
+    constexpr int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte;
+    const int16_t width = x1 - x0 + 1;
+    const int16_t height = y1 - y0 + 1;
+    SubPixelColorIo<ColorMode, pixel_order> io;
+    if (x0 == 0 && width * ColorMode::bits_per_pixel == row_width_bytes * 8) {
+      const roo::byte *ptr = data + y0 * row_width_bytes;
+      const uint32_t total_pixels = width * height;
+      const uint32_t total_bytes = total_pixels / pixels_per_byte;
+      for (uint32_t i = 0; i < total_bytes; ++i) {
+        io.loadRawBulk(mode, *ptr++, output);
+        output += pixels_per_byte;
+      }
+      return;
+    }
+    const int16_t byte_index = x0 / pixels_per_byte;
+    const int16_t init_pixel_index = x0 % pixels_per_byte;
+    const int16_t full_limit = ((x1 + 1) / pixels_per_byte) * pixels_per_byte;
+    const int16_t trailing_count = (x1 + 1) % pixels_per_byte;
+
+    const roo::byte *row = data + y0 * row_width_bytes;
+    for (int16_t y = y0; y <= y1; ++y) {
+      const roo::byte *pos = row + byte_index;
+      row += row_width_bytes;  // For next row.
+      int16_t x = x0;
+      for (int16_t pidx = init_pixel_index; pidx < pixels_per_byte && x <= x1;
+           ++pidx, ++x) {
+        uint8_t raw = io.loadRaw(*pos, pidx);
+        *output++ = mode.toArgbColor(raw);
+      }
+      if (x > x1) continue;
+      ++pos;
+      for (; x < full_limit; x += pixels_per_byte) {
+        io.loadRawBulk(mode, *pos++, output);
+        output += pixels_per_byte;
+      }
+      if (x > x1) continue;
+      for (int16_t pidx = 0; pidx < trailing_count; ++pidx) {
+        uint8_t raw = io.loadRaw(*pos, pidx);
+        *output++ = mode.toArgbColor(raw);
+      }
+    }
+  }
+};
+
+// Specialization for full-byte modes.
+template <typename ColorMode, roo_io::ByteOrder byte_order,
+          ColorPixelOrder pixel_order>
+struct ColorRectIo<
+    ColorMode, byte_order, pixel_order,
+    std::enable_if_t<ColorTraits<ColorMode>::pixels_per_byte == 1>> {
+  void interpret(const roo::byte *data, size_t row_width_bytes, int16_t x0,
+                 int16_t y0, int16_t x1, int16_t y1, Color *output,
+                 const ColorMode &mode = ColorMode()) const {
+    constexpr size_t bytes_per_pixel = ColorTraits<ColorMode>::bytes_per_pixel;
+    const int16_t width = x1 - x0 + 1;
+    const int16_t height = y1 - y0 + 1;
+    ColorIo<ColorMode, byte_order> io;
+    if (x0 == 0 && width * bytes_per_pixel == row_width_bytes) {
+      const roo::byte *ptr = data + y0 * row_width_bytes;
+      uint32_t count = static_cast<uint32_t>(width) * height;
+      while (count-- > 0) {
+        *output++ = io.load(ptr, mode);
+        ptr += bytes_per_pixel;
+      }
+      return;
+    }
+    const roo::byte *row = data + y0 * row_width_bytes + x0 * bytes_per_pixel;
+    for (int16_t y = y0; y <= y1; ++y) {
+      const roo::byte *pixel = row;
+      for (int16_t x = x0; x <= x1; ++x) {
+        *output++ = io.load(pixel, mode);
+        pixel += bytes_per_pixel;
+      }
+      row += row_width_bytes;
+    }
   }
 };
 

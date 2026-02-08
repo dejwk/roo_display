@@ -1,4 +1,5 @@
 #pragma once
+#include <cstring>
 #include <string>
 
 #include "gmock/gmock.h"
@@ -9,6 +10,7 @@
 #include "roo_display/core/device.h"
 #include "roo_display/core/rasterizable.h"
 #include "roo_display/core/streamable.h"
+#include "roo_display/internal/color_io.h"
 #include "roo_display/internal/raw_streamable.h"
 
 using namespace testing;
@@ -1043,6 +1045,13 @@ class FakeOffscreen : public DisplayDevice {
     }
   }
 
+  void interpretRect(const roo::byte* data, size_t row_width_bytes, int16_t x0,
+                     int16_t y0, int16_t x1, int16_t y1,
+                     Color* output) override {
+    ColorRectIo<Argb8888, roo_io::kNativeEndian> io;
+    io.interpret(data, row_width_bytes, x0, y0, x1, y1, output);
+  }
+
   const Color* buffer() { return buffer_.get(); }
 
   void writeRect(BlendingMode mode, int16_t x0, int16_t y0, int16_t x1,
@@ -1171,6 +1180,12 @@ class FakeFilteringOffscreen : public DisplayOutput {
     }
   }
 
+  void interpretRect(const roo::byte* data, size_t row_width_bytes, int16_t x0,
+                     int16_t y0, int16_t x1, int16_t y1,
+                     Color* output) override {
+    offscreen_.interpretRect(data, row_width_bytes, x0, y0, x1, y1, output);
+  }
+
   const FakeOffscreen<ColorMode>& offscreen() const { return offscreen_; }
 
   void writeRect(BlendingMode mode, int16_t x0, int16_t y0, int16_t x1,
@@ -1246,6 +1261,12 @@ class FilteredOutput : public DisplayOutput {
   void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
     filter_->fillRects(mode, color, x0, y0, x1, y1, count);
+  }
+
+  void interpretRect(const roo::byte* data, size_t row_width_bytes, int16_t x0,
+                     int16_t y0, int16_t x1, int16_t y1,
+                     Color* output) override {
+    filter_->interpretRect(data, row_width_bytes, x0, y0, x1, y1, output);
   }
 
   const FakeOffscreen<ColorMode>& offscreen() const { return offscreen_; }

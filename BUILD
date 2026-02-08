@@ -116,6 +116,18 @@ cc_test(
 )
 
 cc_test(
+    name = "color_rect_io_test",
+    srcs = [
+        "test/color_rect_io_test.cpp",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    deps = [
+        ":testing",
+    ],
+)
+
+cc_test(
     name = "drawing_context_test",
     srcs = [
         "test/drawing_context_test.cpp",

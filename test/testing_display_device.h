@@ -69,6 +69,12 @@ class TestDisplayDevice : public DisplayDevice {
     test_.fillRects(mode, color, x0, y0, x1, y1, count);
   }
 
+  void interpretRect(const roo::byte* data, size_t row_width_bytes,
+                     int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+                     Color* output) override {
+    test_.interpretRect(data, row_width_bytes, x0, y0, x1, y1, output);
+  }
+
   const ReferenceDevice& refc() const { return refc_; };
   const TestedDevice& test() const { return test_; }
 

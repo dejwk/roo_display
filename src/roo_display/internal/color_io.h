@@ -135,7 +135,7 @@ enum ColorPixelOrder {
 //   // Takes a byte specifying a sequence of raw colors, and converts
 //   // them all to ARGB8, storing the resulting pixels_per_byte colors
 //   // in the specified result array.
-//   inline void loadRawBulk(const ColorMode &mode, roo::byte in,
+//   inline void loadBulk(const ColorMode &mode, roo::byte in,
 //                           Color *result);
 // };
 
@@ -159,8 +159,8 @@ struct SubPixelColorIo<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST, 8> {
   roo::byte expandRaw(uint8_t raw_color) {
     return raw_color ? roo::byte{0xFF} : roo::byte{0x00};
   }
-  inline void loadRawBulk(const ColorMode &mode, roo::byte in,
-                          Color *result) const {
+  inline void loadBulk(const ColorMode &mode, roo::byte in,
+                       Color *result) const {
     result[0] = mode.toArgbColor((in & roo::byte{0x01}) != roo::byte{0});
     result[1] = mode.toArgbColor((in & roo::byte{0x02}) != roo::byte{0});
     result[2] = mode.toArgbColor((in & roo::byte{0x04}) != roo::byte{0});
@@ -188,8 +188,8 @@ struct SubPixelColorIo<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST, 8> {
   roo::byte expandRaw(uint8_t raw_color) {
     return raw_color ? roo::byte{0xFF} : roo::byte{0x00};
   }
-  inline void loadRawBulk(const ColorMode &mode, roo::byte in,
-                          Color *result) const {
+  inline void loadBulk(const ColorMode &mode, roo::byte in,
+                       Color *result) const {
     result[0] = mode.toArgbColor((in & roo::byte{0x80}) != roo::byte{0});
     result[1] = mode.toArgbColor((in & roo::byte{0x40}) != roo::byte{0});
     result[2] = mode.toArgbColor((in & roo::byte{0x20}) != roo::byte{0});
@@ -215,8 +215,8 @@ struct SubPixelColorIo<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST, 2> {
   roo::byte expandRaw(uint8_t raw_color) {
     return (roo::byte)(raw_color * 0x11);
   }
-  inline void loadRawBulk(const ColorMode &mode, roo::byte in,
-                          Color *result) const {
+  inline void loadBulk(const ColorMode &mode, roo::byte in,
+                       Color *result) const {
     result[0] = mode.toArgbColor((uint8_t)(in & roo::byte{0x0F}));
     result[1] = mode.toArgbColor((uint8_t)(in >> 4));
   }
@@ -235,8 +235,8 @@ struct SubPixelColorIo<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST, 2> {
   roo::byte expandRaw(uint8_t raw_color) {
     return (roo::byte)(raw_color * 0x11);
   }
-  inline void loadRawBulk(const ColorMode &mode, roo::byte in,
-                          Color *result) const {
+  inline void loadBulk(const ColorMode &mode, roo::byte in,
+                       Color *result) const {
     result[0] = mode.toArgbColor((uint8_t)(in >> 4));
     result[1] = mode.toArgbColor((uint8_t)(in & roo::byte{0x0F}));
   }
@@ -256,8 +256,8 @@ struct SubPixelColorIo<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST, 4> {
   roo::byte expandRaw(uint8_t raw_color) {
     return (roo::byte)(raw_color * 0x55);
   }
-  inline void loadRawBulk(const ColorMode &mode, roo::byte in,
-                          Color *result) const {
+  inline void loadBulk(const ColorMode &mode, roo::byte in,
+                       Color *result) const {
     result[0] = mode.toArgbColor((uint8_t)((in >> 0) & roo::byte{0x03}));
     result[1] = mode.toArgbColor((uint8_t)((in >> 2) & roo::byte{0x03}));
     result[2] = mode.toArgbColor((uint8_t)((in >> 4) & roo::byte{0x03}));
@@ -288,7 +288,7 @@ struct ColorRectIo<
       const uint32_t total_pixels = width * height;
       const uint32_t total_bytes = total_pixels / pixels_per_byte;
       for (uint32_t i = 0; i < total_bytes; ++i) {
-        io.loadRawBulk(mode, *ptr++, output);
+        io.loadBulk(mode, *ptr++, output);
         output += pixels_per_byte;
       }
       return;
@@ -311,7 +311,7 @@ struct ColorRectIo<
       if (x > x1) continue;
       ++pos;
       for (; x < full_limit; x += pixels_per_byte) {
-        io.loadRawBulk(mode, *pos++, output);
+        io.loadBulk(mode, *pos++, output);
         output += pixels_per_byte;
       }
       if (x > x1) continue;
@@ -370,8 +370,8 @@ struct SubPixelColorIo<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST, 4> {
   roo::byte expandRaw(uint8_t raw_color) {
     return (roo::byte)(raw_color * 0x55);
   }
-  inline void loadRawBulk(const ColorMode &mode, roo::byte in,
-                          Color *result) const {
+  inline void loadBulk(const ColorMode &mode, roo::byte in,
+                       Color *result) const {
     result[0] = mode.toArgbColor((uint8_t)(in >> 6));
     result[1] = mode.toArgbColor((uint8_t)((in >> 4) & roo::byte{0x03}));
     result[2] = mode.toArgbColor((uint8_t)((in >> 2) & roo::byte{0x03}));

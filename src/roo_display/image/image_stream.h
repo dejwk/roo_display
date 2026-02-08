@@ -180,7 +180,7 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, true>
  private:
   void read_colors() {
     SubPixelColorIo<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST> io;
-    io.loadRawBulk(color_mode_, input_.read(), value_);
+    io.loadBulk(color_mode_, input_.read(), value_);
   }
 
   StreamType<Resource> input_;

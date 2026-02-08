@@ -123,7 +123,7 @@ class RasterPixelStream : public PixelStream {
  private:
   void fetch() {
     SubPixelColorIo<ColorMode, pixel_order> io;
-    io.loadRawBulk(color_mode_, stream_.read(), cache_);
+    io.loadBulk(color_mode_, stream_.read(), cache_);
   }
 
   StreamType<Resource> stream_;

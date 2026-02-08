@@ -32,7 +32,7 @@ TEST(Color, MonochromeLsb) {
 
   Color expected[] = {fg, bg, bg, bg, bg, bg, fg, bg};
   Color actual[8];
-  io.loadRawBulk(mode, roo::byte{0x41}, actual);
+  io.loadBulk(mode, roo::byte{0x41}, actual);
   for (int i = 0; i < 8; ++i) {
     EXPECT_EQ(expected[i], actual[i]);
   }
@@ -57,7 +57,7 @@ TEST(Color, MonochromeMsb) {
 
   Color expected[] = {fg, bg, bg, bg, bg, bg, fg, bg};
   Color actual[8];
-  io.loadRawBulk(mode, roo::byte{0x82}, actual);
+  io.loadBulk(mode, roo::byte{0x82}, actual);
   for (int i = 0; i < 8; ++i) {
     EXPECT_EQ(expected[i], actual[i]);
   }
@@ -80,7 +80,7 @@ TEST(Color, Alpha4Lsb) {
 
   Color expected[] = {0xEE000000, 0x44000000};
   Color actual[2];
-  io.loadRawBulk(mode, roo::byte{0x4E}, actual);
+  io.loadBulk(mode, roo::byte{0x4E}, actual);
   for (int i = 0; i < 2; ++i) {
     EXPECT_EQ(expected[i], actual[i]);
   }
@@ -103,7 +103,7 @@ TEST(Color, Alpha4Msb) {
 
   Color expected[] = {0x44000000, 0xEE000000};
   Color actual[2];
-  io.loadRawBulk(mode, roo::byte{0x4E}, actual);
+  io.loadBulk(mode, roo::byte{0x4E}, actual);
   for (int i = 0; i < 2; ++i) {
     EXPECT_EQ(expected[i], actual[i]);
   }

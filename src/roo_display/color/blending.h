@@ -594,6 +594,40 @@ struct RawBlender<ColorMode, BLENDING_MODE_DESTINATION> {
   }
 };
 
+template <typename ColorMode, BlendingMode blending_mode>
+struct RawSubByteBlender {
+  uint8_t operator()(uint8_t dst, Color src,
+                     const ColorMode& color_mode) const {
+    return color_mode.fromArgbColor(
+        BlendOp<blending_mode>()(color_mode.toArgbColor(dst), src));
+  }
+
+  uint8_t operator()(uint8_t dst, Color src, ColorMode& color_mode) const {
+    return color_mode.fromArgbColor(
+        BlendOp<blending_mode>()(color_mode.toArgbColor(dst), src));
+  }
+};
+
+template <typename ColorMode>
+struct RawSubByteBlender<ColorMode, BLENDING_MODE_SOURCE> {
+  uint8_t operator()(uint8_t dst, Color src,
+                     const ColorMode& color_mode) const {
+    return color_mode.fromArgbColor(src);
+  }
+
+  uint8_t operator()(uint8_t dst, Color src, ColorMode& color_mode) const {
+    return color_mode.fromArgbColor(src);
+  }
+};
+
+template <typename ColorMode>
+struct RawSubByteBlender<ColorMode, BLENDING_MODE_DESTINATION> {
+  uint8_t operator()(uint8_t dst, Color src,
+                     const ColorMode& color_mode) const {
+    return dst;
+  }
+};
+
 namespace internal {
 
 template <typename ColorMode>
@@ -610,6 +644,23 @@ struct ApplyRawBlendingResolver {
                                          Color src,
                                          ColorMode& color_mode) const {
     return RawBlender<ColorMode, blending_mode>()(dst, src, color_mode);
+  }
+};
+
+template <typename ColorMode>
+struct ApplyRawSubByteBlendingResolver {
+  template <BlendingMode blending_mode>
+  ColorStorageType<ColorMode> operator()(ColorStorageType<ColorMode> dst,
+                                         Color src,
+                                         const ColorMode& color_mode) const {
+    return RawSubByteBlender<ColorMode, blending_mode>()(dst, src, color_mode);
+  }
+
+  template <BlendingMode blending_mode>
+  ColorStorageType<ColorMode> operator()(ColorStorageType<ColorMode> dst,
+                                         Color src,
+                                         ColorMode& color_mode) const {
+    return RawSubByteBlender<ColorMode, blending_mode>()(dst, src, color_mode);
   }
 };
 
@@ -633,6 +684,27 @@ inline ColorStorageType<ColorMode> ApplyRawBlending(
   return internal::BlenderSpecialization<
       internal::ApplyRawBlendingResolver<ColorMode>>(blending_mode, dst, src,
                                                      color_mode);
+}
+
+// As above, for sub-byte color modes.
+
+// Returns the result of blending `src` over `dst` using the specified mode.
+template <typename ColorMode>
+inline ColorStorageType<ColorMode> ApplyRawSubByteBlending(
+    BlendingMode blending_mode, uint8_t dst, Color src,
+    const ColorMode& color_mode) {
+  return internal::BlenderSpecialization<
+      internal::ApplyRawSubByteBlendingResolver<ColorMode>>(blending_mode, dst,
+                                                            src, color_mode);
+}
+
+// As above, for mutable color modes.
+template <typename ColorMode>
+inline ColorStorageType<ColorMode> ApplyRawSubByteBlending(
+    BlendingMode blending_mode, uint8_t dst, Color src, ColorMode& color_mode) {
+  return internal::BlenderSpecialization<
+      internal::ApplyRawSubByteBlendingResolver<ColorMode>>(blending_mode, dst,
+                                                            src, color_mode);
 }
 
 }  // namespace roo_display

@@ -554,7 +554,7 @@ class BlendingWriterOperator {
     SubByteColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
-    RawBlender<ColorMode, blending_mode> blender;
+    RawSubByteBlender<ColorMode, blending_mode> blender;
     auto color =
         blender(io.loadRaw(*target, pixel_index), *color_++, color_mode_);
     io.storeRaw(color, target, pixel_index);
@@ -565,7 +565,7 @@ class BlendingWriterOperator {
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
     while (count-- > 0) {
-      RawBlender<ColorMode, blending_mode> blender;
+      RawSubByteBlender<ColorMode, blending_mode> blender;
       auto color =
           blender(io.loadRaw(*target, pixel_index), *color_++, color_mode_);
       io.storeRaw(color, target, pixel_index);
@@ -704,9 +704,9 @@ class GenericWriter {
     SubByteColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
-    auto color =
-        ApplyRawBlending(blending_mode_, io.loadRaw(*target, pixel_index),
-                         *color_++, color_mode_);
+    auto color = ApplyRawSubByteBlending(blending_mode_,
+                                         io.loadRaw(*target, pixel_index),
+                                         *color_++, color_mode_);
     io.storeRaw(color, target, pixel_index);
   }
 
@@ -716,9 +716,9 @@ class GenericWriter {
     roo::byte* target = p + offset / pixels_per_byte;
     // TODO: this loop can be optimized to work on an array of color at a time.
     while (count-- > 0) {
-      auto color =
-          ApplyRawBlending(blending_mode_, io.loadRaw(*target, pixel_index),
-                           *color_++, color_mode_);
+      auto color = ApplyRawSubByteBlending(blending_mode_,
+                                           io.loadRaw(*target, pixel_index),
+                                           *color_++, color_mode_);
       io.storeRaw(color, target, pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;
@@ -782,7 +782,7 @@ class BlendingFillerOperator {
     SubByteColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
-    RawBlender<ColorMode, blending_mode> blender;
+    RawSubByteBlender<ColorMode, blending_mode> blender;
     auto color = blender(io.loadRaw(*target, pixel_index), color_, color_mode_);
     io.storeRaw(color, target, pixel_index);
   }
@@ -791,7 +791,7 @@ class BlendingFillerOperator {
     SubByteColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
-    RawBlender<ColorMode, blending_mode> blender;
+    RawSubByteBlender<ColorMode, blending_mode> blender;
     while (count-- > 0) {
       auto color =
           blender(io.loadRaw(*target, pixel_index), color_, color_mode_);
@@ -969,7 +969,7 @@ class GenericFiller {
     SubByteColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
-    auto color = ApplyRawBlending(
+    auto color = ApplyRawSubByteBlending(
         blending_mode_, io.loadRaw(*target, pixel_index), color_, color_mode_);
     io.storeRaw(color, target, pixel_index);
   }
@@ -980,9 +980,9 @@ class GenericFiller {
     roo::byte* target = p + offset / pixels_per_byte;
     // TODO: this loop can be optimized to work on an array of color at a time.
     while (count-- > 0) {
-      auto color =
-          ApplyRawBlending(blending_mode_, io.loadRaw(*target, pixel_index),
-                           color_, color_mode_);
+      auto color = ApplyRawSubByteBlending(blending_mode_,
+                                           io.loadRaw(*target, pixel_index),
+                                           color_, color_mode_);
       io.storeRaw(color, target, pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;

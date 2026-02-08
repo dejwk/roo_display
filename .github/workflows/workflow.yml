@@ -3,59 +3,46 @@ name: CI
 on:
   push: {}
 
+env:
+  SYMBOLIZE_DEPS: libunwind-dev binutils-dev
+  BAZEL_SYMBOLIZE_FLAGS: >-
+    --copt=-DHAVE_SYMBOLIZE
+    --copt=-DHAVE_UNWIND
+    --copt=-DHAVE_LIBUNWIND
+    --linkopt=-lunwind
+    --linkopt=-ldl
+
 jobs:
   build_and_test:
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v3
-
-    - name: Free disk space
-      run: |
-        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
-        sudo apt-get clean
-
-    - uses: bazel-contrib/setup-bazel@0.15.0
-      with:
-        # Avoid downloading Bazel every time.
-        bazelisk-cache: true
-        # Store build cache per job to avoid concurrent writes.
-        disk-cache: ${{ github.workflow }}-${{ github.job }}
-        # Share repository cache between workflows.
-        repository-cache: true
+    - uses: ./.github/actions/ci-setup
 
     - name: Build
       run: |
-        bazel build //...
+        bazel build //... \
+          ${{ env.BAZEL_SYMBOLIZE_FLAGS }}
 
     - name: Test
       run: |
-        bazel test //... --test_output=errors
+        bazel test //... --test_output=errors \
+          ${{ env.BAZEL_SYMBOLIZE_FLAGS }}
 
   build_and_test_asan:
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v3
-
-    - name: Free disk space
-      run: |
-        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
-        sudo apt-get clean
-
-    - uses: bazel-contrib/setup-bazel@0.15.0
-      with:
-        # Avoid downloading Bazel every time.
-        bazelisk-cache: true
-        # Store build cache per job to avoid concurrent writes.
-        disk-cache: ${{ github.workflow }}-${{ github.job }}
-        # Share repository cache between workflows.
-        repository-cache: true
+    - uses: ./.github/actions/ci-setup
 
     - name: Build with address sanitizer
       run: |
-        bazel build --config=asan //...
+        bazel build --config=asan //... \
+          ${{ env.BAZEL_SYMBOLIZE_FLAGS }}
 
     - name: Test with address sanitizer
       run: |
-        bazel test --config=asan //... --test_output=errors
+        bazel test --config=asan //... --test_output=errors \
+          ${{ env.BAZEL_SYMBOLIZE_FLAGS }}

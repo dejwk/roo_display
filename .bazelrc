@@ -7,3 +7,5 @@ build:asan --copt -O1
 build:asan --copt -g
 build:asan --copt -fno-omit-frame-pointer
 build:asan --linkopt -fsanitize=address
+# GCC 14 can emit spurious maybe-uninitialized warnings in std::regex with ASAN.
+build:asan --per_file_copt=src/logging.cc@-Wno-maybe-uninitialized

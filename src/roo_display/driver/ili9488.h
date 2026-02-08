@@ -25,9 +25,11 @@ class Rgb666h {
   static const int8_t bits_per_pixel = 24;
 
   inline constexpr Color toArgbColor(uint32_t in) const {
-    return Color(((in >> 12) & 0xFC) | (in >> 18),
-                 ((in >> 4) & 0xFC) | ((in >> 10) & 0x02),
-                 ((in << 0) & 0xFC) | ((in >> 2) & 0x02));
+    uint32_t r6 = (in >> 18) & 0x3F;
+    uint32_t g6 = (in >> 10) & 0x3F;
+    uint32_t b6 = (in >> 2) & 0x3F;
+    auto expand = [](uint32_t v) { return (v << 2) | (v >> 4); };
+    return Color(expand(r6), expand(g6), expand(b6));
   }
 
   inline constexpr uint32_t fromArgbColor(Color color) const {

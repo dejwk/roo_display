@@ -22,6 +22,8 @@ constexpr int kPinDc = 22;
 constexpr int kPinRst = 25;
 
 uint32_t ToRgb565Argb(Color color) {
+  // Round-trip through the device color mode to simulate on-device
+  // truncation before comparing against emulator output.
   Rgb565 mode;
   return mode.toArgbColor(mode.fromArgbColor(color)).asArgb();
 }
@@ -53,6 +55,9 @@ TEST(St7735Driver, DrawFilledRect) {
   {
     DrawingContext dc(display);
     dc.draw(FilledRect(3, 4, 5, 6, color::Green));
+    dc.draw(FilledRect(7, 8, 7, 8, color::Gray));
+    dc.draw(FilledRect(9, 10, 9, 10, color::DarkGray));
+    dc.draw(FilledRect(11, 12, 11, 12, color::Orange));
   }
 
   FakeEsp32().flush();
@@ -60,4 +65,7 @@ TEST(St7735Driver, DrawFilledRect) {
   EXPECT_EQ(ToRgb565Argb(color::Green), emu.viewport.getPixel(5, 5));
   EXPECT_EQ(ToRgb565Argb(color::Black), emu.viewport.getPixel(3, 4));
   EXPECT_EQ(ToRgb565Argb(color::Black), emu.viewport.getPixel(0, 0));
+  EXPECT_EQ(ToRgb565Argb(color::Gray), emu.viewport.getPixel(9, 9));
+  EXPECT_EQ(ToRgb565Argb(color::DarkGray), emu.viewport.getPixel(11, 11));
+  EXPECT_EQ(ToRgb565Argb(color::Orange), emu.viewport.getPixel(13, 13));
 }

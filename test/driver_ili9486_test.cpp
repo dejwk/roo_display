@@ -22,6 +22,8 @@ constexpr int kPinDc = 13;
 constexpr int kPinRst = 14;
 
 uint32_t ToRgb565Argb(Color color) {
+  // Round-trip through the device color mode to simulate on-device
+  // truncation before comparing against emulator output.
   Rgb565 mode;
   return mode.toArgbColor(mode.fromArgbColor(color)).asArgb();
 }
@@ -52,10 +54,16 @@ TEST(Ili9486Driver, DrawFilledRect) {
   {
     DrawingContext dc(display);
     dc.draw(FilledRect(10, 20, 12, 21, color::Blue));
+    dc.draw(FilledRect(2, 3, 2, 3, color::Gray));
+    dc.draw(FilledRect(4, 5, 4, 5, color::DarkGray));
+    dc.draw(FilledRect(6, 7, 6, 7, color::Orange));
   }
 
   FakeEsp32().flush();
 
   EXPECT_EQ(ToRgb565Argb(color::Blue), emu.viewport.getPixel(10, 20));
   EXPECT_EQ(ToRgb565Argb(color::Black), emu.viewport.getPixel(0, 0));
+  EXPECT_EQ(ToRgb565Argb(color::Gray), emu.viewport.getPixel(2, 3));
+  EXPECT_EQ(ToRgb565Argb(color::DarkGray), emu.viewport.getPixel(4, 5));
+  EXPECT_EQ(ToRgb565Argb(color::Orange), emu.viewport.getPixel(6, 7));
 }

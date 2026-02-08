@@ -415,3 +415,67 @@ cc_test(
         ":testing",
     ],
 )
+
+cc_test(
+    name = "driver_ili9341_test",
+    srcs = [
+        "test/driver_ili9341_test.cpp",
+        "test/testing_viewport.h",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    deps = [
+        ":testing",
+        "@roo_testing//roo_testing/devices/display/ili9341:spi",
+        "@roo_testing//roo_testing/microcontrollers/esp32:core",
+        "@roo_testing//roo_testing/transducers/ui/viewport",
+    ],
+)
+
+cc_test(
+    name = "driver_st7735_test",
+    srcs = [
+        "test/driver_st7735_test.cpp",
+        "test/testing_viewport.h",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    deps = [
+        ":testing",
+        "@roo_testing//roo_testing/devices/display/st77xx:spi",
+        "@roo_testing//roo_testing/microcontrollers/esp32:core",
+        "@roo_testing//roo_testing/transducers/ui/viewport",
+    ],
+)
+
+cc_test(
+    name = "touch_xpt2046_test",
+    srcs = [
+        "test/touch_xpt2046_test.cpp",
+        "test/testing_viewport.h",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    deps = [
+        ":testing",
+        "@roo_testing//roo_testing/devices/touch/xpt2046:spi",
+        "@roo_testing//roo_testing/microcontrollers/esp32:core",
+        "@roo_testing//roo_testing/transducers/ui/viewport",
+    ],
+)
+
+cc_test(
+    name = "touch_ft6x36_test",
+    srcs = [
+        "test/touch_ft6x36_test.cpp",
+        "test/testing_viewport.h",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    deps = [
+        ":testing",
+        "@roo_testing//roo_testing/devices/touch/ft6x36:ft6x36",
+        "@roo_testing//roo_testing/microcontrollers/esp32:core",
+        "@roo_testing//roo_testing/transducers/ui/viewport",
+    ],
+)

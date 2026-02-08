@@ -75,7 +75,7 @@ template <typename Spi>
 void get_raw_touch_xy(Spi& spi, uint16_t* x, uint16_t* y) {
   uint16_t last_x = -1;
   uint16_t last_y = -1;
-  spi.transfer(0xd3);
+  spi.transfer(roo::byte{0xd3});
   *x = spi.transfer16(0xd3) >> 3;
   *x = spi.transfer16(0xd3) >> 3;
   *x = spi.transfer16(0x93) >> 3;
@@ -90,7 +90,7 @@ void get_raw_touch_xy(Spi& spi, uint16_t* x, uint16_t* y) {
 template <typename Spi>
 uint16_t get_raw_touch_z(Spi& spi) {
   int16_t tz = 0xFFF;
-  spi.transfer(0xb1);
+  spi.transfer(roo::byte{0xb1});
   tz += spi.transfer16(0xc1) >> 3;
   tz -= spi.transfer16(0) >> 3;
   return (uint16_t)tz;

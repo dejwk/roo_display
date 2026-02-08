@@ -131,29 +131,29 @@ Color NextColorFromString<Alpha8>(const Alpha8& mode, std::istream& in) {
 }
 
 template <>
-Color NextColorFromString<internal::Indexed<1>>(const internal::Indexed<1>& mode,
-                                                std::istream& in) {
+Color NextColorFromString<internal::Indexed<1>>(
+    const internal::Indexed<1>& mode, std::istream& in) {
   uint8_t idx = ParseHexNibble(in) & 0x01;
   return mode.toArgbColor(idx);
 }
 
 template <>
-Color NextColorFromString<internal::Indexed<2>>(const internal::Indexed<2>& mode,
-                                                std::istream& in) {
+Color NextColorFromString<internal::Indexed<2>>(
+    const internal::Indexed<2>& mode, std::istream& in) {
   uint8_t idx = ParseHexNibble(in) & 0x03;
   return mode.toArgbColor(idx);
 }
 
 template <>
-Color NextColorFromString<internal::Indexed<4>>(const internal::Indexed<4>& mode,
-                                                std::istream& in) {
+Color NextColorFromString<internal::Indexed<4>>(
+    const internal::Indexed<4>& mode, std::istream& in) {
   uint8_t idx = ParseHexNibble(in) & 0x0F;
   return mode.toArgbColor(idx);
 }
 
 template <>
-Color NextColorFromString<internal::Indexed<8>>(const internal::Indexed<8>& mode,
-                                                std::istream& in) {
+Color NextColorFromString<internal::Indexed<8>>(
+    const internal::Indexed<8>& mode, std::istream& in) {
   uint8_t idx = ParseHexByte(in);
   return mode.toArgbColor(idx);
 }
@@ -390,7 +390,7 @@ template <typename RawStreamable>
 class StreamablePrinter<RawStreamable, Monochrome> {
  public:
   StreamablePrinter(Monochrome color_mode)
-  : color_mode_(std::move(color_mode)) {}
+      : color_mode_(std::move(color_mode)) {}
 
   template <typename RawStream>
   void PrintContent(const RawStreamable& streamable, RawStream& os) {

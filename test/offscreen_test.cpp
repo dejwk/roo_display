@@ -102,9 +102,7 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
 class RawColorReader {
  public:
   RawColorReader(const roo::byte* data, Box extents, ColorMode color_mode)
-    : color_mode_(std::move(color_mode)),
-      data_(data),
-      extents_(extents) {}
+      : color_mode_(std::move(color_mode)), data_(data), extents_(extents) {}
 
   Color get(int16_t x, int16_t y) const {
     int size = ColorMode::bits_per_pixel / 8;
@@ -646,6 +644,30 @@ TEST(Filler, Indexed8) { TestFiller<Indexed8>(Indexed8(&IndexedPalette8())); }
 
 TEST(Filler, Rgb565WithTransparency) {
   TestWriter<Rgb565WithTransparency>(Rgb565WithTransparency(12));
+}
+
+TEST(Offscreen, IndexedDynamicPaletteFillsOnDraw) {
+  Palette palette = Palette::Dynamic(16);
+  Indexed4 mode(&palette);
+  const int16_t width = 2;
+  const int16_t height = 2;
+  const size_t buffer_size =
+      (Indexed4::bits_per_pixel * width * height + 7) / 8;
+  std::unique_ptr<roo::byte[]> buffer(new roo::byte[buffer_size]());
+  Offscreen<Indexed4> offscreen(width, height, buffer.get(), mode);
+
+  EXPECT_EQ(palette.size(), 0);
+
+  DrawingContext dc(offscreen);
+  dc.setBlendingMode(BLENDING_MODE_SOURCE);
+  Color first = Color(0xFF112233);
+  Color second = Color(0xFF445566);
+  dc.draw(SolidRect(0, 0, 0, 0, first));
+  dc.draw(SolidRect(1, 0, 1, 0, second));
+
+  EXPECT_EQ(palette.size(), 2);
+  EXPECT_EQ(palette.getColorAt(0), first);
+  EXPECT_EQ(palette.getColorAt(1), second);
 }
 
 void TestAddressWindowAdvance(uint16_t x0, uint16_t y0, uint16_t x1,

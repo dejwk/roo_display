@@ -160,7 +160,7 @@ TEST(Raster, Indexed4MsbFirst) {
   FillIndexedPalette(colors, 16);
   Palette palette = Palette::ReadOnly(colors, 16);
   ConstDramRaster<Indexed4> raster(3, 2, (const roo::byte*)data,
-                                  Indexed4(&palette));
+                                   Indexed4(&palette));
   EXPECT_THAT(raster, MatchesContent(Indexed4(&palette), 3, 2,
                                      "C12"
                                      "6E7"));
@@ -184,7 +184,7 @@ TEST(Raster, Indexed8) {
   FillIndexedPalette(colors, 256);
   Palette palette = Palette::ReadOnly(colors, 256);
   ConstDramRaster<Indexed8> raster(3, 2, (const roo::byte*)data,
-                                  Indexed8(&palette));
+                                   Indexed8(&palette));
   EXPECT_THAT(raster, MatchesContent(Indexed8(&palette), 3, 2,
                                      "C1 26 E7"
                                      "54 F3 04"));

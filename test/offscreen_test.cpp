@@ -832,7 +832,7 @@ TEST_P(OffscreenTest, WriteRectWindowStress) {
                                                      std::get<1>(GetParam()));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     OffscreenTestsOrientations, OffscreenTest,
     testing::Combine(
         testing::Values(BLENDING_MODE_SOURCE, BLENDING_MODE_SOURCE_OVER),
@@ -841,7 +841,7 @@ INSTANTIATE_TEST_CASE_P(
                         Orientation::RightUp(), Orientation::UpRight(),
                         Orientation::LeftUp(), Orientation::UpLeft())));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     OffscreenTestsBlending, OffscreenTest,
     testing::Combine(
         testing::Values(BLENDING_MODE_SOURCE, BLENDING_MODE_SOURCE_OVER,

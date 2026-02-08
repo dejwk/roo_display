@@ -116,19 +116,22 @@ class Ssd1327Target {
   void setOrientation(Orientation orientation) {
     xy_swap_ = orientation.isXYswapped();
     const uint8_t remap[] = {
-        0xA0, 0x40 | (orientation.isLeftToRight() ? 0x02 : 0x01) |
-                  (orientation.isTopToBottom() ? 0x00 : 0x10)};
+        0xA0, static_cast<uint8_t>(
+                  0x40 | (orientation.isLeftToRight() ? 0x02 : 0x01) |
+                  (orientation.isTopToBottom() ? 0x00 : 0x10))};
     writeCommand(remap, 2);
   }
 
  private:
   void setXaddr(uint16_t x0, uint16_t x1) __attribute__((always_inline)) {
-    const uint8_t caset[] = {CASET, x0 / 2, x1 / 2};
+    const uint8_t caset[] = {CASET, static_cast<uint8_t>(x0 / 2),
+                             static_cast<uint8_t>(x1 / 2)};
     writeCommand(caset, 3);
   }
 
   void setYaddr(uint16_t y0, uint16_t y1) __attribute__((always_inline)) {
-    const uint8_t raset[] = {RASET, y0, y1};
+    const uint8_t raset[] = {RASET, static_cast<uint8_t>(y0),
+                             static_cast<uint8_t>(y1)};
     writeCommand(raset, 3);
   }
 
@@ -151,7 +154,6 @@ class Ssd1327Target {
   }
 
   Transport transport_;
-  roo::byte write_buffer_[64];
   bool xy_swap_;
 };
 

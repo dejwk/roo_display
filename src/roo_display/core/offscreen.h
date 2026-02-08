@@ -875,7 +875,7 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
                            (const roo::byte*)&raw_color_full_byte_);
     count = count % pixels_per_byte;
     target += contiguous_byte_count;
-    for (int i = 0; i < count; ++i) {
+    for (uint32_t i = 0; i < count; ++i) {
       io.storeRaw(raw_color_, target, i);
     }
   }
@@ -925,14 +925,15 @@ inline void AddressWindow::advance() {
 }
 
 inline void AddressWindow::advance(uint32_t count) {
-  if (count < x1_ - cursor_x_ + 1) {
+  uint16_t remaining_x = x1_ - cursor_x_ + 1;
+  if (count < remaining_x) {
     cursor_x_ += count;
     offset_ += advance_x_ * count;
     return;
   }
-  offset_ += advance_x_ * (x1_ - cursor_x_ + 1);
+  offset_ += advance_x_ * remaining_x;
   offset_ += advance_y_;
-  count -= (x1_ - cursor_x_ + 1);
+  count -= remaining_x;
   cursor_x_ = x0_;
   ++cursor_y_;
   int16_t full_lines = count / width();

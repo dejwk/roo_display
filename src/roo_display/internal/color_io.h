@@ -280,8 +280,8 @@ struct ColorRectIo<
                  int16_t y0, int16_t x1, int16_t y1, Color *output,
                  const ColorMode &mode = ColorMode()) const {
     constexpr int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte;
-    const int16_t width = x1 - x0 + 1;
-    const int16_t height = y1 - y0 + 1;
+    const uint16_t width = x1 - x0 + 1;
+    const uint16_t height = y1 - y0 + 1;
     SubByteColorIo<ColorMode, pixel_order> io;
     if (x0 == 0 && width * ColorMode::bits_per_pixel == row_width_bytes * 8) {
       const roo::byte *ptr = data + y0 * row_width_bytes;

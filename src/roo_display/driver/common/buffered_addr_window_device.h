@@ -164,7 +164,9 @@ class BufferedAddrWindowDevice : public DisplayDevice {
 
     bool isDirty() const { return begin_ != end_; }
 
-    uint32_t dirtyPixelCount() const { return end_ - begin_; }
+    uint32_t dirtyPixelCount() const {
+      return static_cast<uint32_t>(end_ - begin_);
+    }
 
     // Returns a next rectangle from the dirty segment that needs to be flushed,
     // and adjusts the begin_ offset accordingly.
@@ -175,7 +177,8 @@ class BufferedAddrWindowDevice : public DisplayDevice {
       if (begin_ != 0) {
         // First line starts at offset; we need to return a dedicated horizontal
         // rectangle to represent that.
-        bool unfinished_line = dirtyPixelCount() < (window_.width() - begin_);
+        uint32_t remaining = static_cast<uint32_t>(window_.width()) - begin_;
+        bool unfinished_line = dirtyPixelCount() < remaining;
         if (unfinished_line) {
           // There may come more pixels in this line later; we can't compact the
           // window.

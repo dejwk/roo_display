@@ -546,7 +546,6 @@ GlyphMetrics SmoothFontV2::getHorizontalStringMetrics(const char* utf8_data,
   int16_t xMin = glyphs.right_metrics().lsb();
   int16_t xMax = xMin;
   do {
-    char32_t code = next_code;
     has_more = decoder.next(next_code);
     int16_t kern;
     if (has_more) {
@@ -592,7 +591,6 @@ uint32_t SmoothFontV2::getHorizontalStringGlyphMetrics(
   int16_t advance = 0;
   do {
     if (glyph_count >= max_count) return glyph_count;
-    char32_t code = next_code;
     has_more = decoder.next(next_code);
     int16_t kern;
     if (has_more) {
@@ -638,7 +636,6 @@ void SmoothFontV2::drawHorizontalString(const Surface& s, const char* utf8_data,
   }
   bool has_more;
   do {
-    char32_t code = next_code;
     has_more = decoder.next(next_code);
     int16_t kern;
     if (has_more) {

@@ -53,7 +53,7 @@ class MockWriter {
 
  private:
   std::vector<Write> expected_;
-  int idx_;
+  size_t idx_;
 };
 
 TEST(Compactor, RightSimple) {

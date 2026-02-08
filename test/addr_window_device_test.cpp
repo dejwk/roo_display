@@ -239,7 +239,7 @@ TEST_P(AddrWindowDeviceTest, WriteRectWindowSimpleArgb8888LE) {
                                                      std::get<1>(GetParam()));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     AddrWindowDeviceTests, AddrWindowDeviceTest,
     testing::Combine(
         testing::Values(BLENDING_MODE_SOURCE),

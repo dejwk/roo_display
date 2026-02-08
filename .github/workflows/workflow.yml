@@ -10,12 +10,17 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: Free disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+        sudo apt-get clean
+
     - uses: bazel-contrib/setup-bazel@0.15.0
       with:
         # Avoid downloading Bazel every time.
         bazelisk-cache: true
-        # Store build cache per workflow.
-        disk-cache: ${{ github.workflow }}
+        # Store build cache per job to avoid concurrent writes.
+        disk-cache: ${{ github.workflow }}-${{ github.job }}
         # Share repository cache between workflows.
         repository-cache: true
 
@@ -27,9 +32,25 @@ jobs:
       run: |
         bazel test //... --test_output=errors
 
-    - name: Clean before ASAN build
+  build_and_test_asan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Free disk space
       run: |
-        bazel clean --expunge_async
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+        sudo apt-get clean
+
+    - uses: bazel-contrib/setup-bazel@0.15.0
+      with:
+        # Avoid downloading Bazel every time.
+        bazelisk-cache: true
+        # Store build cache per job to avoid concurrent writes.
+        disk-cache: ${{ github.workflow }}-${{ github.job }}
+        # Share repository cache between workflows.
+        repository-cache: true
 
     - name: Build with address sanitizer
       run: |

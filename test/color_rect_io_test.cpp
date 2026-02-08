@@ -26,7 +26,7 @@ std::vector<roo::byte> MakeRectData(const std::vector<Color>& colors,
       }
     }
   } else {
-    SubPixelColorIo<ColorMode, pixel_order> io;
+    SubByteColorIo<ColorMode, pixel_order> io;
     for (int16_t y = 0; y < height; ++y) {
       roo::byte* row = data.data() + y * row_width_bytes;
       for (int16_t x = 0; x < width; ++x) {
@@ -57,7 +57,7 @@ std::vector<Color> ExpectRect(const roo::byte* data, size_t row_width_bytes,
       }
     }
   } else {
-    SubPixelColorIo<ColorMode, pixel_order> io;
+    SubByteColorIo<ColorMode, pixel_order> io;
     const int8_t ppb = ColorTraits<ColorMode>::pixels_per_byte;
     for (int16_t y = y0; y <= y1; ++y) {
       const roo::byte* row = data + y * row_width_bytes;

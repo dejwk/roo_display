@@ -17,7 +17,7 @@ TEST(Color, MonochromeLsb) {
   Color fg(0xDAA3E0F5);
   Color bg(0xF1311F3A);
   Monochrome mode(fg, bg);
-  SubPixelColorIo<Monochrome, COLOR_PIXEL_ORDER_LSB_FIRST> io;
+  SubByteColorIo<Monochrome, COLOR_PIXEL_ORDER_LSB_FIRST> io;
   EXPECT_EQ(roo::byte{0xFF}, io.expandRaw(1));
   EXPECT_EQ(roo::byte{0x00}, io.expandRaw(0));
   roo::byte target{0};
@@ -42,7 +42,7 @@ TEST(Color, MonochromeMsb) {
   Color fg(0xDAA3E0F5);
   Color bg(0xF1311F3A);
   Monochrome mode(fg, bg);
-  SubPixelColorIo<Monochrome, COLOR_PIXEL_ORDER_MSB_FIRST> io;
+  SubByteColorIo<Monochrome, COLOR_PIXEL_ORDER_MSB_FIRST> io;
   EXPECT_EQ(roo::byte{0xFF}, io.expandRaw(1));
   EXPECT_EQ(roo::byte{0x00}, io.expandRaw(0));
   roo::byte target{0};
@@ -65,7 +65,7 @@ TEST(Color, MonochromeMsb) {
 
 TEST(Color, Alpha4Lsb) {
   Alpha4 mode(color::Black);
-  SubPixelColorIo<Alpha4, COLOR_PIXEL_ORDER_LSB_FIRST> io;
+  SubByteColorIo<Alpha4, COLOR_PIXEL_ORDER_LSB_FIRST> io;
   EXPECT_EQ(roo::byte{0xCC}, io.expandRaw(0x0C));
   EXPECT_EQ(roo::byte{0x11}, io.expandRaw(0x01));
   roo::byte target{0};
@@ -88,7 +88,7 @@ TEST(Color, Alpha4Lsb) {
 
 TEST(Color, Alpha4Msb) {
   Alpha4 mode(color::Black);
-  SubPixelColorIo<Alpha4, COLOR_PIXEL_ORDER_MSB_FIRST> io;
+  SubByteColorIo<Alpha4, COLOR_PIXEL_ORDER_MSB_FIRST> io;
   EXPECT_EQ(roo::byte{0xCC}, io.expandRaw(0x0C));
   EXPECT_EQ(roo::byte{0x11}, io.expandRaw(0x01));
   roo::byte target{0};

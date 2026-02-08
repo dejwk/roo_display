@@ -83,7 +83,7 @@ class RawColorReader<ColorMode, pixel_order, byte_order, uint8_t, 1,
   Color get(int16_t x, int16_t y) const {
     uint32_t offset =
         (x - extents_.xMin() + (y - extents_.yMin()) * extents_.width());
-    SubPixelColorIo<ColorMode, pixel_order> helper;
+    SubByteColorIo<ColorMode, pixel_order> helper;
     int32_t byte_offset = (offset + pixel_index_) / pixels_per_byte;
     int pixel_idx = (offset + pixel_index_) % pixels_per_byte;
     return color_mode_.toArgbColor(

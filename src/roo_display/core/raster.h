@@ -122,7 +122,7 @@ class RasterPixelStream : public PixelStream {
 
  private:
   void fetch() {
-    SubPixelColorIo<ColorMode, pixel_order> io;
+    SubByteColorIo<ColorMode, pixel_order> io;
     io.loadBulk(color_mode_, stream_.read(), cache_);
   }
 
@@ -177,7 +177,7 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
 struct Reader {
   Color operator()(const roo::byte* p, uint32_t offset,
                    const ColorMode& color_mode) const {
-    SubPixelColorIo<ColorMode, pixel_order> io;
+    SubByteColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     const roo::byte* target = p + offset / pixels_per_byte;
     return color_mode.toArgbColor(io.loadRaw(*target, pixel_index));

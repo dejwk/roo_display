@@ -53,7 +53,7 @@ uint32_t read_varint(StreamType& in, uint32_t result) {
 
 template <typename Resource, typename ColorMode,
           int8_t bits_per_pixel = ColorMode::bits_per_pixel,
-          bool subpixel = (bits_per_pixel < 8)>
+          bool subbyte = (bits_per_pixel < 8)>
 class RleStreamUniform;
 
 // Run-length-encoded stream for color modes in which the pixel uses at least

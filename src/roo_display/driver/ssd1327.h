@@ -57,12 +57,18 @@ class Ssd1327Target {
 
   void flushRect(ConstDramRaster<Grayscale4>& buffer, int16_t x0, int16_t y0,
                  int16_t x1, int16_t y1) {
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 >= kWidth) x1 = kWidth - 1;
+    if (y1 >= kHeight) y1 = kHeight - 1;
+    if (x0 > x1 || y0 > y1) return;
     if (xy_swap_) {
       y0 &= ~1;
       y1 |= 1;
       setYaddr(x0, x1);
       setXaddr(y0, y1);
-      const uint8_t* ptr = buffer.buffer() + (x0 + y0 * kWidth) / 2;
+      const uint8_t* ptr = reinterpret_cast<const uint8_t*>(
+          buffer.buffer() + (x0 + y0 * kWidth) / 2);
       uint32_t offset;
       for (int16_t x = (x0 & ~1); x <= (x1 | 1);) {
         if (x++ >= x0) {
@@ -88,7 +94,8 @@ class Ssd1327Target {
       x1 |= 1;
       setXaddr(x0, x1);
       setYaddr(y0, y1);
-      const uint8_t* ptr = buffer.buffer() + (x0 + y0 * kWidth) / 2;
+      const uint8_t* ptr = reinterpret_cast<const uint8_t*>(
+          buffer.buffer() + (x0 + y0 * kWidth) / 2);
       for (int16_t y = y0; y <= y1; ++y) {
         uint32_t offset = 0;
         for (int16_t x = x0; x <= x1; x += 2) {

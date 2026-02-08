@@ -2,6 +2,8 @@
 
 #include <memory>
 
+#include "roo_backport.h"
+#include "roo_backport/byte.h"
 #include "roo_display/core/offscreen.h"
 #include "roo_display/driver/common/compactor.h"
 
@@ -16,10 +18,10 @@ class BufferedAddrWindowDevice : public DisplayDevice {
                            Target target = Target())
       : DisplayDevice(orientation, target.width(), target.height()),
         target_(std::move(target)),
-        buffer_(new uint8_t[(Target::ColorMode::bits_per_pixel *
-                                 target.width() * target.height() +
-                             7) /
-                            8]),
+        buffer_(new roo::byte[(Target::ColorMode::bits_per_pixel *
+                                   target.width() * target.height() +
+                               7) /
+                              8]),
         buffer_dev_(target_.width(), target_.height(), buffer_.get(),
                     typename Target::ColorMode()),
         buffer_raster_(buffer_dev_.raster()),
@@ -136,8 +138,8 @@ class BufferedAddrWindowDevice : public DisplayDevice {
         });
   }
 
-  void interpretRect(const roo::byte* data, size_t row_width_bytes,
-                     int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+  void interpretRect(const roo::byte* data, size_t row_width_bytes, int16_t x0,
+                     int16_t y0, int16_t x1, int16_t y1,
                      Color* output) override {
     buffer_dev_.interpretRect(data, row_width_bytes, x0, y0, x1, y1, output);
   }
@@ -230,7 +232,7 @@ class BufferedAddrWindowDevice : public DisplayDevice {
   }
 
   Target target_;
-  std::unique_ptr<uint8_t[]> buffer_;
+  std::unique_ptr<roo::byte[]> buffer_;
   OffscreenDevice<typename Target::ColorMode> buffer_dev_;
   ConstDramRaster<typename Target::ColorMode> buffer_raster_;
   RectCache rect_cache_;

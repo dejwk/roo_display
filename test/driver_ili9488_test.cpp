@@ -3,6 +3,7 @@
 #include "SPI.h"
 #include "gtest/gtest.h"
 #include "roo_display.h"
+#include "roo_display/color/pixel_order.h"
 #include "roo_display/driver/ili9488.h"
 #include "roo_display/shape/basic.h"
 #include "roo_testing/devices/display/ili9488/ili9488spi.h"
@@ -65,4 +66,15 @@ TEST(Ili9488Driver, DrawFilledRect) {
   EXPECT_EQ(ToRgb666hArgb(color::Gray), emu.viewport.getPixel(2, 3));
   EXPECT_EQ(ToRgb666hArgb(color::DarkGray), emu.viewport.getPixel(4, 5));
   EXPECT_EQ(ToRgb666hArgb(color::DeepSkyBlue), emu.viewport.getPixel(6, 7));
+}
+
+TEST(Ili9488Driver, ColorFormat) {
+  Ili9488Emulator emu;
+
+  Ili9488spi<kPinCs, kPinDc, kPinRst> device;
+  const auto& format = device.getColorFormat();
+
+  EXPECT_EQ(DisplayOutput::ColorFormat::kModeRgb888, format.mode());
+  EXPECT_EQ(roo_io::kBigEndian, format.byte_order());
+  EXPECT_EQ(COLOR_PIXEL_ORDER_MSB_FIRST, format.pixel_order());
 }

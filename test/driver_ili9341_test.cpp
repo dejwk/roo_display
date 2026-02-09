@@ -88,6 +88,15 @@ TEST(Ili9341Driver, DrawFilledRect) {
   EXPECT_EQ(ToRgb565Argb(color::DeepSkyBlue), rig.emu.viewport.getPixel(6, 7));
 }
 
+TEST(Ili9341Driver, ColorFormat) {
+  auto& rig = GetIli9341TestRig();
+  const auto& format = rig.device.getColorFormat();
+
+  EXPECT_EQ(DisplayOutput::ColorFormat::kModeRgb565, format.mode());
+  EXPECT_EQ(roo_io::kBigEndian, format.byte_order());
+  EXPECT_EQ(COLOR_PIXEL_ORDER_MSB_FIRST, format.pixel_order());
+}
+
 TEST(Ili9341Driver, DrawDirectRect) {
   constexpr int16_t kScreenWidth = 240;
   constexpr int16_t kScreenHeight = 320;

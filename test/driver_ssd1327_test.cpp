@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 #include "roo_display.h"
 #include "roo_display/color/color_modes.h"
+#include "roo_display/color/pixel_order.h"
 #include "roo_display/driver/ssd1327.h"
 #include "roo_display/shape/basic.h"
 #include "roo_testing/devices/display/ssd1327/ssd1327spi.h"
@@ -67,4 +68,15 @@ TEST(Ssd1327Driver, DrawFilledRect) {
   EXPECT_EQ(ToGrayscale4Viewport(color::Gray), emu.viewport.getPixel(3, 3));
   EXPECT_EQ(ToGrayscale4Viewport(color::DarkGray), emu.viewport.getPixel(4, 4));
   EXPECT_EQ(ToGrayscale4Viewport(color::Orange), emu.viewport.getPixel(5, 5));
+}
+
+TEST(Ssd1327Driver, ColorFormat) {
+  Ssd1327Emulator emu;
+
+  Ssd1327spi<kPinCs, kPinDc, kPinRst> device;
+  const auto& format = device.getColorFormat();
+
+  EXPECT_EQ(DisplayOutput::ColorFormat::kModeGrayscale4, format.mode());
+  EXPECT_EQ(roo_io::kBigEndian, format.byte_order());
+  EXPECT_EQ(COLOR_PIXEL_ORDER_MSB_FIRST, format.pixel_order());
 }

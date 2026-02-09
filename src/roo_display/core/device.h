@@ -4,6 +4,7 @@
 
 #include "roo_display/color/blending.h"
 #include "roo_display/color/color.h"
+#include "roo_display/color/pixel_order.h"
 #include "roo_display/core/box.h"
 #include "roo_display/core/orientation.h"
 #include "roo_time.h"
@@ -306,6 +307,12 @@ class DisplayOutput::ColorFormat {
   virtual void decode(const roo::byte *data, size_t row_width_bytes, int16_t x0,
                       int16_t y0, int16_t x1, int16_t y1,
                       Color *output) const = 0;
+
+  Mode mode() const { return mode_; }
+
+  roo_io::ByteOrder byte_order() const { return byte_order_; }
+
+  ColorPixelOrder pixel_order() const { return pixel_order_; }
 
  protected:
   ColorFormat(Mode mode, roo_io::ByteOrder byte_order,

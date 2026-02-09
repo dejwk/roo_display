@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 #include "roo_display.h"
 #include "roo_display/color/color_modes.h"
+#include "roo_display/color/pixel_order.h"
 #include "roo_display/driver/ili9486.h"
 #include "roo_display/shape/basic.h"
 #include "roo_testing/devices/display/ili9486/ili9486spi.h"
@@ -66,4 +67,15 @@ TEST(Ili9486Driver, DrawFilledRect) {
   EXPECT_EQ(ToRgb565Argb(color::Gray), emu.viewport.getPixel(2, 3));
   EXPECT_EQ(ToRgb565Argb(color::DarkGray), emu.viewport.getPixel(4, 5));
   EXPECT_EQ(ToRgb565Argb(color::Orange), emu.viewport.getPixel(6, 7));
+}
+
+TEST(Ili9486Driver, ColorFormat) {
+  Ili9486Emulator emu;
+
+  Ili9486spi<kPinCs, kPinDc, kPinRst> device;
+  const auto& format = device.getColorFormat();
+
+  EXPECT_EQ(DisplayOutput::ColorFormat::kModeRgb565, format.mode());
+  EXPECT_EQ(roo_io::kBigEndian, format.byte_order());
+  EXPECT_EQ(COLOR_PIXEL_ORDER_MSB_FIRST, format.pixel_order());
 }

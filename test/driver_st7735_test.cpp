@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 #include "roo_display.h"
 #include "roo_display/color/color_modes.h"
+#include "roo_display/color/pixel_order.h"
 #include "roo_display/driver/st7735.h"
 #include "roo_display/shape/basic.h"
 #include "roo_testing/devices/display/st77xx/st77xx.h"
@@ -68,4 +69,15 @@ TEST(St7735Driver, DrawFilledRect) {
   EXPECT_EQ(ToRgb565Argb(color::Gray), emu.viewport.getPixel(9, 9));
   EXPECT_EQ(ToRgb565Argb(color::DarkGray), emu.viewport.getPixel(11, 11));
   EXPECT_EQ(ToRgb565Argb(color::Orange), emu.viewport.getPixel(13, 13));
+}
+
+TEST(St7735Driver, ColorFormat) {
+  St7735Emulator emu;
+
+  St7735spi_128x160<kPinCs, kPinDc, kPinRst> device;
+  const auto& format = device.getColorFormat();
+
+  EXPECT_EQ(DisplayOutput::ColorFormat::kModeRgb565, format.mode());
+  EXPECT_EQ(roo_io::kBigEndian, format.byte_order());
+  EXPECT_EQ(COLOR_PIXEL_ORDER_MSB_FIRST, format.pixel_order());
 }

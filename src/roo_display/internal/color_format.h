@@ -2,6 +2,7 @@
 
 #include "roo_display/color/color_mode_indexed.h"
 #include "roo_display/color/color_modes.h"
+#include "roo_display/color/pixel_order.h"
 #include "roo_display/core/device.h"
 #include "roo_display/internal/color_io.h"
 #include "roo_io/data/byte_order.h"
@@ -114,19 +115,19 @@ struct ColorFormatTraits<Indexed<8>> {
       DisplayOutput::ColorFormat::kModeIndexed8;
 };
 
-template <typename ColorMode, roo_io::ByteOrder byte_order,
-          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>
+template <typename ColorMode, roo_io::ByteOrder kByteOrder,
+      ColorPixelOrder kPixelOrder = COLOR_PIXEL_ORDER_MSB_FIRST>
 class ColorFormatImpl : public DisplayOutput::ColorFormat {
  public:
   ColorFormatImpl(const ColorMode& mode)
       : DisplayOutput::ColorFormat(ColorFormatTraits<ColorMode>::mode,
-                                   byte_order, pixel_order),
+                   kByteOrder, kPixelOrder),
         mode_(mode) {}
 
   void decode(const roo::byte* data, size_t row_width_bytes, int16_t x0,
               int16_t y0, int16_t x1, int16_t y1,
               Color* output) const override {
-    ColorRectIo<ColorMode, byte_order, pixel_order> io;
+    ColorRectIo<ColorMode, kByteOrder, kPixelOrder> io;
     io.interpret(data, row_width_bytes, x0, y0, x1, y1, output, mode_);
   }
 

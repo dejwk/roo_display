@@ -5,11 +5,11 @@
 
 #include "roo_backport/byte.h"
 #include "roo_display/color/color.h"
+#include "roo_display/color/pixel_order.h"
 #include "roo_display/color/traits.h"
 #include "roo_io/data/byte_order.h"
 
 namespace roo_display {
-
 template <typename ColorMode, roo_io::ByteOrder byte_order,
           typename Enable = void>
 struct ColorIo {
@@ -99,14 +99,6 @@ struct ColorIo<ColorMode, byte_order,
     return mode.toArgbColor(
         roo_io::toh<uint32_t, byte_order>(*(const uint32_t *)src));
   }
-};
-
-// In case of color modes that store multiple pixels in a single byte,
-// specifies whether the leftmost pixel is mapped to the high or low order
-// bits.
-enum ColorPixelOrder {
-  COLOR_PIXEL_ORDER_MSB_FIRST,
-  COLOR_PIXEL_ORDER_LSB_FIRST
 };
 
 // Utility class for color modes whose pixels_per_byte > 1. Allows callers to

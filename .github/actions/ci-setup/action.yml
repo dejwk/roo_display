@@ -1,0 +1,27 @@
+name: CI setup
+
+description: Common CI setup steps for Bazel builds.
+
+runs:
+  using: composite
+  steps:
+    - name: Free disk space
+      shell: bash
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+        sudo apt-get clean
+
+    - name: Install symbolize deps
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y $SYMBOLIZE_DEPS
+
+    - uses: bazel-contrib/setup-bazel@0.15.0
+      with:
+        # Avoid downloading Bazel every time.
+        bazelisk-cache: true
+        # Store build cache per job to avoid concurrent writes.
+        disk-cache: ${{ github.workflow }}-${{ github.job }}
+        # Share repository cache between workflows.
+        repository-cache: true

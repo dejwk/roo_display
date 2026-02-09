@@ -146,6 +146,10 @@ class BlendingFilter : public DisplayOutput {
     output_->writePixels(mode, newcolor, x, y, pixel_count);
   }
 
+  const ColorFormat& getColorFormat() const override {
+    return output_->getColorFormat();
+  }
+
  private:
   void read(int16_t* x, int16_t* y, uint16_t pixel_count, Color* result) {
     if (dx_ == 0 && dy_ == 0) {

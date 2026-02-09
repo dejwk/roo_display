@@ -30,10 +30,10 @@ class Ssd1327Target {
     transport_.init();
     sleep_ms(200);
     begin();
-    uint8_t init[] = {0xAE, 0x15, 0x00, 0x7F, 0x75, 0x00, 0x7F, 0x81, 0x53,
-                      0xA0, 0x42, 0xA1, 0x00, 0xA2, 0x00, 0xA4, 0xA8, 0x7F,
-                      0xB1, 0xF1, 0xB3, 0xC1, 0xAB, 0x01, 0xB6, 0x01, 0xBE,
-                      0x07, 0xBC, 0x08, 0xD5, 0x62, 0xFD, 0x12};
+    const uint8_t init[] = {
+        0xAE, 0x15, 0x00, 0x7F, 0x75, 0x00, 0x7F, 0x81, 0x53, 0xA0, 0x42, 0xA1,
+        0x00, 0xA2, 0x00, 0xA4, 0xA8, 0x7F, 0xB1, 0xF1, 0xB3, 0xC1, 0xAB, 0x01,
+        0xB6, 0x01, 0xBE, 0x07, 0xBC, 0x08, 0xD5, 0x62, 0xFD, 0x12};
     writeCommand(init, sizeof(init));
     end();
     sleep_ms(200);
@@ -57,12 +57,18 @@ class Ssd1327Target {
 
   void flushRect(ConstDramRaster<Grayscale4>& buffer, int16_t x0, int16_t y0,
                  int16_t x1, int16_t y1) {
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 >= kWidth) x1 = kWidth - 1;
+    if (y1 >= kHeight) y1 = kHeight - 1;
+    if (x0 > x1 || y0 > y1) return;
     if (xy_swap_) {
       y0 &= ~1;
       y1 |= 1;
       setYaddr(x0, x1);
       setXaddr(y0, y1);
-      const uint8_t* ptr = buffer.buffer() + (x0 + y0 * kWidth) / 2;
+      const uint8_t* ptr = reinterpret_cast<const uint8_t*>(
+          buffer.buffer() + (x0 + y0 * kWidth) / 2);
       uint32_t offset;
       for (int16_t x = (x0 & ~1); x <= (x1 | 1);) {
         if (x++ >= x0) {
@@ -88,7 +94,8 @@ class Ssd1327Target {
       x1 |= 1;
       setXaddr(x0, x1);
       setYaddr(y0, y1);
-      const uint8_t* ptr = buffer.buffer() + (x0 + y0 * kWidth) / 2;
+      const uint8_t* ptr = reinterpret_cast<const uint8_t*>(
+          buffer.buffer() + (x0 + y0 * kWidth) / 2);
       for (int16_t y = y0; y <= y1; ++y) {
         uint32_t offset = 0;
         for (int16_t x = x0; x <= x1; x += 2) {
@@ -108,20 +115,23 @@ class Ssd1327Target {
 
   void setOrientation(Orientation orientation) {
     xy_swap_ = orientation.isXYswapped();
-    uint8_t remap[] = {0xA0, 0x40 |
-                                 (orientation.isLeftToRight() ? 0x02 : 0x01) |
-                                 (orientation.isTopToBottom() ? 0x00 : 0x10)};
+    const uint8_t remap[] = {
+        0xA0, static_cast<uint8_t>(
+                  0x40 | (orientation.isLeftToRight() ? 0x02 : 0x01) |
+                  (orientation.isTopToBottom() ? 0x00 : 0x10))};
     writeCommand(remap, 2);
   }
 
  private:
   void setXaddr(uint16_t x0, uint16_t x1) __attribute__((always_inline)) {
-    uint8_t caset[] = {CASET, x0 / 2, x1 / 2};
+    const uint8_t caset[] = {CASET, static_cast<uint8_t>(x0 / 2),
+                             static_cast<uint8_t>(x1 / 2)};
     writeCommand(caset, 3);
   }
 
   void setYaddr(uint16_t y0, uint16_t y1) __attribute__((always_inline)) {
-    uint8_t raset[] = {RASET, y0, y1};
+    const uint8_t raset[] = {RASET, static_cast<uint8_t>(y0),
+                             static_cast<uint8_t>(y1)};
     writeCommand(raset, 3);
   }
 
@@ -131,9 +141,10 @@ class Ssd1327Target {
     transport_.cmdEnd();
   }
 
-  void writeCommand(uint8_t* c, uint32_t size) __attribute__((always_inline)) {
+  void writeCommand(const uint8_t* c, uint32_t size)
+      __attribute__((always_inline)) {
     transport_.cmdBegin();
-    transport_.writeBytes_async(c, size);
+    transport_.writeBytes_async((const roo::byte*)c, size);
     transport_.sync();
     transport_.cmdEnd();
   }
@@ -143,7 +154,6 @@ class Ssd1327Target {
   }
 
   Transport transport_;
-  uint8_t write_buffer_[64];
   bool xy_swap_;
 };
 

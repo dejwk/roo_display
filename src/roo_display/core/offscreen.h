@@ -4,6 +4,7 @@
 
 #include "roo_display/color/color.h"
 #include "roo_display/core/raster.h"
+#include "roo_display/internal/color_format.h"
 #include "roo_io/memory/fill.h"
 #include "roo_io/memory/store.h"
 
@@ -133,6 +134,7 @@ class OffscreenDevice : public DisplayDevice {
                   ColorMode color_mode)
       : DisplayDevice(width, height),
         color_mode_(color_mode),
+        color_format_(color_mode_),
         buffer_(buffer),
         orienter_(width, height, Orientation::Default()) {}
 
@@ -162,6 +164,8 @@ class OffscreenDevice : public DisplayDevice {
   ColorMode& color_mode() { return color_mode_; }
   /// Access color mode (const).
   const ColorMode& color_mode() const { return color_mode_; }
+
+  const ColorFormat& getColorFormat() const override { return color_format_; }
 
   // const Raster<const roo::byte *, ColorMode, pixel_order, byte_order>
   // &raster()
@@ -227,6 +231,7 @@ class OffscreenDevice : public DisplayDevice {
                           int16_t* y0, int16_t* y1, uint16_t count);
 
   ColorMode color_mode_;
+  internal::ColorFormatImpl<ColorMode, byte_order, pixel_order> color_format_;
 
   roo::byte* buffer_;
 
@@ -467,75 +472,6 @@ class BitMaskOffscreen : public Offscreen<Monochrome> {
 
 namespace internal {
 
-// Reader / writer for multi-byte color modes, supports reading and writing raw
-// byte content from and to DRAM. Used by Writers and Fillers, below.
-template <int bits_per_pixel, ByteOrder byte_order>
-class RawIterator;
-
-template <typename RawType, ByteOrder byte_order>
-class TrivialIterator {
- public:
-  TrivialIterator(roo::byte* ptr, uint32_t offset)
-      : ptr_(((RawType*)ptr) + offset) {}
-  RawType read() const {
-    return roo_io::LoadInteger<byte_order, RawType>((const roo::byte*)ptr_);
-  }
-  void write(RawType value) const {
-    roo_io::StoreInteger<byte_order, RawType>(value, (roo::byte*)ptr_);
-  }
-  void operator++() { ptr_++; }
-
- private:
-  RawType* ptr_;
-};
-
-template <ByteOrder byte_order>
-class RawIterator<8, byte_order> : public TrivialIterator<uint8_t, byte_order> {
- public:
-  RawIterator(roo::byte* ptr, uint32_t offset)
-      : TrivialIterator<uint8_t, byte_order>(ptr, offset) {}
-};
-
-template <ByteOrder byte_order>
-class RawIterator<16, byte_order>
-    : public TrivialIterator<uint16_t, byte_order> {
- public:
-  RawIterator(roo::byte* ptr, uint32_t offset)
-      : TrivialIterator<uint16_t, byte_order>(ptr, offset) {}
-};
-
-template <ByteOrder byte_order>
-class RawIterator<32, byte_order>
-    : public TrivialIterator<uint32_t, byte_order> {
- public:
-  RawIterator(roo::byte* ptr, uint32_t offset)
-      : TrivialIterator<uint32_t, byte_order>(ptr, offset) {}
-};
-
-template <>
-class RawIterator<24, roo_io::kBigEndian> {
- public:
-  RawIterator(roo::byte* ptr, uint32_t offset) : ptr_(ptr + 3 * offset) {}
-  uint32_t read() const { return roo_io::LoadBeU24(ptr_); }
-  void write(uint32_t value) const { roo_io::StoreBeU24(value, ptr_); }
-  void operator++() { ptr_ += 3; }
-
- private:
-  roo::byte* ptr_;
-};
-
-template <>
-class RawIterator<24, roo_io::kLittleEndian> {
- public:
-  RawIterator(roo::byte* ptr, uint32_t offset) : ptr_(ptr + 3 * offset) {}
-  uint32_t read() const { return roo_io::LoadLeU24(ptr_); }
-  void write(uint32_t value) const { roo_io::StoreLeU24(value, ptr_); }
-  void operator++() { ptr_ += 3; }
-
- private:
-  roo::byte* ptr_;
-};
-
 // For sub-byte color modes.
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           BlendingMode blending_mode,
@@ -547,24 +483,24 @@ class BlendingWriterOperator {
       : color_mode_(color_mode), color_(color) {}
 
   void operator()(roo::byte* p, uint32_t offset) {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    SubByteColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
-    RawBlender<ColorMode, blending_mode> blender;
-    auto color = blender(subpixel.ReadSubPixelColor(*target, pixel_index),
-                         *color_++, color_mode_);
-    subpixel.applySubPixelColor(color, target, pixel_index);
+    RawSubByteBlender<ColorMode, blending_mode> blender;
+    auto color =
+        blender(io.loadRaw(*target, pixel_index), *color_++, color_mode_);
+    io.storeRaw(color, target, pixel_index);
   }
 
   void operator()(roo::byte* p, uint32_t offset, uint32_t count) {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    SubByteColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
     while (count-- > 0) {
-      RawBlender<ColorMode, blending_mode> blender;
-      auto color = blender(subpixel.ReadSubPixelColor(*target, pixel_index),
-                           *color_++, color_mode_);
-      subpixel.applySubPixelColor(color, target, pixel_index);
+      RawSubByteBlender<ColorMode, blending_mode> blender;
+      auto color =
+          blender(io.loadRaw(*target, pixel_index), *color_++, color_mode_);
+      io.storeRaw(color, target, pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;
         target++;
@@ -587,17 +523,18 @@ class BlendingWriterOperator<ColorMode, pixel_order, byte_order, blending_mode,
       : color_mode_(color_mode), color_(color) {}
 
   void operator()(roo::byte* p, uint32_t offset) {
-    internal::RawIterator<ColorMode::bits_per_pixel, byte_order> itr(p, offset);
-    RawBlender<ColorMode, blending_mode> blender;
-    itr.write(blender(itr.read(), *color_++, color_mode_));
+    constexpr uint32_t kBytesPerPixel = ColorTraits<ColorMode>::bytes_per_pixel;
+    RawFullByteBlender<ColorMode, blending_mode, byte_order> blender;
+    blender(p + offset * kBytesPerPixel, *color_++, color_mode_);
   }
 
   void operator()(roo::byte* p, uint32_t offset, uint32_t count) {
-    internal::RawIterator<ColorMode::bits_per_pixel, byte_order> itr(p, offset);
-    RawBlender<ColorMode, blending_mode> blender;
+    constexpr uint32_t kBytesPerPixel = ColorTraits<ColorMode>::bytes_per_pixel;
+    roo::byte* cursor = p + offset * kBytesPerPixel;
+    RawFullByteBlender<ColorMode, blending_mode, byte_order> blender;
     while (count-- > 0) {
-      itr.write(blender(itr.read(), *color_++, color_mode_));
-      ++itr;
+      blender(cursor, *color_++, color_mode_);
+      cursor += kBytesPerPixel;
     }
   }
 
@@ -627,19 +564,19 @@ struct BlendingWriter {
 //       : color_mode_(color_mode), color_(color) {}
 
 //   void operator()(roo::byte *p, uint32_t offset) {
-//     SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+//     SubByteColorIo<ColorMode, pixel_order> io;
 //     int pixel_index = offset % pixels_per_byte;
 //     roo::byte *target = p + offset / pixels_per_byte;
-//     subpixel.applySubPixelColor(color_mode_.fromArgbColor(*color_++), target,
+//     io.storeRaw(color_mode_.fromArgbColor(*color_++), target,
 //                                 pixel_index);
 //   }
 
 //   void operator()(roo::byte *p, uint32_t offset, uint32_t count) {
-//     SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+//     SubByteColorIo<ColorMode, pixel_order> io;
 //     int pixel_index = offset % pixels_per_byte;
 //     roo::byte *target = p + offset / pixels_per_byte;
 //     while (count-- > 0) {
-//       subpixel.applySubPixelColor(color_mode_.fromArgbColor(*color_++),
+//       io.storeRaw(color_mode_.fromArgbColor(*color_++),
 //       target,
 //                                   pixel_index);
 //       if (++pixel_index == pixels_per_byte) {
@@ -697,25 +634,25 @@ class GenericWriter {
       : color_mode_(color_mode), color_(color), blending_mode_(blending_mode) {}
 
   void operator()(roo::byte* p, uint32_t offset) {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    SubByteColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
-    auto color = ApplyRawBlending(
-        blending_mode_, subpixel.ReadSubPixelColor(*target, pixel_index),
-        *color_++, color_mode_);
-    subpixel.applySubPixelColor(color, target, pixel_index);
+    auto color = ApplyRawSubByteBlending(blending_mode_,
+                                         io.loadRaw(*target, pixel_index),
+                                         *color_++, color_mode_);
+    io.storeRaw(color, target, pixel_index);
   }
 
   void operator()(roo::byte* p, uint32_t offset, uint32_t count) {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    SubByteColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
     // TODO: this loop can be optimized to work on an array of color at a time.
     while (count-- > 0) {
-      auto color = ApplyRawBlending(
-          blending_mode_, subpixel.ReadSubPixelColor(*target, pixel_index),
-          *color_++, color_mode_);
-      subpixel.applySubPixelColor(color, target, pixel_index);
+      auto color = ApplyRawSubByteBlending(blending_mode_,
+                                           io.loadRaw(*target, pixel_index),
+                                           *color_++, color_mode_);
+      io.storeRaw(color, target, pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;
         target++;
@@ -739,16 +676,18 @@ class GenericWriter<ColorMode, pixel_order, byte_order, 1, storage_type> {
       : color_mode_(color_mode), color_(color), blending_mode_(blending_mode) {}
 
   void operator()(roo::byte* p, uint32_t offset) {
-    internal::RawIterator<ColorMode::bits_per_pixel, byte_order> itr(p, offset);
-    itr.write(
-        ApplyRawBlending(blending_mode_, itr.read(), *color_++, color_mode_));
+    constexpr uint32_t kBytesPerPixel = ColorTraits<ColorMode>::bytes_per_pixel;
+    ApplyRawFullByteBlending<ColorMode, byte_order>(
+        blending_mode_, p + offset * kBytesPerPixel, *color_++, color_mode_);
   }
 
   void operator()(roo::byte* p, uint32_t offset, uint32_t count) {
-    internal::RawIterator<ColorMode::bits_per_pixel, byte_order> itr(p, offset);
+    constexpr uint32_t kBytesPerPixel = ColorTraits<ColorMode>::bytes_per_pixel;
+    roo::byte* cursor = p + offset * kBytesPerPixel;
     while (count-- > 0) {
-      itr.write(ApplyRawBlending(blending_mode_, itr.read(), *color_++));
-      ++itr;
+      ApplyRawFullByteBlending<ColorMode, byte_order>(blending_mode_, cursor,
+                                                      *color_++, color_mode_);
+      cursor += kBytesPerPixel;
     }
   }
 
@@ -775,24 +714,23 @@ class BlendingFillerOperator {
       : color_mode_(color_mode), color_(color) {}
 
   void operator()(roo::byte* p, uint32_t offset) {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    SubByteColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
-    RawBlender<ColorMode, blending_mode> blender;
-    auto color = blender(subpixel.ReadSubPixelColor(*target, pixel_index),
-                         color_, color_mode_);
-    subpixel.applySubPixelColor(color, target, pixel_index);
+    RawSubByteBlender<ColorMode, blending_mode> blender;
+    auto color = blender(io.loadRaw(*target, pixel_index), color_, color_mode_);
+    io.storeRaw(color, target, pixel_index);
   }
 
   void operator()(roo::byte* p, uint32_t offset, uint32_t count) {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    SubByteColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
-    RawBlender<ColorMode, blending_mode> blender;
+    RawSubByteBlender<ColorMode, blending_mode> blender;
     while (count-- > 0) {
-      auto color = blender(subpixel.ReadSubPixelColor(*target, pixel_index),
-                           color_, color_mode_);
-      subpixel.applySubPixelColor(color, target, pixel_index);
+      auto color =
+          blender(io.loadRaw(*target, pixel_index), color_, color_mode_);
+      io.storeRaw(color, target, pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;
         target++;
@@ -815,17 +753,18 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order, blending_mode,
       : color_mode_(color_mode), color_(color) {}
 
   void operator()(roo::byte* p, uint32_t offset) const {
-    internal::RawIterator<ColorMode::bits_per_pixel, byte_order> itr(p, offset);
-    RawBlender<ColorMode, blending_mode> blender;
-    itr.write(blender(itr.read(), color_, color_mode_));
+    constexpr uint32_t kBytesPerPixel = ColorTraits<ColorMode>::bytes_per_pixel;
+    RawFullByteBlender<ColorMode, blending_mode, byte_order> blender;
+    blender(p + offset * kBytesPerPixel, color_, color_mode_);
   }
 
   void operator()(roo::byte* p, uint32_t offset, uint32_t count) const {
-    internal::RawIterator<ColorMode::bits_per_pixel, byte_order> itr(p, offset);
-    RawBlender<ColorMode, blending_mode> blender;
+    constexpr uint32_t kBytesPerPixel = ColorTraits<ColorMode>::bytes_per_pixel;
+    roo::byte* cursor = p + offset * kBytesPerPixel;
+    RawFullByteBlender<ColorMode, blending_mode, byte_order> blender;
     while (count-- > 0) {
-      itr.write(blender(itr.read(), color_, color_mode_));
-      ++itr;
+      blender(cursor, color_, color_mode_);
+      cursor += kBytesPerPixel;
     }
   }
 
@@ -847,23 +786,22 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
       : color_mode_(color_mode),
         raw_color_(color_mode_.fromArgbColor(color)),
         raw_color_full_byte_(
-            SubPixelColorHelper<ColorMode, pixel_order>().RawToFullByte(
-                raw_color_)) {}
+            SubByteColorIo<ColorMode, pixel_order>().expandRaw(raw_color_)) {}
 
   void operator()(roo::byte* p, uint32_t offset) const {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
-    subpixel.applySubPixelColor(raw_color_, p + offset / pixels_per_byte,
-                                offset % pixels_per_byte);
+    SubByteColorIo<ColorMode, pixel_order> io;
+    io.storeRaw(raw_color_, p + offset / pixels_per_byte,
+                offset % pixels_per_byte);
   }
 
   void operator()(roo::byte* p, uint32_t offset, uint32_t count) const {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    SubByteColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
     if (pixel_index > 0) {
       do {
         if (count-- == 0) return;
-        subpixel.applySubPixelColor(raw_color_, target, pixel_index++);
+        io.storeRaw(raw_color_, target, pixel_index++);
       } while (pixel_index < pixels_per_byte);
       pixel_index = 0;
       ++target;
@@ -873,8 +811,8 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
                            (const roo::byte*)&raw_color_full_byte_);
     count = count % pixels_per_byte;
     target += contiguous_byte_count;
-    for (int i = 0; i < count; ++i) {
-      subpixel.applySubPixelColor(raw_color_, target, i);
+    for (uint32_t i = 0; i < count; ++i) {
+      io.storeRaw(raw_color_, target, i);
     }
   }
 
@@ -884,59 +822,6 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
   roo::byte raw_color_full_byte_;
 };
 
-// Used to convert a raw color to byte array, so that we can use it in
-// fill_pattern, respecting the byte order.
-template <typename storage_type, int bytes, ByteOrder byte_order>
-void ReadRaw(storage_type in, roo::byte* out);
-
-template <>
-inline void ReadRaw<uint8_t, 1, roo_io::kBigEndian>(uint8_t in,
-                                                    roo::byte* out) {
-  roo_io::StoreU8(in, out);
-}
-
-template <>
-inline void ReadRaw<uint8_t, 1, roo_io::kLittleEndian>(uint8_t in,
-                                                       roo::byte* out) {
-  roo_io::StoreU8(in, out);
-}
-
-template <>
-inline void ReadRaw<uint16_t, 2, roo_io::kBigEndian>(uint16_t in,
-                                                     roo::byte* out) {
-  roo_io::StoreBeU16(in, out);
-}
-
-template <>
-inline void ReadRaw<uint16_t, 2, roo_io::kLittleEndian>(uint16_t in,
-                                                        roo::byte* out) {
-  roo_io::StoreLeU16(in, out);
-}
-
-template <>
-inline void ReadRaw<uint32_t, 3, roo_io::kBigEndian>(uint32_t in,
-                                                     roo::byte* out) {
-  roo_io::StoreBeU24(in, out);
-}
-
-template <>
-inline void ReadRaw<uint32_t, 3, roo_io::kLittleEndian>(uint32_t in,
-                                                        roo::byte* out) {
-  roo_io::StoreLeU24(in, out);
-}
-
-template <>
-inline void ReadRaw<uint32_t, 4, roo_io::kBigEndian>(uint32_t in,
-                                                     roo::byte* out) {
-  roo_io::StoreBeU32(in, out);
-}
-
-template <>
-inline void ReadRaw<uint32_t, 4, roo_io::kLittleEndian>(uint32_t in,
-                                                        roo::byte* out) {
-  roo_io::StoreLeU32(in, out);
-}
-
 // For color modes in which a pixel takes up at least 1 byte.
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           typename storage_type>
@@ -945,9 +830,7 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
  public:
   BlendingFillerOperator(const ColorMode& color_mode, Color color)
       : color_mode_(color_mode) {
-    internal::ReadRaw<typename ColorTraits<ColorMode>::storage_type,
-                      ColorMode::bits_per_pixel / 8, byte_order>(
-        color_mode_.fromArgbColor(color), raw_color_);
+    ColorIo<ColorMode, byte_order>().store(color, raw_color_, color_mode_);
   }
 
   void operator()(roo::byte* p, uint32_t offset) const {
@@ -978,14 +861,15 @@ inline void AddressWindow::advance() {
 }
 
 inline void AddressWindow::advance(uint32_t count) {
-  if (count < x1_ - cursor_x_ + 1) {
+  uint16_t remaining_x = x1_ - cursor_x_ + 1;
+  if (count < remaining_x) {
     cursor_x_ += count;
     offset_ += advance_x_ * count;
     return;
   }
-  offset_ += advance_x_ * (x1_ - cursor_x_ + 1);
+  offset_ += advance_x_ * remaining_x;
   offset_ += advance_y_;
-  count -= (x1_ - cursor_x_ + 1);
+  count -= remaining_x;
   cursor_x_ = x0_;
   ++cursor_y_;
   int16_t full_lines = count / width();
@@ -1019,25 +903,24 @@ class GenericFiller {
       : color_mode_(color_mode), color_(color), blending_mode_(blending_mode) {}
 
   void operator()(roo::byte* p, uint32_t offset) {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    SubByteColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
-    auto color = ApplyRawBlending(
-        blending_mode_, subpixel.ReadSubPixelColor(*target, pixel_index),
-        color_, color_mode_);
-    subpixel.applySubPixelColor(color, target, pixel_index);
+    auto color = ApplyRawSubByteBlending(
+        blending_mode_, io.loadRaw(*target, pixel_index), color_, color_mode_);
+    io.storeRaw(color, target, pixel_index);
   }
 
   void operator()(roo::byte* p, uint32_t offset, uint32_t count) {
-    SubPixelColorHelper<ColorMode, pixel_order> subpixel;
+    SubByteColorIo<ColorMode, pixel_order> io;
     int pixel_index = offset % pixels_per_byte;
     roo::byte* target = p + offset / pixels_per_byte;
     // TODO: this loop can be optimized to work on an array of color at a time.
     while (count-- > 0) {
-      auto color = ApplyRawBlending(
-          blending_mode_, subpixel.ReadSubPixelColor(*target, pixel_index),
-          color_, color_mode_);
-      subpixel.applySubPixelColor(color, target, pixel_index);
+      auto color = ApplyRawSubByteBlending(blending_mode_,
+                                           io.loadRaw(*target, pixel_index),
+                                           color_, color_mode_);
+      io.storeRaw(color, target, pixel_index);
       if (++pixel_index == pixels_per_byte) {
         pixel_index = 0;
         target++;
@@ -1061,17 +944,18 @@ class GenericFiller<ColorMode, pixel_order, byte_order, 1, storage_type> {
       : color_mode_(color_mode), color_(color), blending_mode_(blending_mode) {}
 
   void operator()(roo::byte* p, uint32_t offset) const {
-    internal::RawIterator<ColorMode::bits_per_pixel, byte_order> itr(p, offset);
-    itr.write(
-        ApplyRawBlending(blending_mode_, itr.read(), color_, color_mode_));
+    constexpr uint32_t kBytesPerPixel = ColorTraits<ColorMode>::bytes_per_pixel;
+    ApplyRawFullByteBlending<ColorMode, byte_order>(
+        blending_mode_, p + offset * kBytesPerPixel, color_, color_mode_);
   }
 
   void operator()(roo::byte* p, uint32_t offset, uint32_t count) const {
-    internal::RawIterator<ColorMode::bits_per_pixel, byte_order> itr(p, offset);
+    constexpr uint32_t kBytesPerPixel = ColorTraits<ColorMode>::bytes_per_pixel;
+    roo::byte* cursor = p + offset * kBytesPerPixel;
     while (count-- > 0) {
-      itr.write(
-          ApplyRawBlending(blending_mode_, itr.read(), color_, color_mode_));
-      ++itr;
+      ApplyRawFullByteBlending<ColorMode, byte_order>(blending_mode_, cursor,
+                                                      color_, color_mode_);
+      cursor += kBytesPerPixel;
     }
   }
 

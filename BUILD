@@ -116,6 +116,18 @@ cc_test(
 )
 
 cc_test(
+    name = "color_rect_io_test",
+    srcs = [
+        "test/color_rect_io_test.cpp",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    deps = [
+        ":testing",
+    ],
+)
+
+cc_test(
     name = "drawing_context_test",
     srcs = [
         "test/drawing_context_test.cpp",
@@ -370,6 +382,28 @@ cc_test(
 )
 
 cc_test(
+    name = "driver_compile_test",
+    srcs = [
+        "test/driver_compile_test.cpp",
+    ],
+    linkstatic = 1,
+    deps = [
+        ":testing",
+    ],
+)
+
+cc_test(
+    name = "products_compile_test",
+    srcs = [
+        "test/products_compile_test.cpp",
+    ],
+    linkstatic = 1,
+    deps = [
+        ":testing",
+    ],
+)
+
+cc_test(
     name = "addr_window_device_test",
     srcs = [
         "test/addr_window_device_test.cpp",
@@ -379,5 +413,117 @@ cc_test(
     linkstatic = 1,
     deps = [
         ":testing",
+    ],
+)
+
+cc_test(
+    name = "driver_ili9341_test",
+    srcs = [
+        "test/driver_ili9341_test.cpp",
+        "test/testing_viewport.h",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    deps = [
+        ":testing",
+        "@roo_testing//roo_testing/devices/display/ili9341:spi",
+        "@roo_testing//roo_testing/microcontrollers/esp32:core",
+        "@roo_testing//roo_testing/transducers/ui/viewport",
+    ],
+)
+
+cc_test(
+    name = "driver_st7735_test",
+    srcs = [
+        "test/driver_st7735_test.cpp",
+        "test/testing_viewport.h",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    deps = [
+        ":testing",
+        "@roo_testing//roo_testing/devices/display/st77xx:spi",
+        "@roo_testing//roo_testing/microcontrollers/esp32:core",
+        "@roo_testing//roo_testing/transducers/ui/viewport",
+    ],
+)
+
+cc_test(
+    name = "driver_ili9486_test",
+    srcs = [
+        "test/driver_ili9486_test.cpp",
+        "test/testing_viewport.h",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    deps = [
+        ":testing",
+        "@roo_testing//roo_testing/devices/display/ili9486:spi",
+        "@roo_testing//roo_testing/microcontrollers/esp32:core",
+        "@roo_testing//roo_testing/transducers/ui/viewport",
+    ],
+)
+
+cc_test(
+    name = "driver_ili9488_test",
+    srcs = [
+        "test/driver_ili9488_test.cpp",
+        "test/testing_viewport.h",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    deps = [
+        ":testing",
+        "@roo_testing//roo_testing/devices/display/ili9488:spi",
+        "@roo_testing//roo_testing/microcontrollers/esp32:core",
+        "@roo_testing//roo_testing/transducers/ui/viewport",
+    ],
+)
+
+cc_test(
+    name = "driver_ssd1327_test",
+    srcs = [
+        "test/driver_ssd1327_test.cpp",
+        "test/testing_viewport.h",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    deps = [
+        ":testing",
+        "@roo_testing//roo_testing/devices/display/ssd1327:spi",
+        "@roo_testing//roo_testing/microcontrollers/esp32:core",
+        "@roo_testing//roo_testing/transducers/ui/viewport",
+    ],
+)
+
+cc_test(
+    name = "touch_xpt2046_test",
+    srcs = [
+        "test/testing_viewport.h",
+        "test/touch_xpt2046_test.cpp",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    deps = [
+        ":testing",
+        "@roo_testing//roo_testing/devices/touch/xpt2046:spi",
+        "@roo_testing//roo_testing/microcontrollers/esp32:core",
+        "@roo_testing//roo_testing/transducers/ui/viewport",
+    ],
+)
+
+cc_test(
+    name = "touch_ft6x36_test",
+    srcs = [
+        "test/testing_viewport.h",
+        "test/touch_ft6x36_test.cpp",
+    ],
+    copts = ["-Iexternal/gtest/include"],
+    linkstatic = 1,
+    deps = [
+        ":testing",
+        "@roo_testing//roo_testing/devices/touch/ft6x36",
+        "@roo_testing//roo_testing/microcontrollers/esp32:core",
+        "@roo_testing//roo_testing/transducers/ui/viewport",
     ],
 )

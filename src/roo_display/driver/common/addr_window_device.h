@@ -5,6 +5,8 @@
 #include "roo_display/color/traits.h"
 #include "roo_display/core/device.h"
 #include "roo_display/internal/byte_order.h"
+#include "roo_display/internal/color_format.h"
+#include "roo_display/internal/color_io.h"
 #include "roo_io/data/byte_order.h"
 
 namespace roo_display {
@@ -34,8 +36,8 @@ namespace roo_display {
 //   void end();
 //   void setOrientation(Orientation);
 //   void setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
-//   void ramWrite(raw_color* data, size_t size);
-//   void ramFill(raw_color data, size_t count);
+//   void ramWrite(const roo::byte* data, size_t pixel_count);
+//   void ramFill(const roo::byte* data, size_t pixel_count);
 //};
 //
 // See ili9341.h for a specific example.
@@ -48,8 +50,9 @@ namespace roo_display {
 template <typename Target>
 class AddrWindowDevice : public DisplayDevice {
  public:
-  typedef typename ColorTraits<typename Target::ColorMode>::storage_type
-      raw_color_type;
+  static constexpr int kBytesPerPixel =
+      ColorTraits<typename Target::ColorMode>::bytes_per_pixel;
+  using raw_color_type = roo::byte[kBytesPerPixel];
 
   AddrWindowDevice(Orientation orientation, uint16_t width, uint16_t height)
       : AddrWindowDevice(orientation, Target(width, height)) {}
@@ -99,7 +102,7 @@ class AddrWindowDevice : public DisplayDevice {
   }
 
   void write(Color* color, uint32_t pixel_count) override {
-    raw_color_type buffer[64];
+    roo::byte buffer[64 * kBytesPerPixel];
     while (pixel_count > 64) {
       color = processColorSequence(blending_mode_, color, buffer, 64);
       target_.ramWrite(buffer, 64);
@@ -122,7 +125,9 @@ class AddrWindowDevice : public DisplayDevice {
       } else if (blending_mode == BLENDING_MODE_SOURCE_OVER_OPAQUE) {
         mycolor = AlphaBlendOverOpaque(bgcolor_, mycolor);
       }
-      raw_color_type raw_color = to_raw_color(mycolor);
+      raw_color_type raw_color;
+      ColorIo<typename Target::ColorMode, Target::byte_order>().store(
+          mycolor, raw_color);
       target_.ramFill(raw_color, pixel_count);
     }
   }
@@ -135,7 +140,9 @@ class AddrWindowDevice : public DisplayDevice {
     } else if (blending_mode == BLENDING_MODE_SOURCE_OVER_OPAQUE) {
       color = AlphaBlendOverOpaque(bgcolor_, color);
     }
-    raw_color_type raw_color = to_raw_color(color);
+    raw_color_type raw_color;
+    ColorIo<typename Target::ColorMode, Target::byte_order>().store(color,
+                                                                    raw_color);
 
     while (count-- > 0) {
       uint32_t pixel_count = (*x1 - *x0 + 1) * (*y1 - *y0 + 1);
@@ -184,11 +191,15 @@ class AddrWindowDevice : public DisplayDevice {
     } else if (blending_mode == BLENDING_MODE_SOURCE_OVER_OPAQUE) {
       color = AlphaBlendOverOpaque(bgcolor_, color);
     }
-    raw_color_type raw_color = to_raw_color(color);
+    raw_color_type raw_color;
+    ColorIo<typename Target::ColorMode, Target::byte_order>().store(color,
+                                                                    raw_color);
+    const roo::byte* raw_color_ptr = raw_color;
     compactor_.drawPixels(
         xs, ys, pixel_count,
-        [this, raw_color](int16_t offset, int16_t x, int16_t y,
-                          Compactor::WriteDirection direction, int16_t count) {
+        [this, raw_color_ptr](int16_t offset, int16_t x, int16_t y,
+                              Compactor::WriteDirection direction,
+                              int16_t count) {
           switch (direction) {
             case Compactor::RIGHT: {
               target_.setAddrWindow(x, y, x + count - 1, y);
@@ -207,8 +218,48 @@ class AddrWindowDevice : public DisplayDevice {
               break;
             }
           }
-          target_.ramFill(raw_color, count);
+          target_.ramFill(raw_color_ptr, count);
         });
+  }
+
+  const ColorFormat& getColorFormat() const override {
+    static const typename Target::ColorMode mode;
+    static const internal::ColorFormatImpl<typename Target::ColorMode,
+                                           Target::byte_order,
+                                           COLOR_PIXEL_ORDER_MSB_FIRST>
+        format(mode);
+    return format;
+  }
+
+  void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
+                      int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                      int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override {
+    if (src_x1 < src_x0 || src_y1 < src_y0) return;
+    if constexpr (ColorTraits<typename Target::ColorMode>::bytes_per_pixel <
+                  1) {
+      DisplayOutput::drawDirectRect(data, row_width_bytes, src_x0, src_y0,
+                                    src_x1, src_y1, dst_x0, dst_y0);
+      return;
+    }
+
+    int16_t width = src_x1 - src_x0 + 1;
+    int16_t height = src_y1 - src_y0 + 1;
+    target_.setAddrWindow(dst_x0, dst_y0, dst_x0 + width - 1,
+                          dst_y0 + height - 1);
+
+    const size_t width_bytes = static_cast<size_t>(width) * kBytesPerPixel;
+    const roo::byte* row = data +
+                           static_cast<size_t>(src_y0) * row_width_bytes +
+                           static_cast<size_t>(src_x0) * kBytesPerPixel;
+    if (row_width_bytes == width_bytes) {
+      target_.ramWrite(row, static_cast<size_t>(width) * height);
+      return;
+    }
+
+    for (int16_t y = 0; y < height; ++y) {
+      target_.ramWrite(row, width);
+      row += row_width_bytes;
+    }
   }
 
   void orientationUpdated() override {
@@ -219,23 +270,18 @@ class AddrWindowDevice : public DisplayDevice {
     target_.setOrientation(orientation());
   }
 
-  static inline raw_color_type to_raw_color(Color color)
-      __attribute__((always_inline)) {
-    typename Target::ColorMode mode;
-    return roo_io::hto<raw_color_type, Target::byte_order>(
-        mode.fromArgbColor(color));
-  }
-
  protected:
   Target target_;
   bool initialized_;
 
  private:
   Color* processColorSequence(BlendingMode blending_mode, Color* src,
-                              raw_color_type* dest, uint32_t pixel_count) {
+                              roo::byte* dest, uint32_t pixel_count) {
     ApplyBlendingOverBackground(blending_mode, bgcolor_, src, pixel_count);
+    ColorIo<typename Target::ColorMode, Target::byte_order> io;
     while (pixel_count-- > 0) {
-      *dest++ = to_raw_color(*src++);
+      io.store(*src++, dest);
+      dest += kBytesPerPixel;
     }
     return src;
   }

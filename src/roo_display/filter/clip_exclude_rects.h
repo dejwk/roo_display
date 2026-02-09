@@ -152,6 +152,10 @@ class RectUnionFilter : public DisplayOutput {
     }
   }
 
+  const ColorFormat& getColorFormat() const override {
+    return output_->getColorFormat();
+  }
+
  private:
   void writeRect(Color color, int16_t x0, int16_t y0, int16_t x1, int16_t y1,
                  int mask_idx, BufferedRectWriter* writer) {

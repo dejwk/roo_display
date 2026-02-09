@@ -146,22 +146,26 @@ class Ili9486Target {
     if (last_x0_ != x0 || last_x1_ != x1) {
       transport_.sync();
       writeCommand(CASET);
-      uint8_t xBin[] = {
-          0, (uint8_t)(x0 >> 8), 0, (uint8_t)(x0 >> 0),
-          0, (uint8_t)(x1 >> 8), 0, (uint8_t)(x1 >> 0),
-      };
-      transport_.writeBytes_async(&xBin[0], 8);
+        roo::byte xBin[] = {
+          roo::byte{0}, static_cast<roo::byte>(x0 >> 8),
+          roo::byte{0}, static_cast<roo::byte>(x0 >> 0),
+          roo::byte{0}, static_cast<roo::byte>(x1 >> 8),
+          roo::byte{0}, static_cast<roo::byte>(x1 >> 0),
+        };
+        transport_.writeBytes_async(xBin, 8);
       last_x0_ = x0;
       last_x1_ = x1;
     }
     if (last_y0_ != y0 || last_y1_ != y1) {
       transport_.sync();
       writeCommand(PASET);
-      uint8_t yBin[] = {
-          0, (uint8_t)(y0 >> 8), 0, (uint8_t)(y0 >> 0),
-          0, (uint8_t)(y1 >> 8), 0, (uint8_t)(y1 >> 0),
-      };
-      transport_.writeBytes_async(&yBin[0], 8);
+        roo::byte yBin[] = {
+          roo::byte{0}, static_cast<roo::byte>(y0 >> 8),
+          roo::byte{0}, static_cast<roo::byte>(y0 >> 0),
+          roo::byte{0}, static_cast<roo::byte>(y1 >> 8),
+          roo::byte{0}, static_cast<roo::byte>(y1 >> 0),
+        };
+        transport_.writeBytes_async(yBin, 8);
       last_y0_ = y0;
       last_y1_ = y1;
     }
@@ -169,13 +173,15 @@ class Ili9486Target {
     writeCommand(RAMWR);
   }
 
-  void ramWrite(uint16_t* data, size_t count) __attribute__((always_inline)) {
+  void ramWrite(const roo::byte* data, size_t pixel_count)
+      __attribute__((always_inline)) {
     transport_.sync();
-    transport_.writeBytes_async((uint8_t*)data, count * 2);
+    transport_.writeBytes_async(data, pixel_count * 2);
   }
 
-  void ramFill(uint16_t data, size_t count) __attribute__((always_inline)) {
-    transport_.fill16be_async(data, count);
+  void ramFill(const roo::byte* data, size_t pixel_count)
+      __attribute__((always_inline)) {
+    transport_.fill16_async(data, pixel_count);
   }
 
  private:

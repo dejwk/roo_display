@@ -22,6 +22,8 @@
 #include "roo_display/color/color.h"
 #include "roo_display/core/device.h"
 #include "roo_display/driver/common/addr_window_device.h"
+#include "roo_display/internal/color_format.h"
+#include "roo_display/internal/color_io.h"
 
 namespace roo_display {
 
@@ -132,6 +134,14 @@ class TFT_eSPI_Adapter : public DisplayDevice {
           }
           TFT_eSPI_Adapter::write(colors + offset, count);
         });
+  }
+
+  const ColorFormat& getColorFormat() const override {
+    static const Rgb565 mode;
+    static const internal::ColorFormatImpl<Rgb565, roo_io::kBigEndian,
+                                           COLOR_PIXEL_ORDER_MSB_FIRST>
+        format(mode);
+    return format;
   }
 
   void fillPixels(BlendingMode mode, Color color, int16_t* xs, int16_t* ys,

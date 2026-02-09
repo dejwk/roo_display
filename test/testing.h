@@ -1,14 +1,19 @@
 #pragma once
+#include <cstring>
 #include <string>
+#include <utility>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "roo_display/color/color.h"
+#include "roo_display/color/color_mode_indexed.h"
 #include "roo_display/color/color_modes.h"
 #include "roo_display/color/named.h"
 #include "roo_display/core/device.h"
 #include "roo_display/core/rasterizable.h"
 #include "roo_display/core/streamable.h"
+#include "roo_display/internal/color_format.h"
+#include "roo_display/internal/color_io.h"
 #include "roo_display/internal/raw_streamable.h"
 
 using namespace testing;
@@ -124,6 +129,34 @@ Color NextColorFromString<Grayscale4>(const Grayscale4& mode,
 template <>
 Color NextColorFromString<Alpha8>(const Alpha8& mode, std::istream& in) {
   return Color(((uint32_t)ParseHexByte(in)) << 24);
+}
+
+template <>
+Color NextColorFromString<internal::Indexed<1>>(
+    const internal::Indexed<1>& mode, std::istream& in) {
+  uint8_t idx = ParseHexNibble(in) & 0x01;
+  return mode.toArgbColor(idx);
+}
+
+template <>
+Color NextColorFromString<internal::Indexed<2>>(
+    const internal::Indexed<2>& mode, std::istream& in) {
+  uint8_t idx = ParseHexNibble(in) & 0x03;
+  return mode.toArgbColor(idx);
+}
+
+template <>
+Color NextColorFromString<internal::Indexed<4>>(
+    const internal::Indexed<4>& mode, std::istream& in) {
+  uint8_t idx = ParseHexNibble(in) & 0x0F;
+  return mode.toArgbColor(idx);
+}
+
+template <>
+Color NextColorFromString<internal::Indexed<8>>(
+    const internal::Indexed<8>& mode, std::istream& in) {
+  uint8_t idx = ParseHexByte(in);
+  return mode.toArgbColor(idx);
 }
 
 template <>
@@ -553,7 +586,7 @@ char sixBitDigit(int d) {
 template <typename RawStreamable>
 class StreamablePrinter<RawStreamable, Rgb565> {
  public:
-  StreamablePrinter(Rgb565 mode) : mode_(mode) {}
+  StreamablePrinter(Rgb565 mode) : mode_(std::move(mode)) {}
 
   template <typename RawStream>
   void PrintContent(const RawStreamable& streamable, RawStream& os) {
@@ -585,7 +618,7 @@ class StreamablePrinter<RawStreamable, Rgb565> {
 template <typename RawStreamable>
 class StreamablePrinter<RawStreamable, Argb6666> {
  public:
-  StreamablePrinter(Argb6666 mode) : mode_(mode) {}
+  StreamablePrinter(Argb6666 mode) : mode_(std::move(mode)) {}
 
   template <typename RawStream>
   void PrintContent(const RawStreamable& streamable, RawStream& os) {
@@ -627,7 +660,7 @@ class StreamablePrinter<RawStreamable, Argb6666> {
 template <typename RawStreamable>
 class StreamablePrinter<RawStreamable, Rgb565WithTransparency> {
  public:
-  StreamablePrinter(Rgb565WithTransparency mode) : mode_(mode) {}
+  StreamablePrinter(Rgb565WithTransparency mode) : mode_(std::move(mode)) {}
 
   template <typename RawStream>
   void PrintContent(const RawStreamable& streamable, RawStream& os) {
@@ -654,6 +687,46 @@ class StreamablePrinter<RawStreamable, Rgb565WithTransparency> {
 
  private:
   Rgb565WithTransparency mode_;
+};
+
+template <typename RawStreamable, uint8_t bits>
+class StreamablePrinter<RawStreamable, internal::Indexed<bits>> {
+ public:
+  StreamablePrinter(internal::Indexed<bits> mode) : mode_(std::move(mode)) {}
+
+  template <typename RawStream>
+  void PrintContent(const RawStreamable& streamable, RawStream& os) {
+    auto stream = streamable.createRawStream();
+    for (int16_t j = 0; j < streamable.extents().height(); ++j) {
+      os << "\n          \"";
+      for (int16_t i = 0; i < streamable.extents().width(); ++i) {
+        Color color = stream->next();
+        int idx = FindIndex(color);
+        if (idx < 0) {
+          os << "x";
+        } else if (bits <= 4) {
+          os << hexDigit(idx);
+        } else {
+          PrintHexByte(idx, os);
+          if (i + 1 < streamable.extents().width()) os << " ";
+        }
+      }
+      os << "\"";
+    }
+  }
+
+ private:
+  int FindIndex(Color color) const {
+    const Palette* palette = mode_.palette();
+    const Color* colors = palette->colors();
+    int size = palette->size();
+    for (int i = 0; i < size; ++i) {
+      if (colors[i] == color) return i;
+    }
+    return -1;
+  }
+
+  internal::Indexed<bits> mode_;
 };
 
 }  // namespace internal
@@ -733,6 +806,12 @@ std::ostream& operator<<(std::ostream& os, Grayscale8 mode) {
   return os;
 }
 
+template <uint8_t bits>
+std::ostream& operator<<(std::ostream& os, const internal::Indexed<bits>&) {
+  os << "INDEXED_" << static_cast<int>(bits) << "BPP";
+  return os;
+}
+
 bool operator==(const Monochrome& a, const Monochrome& b) {
   return a.bg() == b.bg() && a.fg() == b.fg();
 }
@@ -757,6 +836,12 @@ bool operator==(const Rgb565WithTransparency& a,
                 const Rgb565WithTransparency& b) {
   return a.fromArgbColor(color::Transparent) ==
          b.fromArgbColor(color::Transparent);
+}
+
+template <uint8_t bits>
+bool operator==(const internal::Indexed<bits>& a,
+                const internal::Indexed<bits>& b) {
+  return a.palette() == b.palette();
 }
 
 // Prints the content of the specified streamable in a human-readable form,
@@ -1043,6 +1128,13 @@ class FakeOffscreen : public DisplayDevice {
     }
   }
 
+  const ColorFormat& getColorFormat() const override {
+    static const Argb8888 mode;
+    static const internal::ColorFormatImpl<Argb8888, roo_io::kNativeEndian>
+        color_format(mode);
+    return color_format;
+  }
+
   const Color* buffer() { return buffer_.get(); }
 
   void writeRect(BlendingMode mode, int16_t x0, int16_t y0, int16_t x1,
@@ -1171,6 +1263,10 @@ class FakeFilteringOffscreen : public DisplayOutput {
     }
   }
 
+  const ColorFormat& getColorFormat() const override {
+    return offscreen_.getColorFormat();
+  }
+
   const FakeOffscreen<ColorMode>& offscreen() const { return offscreen_; }
 
   void writeRect(BlendingMode mode, int16_t x0, int16_t y0, int16_t x1,
@@ -1246,6 +1342,10 @@ class FilteredOutput : public DisplayOutput {
   void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
     filter_->fillRects(mode, color, x0, y0, x1, y1, count);
+  }
+
+  const ColorFormat& getColorFormat() const override {
+    return filter_->getColorFormat();
   }
 
   const FakeOffscreen<ColorMode>& offscreen() const { return offscreen_; }

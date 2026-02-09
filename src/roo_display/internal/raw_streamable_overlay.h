@@ -56,7 +56,7 @@ class SuperRectangleStream {
   }
 
   void skip(uint32_t count) {
-    for (int i = 0; i < count; ++i) {
+    for (uint32_t i = 0; i < count; ++i) {
       next();
     }
   }
@@ -214,8 +214,8 @@ template <typename Bg, typename Fg>
 internal::Superposition<Bg, Fg> Overlay(Bg bg, int16_t bg_x, int16_t bg_y,
                                         Fg fg, int16_t fg_x, int16_t fg_y) {
   Box anchor_extents = bg.anchorExtents();
-  return internal::Superposition<Bg, Fg>(anchor_extents, std::move(bg),
-                                         bg_x, bg_y, std::move(fg), fg_x, fg_y);
+  return internal::Superposition<Bg, Fg>(anchor_extents, std::move(bg), bg_x,
+                                         bg_y, std::move(fg), fg_x, fg_y);
 }
 
 template <typename Bg, typename Fg>

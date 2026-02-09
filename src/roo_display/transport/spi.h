@@ -1,5 +1,7 @@
 #pragma once
 
+#include "roo_backport.h"
+#include "roo_backport/byte.h"
 #include "roo_display/hal/gpio.h"
 #include "roo_display/hal/spi.h"
 #include "roo_display/hal/spi_settings.h"
@@ -88,36 +90,23 @@ class SpiTransport {
     device_.write16x2_async(a, b);
   }
 
-  void write16be(uint16_t data) __attribute((always_inline)) {
-    device_.write16be(data);
-  }
-
   void write32(uint32_t data) __attribute__((always_inline)) {
     device_.write32(data);
   }
 
-  void write32be(uint32_t data) __attribute__((always_inline)) {
-    device_.write32be(data);
-  }
-
-  void writeBytes_async(uint8_t* data, uint32_t len) {
+  void writeBytes_async(const roo::byte* data, uint32_t len) {
     device_.writeBytes_async(data, len);
   }
 
-  void fill16_async(uint16_t data, uint32_t len)
-      __attribute__((always_inline)) {
-    device_.fill16be_async(data, len);
+  void fill16_async(const roo::byte* data, uint32_t repetitions) {
+    device_.fill16_async(data, repetitions);
   }
 
-  void fill16be_async(uint16_t data, uint32_t len) {
-    device_.fill16be_async(data, len);
+  void fill24_async(const roo::byte* data, uint32_t repetitions) {
+    device_.fill24_async(data, repetitions);
   }
 
-  void fill24be_async(uint32_t data, uint32_t len) {
-    device_.fill24be_async(data, len);
-  }
-
-  uint8_t transfer(uint8_t data) __attribute__((always_inline)) {
+  roo::byte transfer(roo::byte data) __attribute__((always_inline)) {
     return device_.transfer(data);
   }
 

@@ -137,6 +137,10 @@ class BackgroundFillOptimizer : public DisplayOutput {
   void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override;
 
+  const ColorFormat& getColorFormat() const override {
+    return output_.getColorFormat();
+  }
+
  private:
   friend class BackgroundFillOptimizerDevice;
 
@@ -222,6 +226,10 @@ class BackgroundFillOptimizerDevice : public DisplayDevice {
   void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override {
     optimizer_.fillPixels(mode, color, x, y, pixel_count);
+  }
+
+  const ColorFormat& getColorFormat() const override {
+    return device_.getColorFormat();
   }
 
  private:

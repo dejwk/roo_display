@@ -12,6 +12,8 @@
 #include "roo_display/color/blending.h"
 #include "roo_display/core/device.h"
 #include "roo_display/core/offscreen.h"
+#include "roo_display/internal/color_format.h"
+#include "roo_display/internal/color_io.h"
 
 namespace roo_display {
 
@@ -19,14 +21,21 @@ namespace internal {
 
 class Rgb565Dma : public Rgb565 {};
 
+template <>
+struct ColorFormatTraits<Rgb565Dma> {
+  static constexpr const DisplayOutput::ColorFormat::Mode mode =
+      DisplayOutput::ColorFormat::kModeRgb565;
+};
+
 }  // namespace internal
 
-template <>
-struct RawBlender<internal::Rgb565Dma, BLENDING_MODE_SOURCE_OVER> {
-  inline uint16_t operator()(uint16_t bg, Color color,
-                             const internal::Rgb565Dma &mode) const {
-    return mode.fromArgbColor(
-        AlphaBlendOverOpaque(mode.toArgbColor(bg), color));
+template <roo_io::ByteOrder byte_order>
+struct RawFullByteBlender<internal::Rgb565Dma, BLENDING_MODE_SOURCE_OVER,
+                          byte_order> {
+  inline void operator()(roo::byte *dst, Color src,
+                         const internal::Rgb565Dma &mode) const {
+    ColorIo<internal::Rgb565Dma, byte_order> io;
+    io.store(AlphaBlendOverOpaque(io.load(dst, mode), src), dst, mode);
   }
 };
 
@@ -39,21 +48,25 @@ class Rgb565DmaBlendingWriterOperator {
       : color_mode_(color_mode), color_(color) {}
 
   void operator()(roo::byte *p, uint32_t offset) {
-    internal::RawIterator<16, roo_io::kLittleEndian> itr(p, offset);
-    RawBlender<Rgb565Dma, blending_mode> blender;
-    itr.write(blender(itr.read(), *color_++, color_mode_));
-    Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, 2);
+    constexpr uint32_t kBytesPerPixel = ColorTraits<Rgb565Dma>::bytes_per_pixel;
+    roo::byte *cursor = p + offset * kBytesPerPixel;
+    RawFullByteBlender<Rgb565Dma, blending_mode, roo_io::kLittleEndian> blender;
+    blender(cursor, *color_++, color_mode_);
+    Cache_WriteBack_Addr((uint32_t)(p) + offset * kBytesPerPixel,
+                         kBytesPerPixel);
   }
 
   void operator()(roo::byte *p, uint32_t offset, uint32_t count) {
-    internal::RawIterator<16, roo_io::kLittleEndian> itr(p, offset);
-    RawBlender<Rgb565Dma, blending_mode> blender;
+    constexpr uint32_t kBytesPerPixel = ColorTraits<Rgb565Dma>::bytes_per_pixel;
+    roo::byte *cursor = p + offset * kBytesPerPixel;
+    RawFullByteBlender<Rgb565Dma, blending_mode, roo_io::kLittleEndian> blender;
     uint32_t orig_count = count;
     while (count-- > 0) {
-      itr.write(blender(itr.read(), *color_++, color_mode_));
-      ++itr;
+      blender(cursor, *color_++, color_mode_);
+      cursor += kBytesPerPixel;
     }
-    Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, orig_count * 2);
+    Cache_WriteBack_Addr((uint32_t)(p) + offset * kBytesPerPixel,
+                         orig_count * kBytesPerPixel);
   }
 
  private:
@@ -77,21 +90,25 @@ class GenericWriter<Rgb565Dma, COLOR_PIXEL_ORDER_MSB_FIRST,
       : color_(color), blending_mode_(blending_mode) {}
 
   void operator()(roo::byte *p, uint32_t offset) {
-    internal::RawIterator<16, roo_io::kLittleEndian> itr(p, offset);
-    itr.write(
-        ApplyRawBlending(blending_mode_, itr.read(), *color_++, Rgb565Dma()));
-    Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, 2);
+    constexpr uint32_t kBytesPerPixel = ColorTraits<Rgb565Dma>::bytes_per_pixel;
+    roo::byte *cursor = p + offset * kBytesPerPixel;
+    ApplyRawFullByteBlending<Rgb565Dma, roo_io::kLittleEndian>(
+        blending_mode_, cursor, *color_++, Rgb565Dma());
+    Cache_WriteBack_Addr((uint32_t)(p) + offset * kBytesPerPixel,
+                         kBytesPerPixel);
   }
 
   void operator()(roo::byte *p, uint32_t offset, uint32_t count) {
-    internal::RawIterator<16, roo_io::kLittleEndian> itr(p, offset);
+    constexpr uint32_t kBytesPerPixel = ColorTraits<Rgb565Dma>::bytes_per_pixel;
+    roo::byte *cursor = p + offset * kBytesPerPixel;
     uint32_t orig_count = count;
     while (count-- > 0) {
-      itr.write(
-          ApplyRawBlending(blending_mode_, itr.read(), *color_++, Rgb565Dma()));
-      ++itr;
+      ApplyRawFullByteBlending<Rgb565Dma, roo_io::kLittleEndian>(
+          blending_mode_, cursor, *color_++, Rgb565Dma());
+      cursor += kBytesPerPixel;
     }
-    Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, orig_count * 2);
+    Cache_WriteBack_Addr((uint32_t)(p) + offset * kBytesPerPixel,
+                         orig_count * kBytesPerPixel);
   }
 
  private:
@@ -106,21 +123,25 @@ class Rgb565DmaBlendingFillerOperator {
       : color_(color) {}
 
   void operator()(roo::byte *p, uint32_t offset) const {
-    internal::RawIterator<16, roo_io::kLittleEndian> itr(p, offset);
-    RawBlender<Rgb565Dma, blending_mode> blender;
-    itr.write(blender(itr.read(), color_, Rgb565Dma()));
-    Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, 2);
+    constexpr uint32_t kBytesPerPixel = ColorTraits<Rgb565Dma>::bytes_per_pixel;
+    roo::byte *cursor = p + offset * kBytesPerPixel;
+    RawFullByteBlender<Rgb565Dma, blending_mode, roo_io::kLittleEndian> blender;
+    blender(cursor, color_, Rgb565Dma());
+    Cache_WriteBack_Addr((uint32_t)(p) + offset * kBytesPerPixel,
+                         kBytesPerPixel);
   }
 
   void operator()(roo::byte *p, uint32_t offset, uint32_t count) const {
-    internal::RawIterator<16, roo_io::kLittleEndian> itr(p, offset);
-    RawBlender<Rgb565Dma, blending_mode> blender;
+    constexpr uint32_t kBytesPerPixel = ColorTraits<Rgb565Dma>::bytes_per_pixel;
+    roo::byte *cursor = p + offset * kBytesPerPixel;
+    RawFullByteBlender<Rgb565Dma, blending_mode, roo_io::kLittleEndian> blender;
     uint32_t orig_count = count;
     while (count-- > 0) {
-      itr.write(blender(itr.read(), color_, Rgb565Dma()));
-      ++itr;
+      blender(cursor, color_, Rgb565Dma());
+      cursor += kBytesPerPixel;
     }
-    Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, orig_count * 2);
+    Cache_WriteBack_Addr((uint32_t)(p) + offset * kBytesPerPixel,
+                         orig_count * kBytesPerPixel);
   }
 
  private:
@@ -144,21 +165,25 @@ class GenericFiller<Rgb565Dma, COLOR_PIXEL_ORDER_MSB_FIRST,
       : color_(color), blending_mode_(blending_mode) {}
 
   void operator()(roo::byte *p, uint32_t offset) const {
-    internal::RawIterator<16, roo_io::kLittleEndian> itr(p, offset);
-    itr.write(
-        ApplyRawBlending(blending_mode_, itr.read(), color_, Rgb565Dma()));
-    Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, 2);
+    constexpr uint32_t kBytesPerPixel = ColorTraits<Rgb565Dma>::bytes_per_pixel;
+    roo::byte *cursor = p + offset * kBytesPerPixel;
+    ApplyRawFullByteBlending<Rgb565Dma, roo_io::kLittleEndian>(
+        blending_mode_, cursor, color_, Rgb565Dma());
+    Cache_WriteBack_Addr((uint32_t)(p) + offset * kBytesPerPixel,
+                         kBytesPerPixel);
   }
 
   void operator()(roo::byte *p, uint32_t offset, uint32_t count) const {
-    internal::RawIterator<16, roo_io::kLittleEndian> itr(p, offset);
+    constexpr uint32_t kBytesPerPixel = ColorTraits<Rgb565Dma>::bytes_per_pixel;
+    roo::byte *cursor = p + offset * kBytesPerPixel;
     uint32_t orig_count = count;
     while (count-- > 0) {
-      itr.write(
-          ApplyRawBlending(blending_mode_, itr.read(), color_, Rgb565Dma()));
-      ++itr;
+      ApplyRawFullByteBlending<Rgb565Dma, roo_io::kLittleEndian>(
+          blending_mode_, cursor, color_, Rgb565Dma());
+      cursor += kBytesPerPixel;
     }
-    Cache_WriteBack_Addr((uint32_t)(p) + offset * 2, orig_count * 2);
+    Cache_WriteBack_Addr((uint32_t)(p) + offset * kBytesPerPixel,
+                         orig_count * kBytesPerPixel);
   }
 
  private:
@@ -272,6 +297,14 @@ class ParallelRgb565 : public DisplayDevice {
 
   void fillRects(BlendingMode mode, Color color, int16_t *x0, int16_t *y0,
                  int16_t *x1, int16_t *y1, uint16_t count) override;
+
+  const ColorFormat &getColorFormat() const override {
+    static const Rgb565 mode;
+    static const ::roo_display::internal::ColorFormatImpl<
+      Rgb565, roo_io::kLittleEndian, COLOR_PIXEL_ORDER_MSB_FIRST>
+        format(mode);
+    return format;
+  }
 
   void orientationUpdated() override {
     if (buffer_ != nullptr) {

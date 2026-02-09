@@ -186,6 +186,10 @@ class ClipMaskFilter : public DisplayOutput {
     }
   }
 
+  const ColorFormat& getColorFormat() const override {
+    return output_.getColorFormat();
+  }
+
  private:
   void fillSingleRect(BlendingMode mode, Color color, int16_t x0, int16_t y0,
                       int16_t x1, int16_t y1) {

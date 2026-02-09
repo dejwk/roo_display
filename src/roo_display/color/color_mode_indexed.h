@@ -169,8 +169,8 @@ class Indexed {
     assert(palette_->size() >= 0 && palette_->size() <= (1 << bits));
   }
 
-  inline uint8_t fromArgbColor(Color color) {
-    return ((Palette*)palette_)->getIndexOfColor(color);
+  inline uint8_t fromArgbColor(Color color) const {
+    return const_cast<Palette*>(palette_)->getIndexOfColor(color);
   }
 
   constexpr TransparencyMode transparency() const {

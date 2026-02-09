@@ -5,7 +5,7 @@
 #include "gtest/gtest-param-test.h"
 #include "roo_display/color/color.h"
 #include "roo_display/core/offscreen.h"
-#include "roo_display/internal/color_subpixel.h"
+#include "roo_display/internal/color_io.h"
 #include "testing.h"
 
 using namespace testing;
@@ -67,6 +67,10 @@ class TestDisplayDevice : public DisplayDevice {
                  int16_t* x1, int16_t* y1, uint16_t count) override {
     refc_.fillRects(mode, color, x0, y0, x1, y1, count);
     test_.fillRects(mode, color, x0, y0, x1, y1, count);
+  }
+
+  const ColorFormat& getColorFormat() const override {
+    return test_.getColorFormat();
   }
 
   const ReferenceDevice& refc() const { return refc_; };

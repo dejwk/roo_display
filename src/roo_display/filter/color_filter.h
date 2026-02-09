@@ -57,6 +57,10 @@ class ColorFilter : public DisplayOutput {
     output_.fillPixels(blending_mode, transform(color), x, y, pixel_count);
   }
 
+  const ColorFormat& getColorFormat() const override {
+    return output_.getColorFormat();
+  }
+
  private:
   void transform(Color* colors, uint16_t count) const {
     for (uint16_t i = 0; i < count; i++) {
@@ -160,6 +164,10 @@ class ColorFilter<Erasure> : public DisplayOutput {
   void fillPixels(BlendingMode blending_mode, Color color, int16_t* x,
                   int16_t* y, uint16_t pixel_count) override {
     output_.fillPixels(blending_mode, bgcolor_, x, y, pixel_count);
+  }
+
+  const ColorFormat& getColorFormat() const override {
+    return output_.getColorFormat();
   }
 
  private:

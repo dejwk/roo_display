@@ -132,6 +132,10 @@ class TransformedDisplayOutput : public DisplayOutput {
   /// Return the effective clip box.
   const Box &clip_box() const { return clip_box_; }
 
+  const ColorFormat &getColorFormat() const override {
+    return delegate_.getColorFormat();
+  }
+
  private:
   DisplayOutput &delegate_;
   Transformation transformation_;

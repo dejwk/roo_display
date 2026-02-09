@@ -4,6 +4,7 @@
 
 #include "roo_display/driver/common/addr_window_device.h"
 #include "roo_display/transport/spi.h"
+#include "roo_io/data/byte_order.h"
 #include "roo_threads.h"
 #include "roo_threads/thread.h"
 
@@ -24,9 +25,11 @@ class Rgb666h {
   static const int8_t bits_per_pixel = 24;
 
   inline constexpr Color toArgbColor(uint32_t in) const {
-    return Color(((in >> 12) & 0xFC) | (in >> 18),
-                 ((in >> 4) & 0xFC) | ((in >> 10) & 0x02),
-                 ((in << 0) & 0xFC) | ((in >> 2) & 0x02));
+    uint32_t r6 = (in >> 18) & 0x3F;
+    uint32_t g6 = (in >> 10) & 0x3F;
+    uint32_t b6 = (in >> 2) & 0x3F;
+    auto expand = [](uint32_t v) { return (v << 2) | (v >> 4); };
+    return Color(expand(r6), expand(g6), expand(b6));
   }
 
   inline constexpr uint32_t fromArgbColor(Color color) const {
@@ -41,6 +44,20 @@ class Rgb666h {
 
   constexpr TransparencyMode transparency() const { return TRANSPARENCY_NONE; }
 };
+
+}  // namespace ili9488
+
+namespace internal {
+
+template <>
+struct ColorFormatTraits<ili9488::Rgb666h> {
+  static constexpr const DisplayOutput::ColorFormat::Mode mode =
+      DisplayOutput::ColorFormat::kModeRgb888;
+};
+
+}  // namespace internal
+
+namespace ili9488 {
 
 static const int16_t kDefaultWidth = 320;
 static const int16_t kDefaultHeight = 480;
@@ -204,24 +221,14 @@ class Ili9488Target {
     writeCommand(RAMWR);
   }
 
-  void ramWrite(uint32_t* data, size_t count) {
-    // Compact the buffer.
-    uint8_t* src = (uint8_t*)data;
-    uint8_t* dest = (uint8_t*)data;
-    size_t byte_count = count * 3;
-    while (count-- > 0) {
-      ++src;
-      *dest++ = *src++;
-      *dest++ = *src++;
-      *dest++ = *src++;
-    }
-    // Write the buffer.
+  void ramWrite(const roo::byte* data, size_t pixel_count) {
     transport_.sync();
-    transport_.writeBytes_async((uint8_t*)data, byte_count);
+    transport_.writeBytes_async(data, pixel_count * 3);
   }
 
-  void ramFill(uint32_t data, size_t count) __attribute__((always_inline)) {
-    transport_.fill24be_async(data, count);
+  void ramFill(const roo::byte* data, size_t pixel_count)
+      __attribute__((always_inline)) {
+    transport_.fill24_async(data, pixel_count);
   }
 
  private:

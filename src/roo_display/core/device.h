@@ -4,6 +4,7 @@
 
 #include "roo_display/color/blending.h"
 #include "roo_display/color/color.h"
+#include "roo_display/color/pixel_order.h"
 #include "roo_display/core/box.h"
 #include "roo_display/core/orientation.h"
 #include "roo_time.h"
@@ -13,6 +14,8 @@ namespace roo_display {
 /// The abstraction for drawing to a display.
 class DisplayOutput {
  public:
+  class ColorFormat;
+
   virtual ~DisplayOutput() {}
 
   /// Enter a write transaction.
@@ -155,6 +158,27 @@ class DisplayOutput {
                        Color color) {
     fillRects(BLENDING_MODE_SOURCE, color, &x0, &y0, &x1, &y1, 1);
   }
+
+  /// Return the native color format used by this device for direct drawing.
+  virtual const ColorFormat &getColorFormat() const = 0;
+
+  /// Draw a rectangle represented in the device's native color format.
+  ///
+  /// Source data pointer correspond to the (0, 0) point in the source
+  /// coordinate system, with stride of `row_width_bytes`. The source rectangle
+  /// at (src_x0, src_y0, src_x1, src_y1) relative to the data pointer, gets
+  /// copied to the destination rectangle with top-left corner at `(dst_x0,
+  /// dst_y0)`. The caller must ensure that the destination rectangle fits
+  /// within the device's bounds.
+  ///
+  /// The default implementation processes the rectangle by small tiles,
+  /// converting the data to an array of regular colors, and calling regular
+  /// window functions to draw them. Specific devices can override this method
+  /// to provide a more efficient implementation that draws directly from the
+  /// source data.
+  virtual void drawDirectRect(const roo::byte *data, size_t row_width_bytes,
+                              int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                              int16_t src_y1, int16_t dst_x0, int16_t dst_y0);
 };
 
 /// Base class for display device drivers.
@@ -239,6 +263,68 @@ class DisplayDevice : public DisplayOutput {
   Orientation orientation_;
   int16_t raw_width_;
   int16_t raw_height_;
+};
+
+class DisplayOutput::ColorFormat {
+ public:
+  enum Mode {
+    kModeArgb8888,
+    kModeRgba8888,
+    kModeRgb888,
+    kModeArgb6666,
+    kModeArgb4444,
+    kModeRgb565,
+    kModeGrayscale8,
+    kModeGrayAlpha8,
+    kModeGrayscale4,
+    kModeAlpha8,
+    kModeAlpha4,
+    kModeMonochrome,
+    kModeIndexed1,
+    kModeIndexed2,
+    kModeIndexed4,
+    kModeIndexed8,
+  };
+
+  /// Decodes a sub-rectangle of data, converting it to an array of colors.
+  ///
+  /// If the format has 1+ byte per pixel, then an (x, y) coordinate maps to the
+  /// byte at `data + y * row_width_bytes + x * bytes_per_pixel`.
+  ///
+  /// If the format is packed with multiple pixels per byte, then an (x, y)
+  /// coordinate maps to the byte at `data + y * row_width_bytes + (x /
+  /// pixels_per_byte)`, and the relevant pixel within that byte is determined
+  /// by the pixel order.
+  ///
+  /// @param data Pointer to the raw pixel data.
+  /// @param row_width_bytes The byte width of a single row in `data`.
+  /// @param x0 Left coordinate of the rectangle.
+  /// @param y0 Top coordinate of the rectangle.
+  /// @param x1 Right coordinate of the rectangle.
+  /// @param y1 Bottom coordinate of the rectangle.
+  /// @param output Output buffer for the decoded colors. Must have capacity
+  ///               of at least `(x1 - x0 + 1) * (y1 - y0 + 1)`.
+  virtual void decode(const roo::byte *data, size_t row_width_bytes, int16_t x0,
+                      int16_t y0, int16_t x1, int16_t y1,
+                      Color *output) const = 0;
+
+  Mode mode() const { return mode_; }
+
+  roo_io::ByteOrder byte_order() const { return byte_order_; }
+
+  ColorPixelOrder pixel_order() const { return pixel_order_; }
+
+ protected:
+  ColorFormat(Mode mode, roo_io::ByteOrder byte_order,
+              ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST)
+      : mode_(mode), byte_order_(byte_order), pixel_order_(pixel_order) {}
+
+  virtual ~ColorFormat() {}
+
+ private:
+  Mode mode_;
+  roo_io::ByteOrder byte_order_;
+  ColorPixelOrder pixel_order_;
 };
 
 /// A single touch point returned by a touch controller.

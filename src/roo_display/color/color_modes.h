@@ -5,6 +5,7 @@
 #include "roo_display/color/blending.h"
 #include "roo_display/color/color.h"
 #include "roo_display/color/interpolation.h"
+#include "roo_io/memory/load.h"
 
 namespace roo_display {
 
@@ -27,7 +28,8 @@ namespace roo_display {
 /// - `transparency()`: indicates the alpha capabilities of the mode (opaque,
 ///   binary, or gradual). Used as a rendering optimization hint.
 ///
-/// For optimized blending, consider specializing `RawBlender`.
+/// For optimized blending, consider specializing `RawFullByteBlender` or
+/// `RawSubByteBlender`.
 
 /// 32-bit ARGB color mode.
 class Argb8888 {
@@ -191,12 +193,12 @@ class Rgb565 {
   constexpr TransparencyMode transparency() const { return TRANSPARENCY_NONE; }
 };
 
-template <>
-struct RawBlender<Rgb565, BLENDING_MODE_SOURCE_OVER> {
-  inline uint16_t operator()(uint16_t bg, Color color,
-                             const Rgb565& mode) const {
-    return mode.fromArgbColor(
-        AlphaBlendOverOpaque(mode.toArgbColor(bg), color));
+template <roo_io::ByteOrder byte_order>
+struct RawFullByteBlender<Rgb565, BLENDING_MODE_SOURCE_OVER, byte_order> {
+  inline void operator()(roo::byte* dst, Color src, const Rgb565& mode) const {
+    ColorIo<Rgb565, byte_order> io;
+    Color bg = io.load(dst, mode);
+    io.store(AlphaBlendOverOpaque(bg, src), dst, mode);
   }
 };
 
@@ -254,14 +256,18 @@ class Rgb565WithTransparency {
   uint16_t transparency_;
 };
 
-template <>
-struct RawBlender<Rgb565WithTransparency, BLENDING_MODE_SOURCE_OVER> {
-  inline uint16_t operator()(uint16_t bg, Color color,
-                             const Rgb565WithTransparency& mode) const {
-    return mode.fromArgbColor(
-        bg == mode.transparency()
-            ? color
-            : AlphaBlendOverOpaque(mode.toArgbColor(bg), color));
+template <roo_io::ByteOrder byte_order>
+struct RawFullByteBlender<Rgb565WithTransparency, BLENDING_MODE_SOURCE_OVER,
+                          byte_order> {
+  inline void operator()(roo::byte* dst, Color src,
+                         const Rgb565WithTransparency& mode) const {
+    uint16_t bg_raw = roo_io::LoadU16<byte_order>(dst);
+    ColorIo<Rgb565WithTransparency, byte_order> io;
+    if (bg_raw == mode.raw_transparency_color()) {
+      io.store(src, dst, mode);
+    } else {
+      io.store(AlphaBlendOverOpaque(io.load(dst, mode), src), dst, mode);
+    }
   }
 };
 
@@ -284,23 +290,28 @@ class Grayscale8 {
   constexpr TransparencyMode transparency() const { return TRANSPARENCY_NONE; }
 };
 
-template <>
-struct RawBlender<Grayscale8, BLENDING_MODE_SOURCE_OVER> {
-  inline uint8_t operator()(uint8_t bg, Color color,
-                            const Grayscale8& mode) const {
-    uint8_t raw = mode.fromArgbColor(color);
-    uint16_t alpha = color.a();
-    return internal::__div_255_rounded(alpha * raw + (255 - alpha) * bg);
+template <roo_io::ByteOrder byte_order>
+struct RawFullByteBlender<Grayscale8, BLENDING_MODE_SOURCE_OVER, byte_order> {
+  inline void operator()(roo::byte* dst, Color src,
+                         const Grayscale8& mode) const {
+    uint8_t bg = static_cast<uint8_t>(*dst);
+    uint8_t raw = mode.fromArgbColor(src);
+    uint16_t alpha = src.a();
+    *dst = static_cast<roo::byte>(
+        internal::__div_255_rounded(alpha * raw + (255 - alpha) * bg));
   }
 };
 
-template <>
-struct RawBlender<Grayscale8, BLENDING_MODE_SOURCE_OVER_OPAQUE> {
-  inline uint8_t operator()(uint8_t bg, Color color,
-                            const Grayscale8& mode) const {
-    uint8_t raw = mode.fromArgbColor(color);
-    uint16_t alpha = color.a();
-    return internal::__div_255_rounded(alpha * raw + (255 - alpha) * bg);
+template <roo_io::ByteOrder byte_order>
+struct RawFullByteBlender<Grayscale8, BLENDING_MODE_SOURCE_OVER_OPAQUE,
+                          byte_order> {
+  inline void operator()(roo::byte* dst, Color src,
+                         const Grayscale8& mode) const {
+    uint8_t bg = static_cast<uint8_t>(*dst);
+    uint8_t raw = mode.fromArgbColor(src);
+    uint16_t alpha = src.a();
+    *dst = static_cast<roo::byte>(
+        internal::__div_255_rounded(alpha * raw + (255 - alpha) * bg));
   }
 };
 
@@ -356,7 +367,7 @@ class Grayscale4 {
 };
 
 template <>
-struct RawBlender<Grayscale4, BLENDING_MODE_SOURCE_OVER> {
+struct RawSubByteBlender<Grayscale4, BLENDING_MODE_SOURCE_OVER> {
   inline uint8_t operator()(uint8_t bg, Color color,
                             const Grayscale4& mode) const {
     uint8_t raw = mode.fromArgbColor(color);
@@ -366,7 +377,7 @@ struct RawBlender<Grayscale4, BLENDING_MODE_SOURCE_OVER> {
 };
 
 template <>
-struct RawBlender<Grayscale4, BLENDING_MODE_SOURCE_OVER_OPAQUE> {
+struct RawSubByteBlender<Grayscale4, BLENDING_MODE_SOURCE_OVER_OPAQUE> {
   inline uint8_t operator()(uint8_t bg, Color color,
                             const Grayscale4& mode) const {
     uint8_t raw = mode.fromArgbColor(color);
@@ -409,13 +420,18 @@ class Alpha8 {
   Color color_;
 };
 
-template <>
-struct RawBlender<Alpha8, BLENDING_MODE_SOURCE_OVER> {
-  inline uint8_t operator()(uint8_t bg, Color color, const Alpha8& mode) const {
-    uint16_t front_alpha = color.a();
-    if (front_alpha == 0xFF || bg == 0xFF) return 0xFF;
+template <roo_io::ByteOrder byte_order>
+struct RawFullByteBlender<Alpha8, BLENDING_MODE_SOURCE_OVER, byte_order> {
+  inline void operator()(roo::byte* dst, Color src, const Alpha8& mode) const {
+    uint8_t bg = static_cast<uint8_t>(*dst);
+    uint16_t front_alpha = src.a();
+    if (front_alpha == 0xFF || bg == 0xFF) {
+      *dst = static_cast<roo::byte>(0xFF);
+      return;
+    }
     uint16_t tmp = bg * front_alpha;
-    return bg + front_alpha - internal::__div_255_rounded(tmp);
+    *dst = static_cast<roo::byte>(bg + front_alpha -
+                                  internal::__div_255_rounded(tmp));
   }
 };
 
@@ -458,7 +474,7 @@ class Alpha4 {
 };
 
 template <>
-struct RawBlender<Alpha4, BLENDING_MODE_SOURCE_OVER> {
+struct RawSubByteBlender<Alpha4, BLENDING_MODE_SOURCE_OVER> {
   inline uint8_t operator()(uint8_t bg, Color color, const Alpha4& mode) const {
     uint8_t front_alpha = color.a();
     if (front_alpha == 0xFF || bg == 0xF) return 0xF;
@@ -523,7 +539,7 @@ class Monochrome {
 };
 
 template <>
-struct RawBlender<Monochrome, BLENDING_MODE_SOURCE_OVER> {
+struct RawSubByteBlender<Monochrome, BLENDING_MODE_SOURCE_OVER> {
   inline uint8_t operator()(uint8_t bg, Color color,
                             const Monochrome& mode) const {
     return mode.fg().a() == 0 ? bg : mode.fromArgbColor(mode.fg());

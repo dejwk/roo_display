@@ -8,7 +8,8 @@
 
 #include "roo_display/color/color.h"
 #include "roo_display/color/traits.h"
-
+#include "roo_display/internal/color_io.h"
+#include "roo_io/data/byte_order.h"
 namespace roo_display {
 
 /// Porter-Duff style blending modes.
@@ -553,44 +554,37 @@ inline Color AlphaBlend(Color bgc, Color fgc) {
   return BlendOp<BLENDING_MODE_SOURCE_OVER>()(bgc, fgc);
 }
 
-template <typename ColorMode, BlendingMode blending_mode>
-struct RawBlender {
-  ColorStorageType<ColorMode> operator()(ColorStorageType<ColorMode> dst,
-                                         Color src,
-                                         const ColorMode& color_mode) const {
-    return color_mode.fromArgbColor(
-        BlendOp<blending_mode>()(color_mode.toArgbColor(dst), src));
+template <typename ColorMode, BlendingMode blending_mode,
+          roo_io::ByteOrder byte_order>
+struct RawFullByteBlender {
+  void operator()(roo::byte* dst, Color src, const ColorMode& mode) const {
+    ColorIo<ColorMode, byte_order> io;
+    io.store(BlendOp<blending_mode>()(io.load(dst, mode), src), dst, mode);
   }
 
-  ColorStorageType<ColorMode> operator()(ColorStorageType<ColorMode> dst,
-                                         Color src,
-                                         ColorMode& color_mode) const {
-    return color_mode.fromArgbColor(
-        BlendOp<blending_mode>()(color_mode.toArgbColor(dst), src));
+  void operator()(roo::byte* dst, Color src, ColorMode& mode) const {
+    ColorIo<ColorMode, byte_order> io;
+    io.store(BlendOp<blending_mode>()(io.load(dst, mode), src), dst, mode);
   }
 };
 
-template <typename ColorMode>
-struct RawBlender<ColorMode, BLENDING_MODE_SOURCE> {
-  ColorStorageType<ColorMode> operator()(ColorStorageType<ColorMode> dst,
-                                         Color src,
-                                         const ColorMode& color_mode) const {
-    return color_mode.fromArgbColor(src);
+template <typename ColorMode, roo_io::ByteOrder byte_order>
+struct RawFullByteBlender<ColorMode, BLENDING_MODE_SOURCE, byte_order> {
+  void operator()(roo::byte* dst, Color src, const ColorMode& mode) const {
+    ColorIo<ColorMode, byte_order> io;
+    io.store(src, dst, mode);
   }
 
-  ColorStorageType<ColorMode> operator()(ColorStorageType<ColorMode> dst,
-                                         Color src,
-                                         ColorMode& color_mode) const {
-    return color_mode.fromArgbColor(src);
+  void operator()(roo::byte* dst, Color src, ColorMode& mode) const {
+    ColorIo<ColorMode, byte_order> io;
+    io.store(src, dst, mode);
   }
 };
 
-template <typename ColorMode>
-struct RawBlender<ColorMode, BLENDING_MODE_DESTINATION> {
-  ColorStorageType<ColorMode> operator()(ColorStorageType<ColorMode> dst,
-                                         Color src,
-                                         const ColorMode& color_mode) const {
-    return dst;
+template <typename ColorMode, roo_io::ByteOrder byte_order>
+struct RawFullByteBlender<ColorMode, BLENDING_MODE_DESTINATION, byte_order> {
+  void operator()(roo::byte* dst, Color src, const ColorMode& mode) const {
+    // No-op, leave dst as is.
   }
 };
 
@@ -629,21 +623,19 @@ struct RawSubByteBlender<ColorMode, BLENDING_MODE_DESTINATION> {
 };
 
 namespace internal {
-
-template <typename ColorMode>
-struct ApplyRawBlendingResolver {
+template <typename ColorMode, roo_io::ByteOrder byte_order>
+struct ApplyRawFullByteBlendingResolver {
   template <BlendingMode blending_mode>
-  ColorStorageType<ColorMode> operator()(ColorStorageType<ColorMode> dst,
-                                         Color src,
-                                         const ColorMode& color_mode) const {
-    return RawBlender<ColorMode, blending_mode>()(dst, src, color_mode);
+  void operator()(roo::byte* dst, Color src,
+                  const ColorMode& color_mode) const {
+    RawFullByteBlender<ColorMode, blending_mode, byte_order>()(dst, src,
+                                                               color_mode);
   }
 
   template <BlendingMode blending_mode>
-  ColorStorageType<ColorMode> operator()(ColorStorageType<ColorMode> dst,
-                                         Color src,
-                                         ColorMode& color_mode) const {
-    return RawBlender<ColorMode, blending_mode>()(dst, src, color_mode);
+  void operator()(roo::byte* dst, Color src, ColorMode& color_mode) const {
+    RawFullByteBlender<ColorMode, blending_mode, byte_order>()(dst, src,
+                                                               color_mode);
   }
 };
 
@@ -667,23 +659,21 @@ struct ApplyRawSubByteBlendingResolver {
 }  // namespace internal
 
 // Returns the result of blending `src` over `dst` using the specified mode.
-template <typename ColorMode>
-inline ColorStorageType<ColorMode> ApplyRawBlending(
-    BlendingMode blending_mode, ColorStorageType<ColorMode> dst, Color src,
-    const ColorMode& color_mode) {
+template <typename ColorMode, roo_io::ByteOrder byte_order>
+inline void ApplyRawFullByteBlending(BlendingMode blending_mode, roo::byte* dst,
+                                     Color src, const ColorMode& color_mode) {
   return internal::BlenderSpecialization<
-      internal::ApplyRawBlendingResolver<ColorMode>>(blending_mode, dst, src,
-                                                     color_mode);
+      internal::ApplyRawFullByteBlendingResolver<ColorMode, byte_order>>(
+      blending_mode, dst, src, color_mode);
 }
 
 // As above, for mutable color modes.
-template <typename ColorMode>
-inline ColorStorageType<ColorMode> ApplyRawBlending(
-    BlendingMode blending_mode, ColorStorageType<ColorMode> dst, Color src,
-    ColorMode& color_mode) {
+template <typename ColorMode, roo_io::ByteOrder byte_order>
+inline void ApplyRawFullByteBlending(BlendingMode blending_mode, roo::byte* dst,
+                                     Color src, ColorMode& color_mode) {
   return internal::BlenderSpecialization<
-      internal::ApplyRawBlendingResolver<ColorMode>>(blending_mode, dst, src,
-                                                     color_mode);
+      internal::ApplyRawFullByteBlendingResolver<ColorMode, byte_order>>(
+      blending_mode, dst, src, color_mode);
 }
 
 // As above, for sub-byte color modes.

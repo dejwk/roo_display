@@ -4,6 +4,7 @@
 
 #include "roo_display/color/color_modes.h"
 #include "roo_display/core/device.h"
+#include "roo_display/internal/color_format.h"
 #include "roo_display/internal/color_io.h"
 #include "roo_display/products/combo_device.h"
 #include "roo_testing/transducers/ui/viewport/viewport.h"
@@ -51,15 +52,15 @@ class ReferenceDisplayDevice : public DisplayDevice {
   void fillPixels(roo_display::BlendingMode mode, roo_display::Color color,
                   int16_t* xs, int16_t* ys, uint16_t pixel_count) override;
 
-  void interpretRect(const roo::byte* data, size_t row_width_bytes, int16_t x0,
-                     int16_t y0, int16_t x1, int16_t y1,
-                     Color* output) override {
-    ColorRectIo<Argb8888, roo_io::kNativeEndian> io;
-    io.interpret(data, row_width_bytes, x0, y0, x1, y1, output);
-  }
-
   void setBgColorHint(roo_display::Color bgcolor) override {
     bgcolor_ = bgcolor;
+  }
+
+  const ColorFormat& getColorFormat() const override {
+    static const Argb8888 mode;
+    static const internal::ColorFormatImpl<Argb8888, roo_io::kBigEndian>
+        color_format(mode);
+    return color_format;
   }
 
  private:

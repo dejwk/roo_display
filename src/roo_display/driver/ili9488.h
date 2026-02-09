@@ -45,6 +45,20 @@ class Rgb666h {
   constexpr TransparencyMode transparency() const { return TRANSPARENCY_NONE; }
 };
 
+}  // namespace ili9488
+
+namespace internal {
+
+template <>
+struct ColorFormatTraits<ili9488::Rgb666h> {
+  static constexpr const DisplayOutput::ColorFormat::Mode mode =
+      DisplayOutput::ColorFormat::kModeRgb888;
+};
+
+}  // namespace internal
+
+namespace ili9488 {
+
 static const int16_t kDefaultWidth = 320;
 static const int16_t kDefaultHeight = 480;
 

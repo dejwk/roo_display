@@ -150,12 +150,6 @@ class ClipMaskFilter : public DisplayOutput {
     }
   }
 
-  void interpretRect(const roo::byte* data, size_t row_width_bytes,
-                     int16_t x0, int16_t y0, int16_t x1, int16_t y1,
-                     Color* output) override {
-    output_.interpretRect(data, row_width_bytes, x0, y0, x1, y1, output);
-  }
-
   void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
                    uint16_t pixel_count) override {
     int16_t* x_out = x;
@@ -190,6 +184,10 @@ class ClipMaskFilter : public DisplayOutput {
     if (new_pixel_count > 0) {
       output_.fillPixels(mode, color, x, y, new_pixel_count);
     }
+  }
+
+  const ColorFormat& getColorFormat() const override {
+    return output_.getColorFormat();
   }
 
  private:

@@ -46,12 +46,6 @@ class ColorFilter : public DisplayOutput {
     output_.fillRects(blending_mode, transform(color), x0, y0, x1, y1, count);
   }
 
-  void interpretRect(const roo::byte* data, size_t row_width_bytes,
-                     int16_t x0, int16_t y0, int16_t x1, int16_t y1,
-                     Color* output) override {
-    output_.interpretRect(data, row_width_bytes, x0, y0, x1, y1, output);
-  }
-
   void writePixels(BlendingMode blending_mode, Color* color, int16_t* x,
                    int16_t* y, uint16_t pixel_count) override {
     transform(color, pixel_count);
@@ -61,6 +55,10 @@ class ColorFilter : public DisplayOutput {
   void fillPixels(BlendingMode blending_mode, Color color, int16_t* x,
                   int16_t* y, uint16_t pixel_count) override {
     output_.fillPixels(blending_mode, transform(color), x, y, pixel_count);
+  }
+
+  const ColorFormat& getColorFormat() const override {
+    return output_.getColorFormat();
   }
 
  private:
@@ -158,12 +156,6 @@ class ColorFilter<Erasure> : public DisplayOutput {
     output_.fillRects(blending_mode, bgcolor_, x0, y0, x1, y1, count);
   }
 
-  void interpretRect(const roo::byte* data, size_t row_width_bytes,
-                     int16_t x0, int16_t y0, int16_t x1, int16_t y1,
-                     Color* output) override {
-    output_.interpretRect(data, row_width_bytes, x0, y0, x1, y1, output);
-  }
-
   void writePixels(BlendingMode blending_mode, Color* color, int16_t* x,
                    int16_t* y, uint16_t pixel_count) override {
     output_.fillPixels(blending_mode, bgcolor_, x, y, pixel_count);
@@ -172,6 +164,10 @@ class ColorFilter<Erasure> : public DisplayOutput {
   void fillPixels(BlendingMode blending_mode, Color color, int16_t* x,
                   int16_t* y, uint16_t pixel_count) override {
     output_.fillPixels(blending_mode, bgcolor_, x, y, pixel_count);
+  }
+
+  const ColorFormat& getColorFormat() const override {
+    return output_.getColorFormat();
   }
 
  private:

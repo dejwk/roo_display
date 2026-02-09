@@ -138,10 +138,8 @@ class BufferedAddrWindowDevice : public DisplayDevice {
         });
   }
 
-  void interpretRect(const roo::byte* data, size_t row_width_bytes, int16_t x0,
-                     int16_t y0, int16_t x1, int16_t y1,
-                     Color* output) override {
-    buffer_dev_.interpretRect(data, row_width_bytes, x0, y0, x1, y1, output);
+  const ColorFormat& getColorFormat() const override {
+    return buffer_dev_.getColorFormat();
   }
 
   void orientationUpdated() override { target_.setOrientation(orientation()); }

@@ -5,6 +5,7 @@
 #include "roo_display/color/traits.h"
 #include "roo_display/core/device.h"
 #include "roo_display/internal/byte_order.h"
+#include "roo_display/internal/color_format.h"
 #include "roo_display/internal/color_io.h"
 #include "roo_io/data/byte_order.h"
 
@@ -221,11 +222,44 @@ class AddrWindowDevice : public DisplayDevice {
         });
   }
 
-  void interpretRect(const roo::byte* data, size_t row_width_bytes, int16_t x0,
-                     int16_t y0, int16_t x1, int16_t y1,
-                     Color* output) override {
-    ColorRectIo<typename Target::ColorMode, Target::byte_order> io;
-    io.interpret(data, row_width_bytes, x0, y0, x1, y1, output);
+  const ColorFormat& getColorFormat() const override {
+    static const typename Target::ColorMode mode;
+    static const internal::ColorFormatImpl<typename Target::ColorMode,
+                                           Target::byte_order,
+                                           COLOR_PIXEL_ORDER_MSB_FIRST>
+        format(mode);
+    return format;
+  }
+
+  void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
+                      int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                      int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override {
+    if (src_x1 < src_x0 || src_y1 < src_y0) return;
+    if constexpr (ColorTraits<typename Target::ColorMode>::bytes_per_pixel <
+                  1) {
+      DisplayOutput::drawDirectRect(data, row_width_bytes, src_x0, src_y0,
+                                    src_x1, src_y1, dst_x0, dst_y0);
+      return;
+    }
+
+    int16_t width = src_x1 - src_x0 + 1;
+    int16_t height = src_y1 - src_y0 + 1;
+    target_.setAddrWindow(dst_x0, dst_y0, dst_x0 + width - 1,
+                          dst_y0 + height - 1);
+
+    const size_t width_bytes = static_cast<size_t>(width) * kBytesPerPixel;
+    const roo::byte* row = data +
+                           static_cast<size_t>(src_y0) * row_width_bytes +
+                           static_cast<size_t>(src_x0) * kBytesPerPixel;
+    if (row_width_bytes == width_bytes) {
+      target_.ramWrite(row, static_cast<size_t>(width) * height);
+      return;
+    }
+
+    for (int16_t y = 0; y < height; ++y) {
+      target_.ramWrite(row, width);
+      row += row_width_bytes;
+    }
   }
 
   void orientationUpdated() override {

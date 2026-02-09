@@ -18,7 +18,8 @@ class FrontToBackWriter : public DisplayOutput {
   /// The caller must guarantee bounds are within the output area and no writes
   /// go out of bounds.
   FrontToBackWriter(DisplayOutput& output, Box bounds)
-      : offscreen_(bounds, color::Transparent),
+      : color_format_(output.getColorFormat()),
+        offscreen_(bounds, color::Transparent),
         mask_(offscreen_.buffer(), bounds),
         mask_filter_(output, &mask_) {}
 
@@ -112,13 +113,10 @@ class FrontToBackWriter : public DisplayOutput {
     // //                                pixel_count);
   }
 
-  void interpretRect(const roo::byte* data, size_t row_width_bytes,
-                     int16_t x0, int16_t y0, int16_t x1, int16_t y1,
-                     Color* output) override {
-    mask_filter_.interpretRect(data, row_width_bytes, x0, y0, x1, y1, output);
-  }
+  const ColorFormat& getColorFormat() const override { return color_format_; }
 
  private:
+  const ColorFormat& color_format_;
   BitMaskOffscreen offscreen_;
   ClipMask mask_;
   ClipMaskFilter mask_filter_;

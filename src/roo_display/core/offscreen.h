@@ -4,6 +4,7 @@
 
 #include "roo_display/color/color.h"
 #include "roo_display/core/raster.h"
+#include "roo_display/internal/color_format.h"
 #include "roo_io/memory/fill.h"
 #include "roo_io/memory/store.h"
 
@@ -133,6 +134,7 @@ class OffscreenDevice : public DisplayDevice {
                   ColorMode color_mode)
       : DisplayDevice(width, height),
         color_mode_(color_mode),
+        color_format_(color_mode_),
         buffer_(buffer),
         orienter_(width, height, Orientation::Default()) {}
 
@@ -158,14 +160,12 @@ class OffscreenDevice : public DisplayDevice {
   void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override;
 
-  void interpretRect(const roo::byte* data, size_t row_width_bytes, int16_t x0,
-                     int16_t y0, int16_t x1, int16_t y1,
-                     Color* output) override;
-
   /// Access color mode.
   ColorMode& color_mode() { return color_mode_; }
   /// Access color mode (const).
   const ColorMode& color_mode() const { return color_mode_; }
+
+  const ColorFormat& getColorFormat() const override { return color_format_; }
 
   // const Raster<const roo::byte *, ColorMode, pixel_order, byte_order>
   // &raster()
@@ -231,6 +231,7 @@ class OffscreenDevice : public DisplayDevice {
                           int16_t* y0, int16_t* y1, uint16_t count);
 
   ColorMode color_mode_;
+  internal::ColorFormatImpl<ColorMode, byte_order, pixel_order> color_format_;
 
   roo::byte* buffer_;
 
@@ -1342,18 +1343,6 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
   } else {
     fillRectsAbsolute(blending_mode, color, x0, y0, x1, y1, count);
   }
-}
-
-template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
-          int8_t pixels_per_byte, typename storage_type>
-void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
-                     storage_type>::interpretRect(const roo::byte* data,
-                                                  size_t row_width_bytes,
-                                                  int16_t x0, int16_t y0,
-                                                  int16_t x1, int16_t y1,
-                                                  Color* output) {
-  ColorRectIo<ColorMode, byte_order, pixel_order> io;
-  io.interpret(data, row_width_bytes, x0, y0, x1, y1, output, color_mode_);
 }
 
 template <typename Filler>

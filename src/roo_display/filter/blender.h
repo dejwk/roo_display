@@ -86,12 +86,6 @@ class BlendingFilter : public DisplayOutput {
     output_->write(newcolor, pixel_count);
   }
 
-  void interpretRect(const roo::byte* data, size_t row_width_bytes,
-                     int16_t x0, int16_t y0, int16_t x1, int16_t y1,
-                     Color* output) override {
-    output_->interpretRect(data, row_width_bytes, x0, y0, x1, y1, output);
-  }
-
   // void fill(BlendingMode mode, Color color, uint32_t pixel_count) override {
   //   // Naive implementation, for now.
   //   uint32_t i = 0;
@@ -150,6 +144,10 @@ class BlendingFilter : public DisplayOutput {
       }
     }
     output_->writePixels(mode, newcolor, x, y, pixel_count);
+  }
+
+  const ColorFormat& getColorFormat() const override {
+    return output_->getColorFormat();
   }
 
  private:

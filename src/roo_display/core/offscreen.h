@@ -2,6 +2,8 @@
 
 /// Support for drawing to in-memory buffers, using various color modes.
 
+#include <cstring>
+
 #include "roo_display/color/color.h"
 #include "roo_display/core/raster.h"
 #include "roo_display/internal/color_format.h"
@@ -159,6 +161,173 @@ class OffscreenDevice : public DisplayDevice {
 
   void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override;
+
+  void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
+                      int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                      int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override {
+    if (src_x1 < src_x0 || src_y1 < src_y0) return;
+    int16_t width = src_x1 - src_x0 + 1;
+    int16_t height = src_y1 - src_y0 + 1;
+
+    // Fast paths for default orientation: memcpy rows (or the whole block if
+    // the source is already tightly packed).
+    if (orientation() == Orientation::Default()) {
+      if constexpr (ColorTraits<ColorMode>::pixels_per_byte == 1) {
+        constexpr size_t kBytesPerPixel =
+            ColorTraits<ColorMode>::bytes_per_pixel;
+        size_t copy_row_bytes = static_cast<size_t>(width) * kBytesPerPixel;
+        size_t dst_row_bytes =
+            static_cast<size_t>(raw_width()) * kBytesPerPixel;
+
+        const roo::byte* src_row =
+            data + static_cast<size_t>(src_y0) * row_width_bytes +
+            static_cast<size_t>(src_x0) * kBytesPerPixel;
+        roo::byte* dst_row = buffer_ +
+                             static_cast<size_t>(dst_y0) * dst_row_bytes +
+                             static_cast<size_t>(dst_x0) * kBytesPerPixel;
+
+        if (row_width_bytes == copy_row_bytes) {
+          std::memcpy(dst_row, src_row,
+                      copy_row_bytes * static_cast<size_t>(height));
+          return;
+        }
+
+        for (int16_t y = 0; y < height; ++y) {
+          std::memcpy(dst_row, src_row, copy_row_bytes);
+          src_row += row_width_bytes;
+          dst_row += dst_row_bytes;
+        }
+        return;
+      } else {
+        constexpr int kPixelsPerByte = ColorTraits<ColorMode>::pixels_per_byte;
+        // Sub-byte fast path only if rows and x offsets are byte-aligned.
+        if (kPixelsPerByte > 1 && (raw_width() % kPixelsPerByte) == 0 &&
+            (src_x0 % kPixelsPerByte) == 0 && (dst_x0 % kPixelsPerByte) == 0 &&
+            (width % kPixelsPerByte) == 0) {
+          size_t copy_row_bytes = static_cast<size_t>(width) / kPixelsPerByte;
+          size_t dst_row_bytes =
+              static_cast<size_t>(raw_width()) / kPixelsPerByte;
+
+          const roo::byte* src_row =
+              data + static_cast<size_t>(src_y0) * row_width_bytes +
+              static_cast<size_t>(src_x0 / kPixelsPerByte);
+          roo::byte* dst_row = buffer_ +
+                               static_cast<size_t>(dst_y0) * dst_row_bytes +
+                               static_cast<size_t>(dst_x0 / kPixelsPerByte);
+
+          if (row_width_bytes == copy_row_bytes) {
+            std::memcpy(dst_row, src_row,
+                        copy_row_bytes * static_cast<size_t>(height));
+            return;
+          }
+
+          for (int16_t y = 0; y < height; ++y) {
+            std::memcpy(dst_row, src_row, copy_row_bytes);
+            src_row += row_width_bytes;
+            dst_row += dst_row_bytes;
+          }
+          return;
+        }
+      }
+    }
+
+    // Fallback: iterate AddressWindow order and write pixel-by-pixel.
+    setAddress(dst_x0, dst_y0, dst_x0 + width - 1, dst_y0 + height - 1,
+               BLENDING_MODE_SOURCE);
+    uint32_t pixel_count = static_cast<uint32_t>(width) * height;
+
+    if constexpr (ColorTraits<ColorMode>::pixels_per_byte == 1) {
+      constexpr size_t kBytesPerPixel = ColorTraits<ColorMode>::bytes_per_pixel;
+
+      // Reads a source row-major rect and writes each pixel into the window.
+      class DirectRectWriter {
+       public:
+        DirectRectWriter(const roo::byte* data, size_t row_width_bytes,
+                         int16_t src_x0, int16_t src_y0, int16_t width)
+            : src_row_(data + static_cast<size_t>(src_y0) * row_width_bytes +
+                       static_cast<size_t>(src_x0) * kBytesPerPixel),
+              row_advance_(row_width_bytes -
+                           static_cast<size_t>(width) * kBytesPerPixel),
+              remaining_in_row_(width),
+              width_(width) {}
+
+        void operator()(roo::byte* p, uint32_t offset) {
+          roo::byte* dst = p + offset * kBytesPerPixel;
+          std::memcpy(dst, src_row_, kBytesPerPixel);
+          advance();
+        }
+
+       private:
+        void advance() {
+          src_row_ += kBytesPerPixel;
+          if (--remaining_in_row_ == 0) {
+            src_row_ += row_advance_;
+            remaining_in_row_ = width_;
+          }
+        }
+
+        const roo::byte* src_row_;
+        size_t row_advance_;
+        int16_t remaining_in_row_;
+        int16_t width_;
+      };
+
+      DirectRectWriter writer(data, row_width_bytes, src_x0, src_y0, width);
+      writeToWindow(writer, pixel_count);
+      return;
+    } else {
+      constexpr int kPixelsPerByte = ColorTraits<ColorMode>::pixels_per_byte;
+      // Sub-byte variant: load/store packed pixels with correct bit ordering.
+      class SubByteWriter {
+       public:
+        SubByteWriter(const roo::byte* data, size_t row_width_bytes,
+                      int16_t src_x0, int16_t src_y0, int16_t width)
+            : src_row_start_(data +
+                             static_cast<size_t>(src_y0) * row_width_bytes +
+                             static_cast<size_t>(src_x0 / kPixelsPerByte)),
+              src_row_(src_row_start_),
+              src_index_start_(src_x0 % kPixelsPerByte),
+              src_index_(src_index_start_),
+              row_width_bytes_(row_width_bytes),
+              width_(width),
+              remaining_in_row_(width) {}
+
+        void operator()(roo::byte* p, uint32_t offset) {
+          SubByteColorIo<ColorMode, pixel_order> io;
+          roo::byte* dst = p + offset / kPixelsPerByte;
+          int dst_index = offset % kPixelsPerByte;
+          uint8_t raw = io.loadRaw(*src_row_, src_index_);
+          io.storeRaw(raw, dst, dst_index);
+          advance();
+        }
+
+       private:
+        void advance() {
+          if (++src_index_ == kPixelsPerByte) {
+            src_index_ = 0;
+            ++src_row_;
+          }
+          if (--remaining_in_row_ == 0) {
+            src_row_start_ += row_width_bytes_;
+            src_row_ = src_row_start_;
+            src_index_ = src_index_start_;
+            remaining_in_row_ = width_;
+          }
+        }
+
+        const roo::byte* src_row_start_;
+        const roo::byte* src_row_;
+        int src_index_start_;
+        int src_index_;
+        size_t row_width_bytes_;
+        int16_t width_;
+        int16_t remaining_in_row_;
+      };
+
+      SubByteWriter writer(data, row_width_bytes, src_x0, src_y0, width);
+      writeToWindow(writer, pixel_count);
+    }
+  }
 
   /// Access color mode.
   ColorMode& color_mode() { return color_mode_; }

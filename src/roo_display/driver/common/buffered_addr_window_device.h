@@ -68,6 +68,20 @@ class BufferedAddrWindowDevice : public DisplayDevice {
     }
   }
 
+  void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
+                      int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                      int16_t src_y1, int16_t dst_x0,
+                      int16_t dst_y0) override {
+    if (src_x1 < src_x0 || src_y1 < src_y0) return;
+    flushRectCache();
+    buffer_dev_.drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1,
+                               src_y1, dst_x0, dst_y0);
+    int16_t width = src_x1 - src_x0 + 1;
+    int16_t height = src_y1 - src_y0 + 1;
+    target_.flushRect(buffer_raster_, dst_x0, dst_y0, dst_x0 + width - 1,
+                      dst_y0 + height - 1);
+  }
+
   void writePixels(BlendingMode mode, Color* colors, int16_t* xs, int16_t* ys,
                    uint16_t pixel_count) override {
     compactor_.drawPixels(

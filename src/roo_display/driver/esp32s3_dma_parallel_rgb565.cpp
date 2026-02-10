@@ -187,6 +187,27 @@ void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::fillRects(BlendingMode mode,
   buffer_->fillRects(mode, color, x0, y0, x1, y1, count);
 }
 
+template <>
+void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::drawDirectRect(
+    const roo::byte *data, size_t row_width_bytes, int16_t src_x0,
+    int16_t src_y0, int16_t src_x1, int16_t src_y1, int16_t dst_x0,
+    int16_t dst_y0) {
+  buffer_->drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1, src_y1,
+                          dst_x0, dst_y0);
+  if (orientation() == Orientation::Default()) {
+    constexpr uint32_t kBytesPerPixel = 2;
+    int16_t height = src_y1 - src_y0 + 1;
+    uint32_t offset =
+        static_cast<uint32_t>(dst_y0) * cfg_.width * kBytesPerPixel;
+    uint32_t length =
+        static_cast<uint32_t>(height) * cfg_.width * kBytesPerPixel;
+    Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + offset, length);
+  } else {
+    Cache_WriteBack_Addr((uint32_t)buffer_->buffer(),
+                         cfg_.width * cfg_.height * 2);
+  }
+}
+
 namespace {
 
 struct FlushRange {
@@ -319,6 +340,28 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillRects(BlendingMode mode,
 }
 
 template <>
+void ParallelRgb565<FLUSH_MODE_BUFFERED>::drawDirectRect(
+    const roo::byte *data, size_t row_width_bytes, int16_t src_x0,
+    int16_t src_y0, int16_t src_x1, int16_t src_y1, int16_t dst_x0,
+    int16_t dst_y0) {
+  if (buffer_ == nullptr || src_x1 < src_x0 || src_y1 < src_y0) return;
+  buffer_->drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1, src_y1,
+                          dst_x0, dst_y0);
+  if (orientation() == Orientation::Default()) {
+    constexpr uint32_t kBytesPerPixel = 2;
+    int16_t height = src_y1 - src_y0 + 1;
+    uint32_t offset =
+        static_cast<uint32_t>(dst_y0) * cfg_.width * kBytesPerPixel;
+    uint32_t length =
+        static_cast<uint32_t>(height) * cfg_.width * kBytesPerPixel;
+    Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + offset, length);
+  } else {
+    Cache_WriteBack_Addr((uint32_t)buffer_->buffer(),
+                         cfg_.width * cfg_.height * 2);
+  }
+}
+
+template <>
 void ParallelRgb565<FLUSH_MODE_LAZY>::init() {
   roo::byte *buffer = AllocateBuffer(cfg_);
   buffer_.reset(new Dev(cfg_.width, cfg_.height, buffer, Rgb565()));
@@ -367,6 +410,16 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::fillRects(BlendingMode mode, Color color,
                                                 int16_t *x1, int16_t *y1,
                                                 uint16_t count) {
   buffer_->fillRects(mode, color, x0, y0, x1, y1, count);
+}
+
+template <>
+void ParallelRgb565<FLUSH_MODE_LAZY>::drawDirectRect(
+    const roo::byte *data, size_t row_width_bytes, int16_t src_x0,
+    int16_t src_y0, int16_t src_x1, int16_t src_y1, int16_t dst_x0,
+    int16_t dst_y0) {
+  if (buffer_ == nullptr || src_x1 < src_x0 || src_y1 < src_y0) return;
+  buffer_->drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1, src_y1,
+                          dst_x0, dst_y0);
 }
 
 // #if FLUSH_MODE == FLUSH_MODE_HARDCODED

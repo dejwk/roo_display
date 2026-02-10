@@ -298,10 +298,15 @@ class ParallelRgb565 : public DisplayDevice {
   void fillRects(BlendingMode mode, Color color, int16_t *x0, int16_t *y0,
                  int16_t *x1, int16_t *y1, uint16_t count) override;
 
+  void drawDirectRect(const roo::byte *data, size_t row_width_bytes,
+                      int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                      int16_t src_y1, int16_t dst_x0,
+                      int16_t dst_y0) override;
+
   const ColorFormat &getColorFormat() const override {
     static const Rgb565 mode;
     static const ::roo_display::internal::ColorFormatImpl<
-      Rgb565, roo_io::kLittleEndian, COLOR_PIXEL_ORDER_MSB_FIRST>
+        Rgb565, roo_io::kLittleEndian, COLOR_PIXEL_ORDER_MSB_FIRST>
         format(mode);
     return format;
   }

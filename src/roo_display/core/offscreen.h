@@ -141,7 +141,17 @@ class OffscreenDevice : public DisplayDevice {
         buffer_(buffer),
         orienter_(width, height, Orientation::Default()) {}
 
-  OffscreenDevice(OffscreenDevice&& other) = delete;
+  OffscreenDevice(OffscreenDevice&& other) noexcept
+      : DisplayDevice(other.orientation(), other.raw_width(),
+                      other.raw_height()),
+        color_mode_(std::move(other.color_mode_)),
+        color_format_(color_mode_),
+        buffer_(other.buffer_),
+        orienter_(other.orienter_),
+        window_(other.window_),
+        blending_mode_(other.blending_mode_) {
+    other.buffer_ = nullptr;
+  }
 
   /// Update orientation-dependent state.
   void orientationUpdated();
@@ -514,6 +524,15 @@ class Offscreen : public Rasterizable {
 
   virtual ~Offscreen() {
     if (owns_buffer_) delete[] output().buffer();
+  }
+
+  Offscreen(Offscreen&& other) noexcept
+      : device_(std::move(other.device_)),
+        raster_(device_.raster(other.extents_.xMin(), other.extents_.yMin())),
+        extents_(other.extents_),
+        anchor_extents_(other.anchor_extents_),
+        owns_buffer_(other.owns_buffer_) {
+    other.owns_buffer_ = false;
   }
 
   const RasterType& raster() const { return raster_; }

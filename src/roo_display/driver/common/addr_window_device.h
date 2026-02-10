@@ -50,6 +50,9 @@ namespace roo_display {
 template <typename Target>
 class AddrWindowDevice : public DisplayDevice {
  public:
+  using ColorMode = typename Target::ColorMode;
+  static constexpr ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST;
+  static constexpr ByteOrder byte_order = Target::byte_order;
   static constexpr int kBytesPerPixel =
       ColorTraits<typename Target::ColorMode>::bytes_per_pixel;
   using raw_color_type = roo::byte[kBytesPerPixel];
@@ -223,12 +226,16 @@ class AddrWindowDevice : public DisplayDevice {
   }
 
   const ColorFormat& getColorFormat() const override {
-    static const typename Target::ColorMode mode;
     static const internal::ColorFormatImpl<typename Target::ColorMode,
                                            Target::byte_order,
                                            COLOR_PIXEL_ORDER_MSB_FIRST>
-        format(mode);
+        format(color_mode());
     return format;
+  }
+
+  const ColorMode& color_mode() const {
+    static const ColorMode mode;
+    return mode;
   }
 
   void drawDirectRect(const roo::byte* data, size_t row_width_bytes,

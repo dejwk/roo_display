@@ -3,6 +3,7 @@
 /// Support for drawing to in-memory buffers, using various color modes.
 
 #include <cstring>
+#include <utility>
 
 #include "roo_display/color/color.h"
 #include "roo_display/core/raster.h"
@@ -548,6 +549,8 @@ class Offscreen : public Rasterizable {
   roo::byte* buffer() { return output().buffer(); }
   const roo::byte* buffer() const { return output().buffer(); }
 
+  const ColorMode& color_mode() const { return output().color_mode(); }
+
  protected:
   // Sets the default (maximum) clip box. Usually the same as raster extents,
   // but may be smaller, e.g. if the underlying raster is byte-aligned and the
@@ -582,6 +585,16 @@ class Offscreen : public Rasterizable {
 
   bool owns_buffer_;
 };
+
+// Creates an offscreen whose color format matches the provided device.
+template <typename Device, typename... Args>
+auto OffscreenForDevice(const Device& device, Args&&... args)
+  -> Offscreen<typename Device::ColorMode, Device::pixel_order,
+         Device::byte_order> {
+  return Offscreen<typename Device::ColorMode, Device::pixel_order,
+           Device::byte_order>(std::forward<Args>(args)...,
+                     device.color_mode());
+}
 
 // Convenience specialization for constructing bit maps, e.g. to set them
 // as bit masks. Uses Monochrome with transparent background. Writing anything

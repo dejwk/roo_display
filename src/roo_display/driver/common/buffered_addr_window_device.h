@@ -6,12 +6,16 @@
 #include "roo_backport/byte.h"
 #include "roo_display/core/offscreen.h"
 #include "roo_display/driver/common/compactor.h"
+#include "roo_display/internal/byte_order.h"
 
 namespace roo_display {
 
 template <typename Target>
 class BufferedAddrWindowDevice : public DisplayDevice {
  public:
+  using ColorMode = typename Target::ColorMode;
+  static constexpr ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST;
+  static constexpr ByteOrder byte_order = Target::byte_order;
   typedef ColorStorageType<typename Target::ColorMode> raw_color_type;
 
   BufferedAddrWindowDevice(Orientation orientation = Orientation::Default(),
@@ -70,8 +74,7 @@ class BufferedAddrWindowDevice : public DisplayDevice {
 
   void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
                       int16_t src_x0, int16_t src_y0, int16_t src_x1,
-                      int16_t src_y1, int16_t dst_x0,
-                      int16_t dst_y0) override {
+                      int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override {
     if (src_x1 < src_x0 || src_y1 < src_y0) return;
     flushRectCache();
     buffer_dev_.drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1,
@@ -155,6 +158,8 @@ class BufferedAddrWindowDevice : public DisplayDevice {
   const ColorFormat& getColorFormat() const override {
     return buffer_dev_.getColorFormat();
   }
+
+  const ColorMode& color_mode() const { return buffer_dev_.color_mode(); }
 
   void orientationUpdated() override { target_.setOrientation(orientation()); }
 

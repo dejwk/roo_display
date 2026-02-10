@@ -22,6 +22,7 @@
 #include "roo_display/color/color.h"
 #include "roo_display/core/device.h"
 #include "roo_display/driver/common/addr_window_device.h"
+#include "roo_display/internal/byte_order.h"
 #include "roo_display/internal/color_format.h"
 #include "roo_display/internal/color_io.h"
 
@@ -29,6 +30,10 @@ namespace roo_display {
 
 class TFT_eSPI_Adapter : public DisplayDevice {
  public:
+  using ColorMode = Rgb565;
+  static constexpr ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST;
+  static constexpr ByteOrder byte_order = roo_io::kBigEndian;
+
   TFT_eSPI_Adapter(uint16_t width, uint16_t height)
       : TFT_eSPI_Adapter(Orientation(), width, height) {}
 
@@ -137,11 +142,15 @@ class TFT_eSPI_Adapter : public DisplayDevice {
   }
 
   const ColorFormat& getColorFormat() const override {
-    static const Rgb565 mode;
     static const internal::ColorFormatImpl<Rgb565, roo_io::kBigEndian,
                                            COLOR_PIXEL_ORDER_MSB_FIRST>
-        format(mode);
+        format(color_mode());
     return format;
+  }
+
+  const Rgb565& color_mode() const {
+    static const Rgb565 mode;
+    return mode;
   }
 
   void fillPixels(BlendingMode mode, Color color, int16_t* xs, int16_t* ys,

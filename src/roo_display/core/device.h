@@ -314,17 +314,38 @@ class DisplayOutput::ColorFormat {
 
   ColorPixelOrder pixel_order() const { return pixel_order_; }
 
+  TransparencyMode transparency() const { return transparency_; }
+
  protected:
   ColorFormat(Mode mode, roo_io::ByteOrder byte_order,
               ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST)
-      : mode_(mode), byte_order_(byte_order), pixel_order_(pixel_order) {}
+      : mode_(mode),
+        byte_order_(byte_order),
+        pixel_order_(pixel_order),
+        transparency_(CalculateTransparency(mode)) {}
 
   virtual ~ColorFormat() {}
 
  private:
+  static TransparencyMode CalculateTransparency(Mode mode) {
+    switch (mode) {
+      case kModeArgb8888:
+      case kModeRgba8888:
+      case kModeArgb6666:
+      case kModeArgb4444:
+      case kModeGrayAlpha8:
+      case kModeAlpha8:
+      case kModeAlpha4:
+        return TRANSPARENCY_GRADUAL;
+      default:
+        return TRANSPARENCY_NONE;
+    }
+  }
+
   Mode mode_;
   roo_io::ByteOrder byte_order_;
   ColorPixelOrder pixel_order_;
+  TransparencyMode transparency_;
 };
 
 /// A single touch point returned by a touch controller.

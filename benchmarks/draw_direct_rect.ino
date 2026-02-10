@@ -197,11 +197,11 @@ void runBenchmarks() {
     int16_t screen_h = display.height();
 
     SizeCase sizes[] = {
-        {"small", std::min<int16_t>(120, screen_w),
-         std::min<int16_t>(60, screen_h)},
-        {"medium", std::min<int16_t>(240, screen_w),
-         std::min<int16_t>(140, screen_h)},
-        {"large", screen_w, screen_h},
+        {"small", std::min<int16_t>(100, screen_w),
+         std::min<int16_t>(50, screen_h)},
+        {"medium", std::min<int16_t>(200, screen_w),
+         std::min<int16_t>(100, screen_h)},
+        {"large", screen_w, std::min<int16_t>(40, screen_h)},
     };
 
     for (const auto& size : sizes) {

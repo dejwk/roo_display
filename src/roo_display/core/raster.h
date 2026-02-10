@@ -8,6 +8,7 @@
 #include "roo_display/core/streamable.h"
 #include "roo_display/hal/progmem.h"
 #include "roo_display/internal/byte_order.h"
+#include "roo_display/internal/color_format.h"
 #include "roo_display/internal/color_io.h"
 #include "roo_io/data/byte_order.h"
 #include "roo_io/data/read.h"
@@ -305,13 +306,61 @@ class Raster : public Rasterizable {
     Box bounds =
         Box::Intersect(s.clip_box().translate(-s.dx(), -s.dy()), extents_);
     if (bounds.empty()) return;
+    TransparencyMode source_transparency = getTransparencyMode();
+    bool source_opaque = (source_transparency == TRANSPARENCY_NONE);
+    bool replace_ok = source_opaque || (s.fill_mode() == FILL_MODE_RECTANGLE &&
+                                        s.bgcolor().a() == 0);
+    if (replace_ok) {
+      const DisplayOutput::ColorFormat& format = s.out().getColorFormat();
+      // Fast format check: only proceed when format, pixel, and byte order
+      // match.
+      bool format_match =
+          format.mode() == internal::ColorFormatTraits<ColorMode>::mode &&
+          format.pixel_order() == pixel_order &&
+          format.byte_order() == byte_order;
+      if (format_match) {
+        BlendingMode mode = s.blending_mode();
+        // Porter-Duff folding: source-over is source when the source is opaque.
+        bool blend_is_source = mode == BLENDING_MODE_SOURCE ||
+                               ((mode == BLENDING_MODE_SOURCE_OVER ||
+                                 mode == BLENDING_MODE_SOURCE_OVER_OPAQUE) &&
+                                source_opaque);
+        // When both source and destination are opaque, SOURCE_IN/SOURCE_ATOP
+        // reduce to a straight source copy as well.
+        if (!blend_is_source && source_opaque &&
+            format.transparency() == TRANSPARENCY_NONE &&
+            (mode == BLENDING_MODE_SOURCE_IN ||
+             mode == BLENDING_MODE_SOURCE_ATOP)) {
+          blend_is_source = true;
+        }
+        if (blend_is_source) {
+          int16_t src_x0 = bounds.xMin() - extents_.xMin();
+          int16_t src_y0 = bounds.yMin() - extents_.yMin();
+          int16_t src_x1 = bounds.xMax() - extents_.xMin();
+          int16_t src_y1 = bounds.yMax() - extents_.yMin();
+          int16_t dst_x0 = bounds.xMin() + s.dx();
+          int16_t dst_y0 = bounds.yMin() + s.dy();
+          size_t row_width_bytes;
+          if constexpr (ColorTraits<ColorMode>::pixels_per_byte == 1) {
+            row_width_bytes = width_ * ColorTraits<ColorMode>::bytes_per_pixel;
+          } else {
+            row_width_bytes =
+                (width_ + ColorTraits<ColorMode>::pixels_per_byte - 1) /
+                ColorTraits<ColorMode>::pixels_per_byte;
+          }
+          s.out().drawDirectRect(ptr_, row_width_bytes, src_x0, src_y0, src_x1,
+                                 src_y1, dst_x0, dst_y0);
+          return;
+        }
+      }
+    }
     if (extents_.width() == bounds.width() &&
         extents_.height() == bounds.height()) {
       StreamType stream(roo_io::UnsafeGenericMemoryIterator<PtrType>(ptr_),
                         color_mode_);
       internal::FillRectFromStream(s.out(), bounds.translate(s.dx(), s.dy()),
                                    &stream, s.bgcolor(), s.fill_mode(),
-                                   s.blending_mode(), getTransparencyMode());
+                                   s.blending_mode(), source_transparency);
     } else {
       auto stream = internal::MakeSubRectangle(
           StreamType(roo_io::UnsafeGenericMemoryIterator<PtrType>(ptr_),
@@ -319,7 +368,7 @@ class Raster : public Rasterizable {
           extents_, bounds);
       internal::FillRectFromStream(s.out(), bounds.translate(s.dx(), s.dy()),
                                    &stream, s.bgcolor(), s.fill_mode(),
-                                   s.blending_mode(), getTransparencyMode());
+                                   s.blending_mode(), source_transparency);
     }
   }
 

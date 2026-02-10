@@ -20,6 +20,13 @@ namespace roo_display::products::lilygo {
 /// LILYGO T-Display S3 device wrapper.
 class TDisplayS3 : public ComboDevice {
  public:
+  using DisplayType = roo_display::St7789_Generic<esp32s3::ParallelLcd8Bit, 170,
+                                                  320, 35, 0, 35, 0>;
+
+  using ColorMode = typename DisplayType::ColorMode;
+  static constexpr ColorPixelOrder pixel_order = DisplayType::pixel_order;
+  static constexpr ByteOrder byte_order = DisplayType::byte_order;
+
   TDisplayS3(Orientation orientation = Orientation())
       : display_(esp32s3::ParallelLcd8Bit(
             6, 7, 5, 8, 9,
@@ -39,14 +46,15 @@ class TDisplayS3 : public ComboDevice {
   void initTransport() { backlit_.begin(); }
 
   /// Return display device.
-  DisplayDevice& display() override { return display_; }
+  DisplayType& display() override { return display_; }
+
+  const ColorMode& color_mode() const { return display_.color_mode(); }
 
   /// Return backlight controller.
   Backlit& backlit() { return backlit_; }
 
  private:
-  roo_display::St7789_Generic<esp32s3::ParallelLcd8Bit, 170, 320, 35, 0, 35, 0>
-      display_;
+  DisplayType display_;
 
   LedcBacklit backlit_;
 };

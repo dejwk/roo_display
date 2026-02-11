@@ -1,9 +1,6 @@
-// 2025-02-06 22:00:00 v1.3.0 - I2C HAL abstraction (original naming)
-// Waveshare ESP32-S3-Touch-LCD-4.3 display device implementation.
-
 #include "roo_display/hal/config.h"
 
-#if !defined(ESP32) || !(CONFIG_IDF_TARGET_ESP32S3)
+#if !defined(ESP_PLATFORM) || !(CONFIG_IDF_TARGET_ESP32S3)
 #else
 
 #include "roo_logging.h"
@@ -31,8 +28,7 @@ constexpr uint32_t I2C_FREQ = 400000;
 
 // GT911 configuration.
 constexpr int8_t GT911_INT_PIN = 4;
-constexpr uint8_t GT911_I2C_ADDR = 0x5D;
-constexpr int GT911_ASYNC_INIT_DELAY_MS = 300;
+constexpr uint8_t GT911_I2C_ADDR = 0x5D;  // Hardware uses 0x5D (INT LOW during reset)
 
 // Display configuration.
 constexpr esp32s3_dma::Config kWaveshareConfig = {.width = 800,
@@ -77,7 +73,30 @@ WaveshareEsp32s3TouchLcd43::WaveshareEsp32s3TouchLcd43(
       ch422g_wr_set_(i2c_, CH422G_ADDR_WR_SET),
       ch422g_wr_io_(i2c_, CH422G_ADDR_WR_IO),
       display_(kWaveshareConfig),
-      touch_(i2c_, -1, GT911_INT_PIN, GT911_ASYNC_INIT_DELAY_MS),
+      touch_(
+        i2c_,
+        // INT pin: Keep LOW for 0x5D
+        GpioSetter(
+          [](uint8_t state) {
+            pinMode(GT911_INT_PIN, OUTPUT);
+            digitalWrite(GT911_INT_PIN, LOW);
+          },
+          []() {
+            pinMode(GT911_INT_PIN, OUTPUT);
+            digitalWrite(GT911_INT_PIN, LOW);
+          }
+        ),
+        // Reset pin: via CH422G
+        GpioSetter(
+          [this](uint8_t state) {
+            this->writeEXIO(EXIO_TP_RST, state > 0);
+          },
+          [this]() {
+            this->writeEXIO(EXIO_TP_RST, false);
+          }
+        ),
+        100  // reset_low_hold_ms (old signature)
+      ),
       exio_shadow_(0b00001110),  // LCD_RST=1, LCD_BL=1, TP_RST=1.
       touch_initialized_(false) {
   display_.setOrientation(orientation);
@@ -110,9 +129,9 @@ DisplayDevice& WaveshareEsp32s3TouchLcd43::display() {
 }
 
 TouchDevice* WaveshareEsp32s3TouchLcd43::touch() {
-  // Lazy initialization: reset GT911 on first access.
   if (!touch_initialized_) {
-    initTouchHardware();
+    // TouchGt911 handles initialization via GpioSetter callbacks
+    touch_.initTouch();
     touch_initialized_ = true;
   }
   return &touch_;
@@ -124,31 +143,6 @@ TouchCalibration WaveshareEsp32s3TouchLcd43::touch_calibration() {
 
 void WaveshareEsp32s3TouchLcd43::setBacklight(bool on) {
   writeEXIO(EXIO_LCD_BL, on);
-}
-
-void WaveshareEsp32s3TouchLcd43::initTouchHardware() {
-  // The GT911 samples the INT pin state during reset to determine its I2C
-  // address. INT must be LOW during reset to select address 0x5D.
-
-  // Step 1: Pull INT pin LOW to select I2C address 0x5D.
-  pinMode(GT911_INT_PIN, OUTPUT);
-  digitalWrite(GT911_INT_PIN, LOW);
-  delay(10);
-
-  // Step 2: Assert GT911 reset via CH422G (active LOW).
-  // CRITICAL: Reset shadow register to ensure only LCD pins are high.
-  exio_shadow_ = (1 << EXIO_LCD_RST) | (1 << EXIO_LCD_BL);
-  writeEXIO(EXIO_TP_RST, false);
-  delay(100);
-
-  // Step 3: Release reset. GT911 boots asynchronously (~300ms).
-  writeEXIO(EXIO_TP_RST, true);
-
-  // Step 4: Configure INT pin as input for interrupt handling.
-  pinMode(GT911_INT_PIN, INPUT);
-
-  // Note: The TouchGt911 driver includes a 300ms async initialization delay,
-  // ensuring the GT911 has completed boot before communication begins.
 }
 
 void WaveshareEsp32s3TouchLcd43::writeEXIO(uint8_t pin, bool state) {

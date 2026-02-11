@@ -1,8 +1,7 @@
-// 2025-02-06 22:00:00 v1.3.0 - I2C HAL abstraction (original naming)
 #pragma once
 #include "roo_display/hal/config.h"
 
-#if !defined(ESP32) || !(CONFIG_IDF_TARGET_ESP32S3)
+#if !defined(ESP_PLATFORM) || !(CONFIG_IDF_TARGET_ESP32S3)
 #warning Compilation target must be ESP32_S3 for this device.
 #else
 
@@ -18,6 +17,12 @@ namespace roo_display::products::waveshare
 {
 
 // Driver for the Waveshare ESP32-S3-Touch-LCD-4.3 combo device.
+// This device features an 800x480 RGB565 parallel display with GT911
+// capacitive touch controller. The GT911 reset pin is controlled via
+// a CH422G I/O expander rather than direct GPIO.
+//
+// Hardware note: GT911 reset pin is controlled via CH422G I/O expander.
+// INT pin is set LOW during reset to select I2C address 0x5D.
 class WaveshareEsp32s3TouchLcd43 : public ComboDevice {
  public:
   // Constructs the device driver with optional orientation and I2C bus handle.
@@ -45,12 +50,7 @@ class WaveshareEsp32s3TouchLcd43 : public ComboDevice {
   esp32s3_dma::ParallelRgb565Buffered display_;
   TouchGt911 touch_;
   uint8_t exio_shadow_;       // Shadow register for CH422G output state.
-  bool touch_initialized_;    // Tracks whether touch hardware has been reset.
-
-  // Performs GT911 hardware reset via CH422G I/O expander.
-  // Implements the complete INT pin sequence required for correct
-  // I2C address selection (0x5D).
-  void initTouchHardware();
+  bool touch_initialized_;    // Tracks whether touch has been initialized.
 
   // Writes to a CH422G I/O expander pin.
   void writeEXIO(uint8_t pin, bool state);

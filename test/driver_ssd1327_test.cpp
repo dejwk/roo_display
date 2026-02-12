@@ -40,6 +40,12 @@ struct Ssd1327Emulator {
     FakeEsp32().gpio.attachOutput(kPinDc, display.dc());
     FakeEsp32().gpio.attachOutput(kPinRst, display.rst());
   }
+
+  ~Ssd1327Emulator() {
+    FakeEsp32().gpio.detach(kPinCs);
+    FakeEsp32().gpio.detach(kPinDc);
+    FakeEsp32().gpio.detach(kPinRst);
+  }
 };
 
 }  // namespace

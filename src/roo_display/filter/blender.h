@@ -61,6 +61,7 @@ class BlendingFilter : public DisplayOutput {
   }
 
   void write(Color* color, uint32_t pixel_count) override {
+    if (pixel_count == 0) return;
     int16_t x[pixel_count];
     int16_t y[pixel_count];
     Color newcolor[pixel_count];
@@ -118,6 +119,7 @@ class BlendingFilter : public DisplayOutput {
 
   void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
                    uint16_t pixel_count) override {
+    if (pixel_count == 0) return;
     Color newcolor[pixel_count];
     read(x, y, pixel_count, newcolor);
     for (uint32_t i = 0; i < pixel_count; ++i) {
@@ -133,6 +135,7 @@ class BlendingFilter : public DisplayOutput {
 
   void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override {
+    if (pixel_count == 0) return;
     Color newcolor[pixel_count];
     read(x, y, pixel_count, newcolor);
     for (uint32_t i = 0; i < pixel_count; ++i) {

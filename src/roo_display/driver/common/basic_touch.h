@@ -73,7 +73,7 @@ TouchResult BasicTouchDevice<max_touch_points>::getTouch(TouchPoint* points,
   int points_touched = readTouch(readout);
   DCHECK_GE(points_touched, 0);
   DCHECK_LE(points_touched, max_touch_points);
-  if (points_touched == 0) {
+  if (points_touched <= 0) {
     if (dt < roo_time::Millis(config_.touch_intertia_ms)) {
       // We did not detect touch, but the latest confirmed touch was not long
       // ago so we report that one anyway, but do not update the
@@ -84,6 +84,9 @@ TouchResult BasicTouchDevice<max_touch_points>::getTouch(TouchPoint* points,
     detection_timestamp_ = now;
     points_touched_ = 0;
     return pushResult(points, max_points);
+  }
+  if (points_touched > max_touch_points) {
+    points_touched = max_touch_points;
   }
   // Touch has been detected. Need to smooth the values and report it.
   float alpha = 1 - pow(config_.smoothing_factor, dt.inMicros() / 10000.0);

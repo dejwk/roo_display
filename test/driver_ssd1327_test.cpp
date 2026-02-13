@@ -40,19 +40,13 @@ struct Ssd1327Emulator {
     FakeEsp32().gpio.attachOutput(kPinDc, display.dc());
     FakeEsp32().gpio.attachOutput(kPinRst, display.rst());
   }
-
-  ~Ssd1327Emulator() {
-    FakeEsp32().gpio.detach(kPinCs);
-    FakeEsp32().gpio.detach(kPinDc);
-    FakeEsp32().gpio.detach(kPinRst);
-  }
 };
+
+static Ssd1327Emulator emu;
 
 }  // namespace
 
 TEST(Ssd1327Driver, DrawFilledRect) {
-  Ssd1327Emulator emu;
-
   Ssd1327spi<kPinCs, kPinDc, kPinRst> device;
   Display display(device);
 
@@ -77,8 +71,6 @@ TEST(Ssd1327Driver, DrawFilledRect) {
 }
 
 TEST(Ssd1327Driver, ColorFormat) {
-  Ssd1327Emulator emu;
-
   Ssd1327spi<kPinCs, kPinDc, kPinRst> device;
   const auto& format = device.getColorFormat();
 

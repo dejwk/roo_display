@@ -39,19 +39,13 @@ struct Ili9486Emulator {
     FakeEsp32().gpio.attachOutput(kPinDc, display.dc());
     FakeEsp32().gpio.attachOutput(kPinRst, display.rst());
   }
-
-  ~Ili9486Emulator() {
-    FakeEsp32().gpio.detach(kPinCs);
-    FakeEsp32().gpio.detach(kPinDc);
-    FakeEsp32().gpio.detach(kPinRst);
-  }
 };
+
+static Ili9486Emulator emu;
 
 }  // namespace
 
 TEST(Ili9486Driver, DrawFilledRect) {
-  Ili9486Emulator emu;
-
   Ili9486spi<kPinCs, kPinDc, kPinRst> device;
   Display display(device);
 
@@ -76,8 +70,6 @@ TEST(Ili9486Driver, DrawFilledRect) {
 }
 
 TEST(Ili9486Driver, ColorFormat) {
-  Ili9486Emulator emu;
-
   Ili9486spi<kPinCs, kPinDc, kPinRst> device;
   const auto& format = device.getColorFormat();
 

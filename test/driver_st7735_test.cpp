@@ -39,19 +39,13 @@ struct St7735Emulator {
     FakeEsp32().gpio.attachOutput(kPinDc, display.dc());
     FakeEsp32().gpio.attachOutput(kPinRst, display.rst());
   }
-
-  ~St7735Emulator() {
-    FakeEsp32().gpio.detach(kPinCs);
-    FakeEsp32().gpio.detach(kPinDc);
-    FakeEsp32().gpio.detach(kPinRst);
-  }
 };
+
+static St7735Emulator emu;
 
 }  // namespace
 
 TEST(St7735Driver, DrawFilledRect) {
-  St7735Emulator emu;
-
   St7735spi_128x160<kPinCs, kPinDc, kPinRst> device;
   Display display(device);
 
@@ -78,8 +72,6 @@ TEST(St7735Driver, DrawFilledRect) {
 }
 
 TEST(St7735Driver, ColorFormat) {
-  St7735Emulator emu;
-
   St7735spi_128x160<kPinCs, kPinDc, kPinRst> device;
   const auto& format = device.getColorFormat();
 

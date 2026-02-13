@@ -38,19 +38,13 @@ struct Ili9488Emulator {
     FakeEsp32().gpio.attachOutput(kPinDc, display.dc());
     FakeEsp32().gpio.attachOutput(kPinRst, display.rst());
   }
-
-  ~Ili9488Emulator() {
-    FakeEsp32().gpio.detach(kPinCs);
-    FakeEsp32().gpio.detach(kPinDc);
-    FakeEsp32().gpio.detach(kPinRst);
-  }
 };
+
+static Ili9488Emulator emu;
 
 }  // namespace
 
 TEST(Ili9488Driver, DrawFilledRect) {
-  Ili9488Emulator emu;
-
   Ili9488spi<kPinCs, kPinDc, kPinRst> device;
   Display display(device);
 
@@ -75,8 +69,6 @@ TEST(Ili9488Driver, DrawFilledRect) {
 }
 
 TEST(Ili9488Driver, ColorFormat) {
-  Ili9488Emulator emu;
-
   Ili9488spi<kPinCs, kPinDc, kPinRst> device;
   const auto& format = device.getColorFormat();
 

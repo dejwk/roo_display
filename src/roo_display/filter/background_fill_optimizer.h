@@ -158,6 +158,11 @@ class BackgroundFillOptimizer : public DisplayOutput {
 
   void writePixel(int16_t x, int16_t y, Color c, BufferedPixelWriter* writer);
 
+  void processWriteBlock(Color* color, BufferedPixelWriter& writer,
+                         uint32_t start_ord, uint32_t end_ord,
+                         int16_t current_block_x, int16_t current_block_y,
+                         int16_t first_row, int16_t last_row);
+
   template <typename Filler>
   void fillRectBg(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
                   Filler* filler, uint8_t palette_idx);
@@ -168,9 +173,11 @@ class BackgroundFillOptimizer : public DisplayOutput {
   uint8_t palette_size_;
 
   Box address_window_;
+  Box background_mask_window_;
   BlendingMode blending_mode_;
   int16_t cursor_x_;
   int16_t cursor_y_;
+  uint32_t cursor_ord_;
 };
 
 /// Display device wrapper that applies background fill optimization.
@@ -236,9 +243,7 @@ class BackgroundFillOptimizerDevice : public DisplayDevice {
   }
 
   /// Accessor for testing: retrieve the internal frame buffer.
-  const BackgroundFillOptimizer::FrameBuffer& buffer() const {
-    return buffer_;
-  }
+  const BackgroundFillOptimizer::FrameBuffer& buffer() const { return buffer_; }
 
  private:
   DisplayDevice& device_;

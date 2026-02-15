@@ -24,10 +24,9 @@ inline uint8_t getIdxInPalette(Color color, const Color* palette,
 }  // namespace
 
 BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height)
-    : FrameBuffer(
-          width, height,
-          new roo::byte[FrameBuffer::SizeForDimensions(width, height)],
-          true) {
+    : FrameBuffer(width, height,
+                  new roo::byte[FrameBuffer::SizeForDimensions(width, height)],
+                  true) {
   invalidate();
 }
 
@@ -96,27 +95,245 @@ BackgroundFillOptimizer::BackgroundFillOptimizer(DisplayOutput& output,
       palette_(buffer.palette_),
       palette_size_(buffer.palette_size_),
       address_window_(0, 0, 0, 0),
+      background_mask_window_(0, 0, 0, 0),
       cursor_x_(0),
-      cursor_y_(0) {}
+      cursor_y_(0),
+      cursor_ord_(0) {}
 
 void BackgroundFillOptimizer::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
                                          uint16_t y1, BlendingMode mode) {
   address_window_ = Box(x0, y0, x1, y1);
+  background_mask_window_ =
+      Box(x0 / kBgFillOptimizerWindowSize, y0 / kBgFillOptimizerWindowSize,
+          (x1 + kBgFillOptimizerWindowSize - 1) / kBgFillOptimizerWindowSize,
+          (y1 + kBgFillOptimizerWindowSize - 1) / kBgFillOptimizerWindowSize);
   blending_mode_ = mode;
   cursor_x_ = x0;
   cursor_y_ = y0;
+  cursor_ord_ = 0;
 }
 
 void BackgroundFillOptimizer::write(Color* color, uint32_t pixel_count) {
-  // Naive implementation, for now.
+  if (pixel_count == 0) return;
+
+  const int16_t aw_width = address_window_.width();
+  const uint32_t end_ord = cursor_ord_ + pixel_count - 1;
+  const int16_t end_x =
+      (address_window_.xMin() + static_cast<int16_t>(end_ord % aw_width));
+  const int16_t end_y =
+      address_window_.yMin() + static_cast<int16_t>(end_ord / aw_width);
+
+  const int16_t end_block_y =
+      (end_y + kBgFillOptimizerWindowSize - 1) / kBgFillOptimizerWindowSize;
+
   BufferedPixelWriter writer(output_, blending_mode_);
-  while (pixel_count-- > 0) {
-    writePixel(cursor_x_, cursor_y_, *color++, &writer);
-    if (++cursor_x_ > address_window_.xMax()) {
-      ++cursor_y_;
-      cursor_x_ = address_window_.xMin();
+
+  const int16_t start_x = cursor_x_;
+  const int16_t start_y = cursor_y_;
+  const int16_t aw_x0 = address_window_.xMin();
+  const int16_t aw_x1 = address_window_.xMax();
+
+  // Process all mask blocks intersecting [x0..x1] on a given block-row.
+  auto process_x_interval = [&](int16_t y_block, int16_t x0, int16_t x1,
+                                int16_t first_row, int16_t last_row) {
+    if (x1 < x0) return;
+    int16_t bx0 = x0 / kBgFillOptimizerWindowSize;
+    int16_t bx1 = x1 / kBgFillOptimizerWindowSize;
+    for (int16_t bx = bx0; bx <= bx1; ++bx) {
+      processWriteBlock(color, writer, cursor_ord_, end_ord, bx, y_block,
+                        first_row, last_row);
+    }
+  };
+
+  // IMPORTANT: streamed writes are row-major and may wrap inside the same
+  // 4-pixel block-row. In that case touched blocks can be split into two
+  // disjoint x-intervals (suffix of the first row + prefix of the last row).
+  // We therefore derive touched x-interval(s) from pixel geometry per block-row
+  // rather than linearly walking mask blocks from start to end.
+  for (int16_t by = start_y / kBgFillOptimizerWindowSize; by <= end_block_y;
+       ++by) {
+    const int16_t first_row =
+        std::max<int16_t>(start_y, by * kBgFillOptimizerWindowSize);
+    const int16_t last_row =
+        std::min<int16_t>(end_y, by * kBgFillOptimizerWindowSize +
+                                     kBgFillOptimizerWindowSize - 1);
+    if (first_row > last_row) continue;
+    const int16_t row_count = last_row - first_row + 1;
+
+    // #rows == 1: single-row fragment.
+    if (row_count == 1) {
+      const int16_t x0 = (first_row == start_y) ? start_x : aw_x0;
+      const int16_t x1 = (first_row == end_y) ? end_x : aw_x1;
+      process_x_interval(by, x0, x1, first_row, last_row);
+      continue;
+    }
+
+    // #rows > 2: there is at least one full middle row, so the union of
+    // touched pixels spans the full address-window width on this block-row.
+    if (row_count > 2) {
+      process_x_interval(by, aw_x0, aw_x1, first_row, last_row);
+      continue;
+    }
+
+    // #rows == 2: only first and last row contribute; may be disjoint.
+    // We still process full width if the two intervals overlap/touch.
+    // Otherwise, process both intervals separately.
+    //
+    // first-row interval: [first_x0, aw_x1]
+    // last-row interval : [aw_x0, last_x1]
+    //
+    // Disjointness criterion is first_x0 > last_x1 + 1.
+
+    const int16_t first_x0 = (first_row == start_y) ? start_x : aw_x0;
+    const int16_t first_x1 = aw_x1;
+    const int16_t last_x0 = aw_x0;
+    const int16_t last_x1 = (last_row == end_y) ? end_x : aw_x1;
+
+    const bool contiguous = first_x0 <= last_x1 + 1;
+    if (contiguous) {
+      process_x_interval(by, aw_x0, aw_x1, first_row, last_row);
+    } else {
+      process_x_interval(by, first_x0, first_x1, first_row, last_row);
+      process_x_interval(by, last_x0, last_x1, first_row, last_row);
     }
   }
+
+  // Set to last touched pixel, then advance once in row-major order.
+  cursor_x_ = end_x;
+  cursor_y_ = end_y;
+  if (cursor_x_ == address_window_.xMax()) {
+    cursor_x_ = address_window_.xMin();
+    ++cursor_y_;
+  } else {
+    ++cursor_x_;
+  }
+  cursor_ord_ = end_ord + 1;
+}
+
+void BackgroundFillOptimizer::processWriteBlock(
+    Color* color, BufferedPixelWriter& writer, uint32_t start_ord,
+    uint32_t end_ord, int16_t current_block_x, int16_t current_block_y,
+    int16_t first_row, int16_t last_row) {
+  // This method is called for each block of pixels corresponding to a single
+  // nibble in the background mask, represented by the current_block_x and
+  // current_block_y coordinates. The input is an array of colors, which is a
+  // subsequence of the address window, indicated by start_ord and end_ord. The
+  // caller must ensure that the color array intersects the specified block.
+  // This method processes all pixels intersecting the block, ignoring all
+  // others. It ensures that the pixels are drawn to the underlying device,
+  // using background mask for optimization, i.e. skipping writes when possible.
+
+  // This method:
+  // * determines if all corresponding pixels in the block are equal, and if they
+  // correspond to a single palette color,
+  // * if not, clears the corresponding nibble in the background mask, and
+  // write all pixels in the block to the underlying device using `writer`.
+  // * if so, checks if the corresponding bit-mask rectangle is already marked as
+  // covered by that palette color in the background mask; if it is, skip
+  // writing the block to the underlying device;
+  // * otherwise, checks if the block is fully covered by these pixels, and if
+  // so, marks the corresponding nibble in the background mask as covered by that
+  // palette color and writes the block to the underlying device using fillRect;
+  // * otherwise, falls back to writing all pixels in the block to the underlying
+  // device using `writer`, and marks the corresponding nibble in the background
+  // mask as no longer all-background.
+
+  const int16_t aw_x0 = address_window_.xMin();
+  const int16_t aw_y0 = address_window_.yMin();
+  const int16_t aw_width = address_window_.width();
+
+  const int16_t block_x0 = current_block_x * kBgFillOptimizerWindowSize;
+  const int16_t block_y0 = current_block_y * kBgFillOptimizerWindowSize;
+  const int16_t block_x1 = block_x0 + kBgFillOptimizerWindowSize - 1;
+  const int16_t block_y1 = block_y0 + kBgFillOptimizerWindowSize - 1;
+
+  // Iterate only covered pixels in this block, i.e. pixels belonging both to
+  // this block and to [start_ord, end_ord]. Callback returns false to stop.
+  auto for_each_covered_pixel = [&](auto&& fn) {
+    uint32_t row_base_ord = static_cast<uint32_t>(first_row - aw_y0) *
+                            static_cast<uint32_t>(aw_width);
+    // `first_row..last_row` are precomputed by `write()` for this block-row and
+    // already represent the only stream rows that can intersect this block.
+    for (int16_t y = first_row; y <= last_row; ++y) {
+      const uint32_t row_start_ord =
+          std::max<uint32_t>(start_ord, row_base_ord);
+      const uint32_t row_end_ord =
+          std::min<uint32_t>(end_ord, row_base_ord + aw_width - 1);
+      DCHECK_GE(row_end_ord, row_start_ord);
+      int16_t row_x0 =
+          aw_x0 + static_cast<int16_t>(row_start_ord - row_base_ord);
+      int16_t row_x1 = aw_x0 + static_cast<int16_t>(row_end_ord - row_base_ord);
+      row_x0 = std::max<int16_t>(row_x0, block_x0);
+      row_x1 = std::min<int16_t>(row_x1, block_x1);
+      if (row_x0 <= row_x1) {
+        uint32_t ord = row_base_ord + static_cast<uint32_t>(row_x0 - aw_x0);
+        for (int16_t x = row_x0; x <= row_x1; ++x, ++ord) {
+          if (!fn(x, y, ord)) return;
+        }
+      }
+      row_base_ord += static_cast<uint32_t>(aw_width);
+    }
+  };
+
+  bool have_pixel = false;
+  bool all_same = true;
+  Color first_color = color::Transparent;
+  uint8_t palette_idx = 0;
+  // Number of streamed pixels from this write() chunk that actually land in the
+  // current block. Used to detect "fully covered" block writes.
+  uint8_t covered_count = 0;
+
+  // Early-stop as soon as we know colors are not uniform.
+  for_each_covered_pixel([&](int16_t, int16_t, uint32_t ord) {
+    ++covered_count;
+    const Color c = color[ord - start_ord];
+    if (!have_pixel) {
+      have_pixel = true;
+      first_color = c;
+      return true;
+    }
+    if (c != first_color) {
+      all_same = false;
+      return false;
+    }
+    return true;
+  });
+
+  if (!have_pixel) return;
+  if (all_same) {
+    palette_idx = getIdxInPalette(first_color, palette_, palette_size_);
+  }
+
+  // `covered_count == kBgFillOptimizerWindowSize^2` implies full 4x4 block
+  // coverage. Since we only count pixels that are both inside this block and
+  // inside the address window, this cannot happen for a clipped (partial)
+  // block.
+  const bool fully_covered = (covered_count == kBgFillOptimizerWindowSize *
+                                                   kBgFillOptimizerWindowSize);
+
+  if (palette_idx > 0 &&
+      background_mask_->get(current_block_x, current_block_y) == palette_idx) {
+    // Already known to be fully this palette color; skip redundant output.
+    return;
+  }
+
+  uint8_t new_mask_value = 0;
+  if (all_same && fully_covered) {
+    // Fast path: full block of a uniform color. Emit one fillRect operation.
+    // Flush buffered random-pixel writes first to preserve draw order.
+    writer.flush();
+    output_.fillRect(blending_mode_, block_x0, block_y0, block_x1, block_y1,
+                     first_color);
+    new_mask_value = palette_idx;
+  } else {
+    // Partial block or mixed colors: write covered pixels exactly.
+    for_each_covered_pixel([&](int16_t x, int16_t y, uint32_t ord) {
+      writer.writePixel(x, y, all_same ? first_color : color[ord - start_ord]);
+      return true;
+    });
+  }
+
+  background_mask_->set(current_block_x, current_block_y, new_mask_value);
 }
 
 void BackgroundFillOptimizer::writeRects(BlendingMode mode, Color* color,

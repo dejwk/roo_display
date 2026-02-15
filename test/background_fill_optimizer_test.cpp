@@ -6,6 +6,7 @@
 #include "gtest/gtest.h"
 #include "roo_display.h"
 #include "roo_display/color/color.h"
+#include "roo_display/core/offscreen.h"
 #include "roo_display/shape/basic.h"
 #include "testing.h"
 #include "testing_display_device.h"
@@ -478,6 +479,76 @@ TEST(BackgroundFillOptimizer, AlternatingColors) {
                              "1   111 2 11"
                              "1   111 2 11"
                              "1   111   11");
+}
+
+namespace {
+
+Offscreen<Rgb888> MakeCirclePatternSourceBuffer(Color bg, Color big_circle,
+                                                Color small_circle) {
+  constexpr int kWidth = 50;
+  constexpr int kHeight = 50;
+
+  // Draw the source pattern using shape primitives. Using offscreen w/o
+  // transparency to force FILL_MODE_RECTANGLE, but not using Rgb565 to avoid
+  // the direct draw path.
+  Offscreen<Rgb888> source(kWidth, kHeight, bg, Rgb888());
+  DrawingContext dc(source);
+
+  // Big circle: diameter 48 in a 50x50 image (1-pixel border all around).
+  dc.draw(FilledCircle::ByExtents(1, 1, 48, big_circle));
+
+  // Small circle near the edge of the big circle.
+  dc.draw(FilledCircle::ByRadius(46, 24, 3, small_circle));
+
+  return source;
+}
+
+void DrawClippedRectFromSource(DrawingContext& dc, const Drawable& source,
+                               int16_t sx0, int16_t sy0, int16_t sx1,
+                               int16_t sy1, int16_t dx0, int16_t dy0) {
+  const int16_t width = sx1 - sx0 + 1;
+  const int16_t height = sy1 - sy0 + 1;
+  const int16_t dx1 = dx0 + width - 1;
+  const int16_t dy1 = dy0 + height - 1;
+
+  const Box previous_clip = dc.getClipBox();
+  dc.setClipBox(dx0, dy0, dx1, dy1);
+  dc.draw(source, dx0 - sx0, dy0 - sy0);
+  dc.setClipBox(previous_clip);
+}
+
+}  // namespace
+
+TEST(BackgroundFillOptimizer, WriteSubRectsFromPatternSource) {
+  // Verifies write() path via setAddress/write with mixed palette and
+  // non-palette source pixels.
+  constexpr Color kBg = color::White;
+  constexpr Color kBig = color::Blue;
+  constexpr Color kSmall = color::Yellow;
+
+  TestScreen screen(64, 64, kBg);
+  screen.test().setPalette({kBg, kBig}, kBg);
+  auto source_image = MakeCirclePatternSourceBuffer(kBg, kBig, kSmall);
+  Display display(screen);
+  DrawingContext dc(display);
+
+  // Copy varied source sub-rectangles by drawing with clipped context:
+  // - 8x8 (64 px), aligned to 4x4 grid blocks on destination.
+  // - 1x13 thin strip (1-pixel wide).
+  // - 17x5 non-square rectangle.
+  DrawClippedRectFromSource(dc, source_image, 4, 4, 11, 11, 8, 8);     // 64
+  DrawClippedRectFromSource(dc, source_image, 46, 18, 46, 30, 41, 26);  // 13
+  DrawClippedRectFromSource(dc, source_image, 14, 22, 30, 26, 20, 40);  // 85
+
+  EXPECT_CONSISTENT(screen);
+
+  // Reference writes all streamed pixels, optimizer should skip many
+  // background-over-background writes.
+  const uint64_t ref_count = screen.refc().pixelDrawCount();
+  const uint64_t test_count = screen.test().device().pixelDrawCount();
+  EXPECT_EQ(ref_count, 162u);
+  EXPECT_GT(test_count, 0u);
+  EXPECT_LT(test_count, ref_count);
 }
 
 }  // namespace roo_display

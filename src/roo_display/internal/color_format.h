@@ -116,19 +116,27 @@ struct ColorFormatTraits<Indexed<8>> {
 };
 
 template <typename ColorMode, roo_io::ByteOrder kByteOrder,
-      ColorPixelOrder kPixelOrder = COLOR_PIXEL_ORDER_MSB_FIRST>
+          ColorPixelOrder kPixelOrder = COLOR_PIXEL_ORDER_MSB_FIRST>
 class ColorFormatImpl : public DisplayOutput::ColorFormat {
  public:
   ColorFormatImpl(const ColorMode& mode)
       : DisplayOutput::ColorFormat(ColorFormatTraits<ColorMode>::mode,
-                   kByteOrder, kPixelOrder),
+                                   kByteOrder, kPixelOrder),
         mode_(mode) {}
 
   void decode(const roo::byte* data, size_t row_width_bytes, int16_t x0,
               int16_t y0, int16_t x1, int16_t y1,
               Color* output) const override {
     ColorRectIo<ColorMode, kByteOrder, kPixelOrder> io;
-    io.interpret(data, row_width_bytes, x0, y0, x1, y1, output, mode_);
+    io.decode(data, row_width_bytes, x0, y0, x1, y1, output, mode_);
+  }
+
+  bool decodeIfUniform(const roo::byte* data, size_t row_width_bytes,
+                       int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+                       Color* output) const override {
+    ColorRectIo<ColorMode, kByteOrder, kPixelOrder> io;
+    return io.decodeIfUniform(data, row_width_bytes, x0, y0, x1, y1, output,
+                              mode_);
   }
 
  private:

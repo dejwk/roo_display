@@ -308,6 +308,14 @@ class DisplayOutput::ColorFormat {
                       int16_t y0, int16_t x1, int16_t y1,
                       Color *output) const = 0;
 
+  /// Returns true if all pixels in the specified rectangle have the same raw
+  /// representation in this format.
+  ///
+  /// If true, writes the corresponding decoded color to `output`.
+  virtual bool decodeIfUniform(const roo::byte *data, size_t row_width_bytes,
+                               int16_t x0, int16_t y0, int16_t x1,
+                               int16_t y1, Color *output) const = 0;
+
   Mode mode() const { return mode_; }
 
   roo_io::ByteOrder byte_order() const { return byte_order_; }

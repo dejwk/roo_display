@@ -224,19 +224,20 @@ void BackgroundFillOptimizer::processWriteBlock(
   // using background mask for optimization, i.e. skipping writes when possible.
 
   // This method:
-  // * determines if all corresponding pixels in the block are equal, and if they
-  // correspond to a single palette color,
+  // * determines if all corresponding pixels in the block are equal, and if
+  // they correspond to a single palette color,
   // * if not, clears the corresponding nibble in the background mask, and
   // write all pixels in the block to the underlying device using `writer`.
-  // * if so, checks if the corresponding bit-mask rectangle is already marked as
-  // covered by that palette color in the background mask; if it is, skip
+  // * if so, checks if the corresponding bit-mask rectangle is already marked
+  // as covered by that palette color in the background mask; if it is, skip
   // writing the block to the underlying device;
   // * otherwise, checks if the block is fully covered by these pixels, and if
-  // so, marks the corresponding nibble in the background mask as covered by that
-  // palette color and writes the block to the underlying device using fillRect;
-  // * otherwise, falls back to writing all pixels in the block to the underlying
-  // device using `writer`, and marks the corresponding nibble in the background
-  // mask as no longer all-background.
+  // so, marks the corresponding nibble in the background mask as covered by
+  // that palette color and writes the block to the underlying device using
+  // fillRect;
+  // * otherwise, falls back to writing all pixels in the block to the
+  // underlying device using `writer`, and marks the corresponding nibble in the
+  // background mask as no longer all-background.
 
   const int16_t aw_x0 = address_window_.xMin();
   const int16_t aw_y0 = address_window_.yMin();
@@ -348,7 +349,7 @@ void BackgroundFillOptimizer::writeRects(BlendingMode mode, Color* color,
           .color = c,
           .writer = writer,
       };
-      fillRectBg(*x0++, *y0++, *x1++, *y1++, &adapter, palette_idx);
+      fillRectBg(*x0++, *y0++, *x1++, *y1++, adapter, palette_idx);
     } else {
       // Not a background palette color -> clear the nibble subrectangle
       // corresponding to a region entirely enclosing the the drawn rectangle
@@ -370,7 +371,7 @@ void BackgroundFillOptimizer::fillRects(BlendingMode mode, Color color,
   if (palette_idx != 0) {
     BufferedRectFiller filler(output_, color, mode);
     while (count-- > 0) {
-      fillRectBg(*x0++, *y0++, *x1++, *y1++, &filler, palette_idx);
+      fillRectBg(*x0++, *y0++, *x1++, *y1++, filler, palette_idx);
     }
   } else {
     for (int i = 0; i < count; ++i) {
@@ -460,18 +461,90 @@ void BackgroundFillOptimizer::drawDirectRect(const roo::byte* data,
                                              int16_t src_x1, int16_t src_y1,
                                              int16_t dst_x0, int16_t dst_y0) {
   if (src_x1 < src_x0 || src_y1 < src_y0) return;
-
-  output_.drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1,
-                         src_y1, dst_x0, dst_y0);
-
   const int16_t dst_x1 = dst_x0 + (src_x1 - src_x0);
   const int16_t dst_y1 = dst_y0 + (src_y1 - src_y0);
-  background_mask_->fillRect(
-      Box(dst_x0 / kBgFillOptimizerWindowSize,
-          dst_y0 / kBgFillOptimizerWindowSize,
-          dst_x1 / kBgFillOptimizerWindowSize,
-          dst_y1 / kBgFillOptimizerWindowSize),
-      0);
+
+  const int16_t bx_min = dst_x0 / kBgFillOptimizerWindowSize;
+  const int16_t by_min = dst_y0 / kBgFillOptimizerWindowSize;
+  const int16_t bx_max = dst_x1 / kBgFillOptimizerWindowSize;
+  const int16_t by_max = dst_y1 / kBgFillOptimizerWindowSize;
+
+  const ColorFormat& color_format = getColorFormat();
+
+  for (int16_t by = by_min; by <= by_max; ++by) {
+    const int16_t block_y0 = by * kBgFillOptimizerWindowSize;
+    const int16_t block_y1 = block_y0 + kBgFillOptimizerWindowSize - 1;
+    const int16_t draw_y0 = std::max<int16_t>(block_y0, dst_y0);
+    const int16_t draw_y1 = std::min<int16_t>(block_y1, dst_y1);
+
+    bool streak_active = false;
+    int16_t streak_bx0 = 0;
+
+    for (int16_t bx = bx_min; bx <= bx_max + 1; ++bx) {
+      bool must_draw = false;
+
+      if (bx <= bx_max) {
+        const int16_t block_x0 = bx * kBgFillOptimizerWindowSize;
+        const int16_t block_x1 = block_x0 + kBgFillOptimizerWindowSize - 1;
+        const int16_t draw_x0 = std::max<int16_t>(block_x0, dst_x0);
+        const int16_t draw_x1 = std::min<int16_t>(block_x1, dst_x1);
+
+        DCHECK_LE(draw_x0, draw_x1);
+
+        const int16_t src_block_x0 = src_x0 + (draw_x0 - dst_x0);
+        const int16_t src_block_y0 = src_y0 + (draw_y0 - dst_y0);
+        const int16_t src_block_x1 = src_x0 + (draw_x1 - dst_x0);
+        const int16_t src_block_y1 = src_y0 + (draw_y1 - dst_y0);
+        Color uniform_color;
+        const bool all_same = color_format.decodeIfUniform(
+            data, row_width_bytes, src_block_x0, src_block_y0, src_block_x1,
+            src_block_y1, &uniform_color);
+
+        const uint8_t palette_idx =
+            all_same ? getIdxInPalette(uniform_color, palette_, palette_size_)
+                     : 0;
+        const uint8_t current_mask_value = background_mask_->get(bx, by);
+
+        // Redundant block update: all touched pixels are a palette color and
+        // the block is already known to be entirely that color.
+        must_draw = !(palette_idx > 0 && current_mask_value == palette_idx);
+
+        uint8_t new_mask_value = current_mask_value;
+        if (must_draw) {
+          const bool fully_covered =
+              (draw_x0 == block_x0 && draw_x1 == block_x1 &&
+               draw_y0 == block_y0 && draw_y1 == block_y1);
+          new_mask_value = (fully_covered && palette_idx > 0) ? palette_idx : 0;
+        }
+
+        if (new_mask_value != current_mask_value) {
+          background_mask_->set(bx, by, new_mask_value);
+        }
+      }
+
+      if (must_draw) {
+        if (!streak_active) {
+          streak_active = true;
+          streak_bx0 = bx;
+        }
+      } else if (streak_active) {
+        const int16_t streak_block_x0 = streak_bx0 * kBgFillOptimizerWindowSize;
+        const int16_t streak_block_x1 = bx * kBgFillOptimizerWindowSize - 1;
+        const int16_t draw_x0 = std::max<int16_t>(streak_block_x0, dst_x0);
+        const int16_t draw_x1 = std::min<int16_t>(streak_block_x1, dst_x1);
+
+        const int16_t src_streak_x0 = src_x0 + (draw_x0 - dst_x0);
+        const int16_t src_streak_y0 = src_y0 + (draw_y0 - dst_y0);
+        const int16_t src_streak_x1 = src_x0 + (draw_x1 - dst_x0);
+        const int16_t src_streak_y1 = src_y0 + (draw_y1 - dst_y0);
+
+        output_.drawDirectRect(data, row_width_bytes, src_streak_x0,
+                               src_streak_y0, src_streak_x1, src_streak_y1,
+                               draw_x0, draw_y0);
+        streak_active = false;
+      }
+    }
+  }
 }
 
 void BackgroundFillOptimizer::writePixel(int16_t x, int16_t y, Color c,

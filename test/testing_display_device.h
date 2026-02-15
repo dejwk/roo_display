@@ -75,6 +75,7 @@ class TestDisplayDevice : public DisplayDevice {
 
   const ReferenceDevice& refc() const { return refc_; };
   const TestedDevice& test() const { return test_; }
+  TestedDevice& test() { return test_; }
 
  private:
   ReferenceDevice refc_;

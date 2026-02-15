@@ -1048,6 +1048,7 @@ class FakeOffscreen : public DisplayDevice {
         buffer_(new Color[width * height]),
         extents_(0, 0, width - 1, height - 1) {
     writeRect(BLENDING_MODE_SOURCE, 0, 0, width - 1, height - 1, background);
+    resetPixelDrawCount();
   }
 
   FakeOffscreen(Box extents, Color background = color::Transparent,
@@ -1058,13 +1059,15 @@ class FakeOffscreen : public DisplayDevice {
         extents_(extents) {
     writeRect(BLENDING_MODE_SOURCE, 0, 0, extents.width() - 1,
               extents.height() - 1, background);
+    resetPixelDrawCount();
   }
 
   FakeOffscreen(const FakeOffscreen& other)
       : DisplayDevice(other.raw_width(), other.raw_height()),
         color_mode_(other.color_mode()),
         buffer_(new Color[other.raw_width() * other.raw_height()]),
-        extents_(other.extents()) {
+        extents_(other.extents()),
+        pixel_draw_count_(other.pixel_draw_count_) {
     memcpy(buffer_.get(), other.buffer_.get(),
            other.raw_width() * other.raw_height() * sizeof(Color));
   }
@@ -1137,6 +1140,10 @@ class FakeOffscreen : public DisplayDevice {
 
   const Color* buffer() { return buffer_.get(); }
 
+  uint64_t pixelDrawCount() const { return pixel_draw_count_; }
+
+  void resetPixelDrawCount() { pixel_draw_count_ = 0; }
+
   void writeRect(BlendingMode mode, int16_t x0, int16_t y0, int16_t x1,
                  int16_t y1, Color color) {
     for (int16_t y = y0; y <= y1; ++y) {
@@ -1168,6 +1175,7 @@ class FakeOffscreen : public DisplayDevice {
     color = ApplyBlending(mode, buffer_[y * raw_width() + x], color);
     color = color_mode_.toArgbColor(color_mode_.fromArgbColor(color));
     buffer_[y * raw_width() + x] = color;
+    ++pixel_draw_count_;
   }
 
  private:
@@ -1181,6 +1189,7 @@ class FakeOffscreen : public DisplayDevice {
   BlendingMode blending_mode_;
   int16_t cursor_x_;
   int16_t cursor_y_;
+  uint64_t pixel_draw_count_ = 0;
 };
 
 template <typename ColorMode>

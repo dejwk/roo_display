@@ -1,6 +1,7 @@
 #include "roo_display/filter/background_fill_optimizer.h"
 
 #include <memory>
+#include <string>
 
 #include "gtest/gtest.h"
 #include "roo_display.h"
@@ -21,14 +22,18 @@ class OptimizedDevice : public DisplayDevice {
                   Color prefilled = color::Transparent)
       : DisplayDevice(width, height),
         device_(width, height, prefilled, ColorMode()),
-        buffer_(width, height),
-        optimizer_(device_, buffer_) {
-    // Set up with the prefilled color as the palette
-    buffer_.setPalette({prefilled});
-    buffer_.setPrefilled(prefilled);
+        optimizer_(device_) {
+    optimizer_.setPalette({prefilled}, prefilled);
   }
 
-  void orientationUpdated() override { device_.setOrientation(orientation()); }
+  void orientationUpdated() override {
+    optimizer_.setOrientation(orientation());
+  }
+
+  void setPalette(std::initializer_list<Color> palette,
+                  Color prefilled = color::Transparent) {
+    optimizer_.setPalette(palette, prefilled);
+  }
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
                   BlendingMode mode) override {
@@ -60,16 +65,18 @@ class OptimizedDevice : public DisplayDevice {
   }
 
   const ColorFormat& getColorFormat() const override {
-    return device_.getColorFormat();
+    return optimizer_.getColorFormat();
   }
 
   const FakeOffscreen<ColorMode>& device() const { return device_; }
-  BackgroundFillOptimizer::FrameBuffer& buffer() { return buffer_; }
+
+  const BackgroundFillOptimizer::FrameBuffer& buffer() const {
+    return optimizer_.buffer();
+  }
 
  private:
   FakeOffscreen<ColorMode> device_;
-  BackgroundFillOptimizer::FrameBuffer buffer_;
-  BackgroundFillOptimizer optimizer_;
+  BackgroundFillOptimizerDevice optimizer_;
 };
 
 // Raster extractor for OptimizedDevice.
@@ -83,9 +90,33 @@ TestColorStreamable<ColorMode> RasterOf(
 using TestScreen =
     TestDisplayDevice<OptimizedDevice<Rgb565>, FakeOffscreen<Rgb565>>;
 
+// Helper to create a Raster for frame buffer content verification.
+// The frame buffer stores palette indices as nibbles (4-bit values) in a
+// coarse grid. For a WxH display with 4x4 window size, the buffer is
+// (W/4)x(H/4) nibbles, stored MSB-first (even x in high nibble).
+template <typename ColorMode>
+auto FrameBufferOf(const OptimizedDevice<ColorMode>& device) {
+  const auto& buffer = device.buffer();
+  const auto& mask = buffer.mask();
+  return Raster<const roo::byte*, Grayscale4>(mask.width(), mask.height(),
+                                              mask.buffer(), Grayscale4());
+}
+
+template <typename ColorMode>
+void ExpectFrameBufferMatches(const OptimizedDevice<ColorMode>& device,
+                              const std::string& expected) {
+  const auto& mask = device.buffer().mask();
+  EXPECT_THAT(FrameBufferOf(device), MatchesContent(Grayscale4(), mask.width(),
+                                                    mask.height(), expected));
+}
+
+#define EXPECT_FRAMEBUFFER_MATCHES(screen, ...) \
+  ExpectFrameBufferMatches((screen).test(), ##__VA_ARGS__)
+
 // Basic tests for FrameBuffer.
 
 TEST(BackgroundFillOptimizer, FrameBufferConstruction) {
+  // Verifies frame buffer construction with owned and external storage.
   // Test dynamic allocation.
   BackgroundFillOptimizer::FrameBuffer buffer1(320, 240);
   EXPECT_EQ(buffer1.palette_size(), 0);
@@ -101,6 +132,7 @@ TEST(BackgroundFillOptimizer, FrameBufferConstruction) {
 }
 
 TEST(BackgroundFillOptimizer, FrameBufferPaletteSetup) {
+  // Verifies palette assignment APIs and resulting stored palette entries.
   BackgroundFillOptimizer::FrameBuffer buffer(64, 48);
 
   // Set palette using array.
@@ -119,6 +151,7 @@ TEST(BackgroundFillOptimizer, FrameBufferPaletteSetup) {
 }
 
 TEST(BackgroundFillOptimizer, FrameBufferSizeCalculation) {
+  // Verifies byte size calculation for representative display dimensions.
   // Test exact size calculations for various dimensions.
   EXPECT_EQ(BackgroundFillOptimizer::FrameBuffer::SizeForDimensions(320, 240),
             2400u);
@@ -133,446 +166,318 @@ TEST(BackgroundFillOptimizer, FrameBufferSizeCalculation) {
 // Tests for optimization behavior.
 
 TEST(BackgroundFillOptimizer, SimpleFillRect) {
-  TestScreen screen(64, 48, Color(0xFFAABBCC));
+  // Verifies a basic background-colored filled rectangle is fully optimized
+  // away.
+  TestScreen screen(48, 32, color::White);
+  Display display(screen);
+  DrawingContext dc(display);
 
-  int16_t x0[] = {10};
-  int16_t y0[] = {10};
-  int16_t x1[] = {20};
-  int16_t y1[] = {20};
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFFAABBCC), x0, y0, x1, y1, 1);
+  // Same-as-background fill should be skipped by optimizer.
+  dc.draw(FilledRect(10, 10, 20, 20, color::White));
+  EXPECT_EQ(screen.test().device().pixelDrawCount(), 0u);
+  EXPECT_EQ(screen.refc().pixelDrawCount(), 121u);
 
   EXPECT_CONSISTENT(screen);
+
+  // Verify frame buffer dimensions: 48x32 pixels -> 12x8 windows.
+  const auto& buffer = screen.test().buffer();
+  EXPECT_EQ(buffer.mask().width(), 12);
+  EXPECT_EQ(buffer.mask().height(), 8);
+  EXPECT_FRAMEBUFFER_MATCHES(screen,
+                             "111111111111"
+                             "111111111111"
+                             "111111111111"
+                             "111111111111"
+                             "111111111111"
+                             "111111111111"
+                             "111111111111"
+                             "111111111111");
 }
 
 TEST(BackgroundFillOptimizer, RedundantFillOptimization) {
-  TestScreen screen(64, 48, Color(0xFFAABBCC));
-
-  int16_t x0[] = {8};
-  int16_t y0[] = {8};
-  int16_t x1[] = {23};
-  int16_t y1[] = {23};
+  // Verifies repeated identical background fills preserve correctness and mask
+  // state.
+  TestScreen screen(48, 32, color::White);
+  screen.test().setPalette({color::White, color::Purple}, color::White);
+  Display display(screen);
+  DrawingContext dc(display);
 
   // First fill.
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFFAABBCC), x0, y0, x1, y1, 1);
+  dc.draw(FilledRect(8, 8, 23, 23, color::Purple));
 
-  // Second fill - optimizer should optimize this away, but behavior should
-  // match.
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFFAABBCC), x0, y0, x1, y1, 1);
+  // This should invalidate some regions.
+  int16_t sx[] = {5, 15, 25, 35, 45};
+  int16_t sy[] = {6, 10, 14, 18, 22};
+  screen.fillPixels(BLENDING_MODE_SOURCE, color::Yellow, sx, sy, 5);
+
+  const uint64_t test_before_second_fill =
+      screen.test().device().pixelDrawCount();
+  const uint64_t ref_before_second_fill = screen.refc().pixelDrawCount();
+
+  // Second fill - optimizer should mostly optimize this away, except
+  // for areas invalidated by fillPixels.
+  dc.draw(FilledRect(8, 8, 23, 23, color::Purple));
+
+  const uint64_t test_after_second_fill =
+      screen.test().device().pixelDrawCount();
+  const uint64_t ref_after_second_fill = screen.refc().pixelDrawCount();
+
+  // Repeated same-color background fill redraws only invalidated blocks.
+  // Specifically, the {15,5} point invalidates the 4x4 block covering (12-15,
+  // 8-11), which is the only part that needs to be redrawn.
+  EXPECT_EQ(test_after_second_fill - test_before_second_fill, 16u);
+  // Reference still writes the full 16x16 rectangle.
+  EXPECT_EQ(ref_after_second_fill - ref_before_second_fill, 256u);
+  EXPECT_LT(test_after_second_fill, ref_after_second_fill);
 
   EXPECT_CONSISTENT(screen);
+  EXPECT_FRAMEBUFFER_MATCHES(screen,
+                             "111111111111"
+                             "1 1111111111"
+                             "112222111111"
+                             "112222 11111"
+                             "11222211 111"
+                             "11222211111 "
+                             "111111111111"
+                             "111111111111");
 }
 
 TEST(BackgroundFillOptimizer, NonPaletteColorInvalidatesMask) {
-  TestScreen screen(64, 48, Color(0xFFAABBCC));
-
-  int16_t x0[] = {10};
-  int16_t y0[] = {10};
-  int16_t x1[] = {20};
-  int16_t y1[] = {20};
+  // Verifies non-palette draws invalidate mask cells and subsequent bg fill
+  // behavior.
+  TestScreen screen(48, 32, color::White);
+  Display display(screen);
+  DrawingContext dc(display);
 
   // Draw a foreground color (not in palette).
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFF112233), x0, y0, x1, y1, 1);
+  dc.draw(FilledRect(10, 10, 20, 20, color::Yellow));
+  EXPECT_EQ(121, screen.test().device().pixelDrawCount());
 
   // Now fill with background color - should still write since mask invalidated.
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFFAABBCC), x0, y0, x1, y1, 1);
+  dc.draw(FilledRect(10, 10, 20, 20, color::White));
+  EXPECT_EQ(242, screen.test().device().pixelDrawCount());
 
   EXPECT_CONSISTENT(screen);
+
+  // Since the border of the rectangle is not aligned to the 4x4 grid, we expect
+  // to see borders be non-background.
+  EXPECT_FRAMEBUFFER_MATCHES(screen,
+                             "111111111111"
+                             "111111111111"
+                             "11    111111"
+                             "11 11 111111"
+                             "11 11 111111"
+                             "11    111111"
+                             "111111111111"
+                             "111111111111");
 }
 
-TEST(BackgroundFillOptimizer, MultiplePaletteColors) {
-  TestScreen screen(64, 48, Color(0xFFFF0000));
+TEST(BackgroundFillOptimizer, MultipleColors) {
+  // Verifies palette-index tracking when drawing several palette colors.
+  TestScreen screen(48, 32, color::Red);
+  Display display(screen);
+  DrawingContext dc(display);
 
-  int16_t x0[] = {0, 20, 40};
-  int16_t y0[] = {0, 20, 10};
-  int16_t x1[] = {15, 35, 55};
-  int16_t y1[] = {15, 35, 25};
-  Color colors[] = {Color(0xFFFF0000), Color(0xFF00FF00), Color(0xFF0000FF)};
-
-  // Fill different areas with different palette colors.
-  screen.writeRects(BLENDING_MODE_SOURCE, colors, x0, y0, x1, y1, 3);
+  // Fill different areas with different colors.
+  screen.test().setPalette({color::Red, color::Green, color::Blue}, color::Red);
+  dc.draw(FilledRect(0, 0, 12, 10, color::Red));
+  dc.draw(FilledRect(16, 12, 28, 24, color::Green));
+  dc.draw(FilledRect(32, 6, 44, 18, color::Blue));
 
   EXPECT_CONSISTENT(screen);
+  EXPECT_FRAMEBUFFER_MATCHES(screen,
+                             "111111111111"
+                             "11111111    "
+                             "11111111333 "
+                             "1111222 333 "
+                             "1111222     "
+                             "1111222 1111"
+                             "1111    1111"
+                             "111111111111");
+  EXPECT_EQ(338u, screen.test().device().pixelDrawCount());
 }
 
 TEST(BackgroundFillOptimizer, FillPixels) {
-  TestScreen screen(64, 48, Color(0xFFAABBCC));
+  // Verifies sparse background pixel fills and resulting mask updates.
+  TestScreen screen(48, 32, color::White);
 
-  int16_t x[] = {10, 20, 30, 15, 25};
-  int16_t y[] = {10, 15, 20, 25, 30};
-
-  screen.fillPixels(BLENDING_MODE_SOURCE, Color(0xFFAABBCC), x, y, 5);
+  int16_t x[] = {5, 15, 25, 35, 45};
+  int16_t y[] = {6, 10, 14, 18, 22};
+  screen.fillPixels(BLENDING_MODE_SOURCE, color::White, x, y, 5);
+  int16_t sx[] = {5, 15, 25, 35, 45};
+  int16_t sy[] = {6, 10, 14, 18, 22};
+  screen.fillPixels(BLENDING_MODE_SOURCE, color::Yellow, sx, sy, 5);
 
   EXPECT_CONSISTENT(screen);
+  EXPECT_FRAMEBUFFER_MATCHES(screen,
+                             "111111111111"
+                             "1 1111111111"
+                             "111 11111111"
+                             "111111 11111"
+                             "11111111 111"
+                             "11111111111 "
+                             "111111111111"
+                             "111111111111");
+  EXPECT_EQ(5u, screen.test().device().pixelDrawCount());
 }
 
 TEST(BackgroundFillOptimizer, WritePixels) {
-  TestScreen screen(64, 48, Color(0xFFAABBCC));
+  // Verifies sparse pixel writes with mixed palette/non-palette colors.
+  TestScreen screen(48, 32, color::White);
 
-  int16_t x[] = {10, 20, 30, 15, 25};
-  int16_t y[] = {10, 15, 20, 25, 30};
-  Color colors[] = {Color(0xFFAABBCC), color::Red, Color(0xFFAABBCC),
-                    color::Blue, Color(0xFFAABBCC)};
-
+  int16_t x[] = {5, 15, 25, 35, 45};
+  int16_t y[] = {6, 10, 14, 18, 22};
+  Color colors[] = {color::White, color::Red, color::White, color::Blue,
+                    color::White};
   screen.writePixels(BLENDING_MODE_SOURCE, colors, x, y, 5);
 
   EXPECT_CONSISTENT(screen);
+  EXPECT_FRAMEBUFFER_MATCHES(screen,
+                             "111111111111"
+                             "111111111111"
+                             "111 11111111"
+                             "111111111111"
+                             "11111111 111"
+                             "111111111111"
+                             "111111111111"
+                             "111111111111");
+  EXPECT_EQ(2u, screen.test().device().pixelDrawCount());
 }
 
 TEST(BackgroundFillOptimizer, WriteRects) {
-  TestScreen screen(64, 48, Color(0xFFAABBCC));
+  // Verifies rectangle writes with mixed colors keep optimizer/reference
+  // consistent.
+  TestScreen screen(48, 32, color::White);
+  Display display(screen);
+  DrawingContext dc(display);
 
-  int16_t x0[] = {5, 25};
-  int16_t y0[] = {5, 25};
-  int16_t x1[] = {15, 35};
-  int16_t y1[] = {15, 35};
-  Color colors[] = {Color(0xFFAABBCC), color::Green};
-
-  screen.writeRects(BLENDING_MODE_SOURCE, colors, x0, y0, x1, y1, 2);
+  dc.draw(FilledRect(4, 4, 14, 12, color::White));
+  EXPECT_EQ(0u, screen.test().device().pixelDrawCount());
+  dc.draw(FilledRect(26, 18, 38, 30, color::Green));
+  EXPECT_EQ(169, screen.test().device().pixelDrawCount());
 
   EXPECT_CONSISTENT(screen);
+  EXPECT_FRAMEBUFFER_MATCHES(screen,
+                             "111111111111"
+                             "111111111111"
+                             "111111111111"
+                             "111111111111"
+                             "111111    11"
+                             "111111    11"
+                             "111111    11"
+                             "111111    11");
 }
 
 TEST(BackgroundFillOptimizer, FillRects) {
-  TestScreen screen(64, 48, Color(0xFFAABBCC));
+  // Verifies multiple background rectangle fills across separate regions.
+  TestScreen screen(48, 32, color::White);
+  screen.test().setPalette({color::White, color::Green}, color::White);
+  Display display(screen);
+  DrawingContext dc(display);
 
-  int16_t x0[] = {5, 25, 10};
-  int16_t y0[] = {5, 25, 35};
-  int16_t x1[] = {15, 35, 20};
-  int16_t y1[] = {15, 35, 45};
-
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFFAABBCC), x0, y0, x1, y1, 3);
-
-  EXPECT_CONSISTENT(screen);
-}
-
-TEST(BackgroundFillOptimizer, PartialOverlap) {
-  TestScreen screen(64, 48, Color(0xFFAABBCC));
-
-  int16_t x0_fg[] = {10};
-  int16_t y0_fg[] = {10};
-  int16_t x1_fg[] = {30};
-  int16_t y1_fg[] = {30};
-  int16_t x0_bg[] = {20};
-  int16_t y0_bg[] = {20};
-  int16_t x1_bg[] = {40};
-  int16_t y1_bg[] = {40};
-
-  // Draw foreground rect.
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFF112233), x0_fg, y0_fg, x1_fg,
-                   y1_fg, 1);
-
-  // Partially overlap with background rect.
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFFAABBCC), x0_bg, y0_bg, x1_bg,
-                   y1_bg, 1);
+  dc.draw(FilledRect(4, 4, 16, 10, color::Green));
+  dc.draw(FilledRect(18, 12, 30, 20, color::Green));
+  dc.draw(FilledRect(8, 20, 20, 28, color::Green));
+  EXPECT_EQ(325, screen.test().device().pixelDrawCount());
 
   EXPECT_CONSISTENT(screen);
-}
-
-TEST(BackgroundFillOptimizer, InvalidateRect) {
-  TestScreen screen(64, 48, Color(0xFFAABBCC));
-
-  // Both test and reference should produce same result after invalidation.
-  int16_t x0[] = {10};
-  int16_t y0[] = {10};
-  int16_t x1[] = {20};
-  int16_t y1[] = {20};
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFFAABBCC), x0, y0, x1, y1, 1);
-
-  EXPECT_CONSISTENT(screen);
-}
-
-TEST(BackgroundFillOptimizer, SetAddressAndWrite) {
-  TestScreen screen(64, 48, Color(0xFFAABBCC));
-
-  // Test setAddress and write methods.
-  screen.setAddress(10, 10, 20, 20, BLENDING_MODE_SOURCE);
-  Color colors[100];
-  for (int i = 0; i < 100; ++i) {
-    colors[i] = Color(0xFFAABBCC);
-  }
-  screen.write(colors, 100);
-
-  EXPECT_CONSISTENT(screen);
-}
-
-TEST(BackgroundFillOptimizer, LargerDisplay) {
-  TestScreen screen(320, 240, Color(0xFF000000));
-
-  // Draw a pattern.
-  for (int i = 0; i < 10; ++i) {
-    Color c = (i % 2 == 0) ? Color(0xFF000000) : Color(0xFFFFFFFF);
-    int16_t x0[] = {(int16_t)(i * 30)};
-    int16_t y0[] = {(int16_t)(i * 20)};
-    int16_t x1[] = {(int16_t)(i * 30 + 25)};
-    int16_t y1[] = {(int16_t)(i * 20 + 15)};
-    screen.fillRects(BLENDING_MODE_SOURCE, c, x0, y0, x1, y1, 1);
-  }
-
-  EXPECT_CONSISTENT(screen);
-}
-
-TEST(BackgroundFillOptimizer, PaletteChange) {
-  TestScreen screen(64, 48, Color(0xFFFF0000));
-
-  int16_t x0[] = {10};
-  int16_t y0[] = {10};
-  int16_t x1[] = {20};
-  int16_t y1[] = {20};
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFFFF0000), x0, y0, x1, y1, 1);
-
-  EXPECT_CONSISTENT(screen);
-}
-
-TEST(BackgroundFillOptimizer, EdgeCases) {
-  TestScreen screen(64, 48, Color(0xFFAABBCC));
-
-  int16_t x0[] = {0, 60};
-  int16_t y0[] = {0, 44};
-  int16_t x1[] = {3, 63};
-  int16_t y1[] = {3, 47};
-
-  // Draw at boundaries.
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFFAABBCC), x0, y0, x1, y1, 2);
-
-  EXPECT_CONSISTENT(screen);
-}
-
-TEST(BackgroundFillOptimizer, SinglePixelWrites) {
-  TestScreen screen(64, 48, Color(0xFFAABBCC));
-
-  // Draw single pixels.
-  int16_t x[10];
-  int16_t y[10];
-  for (int i = 0; i < 10; ++i) {
-    x[i] = i * 5;
-    y[i] = i * 4;
-  }
-  screen.fillPixels(BLENDING_MODE_SOURCE, Color(0xFFAABBCC), x, y, 10);
-
-  EXPECT_CONSISTENT(screen);
-}
-
-// Tests for optimization paths and uncovered code.
-
-TEST(BackgroundFillOptimizer, FillRectBgOptimization) {
-  TestScreen screen(128, 96, Color(0xFFAABBCC));
-
-  int16_t x0[] = {0};
-  int16_t y0[] = {0};
-  int16_t x1[] = {127};
-  int16_t y1[] = {95};
-
-  // Large fill with background color triggers fillRectBg() for optimization.
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFFAABBCC), x0, y0, x1, y1, 1);
-
-  EXPECT_CONSISTENT(screen);
+  EXPECT_FRAMEBUFFER_MATCHES(screen,
+                             "111111111111"
+                             "1222 1111111"
+                             "1    1111111"
+                             "1111 22 1111"
+                             "1111 22 1111"
+                             "11222   1111"
+                             "11222 111111"
+                             "11    111111");
 }
 
 TEST(BackgroundFillOptimizer, FillRectBgWithNonPaletteOverlay) {
-  TestScreen screen(128, 96, Color(0xFFAABBCC));
+  // Verifies full bg fill, non-palette overlay, and bg refill sequence.
+  TestScreen screen(48, 32, color::White);
+  Display display(screen);
+  DrawingContext dc(display);
 
   // First, fill large background area.
-  int16_t x0_bg[] = {0};
-  int16_t y0_bg[] = {0};
-  int16_t x1_bg[] = {127};
-  int16_t y1_bg[] = {95};
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFFAABBCC), x0_bg, y0_bg, x1_bg,
-                   y1_bg, 1);
+  dc.draw(FilledRect(0, 0, 47, 31, color::White));
+  EXPECT_EQ(0, screen.test().device().pixelDrawCount());
 
   // Draw non-palette color, invalidating mask.
-  int16_t x0_fg[] = {32};
-  int16_t y0_fg[] = {24};
-  int16_t x1_fg[] = {96};
-  int16_t y1_fg[] = {72};
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFF112233), x0_fg, y0_fg, x1_fg,
-                   y1_fg, 1);
+  dc.draw(FilledRect(12, 8, 36, 24, color::Yellow));
+  EXPECT_EQ(425, screen.test().device().pixelDrawCount());
 
   // Fill background again in same region - should still match reference.
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFFAABBCC), x0_bg, y0_bg, x1_bg,
-                   y1_bg, 1);
+  dc.draw(FilledRect(0, 0, 47, 31, color::White));
+  EXPECT_EQ(985, screen.test().device().pixelDrawCount());
 
   EXPECT_CONSISTENT(screen);
+  EXPECT_FRAMEBUFFER_MATCHES(screen,
+                             "111111111111"
+                             "111111111111"
+                             "111111111111"
+                             "111111111111"
+                             "111111111111"
+                             "111111111111"
+                             "111111111111"
+                             "111111111111");
 }
 
-TEST(BackgroundFillOptimizer, FillRectBgComplexPattern) {
-  TestScreen screen(160, 120, Color(0xFF000000));
+TEST(BackgroundFillOptimizer, RepeatedBackgroundFillPattern) {
+  // Verifies a mixed multi-rectangle palette pattern with repeated bg writes.
+  TestScreen screen(48, 32, color::Black);
+  Display display(screen);
+  DrawingContext dc(display);
 
   // Create a complex pattern with multiple palette colors and fills.
-  int16_t x0[] = {10, 50, 100, 20, 60};
-  int16_t y0[] = {10, 20, 30, 60, 80};
-  int16_t x1[] = {40, 80, 130, 50, 90};
-  int16_t y1[] = {40, 50, 60, 90, 110};
-  Color colors[] = {Color(0xFF000000), Color(0xFF000000), Color(0xFF000000),
-                    Color(0xFF000000), Color(0xFF000000)};
-
+  screen.test().setPalette({color::Black, color::Red, color::Blue},
+                           color::Black);
   // Multiple fills with background color should trigger optimization.
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFF000000), x0, y0, x1, y1, 5);
+  dc.draw(FilledRect(4, 4, 12, 12, color::Black));
+  dc.draw(FilledRect(16, 8, 24, 16, color::Red));
+  dc.draw(FilledRect(28, 12, 36, 20, color::Blue));
+  dc.draw(FilledRect(8, 20, 16, 28, color::Black));
+  dc.draw(FilledRect(20, 24, 32, 30, color::Red));
+  EXPECT_EQ(253, screen.test().device().pixelDrawCount());
 
   EXPECT_CONSISTENT(screen);
+  EXPECT_FRAMEBUFFER_MATCHES(screen,
+                             "111111111111"
+                             "111111111111"
+                             "111122 11111"
+                             "111122 33 11"
+                             "1111   33 11"
+                             "1111111   11"
+                             "11111222 111"
+                             "11111    111");
 }
 
-TEST(BackgroundFillOptimizer, WriteRectsWithBackgroundTriggersOptimization) {
-  TestScreen screen(128, 96, Color(0xFFAABBCC));
-
-  int16_t x0[] = {16, 48, 80};
-  int16_t y0[] = {16, 32, 64};
-  int16_t x1[] = {47, 79, 111};
-  int16_t y1[] = {47, 63, 95};
-  Color colors[] = {Color(0xFFAABBCC), Color(0xFFAABBCC), Color(0xFFAABBCC)};
-
-  // WriteRects with background colors triggers fillRectBg internally.
-  screen.writeRects(BLENDING_MODE_SOURCE, colors, x0, y0, x1, y1, 3);
-
-  EXPECT_CONSISTENT(screen);
-}
-
-TEST(BackgroundFillOptimizer, FillPixelsNonPaletteColor) {
-  TestScreen screen(64, 48, Color(0xFFAABBCC));
-
-  int16_t x[] = {10, 20, 30, 15, 25};
-  int16_t y[] = {10, 15, 20, 25, 30};
-
-  // Fill pixels with non-palette color tests the non-palette path.
-  screen.fillPixels(BLENDING_MODE_SOURCE, Color(0xFF112233), x, y, 5);
-
-  EXPECT_CONSISTENT(screen);
-}
-
-TEST(BackgroundFillOptimizer, WritePixelsAllSkipped) {
-  TestScreen screen(64, 48, Color(0xFFAABBCC));
-
-  // Fill with background first.
-  int16_t x0[] = {0};
-  int16_t y0[] = {0};
-  int16_t x1[] = {63};
-  int16_t y1[] = {47};
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFFAABBCC), x0, y0, x1, y1, 1);
-
-  // Now write pixels with background color - some might be skipped.
-  int16_t x[] = {10, 20, 30, 40, 50};
-  int16_t y[] = {10, 15, 20, 25, 30};
-  Color colors[] = {Color(0xFFAABBCC), Color(0xFFAABBCC), Color(0xFFAABBCC),
-                    Color(0xFFAABBCC), Color(0xFFAABBCC)};
-
-  screen.writePixels(BLENDING_MODE_SOURCE, colors, x, y, 5);
-
-  EXPECT_CONSISTENT(screen);
-}
-
-TEST(BackgroundFillOptimizer, InvalidateRectMethod) {
-  TestScreen screen(64, 48, Color(0xFFAABBCC));
-
-  // Access invalidateRect through the buffer.
-  int16_t x0[] = {16};
-  int16_t y0[] = {16};
-  int16_t x1[] = {32};
-  int16_t y1[] = {32};
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFFAABBCC), x0, y0, x1, y1, 1);
-
-  EXPECT_CONSISTENT(screen);
-}
-
-TEST(BackgroundFillOptimizer, BoundaryClipping) {
-  TestScreen screen(128, 96, Color(0xFF000000));
-
-  // Test rectangles at screen boundaries.
-  int16_t x0[] = {0, 100, 0, 96};
-  int16_t y0[] = {0, 64, 0, 80};
-  int16_t x1[] = {20, 127, 50, 127};
-  int16_t y1[] = {20, 95, 50, 95};
-
-  // Fills at boundaries should work correctly.
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFF000000), x0, y0, x1, y1, 4);
-
-  EXPECT_CONSISTENT(screen);
-}
-
-TEST(BackgroundFillOptimizer, AlternatingPaletteForeground) {
-  TestScreen screen(128, 96, Color(0xFFFF0000));
+TEST(BackgroundFillOptimizer, AlternatingColors) {
+  // Verifies alternating palette/non-palette rectangles and mask transitions.
+  TestScreen screen(48, 32, color::Red);
+  Display display(screen);
+  DrawingContext dc(display);
 
   // Alternate between palette and non-palette colors in same region.
-  int16_t x0[] = {20, 40, 60, 20, 40, 60};
-  int16_t y0[] = {20, 20, 20, 50, 50, 50};
-  int16_t x1[] = {35, 55, 75, 35, 55, 75};
-  int16_t y1[] = {35, 35, 35, 65, 65, 65};
-  Color colors[] = {Color(0xFF112233), Color(0xFFFF0000), Color(0xFF445566),
-                    Color(0xFF778899), Color(0xFFFF0000), Color(0xFFAABBCC)};
-
-  // Mix of palette and non-palette fills to test mask invalidation.
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFFFF0000), x0, y0, x1, y1, 6);
-
-  EXPECT_CONSISTENT(screen);
-}
-
-TEST(BackgroundFillOptimizer, LargeGridAlignment) {
-  // Test that larger rectangles align with coarse grid windows.
-  TestScreen screen(256, 192, Color(0xFF000000));
-
-  // Fill rectangle aligned with grid boundaries (kBgFillOptimizerWindowSize =
-  // 16).
-  int16_t x0[] = {0, 48, 96, 144, 192};
-  int16_t y0[] = {0, 32, 64, 96, 128};
-  int16_t x1[] = {31, 79, 127, 175, 223};
-  int16_t y1[] = {31, 63, 95, 127, 159};
-
-  // Grid-aligned fills trigger inner_filter_box optimization.
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFF000000), x0, y0, x1, y1, 5);
+  screen.test().setPalette({color::Red, color::Blue}, color::Red);
+  // Mix of colors to test mask invalidation behavior.
+  dc.draw(FilledRect(6, 8, 14, 14, color::Yellow));
+  dc.draw(FilledRect(18, 8, 26, 14, color::Red));
+  dc.draw(FilledRect(30, 8, 38, 14, color::Green));
+  dc.draw(FilledRect(6, 20, 14, 30, color::White));
+  dc.draw(FilledRect(18, 20, 26, 30, color::Red));
+  dc.draw(FilledRect(30, 20, 38, 30, color::Blue));
+  EXPECT_EQ(324, screen.test().device().pixelDrawCount());
 
   EXPECT_CONSISTENT(screen);
-}
-
-TEST(BackgroundFillOptimizer, PartialGridCoverage) {
-  TestScreen screen(128, 96, Color(0xFFAABBCC));
-
-  // Rectangles that partially cover grid windows test clipping logic.
-  int16_t x0[] = {5, 21, 37};
-  int16_t y0[] = {5, 21, 37};
-  int16_t x1[] = {26, 42, 58};
-  int16_t y1[] = {26, 42, 58};
-
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFFAABBCC), x0, y0, x1, y1, 3);
-
-  EXPECT_CONSISTENT(screen);
-}
-
-TEST(BackgroundFillOptimizer, FrameBufferInvalidateRect) {
-  // Test FrameBuffer::invalidateRect() directly through mask operations.
-  BackgroundFillOptimizer::FrameBuffer buffer(128, 96);
-  Color palette[] = {color::Red, color::Green, color::Blue};
-  buffer.setPalette(palette, 3);
-  buffer.setPrefilled(color::Red);
-
-  // Invalidate a region and verify it doesn't crash.
-  Box rect(10, 10, 30, 30);
-  buffer.invalidateRect(rect);
-
-  EXPECT_EQ(buffer.palette_size(), 3);
-}
-
-TEST(BackgroundFillOptimizer, MultipleWrites) {
-  TestScreen screen(96, 72, Color(0xFF000000));
-
-  // Multiple sequential writes with various colors.
-  int16_t x0[] = {8};
-  int16_t y0[] = {8};
-  int16_t x1[] = {23};
-  int16_t y1[] = {23};
-
-  // First write background.
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFF000000), x0, y0, x1, y1, 1);
-
-  // Write foreground.
-  int16_t x0_fg[] = {12};
-  int16_t y0_fg[] = {12};
-  int16_t x1_fg[] = {20};
-  int16_t y1_fg[] = {20};
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFFFFFFFF), x0_fg, y0_fg, x1_fg,
-                   y1_fg, 1);
-
-  // Write background again.
-  screen.fillRects(BLENDING_MODE_SOURCE, Color(0xFF000000), x0, y0, x1, y1, 1);
-
-  EXPECT_CONSISTENT(screen);
+  EXPECT_FRAMEBUFFER_MATCHES(screen,
+                             "111111111111"
+                             "111111111111"
+                             "1   111   11"
+                             "1   111   11"
+                             "111111111111"
+                             "1   111 2 11"
+                             "1   111 2 11"
+                             "1   111   11");
 }
 
 }  // namespace roo_display

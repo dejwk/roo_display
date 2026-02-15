@@ -99,6 +99,9 @@ class BackgroundFillOptimizer : public DisplayOutput {
     const Color* palette() const { return palette_; }
     const uint8_t palette_size() const { return palette_size_; }
 
+    /// Accessor for testing: retrieve the internal nibble mask.
+    const internal::NibbleRect& mask() const { return background_mask_; }
+
    private:
     friend class BackgroundFillOptimizer;
     friend class BackgroundFillOptimizerDevice;
@@ -230,6 +233,11 @@ class BackgroundFillOptimizerDevice : public DisplayDevice {
 
   const ColorFormat& getColorFormat() const override {
     return device_.getColorFormat();
+  }
+
+  /// Accessor for testing: retrieve the internal frame buffer.
+  const BackgroundFillOptimizer::FrameBuffer& buffer() const {
+    return buffer_;
   }
 
  private:

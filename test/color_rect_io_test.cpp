@@ -94,7 +94,7 @@ TEST(ColorRectIo, Rgb565Contiguous) {
 
   std::vector<Color> output(width * height);
   ColorRectIo<Rgb565, roo_io::kNativeEndian> rect_io;
-  rect_io.interpret(data.data(), row_width_bytes, 0, 0, width - 1, height - 1,
+  rect_io.decode(data.data(), row_width_bytes, 0, 0, width - 1, height - 1,
                     output.data());
 
   auto expected = ExpectRect<Rgb565, roo_io::kNativeEndian>(
@@ -113,7 +113,7 @@ TEST(ColorRectIo, Rgb565PaddedRowsSubrect) {
 
   std::vector<Color> output(3 * 2);
   ColorRectIo<Rgb565, roo_io::kNativeEndian> rect_io;
-  rect_io.interpret(data.data(), row_width_bytes, 1, 1, 3, 2, output.data());
+  rect_io.decode(data.data(), row_width_bytes, 1, 1, 3, 2, output.data());
 
   auto expected = ExpectRect<Rgb565, roo_io::kNativeEndian>(
       data.data(), row_width_bytes, 1, 1, 3, 2);
@@ -130,7 +130,7 @@ TEST(ColorRectIo, Rgb565MultiLineLarge) {
 
   std::vector<Color> output(12 * 7);
   ColorRectIo<Rgb565, roo_io::kNativeEndian> rect_io;
-  rect_io.interpret(data.data(), row_width_bytes, 3, 2, 14, 8, output.data());
+  rect_io.decode(data.data(), row_width_bytes, 3, 2, 14, 8, output.data());
 
   auto expected = ExpectRect<Rgb565, roo_io::kNativeEndian>(
       data.data(), row_width_bytes, 3, 2, 14, 8);
@@ -151,7 +151,7 @@ TEST(ColorRectIo, Grayscale4ContiguousFullRows) {
                                                         row_width_bytes, mode);
 
   std::vector<Color> output(width * height);
-  rect_io.interpret(data.data(), row_width_bytes, 0, 0, width - 1, height - 1,
+  rect_io.decode(data.data(), row_width_bytes, 0, 0, width - 1, height - 1,
                     output.data(), mode);
 
   auto expected = ExpectRect<Grayscale4, roo_io::kNativeEndian,
@@ -174,7 +174,7 @@ TEST(ColorRectIo, Grayscale4Misaligned) {
                                                         row_width_bytes, mode);
 
   std::vector<Color> output(8 * 3);
-  rect_io.interpret(data.data(), row_width_bytes, 1, 1, 8, 3, output.data(),
+  rect_io.decode(data.data(), row_width_bytes, 1, 1, 8, 3, output.data(),
                     mode);
 
   auto expected = ExpectRect<Grayscale4, roo_io::kNativeEndian,
@@ -197,7 +197,7 @@ TEST(ColorRectIo, Grayscale4Aligned) {
                                                         row_width_bytes, mode);
 
   std::vector<Color> output(4 * 2);
-  rect_io.interpret(data.data(), row_width_bytes, 2, 3, 5, 4, output.data(),
+  rect_io.decode(data.data(), row_width_bytes, 2, 3, 5, 4, output.data(),
                     mode);
 
   auto expected = ExpectRect<Grayscale4, roo_io::kNativeEndian,
@@ -219,7 +219,7 @@ TEST(ColorRectIo, Grayscale4MultiLinePadded) {
   std::vector<Color> output(6 * 4);
   ColorRectIo<Grayscale4, roo_io::kNativeEndian, COLOR_PIXEL_ORDER_LSB_FIRST>
       rect_io;
-  rect_io.interpret(data.data(), row_width_bytes, 3, 2, 8, 5, output.data(),
+  rect_io.decode(data.data(), row_width_bytes, 3, 2, 8, 5, output.data(),
                     mode);
 
   auto expected = ExpectRect<Grayscale4, roo_io::kNativeEndian,

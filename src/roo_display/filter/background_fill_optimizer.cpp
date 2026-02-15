@@ -348,7 +348,7 @@ void BackgroundFillOptimizer::writeRects(BlendingMode mode, Color* color,
           .color = c,
           .writer = writer,
       };
-      fillRectBg(*x0++, *y0++, *x1++, *y1++, adapter, palette_idx);
+      fillRectBg(*x0++, *y0++, *x1++, *y1++, &adapter, palette_idx);
     } else {
       // Not a background palette color -> clear the nibble subrectangle
       // corresponding to a region entirely enclosing the the drawn rectangle
@@ -370,7 +370,7 @@ void BackgroundFillOptimizer::fillRects(BlendingMode mode, Color color,
   if (palette_idx != 0) {
     BufferedRectFiller filler(output_, color, mode);
     while (count-- > 0) {
-      fillRectBg(*x0++, *y0++, *x1++, *y1++, filler, palette_idx);
+      fillRectBg(*x0++, *y0++, *x1++, *y1++, &filler, palette_idx);
     }
   } else {
     for (int i = 0; i < count; ++i) {

@@ -1,6 +1,7 @@
 #include "roo_display/filter/background_fill_optimizer.h"
 
 #include <memory>
+#include <random>
 #include <string>
 
 #include "gtest/gtest.h"
@@ -576,6 +577,50 @@ TEST(BackgroundFillOptimizer, WriteSubRectsFromPatternSource) {
   EXPECT_LT(test_count, ref_count);
 }
 
+TEST(BackgroundFillOptimizer, WriteSubRectsFromPatternSourceStress) {
+  // Stress test for write() path: repeatedly draw random clipped
+  // sub-rectangles from an Rgb888 source at random destination offsets,
+  // asserting equality with a reference device at each step.
+  constexpr Color kBg = color::White;
+  constexpr Color kBig = color::Blue;
+  constexpr Color kSmall = color::Yellow;
+  constexpr int kIterations = 10000;
+
+  TestScreen screen(64, 64, kBg);
+  screen.test().setPalette({kBg, kBig}, kBg);
+
+  auto source_image = MakeCirclePatternSourceBuffer(kBg, kBig, kSmall);
+
+  Display display(screen);
+  DrawingContext dc(display);
+
+  std::mt19937 rng(123456789u);
+  std::uniform_int_distribution<int16_t> width_dist(1, 50);
+  std::uniform_int_distribution<int16_t> height_dist(1, 50);
+
+  for (int i = 0; i < kIterations; ++i) {
+    const int16_t w = width_dist(rng);
+    const int16_t h = height_dist(rng);
+
+    std::uniform_int_distribution<int16_t> sx0_dist(0, 50 - w);
+    std::uniform_int_distribution<int16_t> sy0_dist(0, 50 - h);
+    std::uniform_int_distribution<int16_t> dx0_dist(0, 64 - w);
+    std::uniform_int_distribution<int16_t> dy0_dist(0, 64 - h);
+
+    const int16_t sx0 = sx0_dist(rng);
+    const int16_t sy0 = sy0_dist(rng);
+    const int16_t sx1 = sx0 + w - 1;
+    const int16_t sy1 = sy0 + h - 1;
+    const int16_t dx0 = dx0_dist(rng);
+    const int16_t dy0 = dy0_dist(rng);
+
+    DrawClippedRectFromSource(dc, source_image, sx0, sy0, sx1, sy1, dx0, dy0);
+
+    SCOPED_TRACE(i);
+    ASSERT_THAT(RasterOf(screen.test()), MatchesContent(RasterOf(screen.refc())));
+  }
+}
+
 TEST(BackgroundFillOptimizer, DrawDirectSubRectsFromRgb565PatternSource) {
   // Verifies drawDirectRect path from Raster when source/destination formats
   // match, using sub-rectangle draws similar to WriteSubRectsFromPatternSource.
@@ -583,30 +628,63 @@ TEST(BackgroundFillOptimizer, DrawDirectSubRectsFromRgb565PatternSource) {
   constexpr Color kBig = color::Blue;
   constexpr Color kSmall = color::Yellow;
 
-  OptimizedDevice<Rgb565> optimized(64, 64, kBg);
-  optimized.setPalette({kBg, kBig}, kBg);
-  FakeOffscreen<Rgb565> reference(64, 64, kBg, Rgb565());
+  TestScreen screen(64, 64, kBg);
+  screen.test().setPalette({kBg, kBig}, kBg);
 
   auto source_image = MakeCirclePatternSourceBufferRgb565(kBg, kBig, kSmall);
 
-  Display optimized_display(optimized);
-  DrawingContext optimized_dc(optimized_display);
-  Display reference_display(reference);
-  DrawingContext reference_dc(reference_display);
+  Display display(screen);
+  DrawingContext dc(display);
 
-  DrawClippedRectFromSource(optimized_dc, source_image, 4, 4, 11, 11, 8, 8);
-  DrawClippedRectFromSource(optimized_dc, source_image, 46, 18, 46, 30, 41,
-                            26);
-  DrawClippedRectFromSource(optimized_dc, source_image, 14, 22, 30, 26, 20,
-                            40);
+  DrawClippedRectFromSource(dc, source_image, 4, 4, 11, 11, 8, 8);
+  DrawClippedRectFromSource(dc, source_image, 46, 18, 46, 30, 41, 26);
+  DrawClippedRectFromSource(dc, source_image, 14, 22, 30, 26, 20, 40);
 
-  DrawClippedRectFromSource(reference_dc, source_image, 4, 4, 11, 11, 8, 8);
-  DrawClippedRectFromSource(reference_dc, source_image, 46, 18, 46, 30, 41,
-                            26);
-  DrawClippedRectFromSource(reference_dc, source_image, 14, 22, 30, 26, 20,
-                            40);
+  EXPECT_CONSISTENT(screen);
+}
 
-  EXPECT_THAT(RasterOf(optimized), MatchesContent(RasterOf(reference)));
+TEST(BackgroundFillOptimizer, DrawDirectSubRectsFromRgb565PatternSourceStress) {
+  // Stress test for raster direct-draw path: repeatedly draw random clipped
+  // sub-rectangles from an Rgb565 source at random destination offsets,
+  // asserting equality with a reference device at each step.
+  constexpr Color kBg = color::White;
+  constexpr Color kBig = color::Blue;
+  constexpr Color kSmall = color::Yellow;
+  constexpr int kIterations = 10000;
+
+  TestScreen screen(64, 64, kBg);
+  screen.test().setPalette({kBg, kBig}, kBg);
+
+  auto source_image = MakeCirclePatternSourceBufferRgb565(kBg, kBig, kSmall);
+
+  Display display(screen);
+  DrawingContext dc(display);
+
+  std::mt19937 rng(123456789u);
+  std::uniform_int_distribution<int16_t> width_dist(1, 50);
+  std::uniform_int_distribution<int16_t> height_dist(1, 50);
+
+  for (int i = 0; i < kIterations; ++i) {
+    const int16_t w = width_dist(rng);
+    const int16_t h = height_dist(rng);
+
+    std::uniform_int_distribution<int16_t> sx0_dist(0, 50 - w);
+    std::uniform_int_distribution<int16_t> sy0_dist(0, 50 - h);
+    std::uniform_int_distribution<int16_t> dx0_dist(0, 64 - w);
+    std::uniform_int_distribution<int16_t> dy0_dist(0, 64 - h);
+
+    const int16_t sx0 = sx0_dist(rng);
+    const int16_t sy0 = sy0_dist(rng);
+    const int16_t sx1 = sx0 + w - 1;
+    const int16_t sy1 = sy0 + h - 1;
+    const int16_t dx0 = dx0_dist(rng);
+    const int16_t dy0 = dy0_dist(rng);
+
+    DrawClippedRectFromSource(dc, source_image, sx0, sy0, sx1, sy1, dx0, dy0);
+
+    SCOPED_TRACE(i);
+    ASSERT_THAT(RasterOf(screen.test()), MatchesContent(RasterOf(screen.refc())));
+  }
 }
 
 }  // namespace roo_display

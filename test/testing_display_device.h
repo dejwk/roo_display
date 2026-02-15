@@ -69,6 +69,16 @@ class TestDisplayDevice : public DisplayDevice {
     test_.fillRects(mode, color, x0, y0, x1, y1, count);
   }
 
+  void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
+                      int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                      int16_t src_y1, int16_t dst_x0,
+                      int16_t dst_y0) override {
+    refc_.drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1,
+                         src_y1, dst_x0, dst_y0);
+    test_.drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1,
+                         src_y1, dst_x0, dst_y0);
+  }
+
   const ColorFormat& getColorFormat() const override {
     return test_.getColorFormat();
   }

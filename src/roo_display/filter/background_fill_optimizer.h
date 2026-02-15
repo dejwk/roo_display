@@ -169,7 +169,7 @@ class BackgroundFillOptimizer : public DisplayOutput {
 
   template <typename Filler>
   void fillRectBg(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
-                  Filler* filler, uint8_t palette_idx);
+                  Filler& filler, uint8_t palette_idx);
 
   DisplayOutput& output_;
   internal::NibbleRect* background_mask_;

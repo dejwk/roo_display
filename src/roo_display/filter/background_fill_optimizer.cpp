@@ -348,7 +348,7 @@ void BackgroundFillOptimizer::writeRects(BlendingMode mode, Color* color,
           .color = c,
           .writer = writer,
       };
-      fillRectBg(*x0++, *y0++, *x1++, *y1++, &adapter, palette_idx);
+      fillRectBg(*x0++, *y0++, *x1++, *y1++, adapter, palette_idx);
     } else {
       // Not a background palette color -> clear the nibble subrectangle
       // corresponding to a region entirely enclosing the the drawn rectangle
@@ -370,7 +370,7 @@ void BackgroundFillOptimizer::fillRects(BlendingMode mode, Color color,
   if (palette_idx != 0) {
     BufferedRectFiller filler(output_, color, mode);
     while (count-- > 0) {
-      fillRectBg(*x0++, *y0++, *x1++, *y1++, &filler, palette_idx);
+      fillRectBg(*x0++, *y0++, *x1++, *y1++, filler, palette_idx);
     }
   } else {
     for (int i = 0; i < count; ++i) {
@@ -494,7 +494,7 @@ void BackgroundFillOptimizer::writePixel(int16_t x, int16_t y, Color c,
 
 template <typename Filler>
 void BackgroundFillOptimizer::fillRectBg(int16_t x0, int16_t y0, int16_t x1,
-                                         int16_t y1, Filler* filler,
+                                         int16_t y1, Filler& filler,
                                          uint8_t palette_idx) {
   // Iterate over the bit-map rectangle that encloses the requested rectangle.
   // Skip writing sub-rectangles that are known to be already all-background.
@@ -531,7 +531,7 @@ void BackgroundFillOptimizer::fillRectBg(int16_t x0, int16_t y0, int16_t x1,
               }
             }
           }
-          filler->fillRect(box.xMin(), box.yMin(), box.xMax(), box.yMax());
+          filler.fillRect(box.xMin(), box.yMin(), box.xMax(), box.yMax());
         }
         xstart = -1;
       } else {

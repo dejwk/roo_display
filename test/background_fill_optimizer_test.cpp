@@ -65,6 +65,14 @@ class OptimizedDevice : public DisplayDevice {
     optimizer_.fillRects(mode, color, x0, y0, x1, y1, count);
   }
 
+  void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
+                      int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                      int16_t src_y1, int16_t dst_x0,
+                      int16_t dst_y0) override {
+    optimizer_.drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1,
+                              src_y1, dst_x0, dst_y0);
+  }
+
   const ColorFormat& getColorFormat() const override {
     return optimizer_.getColorFormat();
   }
@@ -503,6 +511,23 @@ Offscreen<Rgb888> MakeCirclePatternSourceBuffer(Color bg, Color big_circle,
   return source;
 }
 
+Offscreen<Rgb565> MakeCirclePatternSourceBufferRgb565(Color bg,
+                                                      Color big_circle,
+                                                      Color small_circle) {
+  constexpr int kWidth = 50;
+  constexpr int kHeight = 50;
+
+  // Same pattern as the Rgb888 helper, but in Rgb565 to allow the raster
+  // direct-draw path to match the destination color format.
+  Offscreen<Rgb565> source(kWidth, kHeight, bg, Rgb565());
+  DrawingContext dc(source);
+
+  dc.draw(FilledCircle::ByExtents(1, 1, 48, big_circle));
+  dc.draw(FilledCircle::ByRadius(46, 24, 3, small_circle));
+
+  return source;
+}
+
 void DrawClippedRectFromSource(DrawingContext& dc, const Drawable& source,
                                int16_t sx0, int16_t sy0, int16_t sx1,
                                int16_t sy1, int16_t dx0, int16_t dy0) {
@@ -549,6 +574,39 @@ TEST(BackgroundFillOptimizer, WriteSubRectsFromPatternSource) {
   EXPECT_EQ(ref_count, 162u);
   EXPECT_GT(test_count, 0u);
   EXPECT_LT(test_count, ref_count);
+}
+
+TEST(BackgroundFillOptimizer, DrawDirectSubRectsFromRgb565PatternSource) {
+  // Verifies drawDirectRect path from Raster when source/destination formats
+  // match, using sub-rectangle draws similar to WriteSubRectsFromPatternSource.
+  constexpr Color kBg = color::White;
+  constexpr Color kBig = color::Blue;
+  constexpr Color kSmall = color::Yellow;
+
+  OptimizedDevice<Rgb565> optimized(64, 64, kBg);
+  optimized.setPalette({kBg, kBig}, kBg);
+  FakeOffscreen<Rgb565> reference(64, 64, kBg, Rgb565());
+
+  auto source_image = MakeCirclePatternSourceBufferRgb565(kBg, kBig, kSmall);
+
+  Display optimized_display(optimized);
+  DrawingContext optimized_dc(optimized_display);
+  Display reference_display(reference);
+  DrawingContext reference_dc(reference_display);
+
+  DrawClippedRectFromSource(optimized_dc, source_image, 4, 4, 11, 11, 8, 8);
+  DrawClippedRectFromSource(optimized_dc, source_image, 46, 18, 46, 30, 41,
+                            26);
+  DrawClippedRectFromSource(optimized_dc, source_image, 14, 22, 30, 26, 20,
+                            40);
+
+  DrawClippedRectFromSource(reference_dc, source_image, 4, 4, 11, 11, 8, 8);
+  DrawClippedRectFromSource(reference_dc, source_image, 46, 18, 46, 30, 41,
+                            26);
+  DrawClippedRectFromSource(reference_dc, source_image, 14, 22, 30, 26, 20,
+                            40);
+
+  EXPECT_THAT(RasterOf(optimized), MatchesContent(RasterOf(reference)));
 }
 
 }  // namespace roo_display

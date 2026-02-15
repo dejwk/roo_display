@@ -454,6 +454,26 @@ void BackgroundFillOptimizer::fillPixels(BlendingMode mode, Color color,
   }
 }
 
+void BackgroundFillOptimizer::drawDirectRect(const roo::byte* data,
+                                             size_t row_width_bytes,
+                                             int16_t src_x0, int16_t src_y0,
+                                             int16_t src_x1, int16_t src_y1,
+                                             int16_t dst_x0, int16_t dst_y0) {
+  if (src_x1 < src_x0 || src_y1 < src_y0) return;
+
+  output_.drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1,
+                         src_y1, dst_x0, dst_y0);
+
+  const int16_t dst_x1 = dst_x0 + (src_x1 - src_x0);
+  const int16_t dst_y1 = dst_y0 + (src_y1 - src_y0);
+  background_mask_->fillRect(
+      Box(dst_x0 / kBgFillOptimizerWindowSize,
+          dst_y0 / kBgFillOptimizerWindowSize,
+          dst_x1 / kBgFillOptimizerWindowSize,
+          dst_y1 / kBgFillOptimizerWindowSize),
+      0);
+}
+
 void BackgroundFillOptimizer::writePixel(int16_t x, int16_t y, Color c,
                                          BufferedPixelWriter* writer) {
   uint8_t palette_idx = getIdxInPalette(c, palette_, palette_size_);

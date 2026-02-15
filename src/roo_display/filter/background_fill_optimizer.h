@@ -140,6 +140,10 @@ class BackgroundFillOptimizer : public DisplayOutput {
   void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override;
 
+  void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
+                      int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                      int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override;
+
   const ColorFormat& getColorFormat() const override {
     return output_.getColorFormat();
   }
@@ -236,6 +240,14 @@ class BackgroundFillOptimizerDevice : public DisplayDevice {
   void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override {
     optimizer_.fillPixels(mode, color, x, y, pixel_count);
+  }
+
+  void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
+                      int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                      int16_t src_y1, int16_t dst_x0,
+                      int16_t dst_y0) override {
+    optimizer_.drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1,
+                              src_y1, dst_x0, dst_y0);
   }
 
   const ColorFormat& getColorFormat() const override {

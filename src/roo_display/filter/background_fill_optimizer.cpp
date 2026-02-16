@@ -21,6 +21,20 @@ inline uint8_t getIdxInPalette(Color color, const Color* palette,
   return 0;
 }
 
+inline uint8_t tryAddIdxInPalette(Color color, Color* palette,
+                                  uint8_t& palette_size) {
+  if (palette_size < 15) {
+    // Not found, but we have room to add it to the palette. Let's do it.
+    // LOG(INFO) << "Adding color " << (int)color.r() << "," << (int)color.g()
+    //           << "," << (int)color.b() << "," << (int)color.a()
+    //           << " to palette at idx "
+    //           << (int)(palette_size + 1);
+    palette[palette_size] = color;
+    return ++palette_size;
+  }
+  return 0;
+}
+
 }  // namespace
 
 BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height)
@@ -93,12 +107,30 @@ BackgroundFillOptimizer::BackgroundFillOptimizer(DisplayOutput& output,
     : output_(output),
       background_mask_(&buffer.background_mask_),
       palette_(buffer.palette_),
-      palette_size_(buffer.palette_size_),
+      palette_size_(&buffer.palette_size_),
       address_window_(0, 0, 0, 0),
       background_mask_window_(0, 0, 0, 0),
       cursor_x_(0),
       cursor_y_(0),
-      cursor_ord_(0) {}
+      cursor_ord_(0),
+      has_pending_dynamic_palette_color_(false),
+      pending_dynamic_palette_color_(color::Transparent) {}
+
+uint8_t BackgroundFillOptimizer::tryAddIdxInPaletteOnSecondConsecutiveColor(
+    Color color) {
+  if (has_pending_dynamic_palette_color_ &&
+      pending_dynamic_palette_color_ == color) {
+    has_pending_dynamic_palette_color_ = false;
+    return tryAddIdxInPalette(color, palette_, *palette_size_);
+  }
+  pending_dynamic_palette_color_ = color;
+  has_pending_dynamic_palette_color_ = true;
+  return 0;
+}
+
+void BackgroundFillOptimizer::resetPendingDynamicPaletteColor() {
+  has_pending_dynamic_palette_color_ = false;
+}
 
 void BackgroundFillOptimizer::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
                                          uint16_t y1, BlendingMode mode) {
@@ -302,7 +334,7 @@ void BackgroundFillOptimizer::processWriteBlock(
 
   if (!have_pixel) return;
   if (all_same) {
-    palette_idx = getIdxInPalette(first_color, palette_, palette_size_);
+    palette_idx = getIdxInPalette(first_color, palette_, *palette_size_);
   }
 
   // `covered_count == kBgFillOptimizerWindowSize^2` implies full 4x4 block
@@ -311,6 +343,16 @@ void BackgroundFillOptimizer::processWriteBlock(
   // block.
   const bool fully_covered = (covered_count == kBgFillOptimizerWindowSize *
                                                    kBgFillOptimizerWindowSize);
+
+  if (all_same && fully_covered) {
+    if (palette_idx == 0) {
+      palette_idx = tryAddIdxInPaletteOnSecondConsecutiveColor(first_color);
+    } else {
+      resetPendingDynamicPaletteColor();
+    }
+  } else {
+    resetPendingDynamicPaletteColor();
+  }
 
   if (palette_idx > 0 &&
       background_mask_->get(current_block_x, current_block_y) == palette_idx) {
@@ -342,24 +384,38 @@ void BackgroundFillOptimizer::writeRects(BlendingMode mode, Color* color,
                                          int16_t* y1, uint16_t count) {
   BufferedRectWriter writer(output_, mode);
   while (count-- > 0) {
-    Color c = *color++;
-    uint8_t palette_idx = getIdxInPalette(c, palette_, palette_size_);
+    const Color c = *color++;
+    const int16_t rx0 = *x0++;
+    const int16_t ry0 = *y0++;
+    const int16_t rx1 = *x1++;
+    const int16_t ry1 = *y1++;
+
+    uint8_t palette_idx = getIdxInPalette(c, palette_, *palette_size_);
+    if (palette_idx == 0) {
+      const int16_t rect_w = rx1 - rx0 + 1;
+      const int16_t rect_h = ry1 - ry0 + 1;
+      if (rect_w >= kBgFillOptimizerDynamicPaletteMinWidth &&
+          rect_h >= kBgFillOptimizerDynamicPaletteMinHeight) {
+        palette_idx = tryAddIdxInPalette(c, palette_, *palette_size_);
+      }
+    }
+
     if (palette_idx != 0) {
       RectFillWriter adapter{
           .color = c,
           .writer = writer,
       };
-      fillRectBg(*x0++, *y0++, *x1++, *y1++, adapter, palette_idx);
+      fillRectBg(rx0, ry0, rx1, ry1, adapter, palette_idx);
     } else {
       // Not a background palette color -> clear the nibble subrectangle
       // corresponding to a region entirely enclosing the the drawn rectangle
       // before writing to the underlying device.
-      background_mask_->fillRect(Box(*x0 / kBgFillOptimizerWindowSize,
-                                     *y0 / kBgFillOptimizerWindowSize,
-                                     *x1 / kBgFillOptimizerWindowSize,
-                                     *y1 / kBgFillOptimizerWindowSize),
+      background_mask_->fillRect(Box(rx0 / kBgFillOptimizerWindowSize,
+                                     ry0 / kBgFillOptimizerWindowSize,
+                                     rx1 / kBgFillOptimizerWindowSize,
+                                     ry1 / kBgFillOptimizerWindowSize),
                                  0);
-      writer.writeRect(*x0++, *y0++, *x1++, *y1++, c);
+      writer.writeRect(rx0, ry0, rx1, ry1, c);
     }
   }
 }
@@ -367,24 +423,38 @@ void BackgroundFillOptimizer::writeRects(BlendingMode mode, Color* color,
 void BackgroundFillOptimizer::fillRects(BlendingMode mode, Color color,
                                         int16_t* x0, int16_t* y0, int16_t* x1,
                                         int16_t* y1, uint16_t count) {
-  uint8_t palette_idx = getIdxInPalette(color, palette_, palette_size_);
-  if (palette_idx != 0) {
-    BufferedRectFiller filler(output_, color, mode);
-    while (count-- > 0) {
-      fillRectBg(*x0++, *y0++, *x1++, *y1++, filler, palette_idx);
+  uint8_t palette_idx = getIdxInPalette(color, palette_, *palette_size_);
+  BufferedRectFiller filler(output_, color, mode);
+  BufferedRectWriter writer(output_, mode);
+
+  for (int i = 0; i < count; ++i) {
+    const int16_t rx0 = x0[i];
+    const int16_t ry0 = y0[i];
+    const int16_t rx1 = x1[i];
+    const int16_t ry1 = y1[i];
+
+    if (palette_idx == 0) {
+      const int16_t rect_w = rx1 - rx0 + 1;
+      const int16_t rect_h = ry1 - ry0 + 1;
+      if (rect_w >= kBgFillOptimizerDynamicPaletteMinWidth &&
+          rect_h >= kBgFillOptimizerDynamicPaletteMinHeight) {
+        palette_idx = tryAddIdxInPalette(color, palette_, *palette_size_);
+      }
     }
-  } else {
-    for (int i = 0; i < count; ++i) {
+
+    if (palette_idx != 0) {
+      fillRectBg(rx0, ry0, rx1, ry1, filler, palette_idx);
+    } else {
       // Not a background color -> clear the nibble subrectangle
       // corresponding to a region entirely enclosing the drawn rectangle
       // before writing to the underlying device.
-      background_mask_->fillRect(Box(x0[i] / kBgFillOptimizerWindowSize,
-                                     y0[i] / kBgFillOptimizerWindowSize,
-                                     x1[i] / kBgFillOptimizerWindowSize,
-                                     y1[i] / kBgFillOptimizerWindowSize),
+      background_mask_->fillRect(Box(rx0 / kBgFillOptimizerWindowSize,
+                                     ry0 / kBgFillOptimizerWindowSize,
+                                     rx1 / kBgFillOptimizerWindowSize,
+                                     ry1 / kBgFillOptimizerWindowSize),
                                  0);
+      writer.writeRect(rx0, ry0, rx1, ry1, color);
     }
-    output_.fillRects(mode, color, x0, y0, x1, y1, count);
   }
 }
 
@@ -396,7 +466,7 @@ void BackgroundFillOptimizer::writePixels(BlendingMode mode, Color* color,
   Color* color_out = color;
   uint16_t new_pixel_count = 0;
   for (uint16_t i = 0; i < pixel_count; ++i) {
-    uint8_t palette_idx = getIdxInPalette(color[i], palette_, palette_size_);
+    uint8_t palette_idx = getIdxInPalette(color[i], palette_, *palette_size_);
     if (palette_idx != 0) {
       // Do not actually draw the background pixel if the corresponding
       // bit-mask rectangle is known to be all-background already.
@@ -422,7 +492,7 @@ void BackgroundFillOptimizer::writePixels(BlendingMode mode, Color* color,
 void BackgroundFillOptimizer::fillPixels(BlendingMode mode, Color color,
                                          int16_t* x, int16_t* y,
                                          uint16_t pixel_count) {
-  uint8_t palette_idx = getIdxInPalette(color, palette_, palette_size_);
+  uint8_t palette_idx = getIdxInPalette(color, palette_, *palette_size_);
   if (palette_idx != 0) {
     int16_t* x_out = x;
     int16_t* y_out = y;
@@ -500,9 +570,23 @@ void BackgroundFillOptimizer::drawDirectRect(const roo::byte* data,
             data, row_width_bytes, src_block_x0, src_block_y0, src_block_x1,
             src_block_y1, &uniform_color);
 
-        const uint8_t palette_idx =
-            all_same ? getIdxInPalette(uniform_color, palette_, palette_size_)
+        const bool fully_covered =
+            (draw_x0 == block_x0 && draw_x1 == block_x1 &&
+             draw_y0 == block_y0 && draw_y1 == block_y1);
+
+        uint8_t palette_idx =
+            all_same ? getIdxInPalette(uniform_color, palette_, *palette_size_)
                      : 0;
+        if (all_same && fully_covered) {
+          if (palette_idx == 0) {
+            palette_idx =
+                tryAddIdxInPaletteOnSecondConsecutiveColor(uniform_color);
+          } else {
+            resetPendingDynamicPaletteColor();
+          }
+        } else {
+          resetPendingDynamicPaletteColor();
+        }
         const uint8_t current_mask_value = background_mask_->get(bx, by);
 
         // Redundant block update: all touched pixels are a palette color and
@@ -511,9 +595,6 @@ void BackgroundFillOptimizer::drawDirectRect(const roo::byte* data,
 
         uint8_t new_mask_value = current_mask_value;
         if (must_draw) {
-          const bool fully_covered =
-              (draw_x0 == block_x0 && draw_x1 == block_x1 &&
-               draw_y0 == block_y0 && draw_y1 == block_y1);
           new_mask_value = (fully_covered && palette_idx > 0) ? palette_idx : 0;
         }
 
@@ -549,7 +630,7 @@ void BackgroundFillOptimizer::drawDirectRect(const roo::byte* data,
 
 void BackgroundFillOptimizer::writePixel(int16_t x, int16_t y, Color c,
                                          BufferedPixelWriter* writer) {
-  uint8_t palette_idx = getIdxInPalette(c, palette_, palette_size_);
+  uint8_t palette_idx = getIdxInPalette(c, palette_, *palette_size_);
   if (palette_idx != 0) {
     // Skip writing if the containing bit-mask mapped rectangle
     // is known to be all-background already.
@@ -642,7 +723,7 @@ void BackgroundFillOptimizerDevice::setPalette(const Color* palette,
                                                uint8_t palette_size,
                                                Color prefilled) {
   buffer_.setPalette(palette, palette_size);
-  optimizer_.updatePalette(buffer_.palette(), buffer_.palette_size());
+  optimizer_.updatePalette(buffer_.palette_, &buffer_.palette_size_);
   buffer_.setPrefilled(prefilled);
 }
 

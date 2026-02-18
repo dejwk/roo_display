@@ -21,20 +21,6 @@ inline uint8_t getIdxInPalette(Color color, const Color* palette,
   return 0;
 }
 
-inline uint8_t tryAddIdxInPalette(Color color, Color* palette,
-                                  uint8_t& palette_size) {
-  if (palette_size < 15) {
-    // Not found, but we have room to add it to the palette. Let's do it.
-    // LOG(INFO) << "Adding color " << (int)color.r() << "," << (int)color.g()
-    //           << "," << (int)color.b() << "," << (int)color.a()
-    //           << " to palette at idx "
-    //           << (int)(palette_size + 1);
-    palette[palette_size] = color;
-    return ++palette_size;
-  }
-  return 0;
-}
-
 }  // namespace
 
 BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height)
@@ -113,15 +99,154 @@ BackgroundFillOptimizer::BackgroundFillOptimizer(DisplayOutput& output,
       cursor_x_(0),
       cursor_y_(0),
       cursor_ord_(0),
+      pinned_palette_size_(buffer.palette_size_),
+      palette_full_hint_(false),
       has_pending_dynamic_palette_color_(false),
-      pending_dynamic_palette_color_(color::Transparent) {}
+      pending_dynamic_palette_color_(color::Transparent) {
+  // The backing mask may already contain data (e.g. caller-provided external
+  // storage), so initialize usage counters from actual mask contents.
+  recountMaskUsage();
+}
+
+void BackgroundFillOptimizer::updatePalette(Color* palette,
+                                            uint8_t* palette_size,
+                                            uint8_t pinned_palette_size) {
+  palette_ = palette;
+  palette_size_ = palette_size;
+  pinned_palette_size_ = std::min<uint8_t>(pinned_palette_size, *palette_size_);
+  resetPendingDynamicPaletteColor();
+  resetMaskAndUsage(0);
+}
+
+void BackgroundFillOptimizer::setPrefilled(Color color) {
+  resetMaskAndUsage(getIdxInPalette(color, palette_, *palette_size_));
+}
+
+bool BackgroundFillOptimizer::isReclaimablePaletteIdx(uint8_t idx) const {
+  return idx > pinned_palette_size_ && idx <= *palette_size_;
+}
+
+void BackgroundFillOptimizer::recountMaskUsage() {
+  for (int i = 0; i < 16; ++i) palette_usage_count_[i] = 0;
+  const int16_t w = background_mask_->width();
+  const int16_t h = background_mask_->height();
+  for (int16_t y = 0; y < h; ++y) {
+    for (int16_t x = 0; x < w; ++x) {
+      ++palette_usage_count_[background_mask_->get(x, y)];
+    }
+  }
+
+  if (*palette_size_ < 15) {
+    palette_full_hint_ = false;
+    return;
+  }
+
+  palette_full_hint_ = true;
+  for (uint8_t idx = pinned_palette_size_ + 1; idx <= *palette_size_; ++idx) {
+    if (palette_usage_count_[idx] == 0) {
+      palette_full_hint_ = false;
+      return;
+    }
+  }
+}
+
+void BackgroundFillOptimizer::decrementPaletteUsage(uint8_t old_value) {
+  DCHECK_GT(palette_usage_count_[old_value], 0);
+  --palette_usage_count_[old_value];
+  if (palette_usage_count_[old_value] == 0 &&
+      isReclaimablePaletteIdx(old_value)) {
+    // LOG(INFO) << "Palette idx " << static_cast<int>(old_value - 1)
+    //           << " is now reclaimable";
+    palette_full_hint_ = false;
+  }
+}
+
+void BackgroundFillOptimizer::incrementPaletteUsage(uint8_t new_value,
+                                                    uint16_t count) {
+  palette_usage_count_[new_value] += count;
+}
+
+void BackgroundFillOptimizer::updateMaskValue(int16_t x, int16_t y,
+                                              uint8_t old_value,
+                                              uint8_t new_value) {
+  DCHECK_NE(old_value, new_value);
+  decrementPaletteUsage(old_value);
+  incrementPaletteUsage(new_value);
+  background_mask_->set(x, y, new_value);
+}
+
+void BackgroundFillOptimizer::fillMaskRect(const Box& box, uint8_t new_value) {
+  if (box.empty()) return;
+  const int16_t x0 = std::max<int16_t>(0, box.xMin());
+  const int16_t y0 = std::max<int16_t>(0, box.yMin());
+  const int16_t x1 =
+      std::min<int16_t>(background_mask_->width() - 1, box.xMax());
+  const int16_t y1 =
+      std::min<int16_t>(background_mask_->height() - 1, box.yMax());
+  if (x1 < x0 || y1 < y0) return;
+
+  for (int16_t y = y0; y <= y1; ++y) {
+    for (int16_t x = x0; x <= x1; ++x) {
+      decrementPaletteUsage(background_mask_->get(x, y));
+    }
+  }
+
+  background_mask_->fillRect(Box(x0, y0, x1, y1), new_value);
+  incrementPaletteUsage(new_value,
+                        static_cast<uint16_t>((x1 - x0 + 1) * (y1 - y0 + 1)));
+}
+
+void BackgroundFillOptimizer::resetMaskAndUsage(uint8_t mask_value) {
+  background_mask_->fillRect(
+      Box(0, 0, background_mask_->width() - 1, background_mask_->height() - 1),
+      mask_value);
+  for (int i = 0; i < 16; ++i) palette_usage_count_[i] = 0;
+  const uint16_t cell_count = static_cast<uint16_t>(background_mask_->width() *
+                                                    background_mask_->height());
+  palette_usage_count_[mask_value] = cell_count;
+  palette_full_hint_ = false;
+}
+
+uint8_t BackgroundFillOptimizer::tryAddIdxInPaletteDynamic(Color color) {
+  if (*palette_size_ < 15) {
+    uint8_t reclaim_idx = *palette_size_;
+    while (reclaim_idx > pinned_palette_size_ &&
+           palette_usage_count_[reclaim_idx] == 0) {
+      --reclaim_idx;
+    }
+    const bool append = (reclaim_idx == *palette_size_);
+    if (append) {
+      ++(*palette_size_);
+      // LOG(INFO) << "Added color " << roo_logging::hex << color.asArgb()
+      //           << " to palette idx " << static_cast<int>(*palette_size_);
+    } else {
+      // LOG(INFO) << "Reclaimed palette idx " << static_cast<int>(reclaim_idx)
+      //           << " for color " << roo_logging::hex << color.asArgb();
+    }
+    palette_[reclaim_idx] = color;
+    palette_full_hint_ = false;
+    return reclaim_idx + 1;
+  }
+
+  if (palette_full_hint_) return 0;
+
+  for (uint8_t idx = pinned_palette_size_ + 1; idx <= *palette_size_; ++idx) {
+    if (palette_usage_count_[idx] == 0) {
+      palette_[idx - 1] = color;
+      return idx;
+    }
+  }
+
+  palette_full_hint_ = true;
+  return 0;
+}
 
 uint8_t BackgroundFillOptimizer::tryAddIdxInPaletteOnSecondConsecutiveColor(
     Color color) {
   if (has_pending_dynamic_palette_color_ &&
       pending_dynamic_palette_color_ == color) {
     has_pending_dynamic_palette_color_ = false;
-    return tryAddIdxInPalette(color, palette_, *palette_size_);
+    return tryAddIdxInPaletteDynamic(color);
   }
   pending_dynamic_palette_color_ = color;
   has_pending_dynamic_palette_color_ = true;
@@ -147,7 +272,6 @@ void BackgroundFillOptimizer::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
 
 void BackgroundFillOptimizer::write(Color* color, uint32_t pixel_count) {
   if (pixel_count == 0) return;
-
   const int16_t aw_width = address_window_.width();
   const uint32_t end_ord = cursor_ord_ + pixel_count - 1;
   const int16_t end_x =
@@ -354,8 +478,9 @@ void BackgroundFillOptimizer::processWriteBlock(
     resetPendingDynamicPaletteColor();
   }
 
-  if (palette_idx > 0 &&
-      background_mask_->get(current_block_x, current_block_y) == palette_idx) {
+  const uint8_t current_mask_value =
+      background_mask_->get(current_block_x, current_block_y);
+  if (palette_idx > 0 && current_mask_value == palette_idx) {
     // Already known to be fully this palette color; skip redundant output.
     return;
   }
@@ -376,7 +501,10 @@ void BackgroundFillOptimizer::processWriteBlock(
     });
   }
 
-  background_mask_->set(current_block_x, current_block_y, new_mask_value);
+  if (current_mask_value != new_mask_value) {
+    updateMaskValue(current_block_x, current_block_y, current_mask_value,
+                    new_mask_value);
+  }
 }
 
 void BackgroundFillOptimizer::writeRects(BlendingMode mode, Color* color,
@@ -396,7 +524,7 @@ void BackgroundFillOptimizer::writeRects(BlendingMode mode, Color* color,
       const int16_t rect_h = ry1 - ry0 + 1;
       if (rect_w >= kBgFillOptimizerDynamicPaletteMinWidth &&
           rect_h >= kBgFillOptimizerDynamicPaletteMinHeight) {
-        palette_idx = tryAddIdxInPalette(c, palette_, *palette_size_);
+        palette_idx = tryAddIdxInPaletteDynamic(c);
       }
     }
 
@@ -410,11 +538,11 @@ void BackgroundFillOptimizer::writeRects(BlendingMode mode, Color* color,
       // Not a background palette color -> clear the nibble subrectangle
       // corresponding to a region entirely enclosing the the drawn rectangle
       // before writing to the underlying device.
-      background_mask_->fillRect(Box(rx0 / kBgFillOptimizerWindowSize,
-                                     ry0 / kBgFillOptimizerWindowSize,
-                                     rx1 / kBgFillOptimizerWindowSize,
-                                     ry1 / kBgFillOptimizerWindowSize),
-                                 0);
+      fillMaskRect(Box(rx0 / kBgFillOptimizerWindowSize,
+                       ry0 / kBgFillOptimizerWindowSize,
+                       rx1 / kBgFillOptimizerWindowSize,
+                       ry1 / kBgFillOptimizerWindowSize),
+                   0);
       writer.writeRect(rx0, ry0, rx1, ry1, c);
     }
   }
@@ -438,7 +566,7 @@ void BackgroundFillOptimizer::fillRects(BlendingMode mode, Color color,
       const int16_t rect_h = ry1 - ry0 + 1;
       if (rect_w >= kBgFillOptimizerDynamicPaletteMinWidth &&
           rect_h >= kBgFillOptimizerDynamicPaletteMinHeight) {
-        palette_idx = tryAddIdxInPalette(color, palette_, *palette_size_);
+        palette_idx = tryAddIdxInPaletteDynamic(color);
       }
     }
 
@@ -448,11 +576,11 @@ void BackgroundFillOptimizer::fillRects(BlendingMode mode, Color color,
       // Not a background color -> clear the nibble subrectangle
       // corresponding to a region entirely enclosing the drawn rectangle
       // before writing to the underlying device.
-      background_mask_->fillRect(Box(rx0 / kBgFillOptimizerWindowSize,
-                                     ry0 / kBgFillOptimizerWindowSize,
-                                     rx1 / kBgFillOptimizerWindowSize,
-                                     ry1 / kBgFillOptimizerWindowSize),
-                                 0);
+      fillMaskRect(Box(rx0 / kBgFillOptimizerWindowSize,
+                       ry0 / kBgFillOptimizerWindowSize,
+                       rx1 / kBgFillOptimizerWindowSize,
+                       ry1 / kBgFillOptimizerWindowSize),
+                   0);
       writer.writeRect(rx0, ry0, rx1, ry1, color);
     }
   }
@@ -466,19 +594,21 @@ void BackgroundFillOptimizer::writePixels(BlendingMode mode, Color* color,
   Color* color_out = color;
   uint16_t new_pixel_count = 0;
   for (uint16_t i = 0; i < pixel_count; ++i) {
+    const int16_t bx = x[i] / kBgFillOptimizerWindowSize;
+    const int16_t by = y[i] / kBgFillOptimizerWindowSize;
+    const uint8_t old_value = background_mask_->get(bx, by);
+
     uint8_t palette_idx = getIdxInPalette(color[i], palette_, *palette_size_);
-    if (palette_idx != 0) {
+    if (palette_idx != 0 && old_value == palette_idx) {
       // Do not actually draw the background pixel if the corresponding
       // bit-mask rectangle is known to be all-background already.
-      if (background_mask_->get(x[i] / kBgFillOptimizerWindowSize,
-                                y[i] / kBgFillOptimizerWindowSize) ==
-          palette_idx)
-        continue;
+      continue;
     }
     // Mark the corresponding bit-mask rectangle as no longer
     // all-background.
-    background_mask_->set(x[i] / kBgFillOptimizerWindowSize,
-                          y[i] / kBgFillOptimizerWindowSize, 0);
+    if (old_value != 0) {
+      updateMaskValue(bx, by, old_value, 0);
+    }
     *x_out++ = x[i];
     *y_out++ = y[i];
     *color_out++ = color[i];
@@ -498,15 +628,18 @@ void BackgroundFillOptimizer::fillPixels(BlendingMode mode, Color color,
     int16_t* y_out = y;
     uint16_t new_pixel_count = 0;
     for (uint16_t i = 0; i < pixel_count; ++i) {
+      const int16_t bx = x[i] / kBgFillOptimizerWindowSize;
+      const int16_t by = y[i] / kBgFillOptimizerWindowSize;
+      const uint8_t old_value = background_mask_->get(bx, by);
+
       // Do not actually draw the background pixel if the corresponding
       // bit-mask rectangle is known to be all-background already.
-      if (background_mask_->get(x[i] / kBgFillOptimizerWindowSize,
-                                y[i] / kBgFillOptimizerWindowSize) ==
-          palette_idx) {
+      if (old_value == palette_idx) {
         continue;
       }
-      background_mask_->set(x[i] / kBgFillOptimizerWindowSize,
-                            y[i] / kBgFillOptimizerWindowSize, 0);
+      if (old_value != 0) {
+        updateMaskValue(bx, by, old_value, 0);
+      }
       *x_out++ = x[i];
       *y_out++ = y[i];
       new_pixel_count++;
@@ -518,8 +651,12 @@ void BackgroundFillOptimizer::fillPixels(BlendingMode mode, Color color,
     // We need to draw all the pixels, but also mark the corresponding
     // bit-mask rectangles as not all-background.
     for (uint16_t i = 0; i < pixel_count; ++i) {
-      background_mask_->set(x[i] / kBgFillOptimizerWindowSize,
-                            y[i] / kBgFillOptimizerWindowSize, 0);
+      const int16_t bx = x[i] / kBgFillOptimizerWindowSize;
+      const int16_t by = y[i] / kBgFillOptimizerWindowSize;
+      const uint8_t old_value = background_mask_->get(bx, by);
+      if (old_value != 0) {
+        updateMaskValue(bx, by, old_value, 0);
+      }
     }
     output_.fillPixels(mode, color, x, y, pixel_count);
   }
@@ -599,7 +736,7 @@ void BackgroundFillOptimizer::drawDirectRect(const roo::byte* data,
         }
 
         if (new_mask_value != current_mask_value) {
-          background_mask_->set(bx, by, new_mask_value);
+          updateMaskValue(bx, by, current_mask_value, new_mask_value);
         }
       }
 
@@ -631,18 +768,21 @@ void BackgroundFillOptimizer::drawDirectRect(const roo::byte* data,
 void BackgroundFillOptimizer::writePixel(int16_t x, int16_t y, Color c,
                                          BufferedPixelWriter* writer) {
   uint8_t palette_idx = getIdxInPalette(c, palette_, *palette_size_);
-  if (palette_idx != 0) {
+  const int16_t bx = x / kBgFillOptimizerWindowSize;
+  const int16_t by = y / kBgFillOptimizerWindowSize;
+  const uint8_t old_value = background_mask_->get(bx, by);
+
+  if (palette_idx != 0 && old_value == palette_idx) {
     // Skip writing if the containing bit-mask mapped rectangle
     // is known to be all-background already.
-    if (background_mask_->get(x / kBgFillOptimizerWindowSize,
-                              y / kBgFillOptimizerWindowSize) == palette_idx) {
-      return;
-    }
+    return;
   }
+
   // Mark the corresponding bit-mask mapped rectangle as no longer
   // all-background.
-  background_mask_->set(x / kBgFillOptimizerWindowSize,
-                        y / kBgFillOptimizerWindowSize, 0);
+  if (old_value != 0) {
+    updateMaskValue(bx, by, old_value, 0);
+  }
   writer->writePixel(x, y, c);
 }
 
@@ -675,13 +815,19 @@ void BackgroundFillOptimizer::fillRectBg(int16_t x0, int16_t y0, int16_t x1,
                 y1 < y * kBgFillOptimizerWindowSize +
                          kBgFillOptimizerWindowSize - 1) {
               // Need to invalidate the entire line.
-              background_mask_->fillRect(Box(xstart, y, x - 1, y), 0);
+              fillMaskRect(Box(xstart, y, x - 1, y), 0);
             } else {
               if (x0 > xstart * kBgFillOptimizerWindowSize) {
-                background_mask_->set(xstart, y, 0);
+                const uint8_t old_value = background_mask_->get(xstart, y);
+                if (old_value != 0) {
+                  updateMaskValue(xstart, y, old_value, 0);
+                }
               }
               if (x1 < x * kBgFillOptimizerWindowSize - 1) {
-                background_mask_->set(x - 1, y, 0);
+                const uint8_t old_value = background_mask_->get(x - 1, y);
+                if (old_value != 0) {
+                  updateMaskValue(x - 1, y, old_value, 0);
+                }
               }
             }
           }
@@ -706,7 +852,7 @@ void BackgroundFillOptimizer::fillRectBg(int16_t x0, int16_t y0, int16_t x1,
       (x1 + 1) / kBgFillOptimizerWindowSize - 1,
       (y1 + 1) / kBgFillOptimizerWindowSize - 1);
   if (!inner_filter_box.empty()) {
-    background_mask_->fillRect(inner_filter_box, palette_idx);
+    fillMaskRect(inner_filter_box, palette_idx);
   }
 }
 
@@ -723,8 +869,9 @@ void BackgroundFillOptimizerDevice::setPalette(const Color* palette,
                                                uint8_t palette_size,
                                                Color prefilled) {
   buffer_.setPalette(palette, palette_size);
-  optimizer_.updatePalette(buffer_.palette_, &buffer_.palette_size_);
-  buffer_.setPrefilled(prefilled);
+  optimizer_.updatePalette(buffer_.palette_, &buffer_.palette_size_,
+                           palette_size);
+  optimizer_.setPrefilled(prefilled);
 }
 
 void BackgroundFillOptimizerDevice::setPalette(

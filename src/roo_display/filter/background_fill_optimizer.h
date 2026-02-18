@@ -157,10 +157,31 @@ class BackgroundFillOptimizer : public DisplayOutput {
  private:
   friend class BackgroundFillOptimizerDevice;
 
-  void updatePalette(Color* palette, uint8_t* palette_size) {
-    palette_ = palette;
-    palette_size_ = palette_size;
-  }
+  void updatePalette(Color* palette, uint8_t* palette_size,
+                     uint8_t pinned_palette_size);
+
+  void setPrefilled(Color color);
+
+  uint8_t tryAddIdxInPaletteDynamic(Color color);
+
+  uint8_t tryAddIdxInPaletteOnSecondConsecutiveColor(Color color);
+
+  void resetPendingDynamicPaletteColor();
+
+  void updateMaskValue(int16_t x, int16_t y, uint8_t old_value,
+                       uint8_t new_value);
+
+  void decrementPaletteUsage(uint8_t old_value);
+
+  void incrementPaletteUsage(uint8_t new_value, uint16_t count = 1);
+
+  void fillMaskRect(const Box& box, uint8_t new_value);
+
+  void resetMaskAndUsage(uint8_t mask_value);
+
+  void recountMaskUsage();
+
+  bool isReclaimablePaletteIdx(uint8_t idx) const;
 
   // // Returns an int from 1 to 15 (inclusive) if the specified color is found
   // // in the background palette, and 0 otherwise.
@@ -172,10 +193,6 @@ class BackgroundFillOptimizer : public DisplayOutput {
                          uint32_t start_ord, uint32_t end_ord,
                          int16_t current_block_x, int16_t current_block_y,
                          int16_t first_row, int16_t last_row);
-
-  uint8_t tryAddIdxInPaletteOnSecondConsecutiveColor(Color color);
-
-  void resetPendingDynamicPaletteColor();
 
   template <typename Filler>
   void fillRectBg(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
@@ -192,6 +209,9 @@ class BackgroundFillOptimizer : public DisplayOutput {
   int16_t cursor_x_;
   int16_t cursor_y_;
   uint32_t cursor_ord_;
+  uint16_t palette_usage_count_[16];
+  uint8_t pinned_palette_size_;
+  bool palette_full_hint_;
   bool has_pending_dynamic_palette_color_;
   Color pending_dynamic_palette_color_;
 };
@@ -215,6 +235,9 @@ class BackgroundFillOptimizerDevice : public DisplayDevice {
   void orientationUpdated() override {
     device_.orientationUpdated();
     buffer_.setSwapXY(orientation().isXYswapped());
+    // Orientation swap reinterprets the same backing mask with transposed
+    // geometry, so rebuild usage counters from the current mask contents.
+    optimizer_.recountMaskUsage();
   }
 
   virtual void setBgColorHint(Color bgcolor) {

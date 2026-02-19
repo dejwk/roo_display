@@ -274,6 +274,13 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::write(Color *color,
 }
 
 template <>
+void ParallelRgb565<FLUSH_MODE_BUFFERED>::fill(Color color,
+                                               uint32_t pixel_count) {
+  buffer_->fill(color, pixel_count);
+  flush();
+}
+
+template <>
 void ParallelRgb565<FLUSH_MODE_BUFFERED>::writePixels(BlendingMode mode,
                                                       Color *color, int16_t *x,
                                                       int16_t *y,
@@ -379,6 +386,12 @@ template <>
 void ParallelRgb565<FLUSH_MODE_LAZY>::write(Color *color,
                                             uint32_t pixel_count) {
   buffer_->write(color, pixel_count);
+}
+
+template <>
+void ParallelRgb565<FLUSH_MODE_LAZY>::fill(Color color,
+                                           uint32_t pixel_count) {
+  buffer_->fill(color, pixel_count);
 }
 
 template <>

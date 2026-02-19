@@ -33,6 +33,10 @@ class ColorFilter : public DisplayOutput {
     output_.write(color, pixel_count);
   }
 
+  void fill(Color color, uint32_t pixel_count) override {
+    output_.fill(transform(color), pixel_count);
+  }
+
   void writeRects(BlendingMode blending_mode, Color* color, int16_t* x0,
                   int16_t* y0, int16_t* x1, int16_t* y1,
                   uint16_t count) override {
@@ -142,6 +146,10 @@ class ColorFilter<Erasure> : public DisplayOutput {
       color[i] = bgcolor_;
     }
     output_.write(color, pixel_count);
+  }
+
+  void fill(Color color, uint32_t pixel_count) override {
+    output_.fill(bgcolor_, pixel_count);
   }
 
   void writeRects(BlendingMode blending_mode, Color* color, int16_t* x0,

@@ -59,7 +59,12 @@ class DisplayOutput {
   /// @param pixel_count Number of pixels to write.
   virtual void write(Color *color, uint32_t pixel_count) = 0;
 
-  // virtual void fill(Color color, uint32_t pixel_count) = 0;
+  /// Write `pixel_count` copies of the same color into the current address
+  /// window.
+  ///
+  /// Default implementation falls back to chunked `write()`. Drivers and
+  /// filters can override this for a more efficient single-color path.
+  virtual void fill(Color color, uint32_t pixel_count);
 
   /// Draw the specified pixels (per-pixel colors). Invalidates the address
   /// window.

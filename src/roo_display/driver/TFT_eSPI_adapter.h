@@ -80,6 +80,11 @@ class TFT_eSPI_Adapter : public DisplayDevice {
     tft_.setSwapBytes(false);
   }
 
+  void fill(Color color, uint32_t pixel_count) override {
+    ApplyBlendingOverBackground(blending_mode_, bgcolor_, &color, 1);
+    tft_.pushColor(to_raw_color(color), pixel_count);
+  }
+
   void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     while (count-- > 0) {
@@ -87,9 +92,7 @@ class TFT_eSPI_Adapter : public DisplayDevice {
       TFT_eSPI_Adapter::setAddress(*x0++, *y0++, *x1++, *y1++,
                                    BLENDING_MODE_SOURCE);
       Color mycolor = *color++;
-      if (mode == BLENDING_MODE_SOURCE_OVER) {
-        mycolor = AlphaBlend(bgcolor_, mycolor);
-      }
+      ApplyBlendingOverBackground(mode, bgcolor_, &mycolor, 1);
       uint16_t raw_color = to_raw_color(mycolor);
       tft_.pushBlock(raw_color, pixel_count);
     }
@@ -97,9 +100,7 @@ class TFT_eSPI_Adapter : public DisplayDevice {
 
   void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
-    if (mode == BLENDING_MODE_SOURCE_OVER) {
-      color = AlphaBlend(bgcolor_, color);
-    }
+    ApplyBlendingOverBackground(mode, bgcolor_, &color, 1);
     uint16_t raw_color = to_raw_color(color);
 
     while (count-- > 0) {
@@ -155,9 +156,7 @@ class TFT_eSPI_Adapter : public DisplayDevice {
 
   void fillPixels(BlendingMode mode, Color color, int16_t* xs, int16_t* ys,
                   uint16_t pixel_count) override {
-    if (mode == BLENDING_MODE_SOURCE_OVER) {
-      color = AlphaBlend(bgcolor_, color);
-    }
+    ApplyBlendingOverBackground(mode, bgcolor_, &color, 1);
     uint16_t raw_color = to_raw_color(color);
     compactor_.drawPixels(
         xs, ys, pixel_count,
@@ -204,20 +203,9 @@ class TFT_eSPI_Adapter : public DisplayDevice {
  private:
   Color* processColorSequence(BlendingMode mode, Color* src, uint16_t* dest,
                               uint32_t pixel_count) {
-    switch (mode) {
-      case BLENDING_MODE_SOURCE: {
-        while (pixel_count-- > 0) {
-          *dest++ = to_raw_color(*src++);
-        }
-        break;
-      }
-      case BLENDING_MODE_SOURCE_OVER: {
-        while (pixel_count-- > 0) {
-          *dest++ = to_raw_color(AlphaBlend(bgcolor_, *src++));
-        }
-      }
-      default:
-        break;
+    ApplyBlendingOverBackground(mode, bgcolor_, src, pixel_count);
+    while (pixel_count-- > 0) {
+      *dest++ = to_raw_color(*src++);
     }
     return src;
   }

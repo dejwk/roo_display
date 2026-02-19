@@ -115,6 +115,14 @@ class AddrWindowDevice : public DisplayDevice {
     target_.ramWrite(buffer, pixel_count);
   }
 
+  void fill(Color color, uint32_t pixel_count) override {
+    ApplyBlendingOverBackground(blending_mode_, bgcolor_, &color, 1);
+    raw_color_type raw_color;
+    ColorIo<typename Target::ColorMode, Target::byte_order>().store(color,
+                                                                    raw_color);
+    target_.ramFill(raw_color, pixel_count);
+  }
+
   void writeRects(BlendingMode blending_mode, Color* color, int16_t* x0,
                   int16_t* y0, int16_t* x1, int16_t* y1,
                   uint16_t count) override {

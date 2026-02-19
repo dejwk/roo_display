@@ -33,8 +33,12 @@ class FrontToBackWriter : public DisplayOutput {
 
   void write(Color* color, uint32_t pixel_count) override {
     mask_filter_.write(color, pixel_count);
-    FillColor(color, pixel_count, color::Black);
-    offscreen_.output().write(color, pixel_count);
+    offscreen_.output().fill(color::Black, pixel_count);
+  }
+
+  void fill(Color color, uint32_t pixel_count) override {
+    mask_filter_.fill(color, pixel_count);
+    offscreen_.output().fill(color::Black, pixel_count);
   }
 
   void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,

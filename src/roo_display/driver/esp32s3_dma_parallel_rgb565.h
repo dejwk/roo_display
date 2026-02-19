@@ -291,6 +291,8 @@ class ParallelRgb565 : public DisplayDevice {
 
   void write(Color *color, uint32_t pixel_count) override;
 
+  void fill(Color color, uint32_t pixel_count) override;
+
   void writePixels(BlendingMode mode, Color *color, int16_t *x, int16_t *y,
                    uint16_t pixel_count) override;
 

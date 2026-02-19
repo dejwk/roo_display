@@ -1,6 +1,34 @@
 #include "roo_display/core/device.h"
 
+#include "roo_io/memory/fill.h"
+
 namespace roo_display {
+
+void DisplayOutput::fill(Color color, uint32_t pixel_count) {
+  if (pixel_count == 0) return;
+  static constexpr uint32_t kChunkSize = 64;
+  Color chunk[kChunkSize];
+
+  if (pixel_count < kChunkSize) {
+    roo_io::PatternFill<4>((roo::byte*)chunk, pixel_count,
+                           (const roo::byte*)(&color));
+    write(chunk, pixel_count);
+    return;
+  }
+
+  roo_io::PatternFill<4>((roo::byte*)chunk, kChunkSize,
+                         (const roo::byte*)(&color));
+
+  const uint32_t remainder = pixel_count % kChunkSize;
+  if (remainder > 0) {
+    write(chunk, remainder);
+  }
+
+  uint32_t full_blocks = pixel_count / kChunkSize;
+  while (full_blocks-- > 0) {
+    write(chunk, kChunkSize);
+  }
+}
 
 void DisplayOutput::drawDirectRect(const roo::byte *data,
                                    size_t row_width_bytes, int16_t src_x0,

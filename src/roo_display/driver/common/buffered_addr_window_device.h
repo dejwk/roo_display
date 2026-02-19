@@ -54,6 +54,11 @@ class BufferedAddrWindowDevice : public DisplayDevice {
     rect_cache_.pixelsWritten(pixel_count);
   }
 
+  void fill(Color color, uint32_t pixel_count) override {
+    buffer_dev_.fill(color, pixel_count);
+    rect_cache_.pixelsWritten(pixel_count);
+  }
+
   void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     flushRectCache();

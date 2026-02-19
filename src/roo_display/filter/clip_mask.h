@@ -136,6 +136,21 @@ class ClipMaskFilter : public DisplayOutput {
     }
   }
 
+  void fill(Color color, uint32_t pixel_count) override {
+    uint32_t i = 0;
+    BufferedPixelFiller filler(output_, color, blending_mode_);
+    while (i < pixel_count) {
+      if (!clip_mask_.isMasked(cursor_x_, cursor_y_)) {
+        filler.fillPixel(cursor_x_, cursor_y_);
+      }
+      if (++cursor_x_ > address_window_.xMax()) {
+        ++cursor_y_;
+        cursor_x_ = address_window_.xMin();
+      }
+      ++i;
+    }
+  }
+
   void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     while (count-- > 0) {

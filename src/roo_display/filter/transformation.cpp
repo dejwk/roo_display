@@ -227,7 +227,50 @@ void TransformedDisplayOutput::write(Color *color, uint32_t pixel_count) {
   }
 }
 
-// virtual void fill(BlendingMode mode, Color color, uint32_t pixel_count) = 0;
+void TransformedDisplayOutput::fill(Color color, uint32_t pixel_count) {
+  if (!transformation_.is_rescaled() && !transformation_.xy_swap()) {
+    delegate_.fill(color, pixel_count);
+  } else if (!transformation_.is_abs_rescaled()) {
+    ClippingBufferedPixelFiller filler(delegate_, color, clip_box_,
+                                       blending_mode_);
+    while (pixel_count-- > 0) {
+      int16_t x = x_cursor_;
+      int16_t y = y_cursor_;
+      if (transformation_.xy_swap()) {
+        std::swap(x, y);
+      }
+      filler.fillPixel(
+          x * transformation_.x_scale() + transformation_.x_offset(),
+          y * transformation_.y_scale() + transformation_.y_offset());
+      if (x_cursor_ < addr_window_.xMax()) {
+        ++x_cursor_;
+      } else {
+        x_cursor_ = addr_window_.xMin();
+        ++y_cursor_;
+      }
+    }
+  } else {
+    ClippingBufferedRectFiller filler(delegate_, color, clip_box_,
+                                      blending_mode_);
+    while (pixel_count-- > 0) {
+      int16_t x0 = x_cursor_;
+      int16_t y0 = y_cursor_;
+      if (transformation_.xy_swap()) {
+        std::swap(x0, y0);
+      }
+      int16_t x1 = x0;
+      int16_t y1 = y0;
+      transformation_.transformRectNoSwap(x0, y0, x1, y1);
+      filler.fillRect(x0, y0, x1, y1);
+      if (x_cursor_ < addr_window_.xMax()) {
+        ++x_cursor_;
+      } else {
+        x_cursor_ = addr_window_.xMin();
+        ++y_cursor_;
+      }
+    }
+  }
+}
 
 void TransformedDisplayOutput::writePixels(BlendingMode mode, Color *color,
                                            int16_t *x, int16_t *y,

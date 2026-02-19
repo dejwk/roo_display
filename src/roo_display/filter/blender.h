@@ -87,6 +87,32 @@ class BlendingFilter : public DisplayOutput {
     output_->write(newcolor, pixel_count);
   }
 
+  void fill(Color color, uint32_t pixel_count) override {
+    if (pixel_count == 0) return;
+    int16_t x[pixel_count];
+    int16_t y[pixel_count];
+    Color newcolor[pixel_count];
+
+    for (uint32_t i = 0; i < pixel_count; ++i) {
+      x[i] = cursor_x_++;
+      y[i] = cursor_y_;
+      if (cursor_x_ > address_window_.xMax()) {
+        cursor_y_++;
+        cursor_x_ = address_window_.xMin();
+      }
+    }
+    raster_->readColorsMaybeOutOfBounds(x, y, pixel_count, newcolor);
+    for (uint32_t i = 0; i < pixel_count; ++i) {
+      newcolor[i] = blender_(newcolor[i], color);
+    }
+    if (bgcolor_ != color::Transparent) {
+      for (uint32_t i = 0; i < pixel_count; ++i) {
+        newcolor[i] = AlphaBlend(bgcolor_, newcolor[i]);
+      }
+    }
+    output_->write(newcolor, pixel_count);
+  }
+
   // void fill(BlendingMode mode, Color color, uint32_t pixel_count) override {
   //   // Naive implementation, for now.
   //   uint32_t i = 0;

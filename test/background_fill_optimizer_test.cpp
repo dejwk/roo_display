@@ -46,6 +46,10 @@ class OptimizedDevice : public DisplayDevice {
     optimizer_.write(color, pixel_count);
   }
 
+  void fill(Color color, uint32_t pixel_count) override {
+    optimizer_.fill(color, pixel_count);
+  }
+
   void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
                    uint16_t pixel_count) override {
     optimizer_.writePixels(mode, color, x, y, pixel_count);
@@ -559,10 +563,12 @@ TEST(BackgroundFillOptimizer, WriteSubRectsFromPatternSource) {
   DrawingContext dc(display);
 
   // Copy varied source sub-rectangles by drawing with clipped context:
-  // - 8x8 (64 px), aligned to 4x4 grid blocks on destination.
+  // - 8x8 (64 px), from a guaranteed white corner region, aligned to 4x4
+  //   grid blocks on destination, to create a clear redundant-write
+  //   optimization opportunity (white over white).
   // - 1x13 thin strip (1-pixel wide).
   // - 17x5 non-square rectangle.
-  DrawClippedRectFromSource(dc, source_image, 4, 4, 11, 11, 8, 8);     // 64
+  DrawClippedRectFromSource(dc, source_image, 0, 0, 7, 7, 8, 8);       // 64
   DrawClippedRectFromSource(dc, source_image, 46, 18, 46, 30, 41, 26);  // 13
   DrawClippedRectFromSource(dc, source_image, 14, 22, 30, 26, 20, 40);  // 85
 
@@ -575,6 +581,115 @@ TEST(BackgroundFillOptimizer, WriteSubRectsFromPatternSource) {
   EXPECT_EQ(ref_count, 162u);
   EXPECT_GT(test_count, 0u);
   EXPECT_LT(test_count, ref_count);
+}
+
+TEST(BackgroundFillOptimizer, WriteChunkedUniformStripeOptimization) {
+  // Verifies that a uniform write stream split across multiple write() calls
+  // still gets collapsed into a background-optimized rectangle.
+  constexpr Color kBg = color::White;
+  constexpr Color kFill = color::Blue;
+
+  TestScreen screen(16, 16, kBg);
+  screen.test().setPalette({kBg, kFill}, kBg);
+
+  Color data[32];
+  for (int i = 0; i < 32; ++i) data[i] = kFill;
+
+  screen.setAddress(0, 0, 7, 3, BLENDING_MODE_SOURCE);
+  screen.write(data, 5);
+  screen.write(data + 5, 7);
+  screen.write(data + 12, 20);
+
+  const uint64_t draw_after_first = screen.test().device().pixelDrawCount();
+
+  screen.setAddress(0, 0, 7, 3, BLENDING_MODE_SOURCE);
+  screen.write(data, 6);
+  screen.write(data + 6, 26);
+
+  const uint64_t draw_after_second = screen.test().device().pixelDrawCount();
+
+  EXPECT_CONSISTENT(screen);
+  EXPECT_EQ(draw_after_first, 32u);
+  EXPECT_EQ(draw_after_second, draw_after_first);
+}
+
+TEST(BackgroundFillOptimizer, WritePassthroughThenUniformNextStripe) {
+  // Verifies that after entering passthrough on a mixed stripe, write()
+  // returns to scan mode at the stripe boundary and can optimize the next
+  // uniform stripe.
+  constexpr Color kBg = color::White;
+  constexpr Color kStripe = color::Green;
+
+  TestScreen screen(16, 16, kBg);
+  screen.test().setPalette({kBg, kStripe}, kBg);
+
+  Color data[64];
+  for (int i = 0; i < 32; ++i) {
+    data[i] = (i % 2 == 0) ? color::Red : color::Blue;
+  }
+  for (int i = 32; i < 64; ++i) {
+    data[i] = kStripe;
+  }
+
+  screen.setAddress(0, 0, 7, 7, BLENDING_MODE_SOURCE);
+  screen.write(data, 13);
+  screen.write(data + 13, 11);
+  screen.write(data + 24, 40);
+
+  const uint64_t draw_after_first = screen.test().device().pixelDrawCount();
+
+  screen.setAddress(0, 0, 7, 7, BLENDING_MODE_SOURCE);
+  screen.write(data, 9);
+  screen.write(data + 9, 55);
+
+  const uint64_t draw_after_second = screen.test().device().pixelDrawCount();
+
+  EXPECT_CONSISTENT(screen);
+  EXPECT_EQ(draw_after_first, 64u);
+  EXPECT_EQ(draw_after_second - draw_after_first, 32u);
+}
+
+TEST(BackgroundFillOptimizer, FillColorTransitionFlushesDeferredRun) {
+  // Regression test: consecutive fill() calls with different colors while in
+  // scan mode must flush the pending deferred run before switching color.
+  constexpr Color kBg = color::White;
+  constexpr Color kA = color::Blue;
+  constexpr Color kB = color::Green;
+
+  TestScreen screen(16, 16, kBg);
+  screen.test().setPalette({kBg, kA, kB}, kBg);
+
+  // 8x4 window (32 px) fits one stripe in scan mode.
+  // Split into 12 + 20 so both fills occur before stripe-end emission.
+  screen.setAddress(0, 0, 7, 3, BLENDING_MODE_SOURCE);
+  screen.fill(kA, 12);
+  screen.fill(kB, 20);
+
+  EXPECT_CONSISTENT(screen);
+}
+
+TEST(BackgroundFillOptimizer, WriteAlignedStripeThenTailAdvancesColorPointer) {
+  // Regression test: if tryProcessGridAlignedBlockStripes consumes a full
+  // stripe but does not advance the caller's color pointer, the remaining tail
+  // pixels are read from the wrong source offset.
+  constexpr Color kBg = color::White;
+  constexpr Color kStripe = color::Blue;
+  constexpr Color kTailA = color::Green;
+  constexpr Color kTailB = color::Yellow;
+
+  TestScreen screen(16, 16, kBg);
+  screen.test().setPalette({kBg, kStripe, kTailA, kTailB}, kBg);
+
+  Color data[40];
+  for (int i = 0; i < 32; ++i) data[i] = kStripe;
+  for (int i = 32; i < 40; ++i) data[i] = ((i % 2) == 0) ? kTailA : kTailB;
+
+  // 8x8 destination window is grid-aligned and 4x4-block compatible.
+  // First 32 px form one full 8x4 stripe; remaining 8 px are the tail.
+  screen.setAddress(0, 0, 7, 7, BLENDING_MODE_SOURCE);
+  screen.write(data, 40);
+
+  EXPECT_CONSISTENT(screen);
 }
 
 TEST(BackgroundFillOptimizer, WriteSubRectsFromPatternSourceStress) {

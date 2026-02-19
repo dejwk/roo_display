@@ -134,6 +134,8 @@ class BackgroundFillOptimizer : public DisplayOutput {
 
   void write(Color* color, uint32_t pixel_count) override;
 
+  void fill(Color color, uint32_t pixel_count) override;
+
   void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override;
 
@@ -187,12 +189,33 @@ class BackgroundFillOptimizer : public DisplayOutput {
   // // in the background palette, and 0 otherwise.
   // inline uint8_t getIdxInPalette(Color color);
 
-  void writePixel(int16_t x, int16_t y, Color c, BufferedPixelWriter* writer);
+  uint32_t addressWindowPixelCount() const;
 
-  void processWriteBlock(Color* color, BufferedPixelWriter& writer,
-                         uint32_t start_ord, uint32_t end_ord,
-                         int16_t current_block_x, int16_t current_block_y,
-                         int16_t first_row, int16_t last_row);
+  bool writeCursorAtOrPastWindowEnd() const;
+
+  void setWriteCursorOrd(uint32_t ord);
+
+  void advanceWriteCursor(uint32_t pixel_count);
+
+  uint32_t pixelsUntilStripeEnd() const;
+
+  void beginPassthroughIfNeeded();
+
+  void passthroughWrite(Color* color, uint32_t pixel_count);
+
+  void passthroughFill(Color color, uint32_t pixel_count);
+
+  void flushDeferredUniformRun();
+
+  void clearMaskForOrdRange(uint32_t start_ord, uint32_t pixel_count);
+
+  // Grid-aligned, block-based fast path (strict alignment required).
+  bool tryProcessGridAlignedBlockStripes(Color*& color,
+                                         uint32_t& pixel_count);
+
+  void processAlignedFullStripe(Color* color);
+
+  void emitUniformScanRun(Color color, uint32_t start_ord, uint32_t count);
 
   template <typename Filler>
   void fillRectBg(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
@@ -204,7 +227,6 @@ class BackgroundFillOptimizer : public DisplayOutput {
   uint8_t* palette_size_;
 
   Box address_window_;
-  Box background_mask_window_;
   BlendingMode blending_mode_;
   int16_t cursor_x_;
   int16_t cursor_y_;
@@ -214,6 +236,14 @@ class BackgroundFillOptimizer : public DisplayOutput {
   bool palette_full_hint_;
   bool has_pending_dynamic_palette_color_;
   Color pending_dynamic_palette_color_;
+
+  enum class WriteScanState { kScan, kPassthrough };
+  WriteScanState write_scan_state_;
+  bool passthrough_address_set_;
+  bool scan_uniform_active_;
+  Color scan_uniform_color_;
+  uint32_t scan_uniform_start_ord_;
+  uint32_t scan_uniform_count_;
 };
 
 /// Display device wrapper that applies background fill optimization.
@@ -255,6 +285,10 @@ class BackgroundFillOptimizerDevice : public DisplayDevice {
 
   void write(Color* color, uint32_t pixel_count) override {
     optimizer_.write(color, pixel_count);
+  }
+
+  void fill(Color color, uint32_t pixel_count) override {
+    optimizer_.fill(color, pixel_count);
   }
 
   void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,

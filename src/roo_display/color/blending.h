@@ -538,7 +538,7 @@ inline void ApplyBlendingInPlaceIndexed(BlendingMode mode, Color* dst,
                                                      index);
 }
 
-// Blends the `src` array in place ofer the 'bg' color, using the specified
+// Blends the `src` array in place over the 'bg' color, using the specified
 // mode.
 inline void ApplyBlendingOverBackground(BlendingMode mode, Color bg, Color* src,
                                         int16_t count) {

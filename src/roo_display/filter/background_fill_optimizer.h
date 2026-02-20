@@ -185,14 +185,6 @@ class BackgroundFillOptimizer : public DisplayOutput {
 
   bool isReclaimablePaletteIdx(uint8_t idx) const;
 
-  // // Returns an int from 1 to 15 (inclusive) if the specified color is found
-  // // in the background palette, and 0 otherwise.
-  // inline uint8_t getIdxInPalette(Color color);
-
-  uint32_t addressWindowPixelCount() const;
-
-  bool writeCursorAtOrPastWindowEnd() const;
-
   void setWriteCursorOrd(uint32_t ord);
 
   void advanceWriteCursor(uint32_t pixel_count);
@@ -213,7 +205,7 @@ class BackgroundFillOptimizer : public DisplayOutput {
   bool tryProcessGridAlignedBlockStripes(Color*& color,
                                          uint32_t& pixel_count);
 
-  void processAlignedFullStripe(Color* color);
+  void processAlignedFullStripeBlock(Color* color, int16_t bx, int16_t by, int16_t aw_width);
 
   void emitUniformScanRun(Color color, uint32_t start_ord, uint32_t count);
 
@@ -227,6 +219,10 @@ class BackgroundFillOptimizer : public DisplayOutput {
   uint8_t* palette_size_;
 
   Box address_window_;
+  uint32_t address_window_area_;
+  int16_t bx_min_;
+  int16_t bx_max_;
+  bool address_window_block_haligned_;
   BlendingMode blending_mode_;
   int16_t cursor_x_;
   int16_t cursor_y_;

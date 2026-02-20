@@ -266,6 +266,12 @@ void BackgroundFillOptimizer::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
                                          uint16_t y1, BlendingMode mode) {
   flushDeferredUniformRun();
   address_window_ = Box(x0, y0, x1, y1);
+  address_window_area_ = address_window_.area();
+  bx_min_ = x0 / kBgFillOptimizerWindowSize;
+  bx_max_ = x1 / kBgFillOptimizerWindowSize;
+  address_window_block_haligned_ =
+      (x0 % kBgFillOptimizerWindowSize) == 0 &&
+      (x1 % kBgFillOptimizerWindowSize) == (kBgFillOptimizerWindowSize - 1);
   blending_mode_ = mode;
   cursor_x_ = x0;
   cursor_y_ = y0;
@@ -277,14 +283,10 @@ void BackgroundFillOptimizer::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
   resetPendingDynamicPaletteColor();
 }
 
-uint32_t BackgroundFillOptimizer::addressWindowPixelCount() const {
-  return static_cast<uint32_t>(address_window_.width()) *
-         static_cast<uint32_t>(address_window_.height());
-}
-
-bool BackgroundFillOptimizer::writeCursorAtOrPastWindowEnd() const {
-  return cursor_ord_ >= addressWindowPixelCount();
-}
+// uint32_t   BackgroundFillOptimizer::address_window_area_ const {
+//   return static_cast<uint32_t>(address_window_.width()) *
+//          static_cast<uint32_t>(address_window_.height());
+// }
 
 void BackgroundFillOptimizer::setWriteCursorOrd(uint32_t ord) {
   cursor_ord_ = ord;
@@ -300,7 +302,7 @@ void BackgroundFillOptimizer::advanceWriteCursor(uint32_t pixel_count) {
 }
 
 uint32_t BackgroundFillOptimizer::pixelsUntilStripeEnd() const {
-  if (writeCursorAtOrPastWindowEnd()) return 0;
+  if (cursor_ord_ >= address_window_area_) return 0;
   const int16_t aw_width = address_window_.width();
   const int16_t aw_y0 = address_window_.yMin();
   const int16_t aw_y1 = address_window_.yMax();
@@ -344,10 +346,9 @@ void BackgroundFillOptimizer::clearMaskForOrdRange(uint32_t start_ord,
   const int16_t start_x = aw_x0 + static_cast<int16_t>(start_ord % aw_width);
   const int16_t end_x = aw_x0 + static_cast<int16_t>(end_ord % aw_width);
 
-  const int16_t bx_min = aw_x0 / kBlock;
-  const int16_t bx_max = aw_x1 / kBlock;
   const int16_t start_by = start_y / kBlock;
-  const int16_t end_by = end_y / kBlock;
+  const int16_t start_bx = start_x / kBlock;
+  const int16_t end_bx = end_x / kBlock;
 
   // The stream range [start_ord, end_ord] maps to contiguous rows. Mask
   // clearing can always be decomposed into up to 3 rectangle clears:
@@ -364,9 +365,11 @@ void BackgroundFillOptimizer::clearMaskForOrdRange(uint32_t start_ord,
   // partial-X clear.:
 
   if (start_y == end_y) {
-    fillMaskRect(Box(start_x / kBlock, start_by, end_x / kBlock, start_by), 0);
+    fillMaskRect(Box(start_bx, start_by, end_bx, start_by), 0);
     return;
   }
+
+  const int16_t end_by = end_y / kBlock;
 
   int16_t full_by0 = start_by;
   int16_t full_by1 = end_by;
@@ -374,19 +377,19 @@ void BackgroundFillOptimizer::clearMaskForOrdRange(uint32_t start_ord,
   // If the first touched row is the last row of its 4px stripe, only that row
   // contributes in start_by and needs partial-x clearing.
   if (((start_y + 1) % kBlock) == 0) {
-    fillMaskRect(Box(start_x / kBlock, start_by, bx_max, start_by), 0);
+    fillMaskRect(Box(start_bx, start_by, bx_max_, start_by), 0);
     ++full_by0;
   }
 
   // If the last touched row is the first row of its 4px stripe, only that row
   // contributes in end_by and needs partial-x clearing.
   if ((end_y % kBlock) == 0) {
-    fillMaskRect(Box(bx_min, end_by, end_x / kBlock, end_by), 0);
+    fillMaskRect(Box(bx_min_, end_by, end_bx, end_by), 0);
     --full_by1;
   }
 
   if (full_by0 <= full_by1) {
-    fillMaskRect(Box(bx_min, full_by0, bx_max, full_by1), 0);
+    fillMaskRect(Box(bx_min_, full_by0, bx_max_, full_by1), 0);
   }
 }
 
@@ -418,96 +421,93 @@ void BackgroundFillOptimizer::flushDeferredUniformRun() {
   scan_uniform_count_ = 0;
 }
 
-void BackgroundFillOptimizer::processAlignedFullStripe(Color* color) {
-  const int16_t aw_x0 = address_window_.xMin();
-  const int16_t aw_width = address_window_.width();
-  const int16_t stripe_y0 = cursor_y_;
-  const int16_t stripe_y1 = stripe_y0 + kBgFillOptimizerWindowSize - 1;
-  const int16_t block_count_x = aw_width / kBgFillOptimizerWindowSize;
-  BufferedPixelWriter writer(output_, blending_mode_);
-
-  for (int16_t block = 0; block < block_count_x; ++block) {
-    const int16_t block_x0 = aw_x0 + block * kBgFillOptimizerWindowSize;
-    const int16_t block_x1 = block_x0 + kBgFillOptimizerWindowSize - 1;
-    const int16_t bx = block_x0 / kBgFillOptimizerWindowSize;
-    const int16_t by = stripe_y0 / kBgFillOptimizerWindowSize;
-
-    bool all_same = true;
-    Color first_color = color[block * kBgFillOptimizerWindowSize];
-    for (int16_t dy = 0; dy < kBgFillOptimizerWindowSize && all_same; ++dy) {
-      const int16_t row_base =
-          dy * aw_width + block * kBgFillOptimizerWindowSize;
-      for (int16_t dx = 0; dx < kBgFillOptimizerWindowSize; ++dx) {
-        if (color[row_base + dx] != first_color) {
+void BackgroundFillOptimizer::processAlignedFullStripeBlock(Color* colors,
+                                                            int16_t bx,
+                                                            int16_t by,
+                                                            int16_t aw_width) {
+  static constexpr int16_t kBlock = kBgFillOptimizerWindowSize;
+  // Determine if the block is uniform color.
+  bool all_same = true;
+  Color first_color = *colors;
+  {
+    Color* row_base = colors;
+    for (int16_t dy = 0; dy < kBlock && all_same; ++dy) {
+      for (int16_t dx = 0; dx < kBlock; ++dx) {
+        if (row_base[dx] != first_color) {
           all_same = false;
           break;
         }
       }
-    }
-
-    const uint8_t current_mask_value = background_mask_->get(bx, by);
-    if (!all_same) {
-      resetPendingDynamicPaletteColor();
-      if (current_mask_value != 0) {
-        updateMaskValue(bx, by, current_mask_value, 0);
-      }
-      for (int16_t dy = 0; dy < kBgFillOptimizerWindowSize; ++dy) {
-        const int16_t row_base =
-            dy * aw_width + block * kBgFillOptimizerWindowSize;
-        const int16_t y = stripe_y0 + dy;
-        for (int16_t dx = 0; dx < kBgFillOptimizerWindowSize; ++dx) {
-          writer.writePixel(block_x0 + dx, y, color[row_base + dx]);
-        }
-      }
-      continue;
-    }
-
-    uint8_t palette_idx =
-        getIdxInPalette(first_color, palette_, *palette_size_);
-    if (palette_idx == 0) {
-      palette_idx = tryAddIdxInPaletteOnSecondConsecutiveColor(first_color);
-    } else {
-      resetPendingDynamicPaletteColor();
-    }
-
-    if (palette_idx > 0 && current_mask_value == palette_idx) {
-      continue;
-    }
-
-    writer.flush();
-    output_.fillRect(blending_mode_, block_x0, stripe_y0, block_x1, stripe_y1,
-                     first_color);
-    const uint8_t new_mask_value = palette_idx;
-    if (new_mask_value != current_mask_value) {
-      updateMaskValue(bx, by, current_mask_value, new_mask_value);
+      row_base += aw_width;
     }
   }
-  writer.flush();
+
+  const uint8_t current_mask_value = background_mask_->get(bx, by);
+  if (!all_same) {
+    // Copy the block over.
+    resetPendingDynamicPaletteColor();
+    if (current_mask_value != 0) {
+      updateMaskValue(bx, by, current_mask_value, 0);
+    }
+    output_.setAddress(bx * kBlock, by * kBlock, bx * kBlock + kBlock - 1,
+                       by * kBlock + kBlock - 1, blending_mode_);
+    if (aw_width == kBlock) {
+      output_.write(colors, kBlock * kBlock);
+    } else {
+      Color* row_base = colors;
+      for (int16_t dy = 0; dy < kBlock; ++dy) {
+        output_.write(row_base, kBlock);
+        row_base += aw_width;
+      }
+    }
+    return;
+  }
+
+  // Block is uniform color. Try to use palette index if possible.
+  uint8_t palette_idx = getIdxInPalette(first_color, palette_, *palette_size_);
+  if (palette_idx == 0) {
+    palette_idx = tryAddIdxInPaletteOnSecondConsecutiveColor(first_color);
+  } else {
+    resetPendingDynamicPaletteColor();
+  }
+
+  if (palette_idx > 0 && current_mask_value == palette_idx) {
+    // Cache hit: block is already marked as filled with the same palette color.
+    return;
+  }
+
+  output_.fillRect(bx * kBlock, by * kBlock, bx * kBlock + kBlock - 1,
+                   by * kBlock + kBlock - 1, first_color);
+  if (palette_idx != current_mask_value) {
+    updateMaskValue(bx, by, current_mask_value, palette_idx);
+  }
 }
 
 bool BackgroundFillOptimizer::tryProcessGridAlignedBlockStripes(
     Color*& color, uint32_t& pixel_count) {
-  if (pixel_count == 0 || writeCursorAtOrPastWindowEnd()) return false;
+  if (!address_window_block_haligned_) return false;
+  static constexpr int16_t kBlock = kBgFillOptimizerWindowSize;
   if (cursor_x_ != address_window_.xMin()) return false;
-  if ((address_window_.xMin() % kBgFillOptimizerWindowSize) != 0) return false;
-  if ((cursor_y_ % kBgFillOptimizerWindowSize) != 0) return false;
+  if ((cursor_y_ % kBlock) != 0) return false;
+  int16_t by = cursor_y_ / kBlock;
   const int16_t aw_width = address_window_.width();
-  if ((aw_width % kBgFillOptimizerWindowSize) != 0) return false;
 
-  const uint32_t stripe_pixels =
-      static_cast<uint32_t>(aw_width) * kBgFillOptimizerWindowSize;
+  const uint32_t stripe_pixels = static_cast<uint32_t>(aw_width) * kBlock;
   bool consumed_any = false;
   while (pixel_count >= stripe_pixels &&
-         cursor_y_ + kBgFillOptimizerWindowSize - 1 <= address_window_.yMax()) {
-    processAlignedFullStripe(color);
+         cursor_y_ + kBlock - 1 <= address_window_.yMax()) {
+    Color* block_start = color;
+    for (int16_t block = bx_min_; block <= bx_max_; ++block) {
+      processAlignedFullStripeBlock(block_start, block, by, aw_width);
+      block_start += kBlock;
+    }
     color += stripe_pixels;
     pixel_count -= stripe_pixels;
-    advanceWriteCursor(stripe_pixels);
+    cursor_ord_ += stripe_pixels;
+    cursor_y_ += kBlock;
     consumed_any = true;
     scan_uniform_active_ = false;
     scan_uniform_count_ = 0;
-    if (writeCursorAtOrPastWindowEnd()) break;
-    DCHECK_EQ(cursor_y_ % kBgFillOptimizerWindowSize, 0);
   }
   return consumed_any;
 }
@@ -548,9 +548,7 @@ void BackgroundFillOptimizer::emitUniformScanRun(Color color,
 }
 
 void BackgroundFillOptimizer::write(Color* color, uint32_t pixel_count) {
-  if (pixel_count == 0 || writeCursorAtOrPastWindowEnd()) return;
-
-  while (pixel_count > 0 && !writeCursorAtOrPastWindowEnd()) {
+  while (pixel_count > 0 && !(cursor_ord_ >= address_window_area_)) {
     if (write_scan_state_ == WriteScanState::kScan) {
       // Strictly grid-aligned block fast path.
       if (tryProcessGridAlignedBlockStripes(color, pixel_count)) {
@@ -616,9 +614,7 @@ void BackgroundFillOptimizer::write(Color* color, uint32_t pixel_count) {
 }
 
 void BackgroundFillOptimizer::fill(Color color, uint32_t pixel_count) {
-  if (pixel_count == 0 || writeCursorAtOrPastWindowEnd()) return;
-
-  while (pixel_count > 0 && !writeCursorAtOrPastWindowEnd()) {
+  while (pixel_count > 0 && !(cursor_ord_ >= address_window_area_)) {
     if (write_scan_state_ == WriteScanState::kScan) {
       if (scan_uniform_active_ && scan_uniform_count_ > 0 &&
           scan_uniform_color_ != color) {
@@ -630,7 +626,8 @@ void BackgroundFillOptimizer::fill(Color color, uint32_t pixel_count) {
 
       const uint32_t to_stripe_end = pixelsUntilStripeEnd();
       if (to_stripe_end == 0) break;
-      const uint32_t inspect_count = std::min<uint32_t>(pixel_count, to_stripe_end);
+      const uint32_t inspect_count =
+          std::min<uint32_t>(pixel_count, to_stripe_end);
 
       if (!scan_uniform_active_) {
         scan_uniform_active_ = true;

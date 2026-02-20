@@ -408,7 +408,14 @@ void BackgroundFillOptimizer::passthroughFill(Color color,
 
 void BackgroundFillOptimizer::flushDeferredUniformRun() {
   if (!scan_uniform_active_ || scan_uniform_count_ == 0) return;
-  setWriteCursorOrd(scan_uniform_start_ord_);
+
+  cursor_ord_ = scan_uniform_start_ord_;
+  const int16_t aw_width = address_window_.width();
+  const uint32_t row = cursor_ord_ / static_cast<uint32_t>(aw_width);
+  const uint32_t col = cursor_ord_ % static_cast<uint32_t>(aw_width);
+  cursor_x_ = address_window_.xMin() + static_cast<int16_t>(col);
+  cursor_y_ = address_window_.yMin() + static_cast<int16_t>(row);
+
   write_scan_state_ = WriteScanState::kPassthrough;
   passthrough_address_set_ = false;
   passthroughFill(scan_uniform_color_, scan_uniform_count_);
@@ -571,8 +578,6 @@ void BackgroundFillOptimizer::write(Color* color, uint32_t pixel_count) {
 
       if (uniform_prefix < inspect_count) {
         flushDeferredUniformRun();
-        scan_uniform_active_ = false;
-        scan_uniform_count_ = 0;
         write_scan_state_ = WriteScanState::kPassthrough;
         continue;
       }
@@ -613,10 +618,8 @@ void BackgroundFillOptimizer::fill(Color color, uint32_t pixel_count) {
     if (write_scan_state_ == WriteScanState::kScan) {
       if (scan_uniform_active_ && scan_uniform_count_ > 0 &&
           scan_uniform_color_ != color) {
-        emitUniformScanRun(scan_uniform_color_, scan_uniform_start_ord_,
-                           scan_uniform_count_);
-        scan_uniform_active_ = false;
-        scan_uniform_count_ = 0;
+        flushDeferredUniformRun();
+        continue;
       }
 
       const uint32_t to_stripe_end = pixelsUntilStripeEnd();

@@ -496,6 +496,34 @@ TEST(BackgroundFillOptimizer, AlternatingColors) {
 
 namespace {
 
+class SplitFillDrawable : public Drawable {
+ public:
+  SplitFillDrawable(Box window, Color first, uint32_t first_count, Color second,
+                    uint32_t second_count)
+      : window_(window),
+        first_(first),
+        first_count_(first_count),
+        second_(second),
+        second_count_(second_count) {}
+
+  Box extents() const override { return Box(0, 0, 1023, 1023); }
+
+ private:
+  void drawTo(const Surface& s) const override {
+    DisplayOutput& out = s.out();
+    out.setAddress(window_.xMin(), window_.yMin(), window_.xMax(),
+                   window_.yMax(), BLENDING_MODE_SOURCE);
+    out.fill(first_, first_count_);
+    out.fill(second_, second_count_);
+  }
+
+  Box window_;
+  Color first_;
+  uint32_t first_count_;
+  Color second_;
+  uint32_t second_count_;
+};
+
 Offscreen<Rgb888> MakeCirclePatternSourceBuffer(Color bg, Color big_circle,
                                                 Color small_circle) {
   constexpr int kWidth = 50;
@@ -666,6 +694,55 @@ TEST(BackgroundFillOptimizer, FillColorTransitionFlushesDeferredRun) {
   screen.fill(kB, 20);
 
   EXPECT_CONSISTENT(screen);
+}
+
+TEST(BackgroundFillOptimizer, FillColorTransitionWithOffsetWindow) {
+  // Regression test: with an offset window, changing fill color before
+  // stripe-end must preserve stream semantics (no rectangularization of a
+  // jagged deferred run).
+  constexpr Color kBg = color::White;
+  constexpr Color kA = color::Blue;
+  constexpr Color kB = color::Green;
+
+  TestScreen screen(16, 16, kBg);
+  screen.test().setPalette({kBg, kA, kB}, kBg);
+
+  // 8x4 window at y=1. First stripe has only 3 rows (24 px) due 4-row stripe
+  // alignment. Split 12 + 20 forces color transition mid-stripe and then
+  // continues into the next stripe.
+  screen.setAddress(2, 1, 9, 4, BLENDING_MODE_SOURCE);
+  screen.fill(kA, 12);
+  screen.fill(kB, 20);
+
+  EXPECT_CONSISTENT(screen);
+}
+
+TEST(BackgroundFillOptimizer, FillColorTransitionWithOffsetWindowDrawable) {
+  // Regression test that directly exercises BackgroundFillOptimizer::fill()
+  // via a custom Drawable.
+  constexpr Color kBg = color::White;
+  constexpr Color kA = color::Blue;
+  constexpr Color kB = color::Green;
+
+  OptimizedDevice<Rgb565> optimized(16, 16, kBg);
+  optimized.setPalette({kBg, kA, kB}, kBg);
+  FakeOffscreen<Rgb565> reference(16, 16, kBg, Rgb565());
+
+  SplitFillDrawable drawable(Box(2, 1, 9, 4), kA, 12, kB, 20);
+
+  {
+    Display display(optimized);
+    DrawingContext dc(display);
+    dc.draw(drawable);
+  }
+
+  {
+    Display display(reference);
+    DrawingContext dc(display);
+    dc.draw(drawable);
+  }
+
+  EXPECT_THAT(RasterOf(optimized), MatchesContent(RasterOf(reference)));
 }
 
 TEST(BackgroundFillOptimizer, WriteAlignedStripeThenTailAdvancesColorPointer) {

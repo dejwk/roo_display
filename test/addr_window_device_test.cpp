@@ -145,6 +145,9 @@ typedef TestDevice<Rgb565, roo_io::kBigEndian> Rgb565Device;
 class AddrWindowDeviceTest
     : public testing::TestWithParam<std::tuple<BlendingMode, Orientation>> {};
 
+class AddrWindowDeviceBlendingTest
+  : public testing::TestWithParam<std::tuple<BlendingMode, Orientation>> {};
+
 TEST_P(AddrWindowDeviceTest, FillRects) {
   TestFillRects<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
                                                      std::get<1>(GetParam()));
@@ -239,6 +242,52 @@ TEST_P(AddrWindowDeviceTest, WriteRectWindowSimpleArgb8888LE) {
                                                      std::get<1>(GetParam()));
 }
 
+TEST_P(AddrWindowDeviceBlendingTest, FillPixelsSparse) {
+  Color kBg = Rgb565().toArgbColor(Rgb565().fromArgbColor(Color(0xFF102040)));
+  TestDisplayDevice<Rgb565Device, FakeOffscreen<Rgb565>> screen(32, 24, kBg);
+  screen.setOrientation(std::get<1>(GetParam()));
+  screen.test().setBgColorHint(kBg);
+  int16_t x[] = {1, 8, 15, 20, 23};
+  int16_t y[] = {2, 7, 12, 17, 22};
+  screen.fillPixels(std::get<0>(GetParam()), Color(0x77445566), x, y, 5);
+  EXPECT_CONSISTENT(screen);
+}
+
+TEST_P(AddrWindowDeviceBlendingTest, WritePixelsSparse) {
+  Color kBg = Rgb565().toArgbColor(Rgb565().fromArgbColor(Color(0xFF305020)));
+  TestDisplayDevice<Rgb565Device, FakeOffscreen<Rgb565>> screen(30, 26, kBg);
+  screen.setOrientation(std::get<1>(GetParam()));
+  screen.test().setBgColorHint(kBg);
+  int16_t x[] = {3, 7, 11, 19, 25};
+  int16_t y[] = {4, 9, 14, 19, 24};
+  Color c[] = {Color(0x55336699), Color(0xAA114477), Color(0xCC552211),
+               Color(0xFF22AA44), Color(0x7F8844CC)};
+  screen.writePixels(std::get<0>(GetParam()), c, x, y, 5);
+  EXPECT_CONSISTENT(screen);
+}
+
+TEST_P(AddrWindowDeviceBlendingTest, AddressWindowWriteSpan) {
+  Color kBg = Rgb565().toArgbColor(Rgb565().fromArgbColor(Color(0xFF223344)));
+  TestDisplayDevice<Rgb565Device, FakeOffscreen<Rgb565>> screen(20, 18, kBg);
+  screen.setOrientation(std::get<1>(GetParam()));
+  screen.test().setBgColorHint(kBg);
+  Color c[] = {Color(0x88224488), Color(0xCCAA3300), Color(0x77AAEE22),
+               Color(0xFF1166BB), Color(0x33445566)};
+  screen.setAddress(4, 11, 8, 11, std::get<0>(GetParam()));
+  screen.write(c, 5);
+  EXPECT_CONSISTENT(screen);
+}
+
+TEST_P(AddrWindowDeviceBlendingTest, AddressWindowFillSpan) {
+  Color kBg = Rgb565().toArgbColor(Rgb565().fromArgbColor(Color(0xFF405060)));
+  TestDisplayDevice<Rgb565Device, FakeOffscreen<Rgb565>> screen(22, 20, kBg);
+  screen.setOrientation(std::get<1>(GetParam()));
+  screen.test().setBgColorHint(kBg);
+  screen.setAddress(6, 3, 10, 3, std::get<0>(GetParam()));
+  screen.fill(Color(0x9966AA44), 5);
+  EXPECT_CONSISTENT(screen);
+}
+
 INSTANTIATE_TEST_SUITE_P(
     AddrWindowDeviceTests, AddrWindowDeviceTest,
     testing::Combine(
@@ -247,5 +296,19 @@ INSTANTIATE_TEST_SUITE_P(
                         Orientation::LeftDown(), Orientation::DownLeft(),
                         Orientation::RightUp(), Orientation::UpRight(),
                         Orientation::LeftUp(), Orientation::UpLeft())));
+
+INSTANTIATE_TEST_SUITE_P(
+    AddrWindowDeviceTestsBlending, AddrWindowDeviceBlendingTest,
+    testing::Combine(
+        testing::Values(BLENDING_MODE_SOURCE, BLENDING_MODE_SOURCE_OVER,
+                        BLENDING_MODE_SOURCE_OVER_OPAQUE,
+                        BLENDING_MODE_SOURCE_IN, BLENDING_MODE_SOURCE_OUT,
+                        BLENDING_MODE_SOURCE_ATOP, BLENDING_MODE_DESTINATION,
+                        BLENDING_MODE_DESTINATION_OVER,
+                        BLENDING_MODE_DESTINATION_IN,
+                        BLENDING_MODE_DESTINATION_OUT,
+                        BLENDING_MODE_DESTINATION_ATOP,
+                        BLENDING_MODE_EXCLUSIVE_OR, BLENDING_MODE_CLEAR),
+        testing::Values(Orientation::RightDown(), Orientation::DownLeft())));
 
 }  // namespace roo_display

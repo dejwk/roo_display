@@ -36,6 +36,7 @@ namespace roo_display {
 //   void end();
 //   void setOrientation(Orientation);
 //   void setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
+//   void sync();
 //   void ramWrite(const roo::byte* data, size_t pixel_count);
 //   void ramFill(const roo::byte* data, size_t pixel_count);
 //};
@@ -100,25 +101,28 @@ class AddrWindowDevice : public DisplayDevice {
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
                   BlendingMode mode) override {
-    blending_mode_ = mode;
     target_.setAddrWindow(x0, y0, x1, y1);
+    blending_mode_ = mode;
   }
 
   void write(Color* color, uint32_t pixel_count) override {
     roo::byte buffer[64 * kBytesPerPixel];
     while (pixel_count > 64) {
       processColorSequence(blending_mode_, color, buffer, 64);
+      target_.sync();
       target_.ramWrite(buffer, 64);
       color += 64;
       pixel_count -= 64;
     }
     processColorSequence(blending_mode_, color, buffer, pixel_count);
+    target_.sync();
     target_.ramWrite(buffer, pixel_count);
   }
 
   void fill(Color color, uint32_t pixel_count) override {
     raw_color_type raw_color;
     processColor(blending_mode_, color, raw_color);
+    target_.sync();
     target_.ramFill(raw_color, pixel_count);
   }
 
@@ -127,11 +131,15 @@ class AddrWindowDevice : public DisplayDevice {
                   uint16_t count) override {
     raw_color_type raw_color;
     while (count-- > 0) {
+      target_.setAddrWindow(*x0, *y0, *x1, *y1);
       uint32_t pixel_count = (*x1 - *x0 + 1) * (*y1 - *y0 + 1);
-      AddrWindowDevice::setAddress(*x0++, *y0++, *x1++, *y1++,
-                                   BLENDING_MODE_SOURCE);
+      x0++;
+      y0++;
+      x1++;
+      y1++;
       Color mycolor = *color++;
       processColor(blending_mode, mycolor, raw_color);
+      // No need to call sync after setAddrWindow().
       target_.ramFill(raw_color, pixel_count);
     }
   }
@@ -142,9 +150,13 @@ class AddrWindowDevice : public DisplayDevice {
     raw_color_type raw_color;
     processColor(blending_mode, color, raw_color);
     while (count-- > 0) {
+      target_.setAddrWindow(*x0, *y0, *x1, *y1);
       uint32_t pixel_count = (*x1 - *x0 + 1) * (*y1 - *y0 + 1);
-      AddrWindowDevice::setAddress(*x0++, *y0++, *x1++, *y1++,
-                                   BLENDING_MODE_SOURCE);
+      x0++;
+      y0++;
+      x1++;
+      y1++;
+      // No need to call sync after setAddrWindow().
       target_.ramFill(raw_color, pixel_count);
     }
   }
@@ -177,6 +189,7 @@ class AddrWindowDevice : public DisplayDevice {
               break;
             }
           }
+          // No need to call sync after setAddrWindow().
           AddrWindowDevice::write(colors + offset, count);
         });
   }
@@ -209,6 +222,7 @@ class AddrWindowDevice : public DisplayDevice {
               break;
             }
           }
+          // No need to call sync after setAddrWindow().
           target_.ramFill(raw_color_ptr, count);
         });
   }
@@ -247,11 +261,13 @@ class AddrWindowDevice : public DisplayDevice {
                            static_cast<size_t>(src_y0) * row_width_bytes +
                            static_cast<size_t>(src_x0) * kBytesPerPixel;
     if (row_width_bytes == width_bytes) {
+      // No need to call sync just after setAddrWindow().
       target_.ramWrite(row, static_cast<size_t>(width) * height);
       return;
     }
 
     for (int16_t y = 0; y < height; ++y) {
+      target_.sync();
       target_.ramWrite(row, width);
       row += row_width_bytes;
     }

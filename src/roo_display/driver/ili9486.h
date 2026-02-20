@@ -173,9 +173,12 @@ class Ili9486Target {
     writeCommand(RAMWR);
   }
 
+  void sync() __attribute__((always_inline)) {
+    transport_.sync();
+  }
+
   void ramWrite(const roo::byte* data, size_t pixel_count)
       __attribute__((always_inline)) {
-    transport_.sync();
     transport_.writeBytes_async(data, pixel_count * 2);
   }
 

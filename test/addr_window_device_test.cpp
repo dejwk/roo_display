@@ -31,7 +31,8 @@ class TestTarget {
         yCursor_(-1),
         initialized_(false),
         inTransaction_(false),
-        inRamWrite_(false) {
+        inRamWrite_(false),
+        synced_(true) {
     ColorMode mode;
     bg = mode.toArgbColor(mode.fromArgbColor(bg));
     std::fill(&data_[0], &data_[width * height], bg);
@@ -60,11 +61,18 @@ class TestTarget {
     xCursor_ = xMin_;
     yCursor_ = yMin_;
     inRamWrite_ = true;
+    synced_ = true;
   }
 
-  void setOrientation(Orientation orientation) { orientation_ = orientation; }
+  void setOrientation(Orientation orientation) {
+    orientation_ = orientation;
+    synced_ = true;
+  }
+
+  void sync() { synced_ = true; }
 
   void ramWrite(const roo::byte* raw_color, size_t count) {
+    EXPECT_TRUE(synced_);
     EXPECT_TRUE(inRamWrite_);
     ColorIo<ColorMode, byte_order> io;
     while (count-- > 0) {
@@ -77,10 +85,12 @@ class TestTarget {
         yCursor_++;
       }
     }
+    synced_ = false;
   }
 
   void ramFill(const roo::byte* raw_color, size_t count) {
     EXPECT_TRUE(inRamWrite_);
+    EXPECT_TRUE(synced_);
     Color color = ColorIo<ColorMode, byte_order>().load(raw_color);
     while (count-- > 0) {
       setPixel(xCursor_, yCursor_, color);
@@ -90,6 +100,7 @@ class TestTarget {
         yCursor_++;
       }
     }
+    synced_ = false;
   }
 
   const Color* data() const { return data_.get(); }
@@ -118,6 +129,7 @@ class TestTarget {
   bool initialized_;
   bool inTransaction_;
   bool inRamWrite_;
+  bool synced_;
 };
 
 template <typename ColorMode, ByteOrder byte_order>

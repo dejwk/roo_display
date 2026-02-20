@@ -469,6 +469,7 @@ namespace internal {
 
 struct ApplyBlendingResolver {
   template <BlendingMode blending_mode>
+  __attribute__((always_inline))
   Color operator()(Color dst, Color src) const {
     return Blender<blending_mode>().apply(dst, src);
   }
@@ -476,6 +477,7 @@ struct ApplyBlendingResolver {
 
 struct ApplyBlendingInPlaceResolver {
   template <BlendingMode blending_mode>
+  __attribute__((always_inline))
   void operator()(Color* dst, const Color* src, int16_t count) const {
     return Blender<blending_mode>().applyInPlace(dst, src, count);
   }
@@ -483,6 +485,7 @@ struct ApplyBlendingInPlaceResolver {
 
 struct ApplyBlendingSingleSourceInPlaceResolver {
   template <BlendingMode blending_mode>
+  __attribute__((always_inline))
   void operator()(Color* dst, Color src, int16_t count) const {
     return Blender<blending_mode>().applySingleSourceInPlace(dst, src, count);
   }
@@ -490,6 +493,7 @@ struct ApplyBlendingSingleSourceInPlaceResolver {
 
 struct ApplyBlendingInPlaceIndexedResolver {
   template <BlendingMode blending_mode>
+  __attribute__((always_inline))
   void operator()(Color* dst, const Color* src, int16_t count,
                   const uint32_t* index) const {
     return Blender<blending_mode>().applyInPlaceIndexed(dst, src, count, index);
@@ -498,6 +502,7 @@ struct ApplyBlendingInPlaceIndexedResolver {
 
 struct ApplyBlendingOverBackgroundResolver {
   template <BlendingMode blending_mode>
+  __attribute__((always_inline))
   void operator()(Color bg, Color* src, int16_t count) const {
     return Blender<blending_mode>().applyOverBackground(bg, src, count);
   }

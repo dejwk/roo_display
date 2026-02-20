@@ -107,8 +107,9 @@ class AddrWindowDevice : public DisplayDevice {
   void write(Color* color, uint32_t pixel_count) override {
     roo::byte buffer[64 * kBytesPerPixel];
     while (pixel_count > 64) {
-      color = processColorSequence(blending_mode_, color, buffer, 64);
+      processColorSequence(blending_mode_, color, buffer, 64);
       target_.ramWrite(buffer, 64);
+      color += 64;
       pixel_count -= 64;
     }
     processColorSequence(blending_mode_, color, buffer, pixel_count);
@@ -116,29 +117,21 @@ class AddrWindowDevice : public DisplayDevice {
   }
 
   void fill(Color color, uint32_t pixel_count) override {
-    ApplyBlendingOverBackground(blending_mode_, bgcolor_, &color, 1);
     raw_color_type raw_color;
-    ColorIo<typename Target::ColorMode, Target::byte_order>().store(color,
-                                                                    raw_color);
+    processColor(blending_mode_, color, raw_color);
     target_.ramFill(raw_color, pixel_count);
   }
 
   void writeRects(BlendingMode blending_mode, Color* color, int16_t* x0,
                   int16_t* y0, int16_t* x1, int16_t* y1,
                   uint16_t count) override {
+    raw_color_type raw_color;
     while (count-- > 0) {
       uint32_t pixel_count = (*x1 - *x0 + 1) * (*y1 - *y0 + 1);
       AddrWindowDevice::setAddress(*x0++, *y0++, *x1++, *y1++,
                                    BLENDING_MODE_SOURCE);
       Color mycolor = *color++;
-      if (blending_mode == BLENDING_MODE_SOURCE_OVER) {
-        mycolor = AlphaBlend(bgcolor_, mycolor);
-      } else if (blending_mode == BLENDING_MODE_SOURCE_OVER_OPAQUE) {
-        mycolor = AlphaBlendOverOpaque(bgcolor_, mycolor);
-      }
-      raw_color_type raw_color;
-      ColorIo<typename Target::ColorMode, Target::byte_order>().store(
-          mycolor, raw_color);
+      processColor(blending_mode, mycolor, raw_color);
       target_.ramFill(raw_color, pixel_count);
     }
   }
@@ -146,15 +139,8 @@ class AddrWindowDevice : public DisplayDevice {
   void fillRects(BlendingMode blending_mode, Color color, int16_t* x0,
                  int16_t* y0, int16_t* x1, int16_t* y1,
                  uint16_t count) override {
-    if (blending_mode == BLENDING_MODE_SOURCE_OVER) {
-      color = AlphaBlend(bgcolor_, color);
-    } else if (blending_mode == BLENDING_MODE_SOURCE_OVER_OPAQUE) {
-      color = AlphaBlendOverOpaque(bgcolor_, color);
-    }
     raw_color_type raw_color;
-    ColorIo<typename Target::ColorMode, Target::byte_order>().store(color,
-                                                                    raw_color);
-
+    processColor(blending_mode, color, raw_color);
     while (count-- > 0) {
       uint32_t pixel_count = (*x1 - *x0 + 1) * (*y1 - *y0 + 1);
       AddrWindowDevice::setAddress(*x0++, *y0++, *x1++, *y1++,
@@ -197,14 +183,8 @@ class AddrWindowDevice : public DisplayDevice {
 
   void fillPixels(BlendingMode blending_mode, Color color, int16_t* xs,
                   int16_t* ys, uint16_t pixel_count) override {
-    if (blending_mode == BLENDING_MODE_SOURCE_OVER) {
-      color = AlphaBlend(bgcolor_, color);
-    } else if (blending_mode == BLENDING_MODE_SOURCE_OVER_OPAQUE) {
-      color = AlphaBlendOverOpaque(bgcolor_, color);
-    }
     raw_color_type raw_color;
-    ColorIo<typename Target::ColorMode, Target::byte_order>().store(color,
-                                                                    raw_color);
+    processColor(blending_mode, color, raw_color);
     const roo::byte* raw_color_ptr = raw_color;
     compactor_.drawPixels(
         xs, ys, pixel_count,
@@ -290,15 +270,22 @@ class AddrWindowDevice : public DisplayDevice {
   bool initialized_;
 
  private:
-  Color* processColorSequence(BlendingMode blending_mode, Color* src,
-                              roo::byte* dest, uint32_t pixel_count) {
+  void processColor(BlendingMode blending_mode, Color src, roo::byte* dest)
+      __attribute__((always_inline)) {
+    src = ApplyBlending(blending_mode, bgcolor_, src);
+    ColorIo<typename Target::ColorMode, Target::byte_order> io;
+    io.store(src, dest);
+  }
+
+  void processColorSequence(BlendingMode blending_mode, Color* src,
+                            roo::byte* dest, uint32_t pixel_count)
+      __attribute__((always_inline)) {
     ApplyBlendingOverBackground(blending_mode, bgcolor_, src, pixel_count);
     ColorIo<typename Target::ColorMode, Target::byte_order> io;
     while (pixel_count-- > 0) {
       io.store(*src++, dest);
       dest += kBytesPerPixel;
     }
-    return src;
   }
 
   Color bgcolor_;

@@ -283,11 +283,6 @@ void BackgroundFillOptimizer::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
   resetPendingDynamicPaletteColor();
 }
 
-// uint32_t   BackgroundFillOptimizer::address_window_area_ const {
-//   return static_cast<uint32_t>(address_window_.width()) *
-//          static_cast<uint32_t>(address_window_.height());
-// }
-
 void BackgroundFillOptimizer::setWriteCursorOrd(uint32_t ord) {
   cursor_ord_ = ord;
   const int16_t aw_width = address_window_.width();

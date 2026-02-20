@@ -107,16 +107,20 @@ class AddrWindowDevice : public DisplayDevice {
 
   void write(Color* color, uint32_t pixel_count) override {
     roo::byte buffer[64 * kBytesPerPixel];
-    while (pixel_count > 64) {
+    uint16_t remainder = pixel_count % 64;
+    uint16_t chunks = pixel_count / 64;
+    if (remainder > 0) {
+      processColorSequence(blending_mode_, color, buffer, remainder);
+      target_.sync();
+      target_.ramWrite(buffer, remainder);
+      color += remainder;
+    }
+    while (chunks-- > 0) {
       processColorSequence(blending_mode_, color, buffer, 64);
       target_.sync();
       target_.ramWrite(buffer, 64);
       color += 64;
-      pixel_count -= 64;
     }
-    processColorSequence(blending_mode_, color, buffer, pixel_count);
-    target_.sync();
-    target_.ramWrite(buffer, pixel_count);
   }
 
   void fill(Color color, uint32_t pixel_count) override {

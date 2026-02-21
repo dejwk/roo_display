@@ -402,7 +402,7 @@ void BackgroundFillOptimizer::flushDeferredUniformRun() {
   if (!scan_uniform_active_ || scan_uniform_count_ == 0) return;
 
   const int16_t aw_width = address_window_.width();
-  cursor_ord_ = scan_uniform_start_y_ * aw_width;
+  cursor_ord_ = (scan_uniform_start_y_ - address_window_.yMin()) * aw_width;
   cursor_x_ = address_window_.xMin();
   cursor_y_ = scan_uniform_start_y_;
 

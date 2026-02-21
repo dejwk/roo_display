@@ -65,6 +65,13 @@ class ColorFilter : public DisplayOutput {
     return output_.getColorFormat();
   }
 
+  void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
+                      int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                      int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override {
+    DisplayOutput::drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1,
+                                  src_y1, dst_x0, dst_y0);
+  }
+
  private:
   void transform(Color* colors, uint16_t count) const {
     for (uint16_t i = 0; i < count; i++) {
@@ -176,6 +183,13 @@ class ColorFilter<Erasure> : public DisplayOutput {
 
   const ColorFormat& getColorFormat() const override {
     return output_.getColorFormat();
+  }
+
+  void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
+                      int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                      int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override {
+    DisplayOutput::drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1,
+                                  src_y1, dst_x0, dst_y0);
   }
 
  private:

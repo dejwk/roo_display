@@ -179,6 +179,14 @@ class BlendingFilter : public DisplayOutput {
     return output_->getColorFormat();
   }
 
+  void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
+                      int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                      int16_t src_y1, int16_t dst_x0,
+                      int16_t dst_y0) override {
+    DisplayOutput::drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1,
+                                  src_y1, dst_x0, dst_y0);
+  }
+
  private:
   void read(int16_t* x, int16_t* y, uint16_t pixel_count, Color* result) {
     if (dx_ == 0 && dy_ == 0) {

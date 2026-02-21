@@ -39,26 +39,34 @@ BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height,
                                                   bool owns_buffer)
     : background_mask_(buffer, ((((width - 1) / kBlock + 1) + 1) / 2),
                        ((((height - 1) / kBlock + 1) + 1) / 2) * 2),
-      palette_size_(0),
       swap_xy_(false),
       owned_buffer_(owns_buffer ? buffer : nullptr) {}
 
-void BackgroundFillOptimizer::FrameBuffer::setPalette(const Color* palette,
-                                                      uint8_t palette_size) {
+void BackgroundFillOptimizer::setPalette(const Color* palette,
+                                         uint8_t palette_size) {
   assert(palette_size <= 15);
   std::copy(palette, palette + palette_size, palette_);
   palette_size_ = palette_size;
+  pinned_palette_size_ = palette_size;
+  resetPendingDynamicPaletteColor();
+  resetMaskAndUsage(0);
 }
 
-void BackgroundFillOptimizer::FrameBuffer::setPalette(
-    std::initializer_list<Color> palette) {
+void BackgroundFillOptimizer::setPalette(std::initializer_list<Color> palette) {
   assert(palette.size() <= 15);
   std::copy(palette.begin(), palette.end(), palette_);
   palette_size_ = palette.size();
+  pinned_palette_size_ = palette.size();
+  resetPendingDynamicPaletteColor();
+  resetMaskAndUsage(0);
 }
 
-void BackgroundFillOptimizer::FrameBuffer::setPrefilled(Color color) {
-  prefilled(getIdxInPalette(color, palette_, palette_size_));
+void BackgroundFillOptimizer::setPrefilled(Color color) {
+  uint8_t idx = getIdxInPalette(color, palette_, palette_size_);
+  if (idx == 0) {
+    idx = tryAddIdxInPaletteDynamic(color);
+  }
+  resetMaskAndUsage(idx);
 }
 
 void BackgroundFillOptimizer::FrameBuffer::invalidate() { prefilled(0); }
@@ -88,13 +96,12 @@ BackgroundFillOptimizer::BackgroundFillOptimizer(DisplayOutput& output,
                                                  FrameBuffer& buffer)
     : output_(output),
       background_mask_(&buffer.background_mask_),
-      palette_(buffer.palette_),
-      palette_size_(&buffer.palette_size_),
+      palette_size_(0),
       address_window_(0, 0, 0, 0),
       cursor_x_(0),
       cursor_y_(0),
       cursor_ord_(0),
-      pinned_palette_size_(buffer.palette_size_),
+      pinned_palette_size_(0),
       palette_full_hint_(false),
       has_pending_dynamic_palette_color_(false),
       pending_dynamic_palette_color_(color::Transparent),
@@ -104,27 +111,15 @@ BackgroundFillOptimizer::BackgroundFillOptimizer(DisplayOutput& output,
       scan_uniform_color_(color::Transparent),
       scan_uniform_start_y_(0),
       scan_uniform_count_(0) {
-  // The backing mask may already contain data (e.g. caller-provided external
-  // storage), so initialize usage counters from actual mask contents.
-  recountMaskUsage();
-}
-
-void BackgroundFillOptimizer::updatePalette(Color* palette,
-                                            uint8_t* palette_size,
-                                            uint8_t pinned_palette_size) {
-  palette_ = palette;
-  palette_size_ = palette_size;
-  pinned_palette_size_ = std::min<uint8_t>(pinned_palette_size, *palette_size_);
-  resetPendingDynamicPaletteColor();
   resetMaskAndUsage(0);
 }
 
-void BackgroundFillOptimizer::setPrefilled(Color color) {
-  resetMaskAndUsage(getIdxInPalette(color, palette_, *palette_size_));
-}
+// void BackgroundFillOptimizer::setPrefilled(Color color) {
+//   resetMaskAndUsage(getIdxInPalette(color, palette_, palette_size_));
+// }
 
 bool BackgroundFillOptimizer::isReclaimablePaletteIdx(uint8_t idx) const {
-  return idx > pinned_palette_size_ && idx <= *palette_size_;
+  return idx > pinned_palette_size_ && idx <= palette_size_;
 }
 
 void BackgroundFillOptimizer::recountMaskUsage() {
@@ -137,13 +132,13 @@ void BackgroundFillOptimizer::recountMaskUsage() {
     }
   }
 
-  if (*palette_size_ < 15) {
+  if (palette_size_ < 15) {
     palette_full_hint_ = false;
     return;
   }
 
   palette_full_hint_ = true;
-  for (uint8_t idx = pinned_palette_size_ + 1; idx <= *palette_size_; ++idx) {
+  for (uint8_t idx = pinned_palette_size_ + 1; idx <= palette_size_; ++idx) {
     if (palette_usage_count_[idx] == 0) {
       palette_full_hint_ = false;
       return;
@@ -209,17 +204,17 @@ void BackgroundFillOptimizer::resetMaskAndUsage(uint8_t mask_value) {
 }
 
 uint8_t BackgroundFillOptimizer::tryAddIdxInPaletteDynamic(Color color) {
-  if (*palette_size_ < 15) {
-    uint8_t reclaim_idx = *palette_size_;
+  if (palette_size_ < 15) {
+    uint8_t reclaim_idx = palette_size_;
     while (reclaim_idx > pinned_palette_size_ &&
            palette_usage_count_[reclaim_idx] == 0) {
       --reclaim_idx;
     }
-    const bool append = (reclaim_idx == *palette_size_);
+    const bool append = (reclaim_idx == palette_size_);
     if (append) {
-      ++(*palette_size_);
+      ++palette_size_;
       // LOG(INFO) << "Added color " << roo_logging::hex << color.asArgb()
-      //           << " to palette idx " << static_cast<int>(*palette_size_);
+      //           << " to palette idx " << static_cast<int>(palette_size_);
     } else {
       // LOG(INFO) << "Reclaimed palette idx " << static_cast<int>(reclaim_idx)
       //           << " for color " << roo_logging::hex << color.asArgb();
@@ -231,7 +226,7 @@ uint8_t BackgroundFillOptimizer::tryAddIdxInPaletteDynamic(Color color) {
 
   if (palette_full_hint_) return 0;
 
-  for (uint8_t idx = pinned_palette_size_ + 1; idx <= *palette_size_; ++idx) {
+  for (uint8_t idx = pinned_palette_size_ + 1; idx <= palette_size_; ++idx) {
     if (palette_usage_count_[idx] == 0) {
       palette_[idx - 1] = color;
       return idx;
@@ -455,7 +450,7 @@ void BackgroundFillOptimizer::processAlignedFullStripeBlock(Color* colors,
   }
 
   // Block is uniform color. Try to use palette index if possible.
-  uint8_t palette_idx = getIdxInPalette(first_color, palette_, *palette_size_);
+  uint8_t palette_idx = getIdxInPalette(first_color, palette_, palette_size_);
   if (palette_idx == 0) {
     palette_idx = tryAddIdxInPaletteOnSecondConsecutiveColor(first_color);
   } else {
@@ -512,7 +507,7 @@ void BackgroundFillOptimizer::emitUniformScanRun(Color color, int16_t start_y,
   const int16_t y0 = start_y;
   const int16_t y1 = y0 + static_cast<int16_t>(count / aw_width) - 1;
 
-  uint8_t palette_idx = getIdxInPalette(color, palette_, *palette_size_);
+  uint8_t palette_idx = getIdxInPalette(color, palette_, palette_size_);
   const int16_t rect_h = y1 - y0 + 1;
   if (palette_idx == 0 && aw_width >= kDynamicPaletteMinWidth &&
       rect_h >= kDynamicPaletteMinHeight) {
@@ -660,7 +655,7 @@ void BackgroundFillOptimizer::writeRects(BlendingMode mode, Color* color,
     const int16_t rx1 = *x1++;
     const int16_t ry1 = *y1++;
 
-    uint8_t palette_idx = getIdxInPalette(c, palette_, *palette_size_);
+    uint8_t palette_idx = getIdxInPalette(c, palette_, palette_size_);
     if (palette_idx == 0) {
       const int16_t rect_w = rx1 - rx0 + 1;
       const int16_t rect_h = ry1 - ry0 + 1;
@@ -691,7 +686,7 @@ void BackgroundFillOptimizer::fillRects(BlendingMode mode, Color color,
                                         int16_t* x0, int16_t* y0, int16_t* x1,
                                         int16_t* y1, uint16_t count) {
   flushDeferredUniformRun();
-  uint8_t palette_idx = getIdxInPalette(color, palette_, *palette_size_);
+  uint8_t palette_idx = getIdxInPalette(color, palette_, palette_size_);
   BufferedRectFiller filler(output_, color, mode);
   BufferedRectWriter writer(output_, mode);
 
@@ -736,7 +731,7 @@ void BackgroundFillOptimizer::writePixels(BlendingMode mode, Color* color,
     const int16_t by = y[i] / kBlock;
     const uint8_t old_value = background_mask_->get(bx, by);
 
-    uint8_t palette_idx = getIdxInPalette(color[i], palette_, *palette_size_);
+    uint8_t palette_idx = getIdxInPalette(color[i], palette_, palette_size_);
     if (palette_idx != 0 && old_value == palette_idx) {
       // Do not actually draw the background pixel if the corresponding
       // bit-mask rectangle is known to be all-background already.
@@ -761,7 +756,7 @@ void BackgroundFillOptimizer::fillPixels(BlendingMode mode, Color color,
                                          int16_t* x, int16_t* y,
                                          uint16_t pixel_count) {
   flushDeferredUniformRun();
-  uint8_t palette_idx = getIdxInPalette(color, palette_, *palette_size_);
+  uint8_t palette_idx = getIdxInPalette(color, palette_, palette_size_);
   if (palette_idx != 0) {
     int16_t* x_out = x;
     int16_t* y_out = y;
@@ -852,7 +847,7 @@ void BackgroundFillOptimizer::drawDirectRect(const roo::byte* data,
              draw_y0 == block_y0 && draw_y1 == block_y1);
 
         uint8_t palette_idx =
-            all_same ? getIdxInPalette(uniform_color, palette_, *palette_size_)
+            all_same ? getIdxInPalette(uniform_color, palette_, palette_size_)
                      : 0;
         if (all_same && fully_covered) {
           if (palette_idx == 0) {
@@ -977,9 +972,7 @@ BackgroundFillOptimizerDevice::BackgroundFillOptimizerDevice(
 void BackgroundFillOptimizerDevice::setPalette(const Color* palette,
                                                uint8_t palette_size,
                                                Color prefilled) {
-  buffer_.setPalette(palette, palette_size);
-  optimizer_.updatePalette(buffer_.palette_, &buffer_.palette_size_,
-                           palette_size);
+  optimizer_.setPalette(palette, palette_size);
   optimizer_.setPrefilled(prefilled);
 }
 

@@ -57,7 +57,6 @@ class BackgroundFillOptimizer : public DisplayOutput {
   /// Minimum rectangle height for dynamic palette enrollment.
   static constexpr const int kDynamicPaletteMinHeight = 8;
 
-
   /// Backing buffer for the optimizer state.
   class FrameBuffer {
    public:
@@ -82,18 +81,6 @@ class BackgroundFillOptimizer : public DisplayOutput {
     /// dimensions (see `SizeForDimensions()`). Call `setPalette()` before use.
     FrameBuffer(int16_t width, int16_t height, roo::byte* buffer);
 
-    /// Set the palette (size must be <= 15).
-    ///
-    /// If the buffer is not known to be clear, call `invalidate()` after
-    /// changing the palette.
-    void setPalette(const Color* palette, uint8_t palette_size);
-
-    /// Mark the underlying screen as prefilled with the given color.
-    void setPrefilled(Color color);
-
-    /// Set palette using an initializer list.
-    void setPalette(std::initializer_list<Color> palette);
-
     /// Clear the entire background mask.
     void invalidate();
 
@@ -102,9 +89,6 @@ class BackgroundFillOptimizer : public DisplayOutput {
 
     /// Clear the mask for the area covering `rect`.
     void invalidateRect(const Box& rect);
-
-    const Color* palette() const { return palette_; }
-    const uint8_t palette_size() const { return palette_size_; }
 
     /// Accessor for testing: retrieve the internal nibble mask.
     const internal::NibbleRect& mask() const { return background_mask_; }
@@ -119,8 +103,6 @@ class BackgroundFillOptimizer : public DisplayOutput {
     void prefilled(uint8_t idx_in_palette);
 
     internal::NibbleRect background_mask_;
-    Color palette_[15];
-    uint8_t palette_size_;
     bool swap_xy_;
     std::unique_ptr<roo::byte[]> owned_buffer_;
   };
@@ -129,6 +111,10 @@ class BackgroundFillOptimizer : public DisplayOutput {
   BackgroundFillOptimizer(DisplayOutput& output, FrameBuffer& frame_buffer);
 
   virtual ~BackgroundFillOptimizer() {}
+
+  void setPalette(const Color* palette, uint8_t palette_size);
+
+  void setPalette(std::initializer_list<Color> palette);
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
                   BlendingMode mode) override;
@@ -159,9 +145,6 @@ class BackgroundFillOptimizer : public DisplayOutput {
 
  private:
   friend class BackgroundFillOptimizerDevice;
-
-  void updatePalette(Color* palette, uint8_t* palette_size,
-                     uint8_t pinned_palette_size);
 
   void setPrefilled(Color color);
 
@@ -203,10 +186,10 @@ class BackgroundFillOptimizer : public DisplayOutput {
   void clearMaskForOrdRange(uint32_t start_ord, uint32_t pixel_count);
 
   // Grid-aligned, block-based fast path (strict alignment required).
-  bool tryProcessGridAlignedBlockStripes(Color*& color,
-                                         uint32_t& pixel_count);
+  bool tryProcessGridAlignedBlockStripes(Color*& color, uint32_t& pixel_count);
 
-  void processAlignedFullStripeBlock(Color* color, int16_t bx, int16_t by, int16_t aw_width);
+  void processAlignedFullStripeBlock(Color* color, int16_t bx, int16_t by,
+                                     int16_t aw_width);
 
   void emitUniformScanRun(Color color, int16_t start_y, uint32_t count);
 
@@ -216,8 +199,8 @@ class BackgroundFillOptimizer : public DisplayOutput {
 
   DisplayOutput& output_;
   internal::NibbleRect* background_mask_;
-  Color* palette_;
-  uint8_t* palette_size_;
+  Color palette_[15];
+  uint8_t palette_size_;
 
   Box address_window_;
   uint32_t address_window_area_;

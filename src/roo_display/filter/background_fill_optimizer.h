@@ -207,7 +207,7 @@ class BackgroundFillOptimizer : public DisplayOutput {
 
   void processAlignedFullStripeBlock(Color* color, int16_t bx, int16_t by, int16_t aw_width);
 
-  void emitUniformScanRun(Color color, uint32_t start_ord, uint32_t count);
+  void emitUniformScanRun(Color color, int16_t start_y, uint32_t count);
 
   template <typename Filler>
   void fillRectBg(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
@@ -238,7 +238,7 @@ class BackgroundFillOptimizer : public DisplayOutput {
   bool passthrough_address_set_;
   bool scan_uniform_active_;
   Color scan_uniform_color_;
-  uint32_t scan_uniform_start_ord_;
+  int16_t scan_uniform_start_y_;
   uint32_t scan_uniform_count_;
 };
 

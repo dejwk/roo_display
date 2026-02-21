@@ -106,7 +106,7 @@ BackgroundFillOptimizer::BackgroundFillOptimizer(DisplayOutput& output,
       passthrough_address_set_(false),
       scan_uniform_active_(false),
       scan_uniform_color_(color::Transparent),
-      scan_uniform_start_ord_(0),
+      scan_uniform_start_y_(0),
       scan_uniform_count_(0) {
   // The backing mask may already contain data (e.g. caller-provided external
   // storage), so initialize usage counters from actual mask contents.
@@ -409,12 +409,10 @@ void BackgroundFillOptimizer::passthroughFill(Color color,
 void BackgroundFillOptimizer::flushDeferredUniformRun() {
   if (!scan_uniform_active_ || scan_uniform_count_ == 0) return;
 
-  cursor_ord_ = scan_uniform_start_ord_;
   const int16_t aw_width = address_window_.width();
-  const uint32_t row = cursor_ord_ / static_cast<uint32_t>(aw_width);
-  const uint32_t col = cursor_ord_ % static_cast<uint32_t>(aw_width);
-  cursor_x_ = address_window_.xMin() + static_cast<int16_t>(col);
-  cursor_y_ = address_window_.yMin() + static_cast<int16_t>(row);
+  cursor_ord_ = scan_uniform_start_y_ * aw_width;
+  cursor_x_ = address_window_.xMin();
+  cursor_y_ = scan_uniform_start_y_;
 
   write_scan_state_ = WriteScanState::kPassthrough;
   passthrough_address_set_ = false;
@@ -515,37 +513,35 @@ bool BackgroundFillOptimizer::tryProcessGridAlignedBlockStripes(
 }
 
 void BackgroundFillOptimizer::emitUniformScanRun(Color color,
-                                                 uint32_t start_ord,
+                                                 int16_t start_y,
                                                  uint32_t count) {
   if (count == 0) return;
   const int16_t aw_width = address_window_.width();
-  const int16_t aw_x0 = address_window_.xMin();
+  DCHECK_EQ(0, count % aw_width);
   const int16_t aw_y0 = address_window_.yMin();
 
-  const uint32_t end_ord = start_ord + count - 1;
-  const int16_t x0 = aw_x0 + static_cast<int16_t>(start_ord % aw_width);
-  const int16_t y0 = aw_y0 + static_cast<int16_t>(start_ord / aw_width);
-  const int16_t x1 = aw_x0 + static_cast<int16_t>(end_ord % aw_width);
-  const int16_t y1 = aw_y0 + static_cast<int16_t>(end_ord / aw_width);
+  const int16_t y0 = start_y;
+  const int16_t y1 = y0 + static_cast<int16_t>(count / aw_width) - 1;
 
   uint8_t palette_idx = getIdxInPalette(color, palette_, *palette_size_);
-  const int16_t rect_w = x1 - x0 + 1;
   const int16_t rect_h = y1 - y0 + 1;
-  if (palette_idx == 0 && rect_w >= kBgFillOptimizerDynamicPaletteMinWidth &&
+  if (palette_idx == 0 && aw_width >= kBgFillOptimizerDynamicPaletteMinWidth &&
       rect_h >= kBgFillOptimizerDynamicPaletteMinHeight) {
     palette_idx = tryAddIdxInPaletteDynamic(color);
   }
 
+  // Inexplicably, using writer and adapter comes out faster in the text scroll benchmark
+  // (by more than 3%). Need further testing, but leaving as-is for now.
   BufferedRectWriter writer(output_, blending_mode_);
   if (palette_idx != 0) {
     RectFillWriter adapter{.color = color, .writer = writer};
-    fillRectBg(x0, y0, x1, y1, adapter, palette_idx);
+    fillRectBg(address_window_.xMin(), y0, address_window_.xMax(), y1, adapter, palette_idx);
   } else {
     fillMaskRect(
-        Box(x0 / kBgFillOptimizerWindowSize, y0 / kBgFillOptimizerWindowSize,
-            x1 / kBgFillOptimizerWindowSize, y1 / kBgFillOptimizerWindowSize),
+        Box(bx_min_, y0 / kBgFillOptimizerWindowSize,
+            bx_max_, y1 / kBgFillOptimizerWindowSize),
         0);
-    writer.writeRect(x0, y0, x1, y1, color);
+    writer.writeRect(address_window_.xMin(), y0, address_window_.xMax(), y1, color);
   }
 }
 
@@ -566,7 +562,7 @@ void BackgroundFillOptimizer::write(Color* color, uint32_t pixel_count) {
       if (!scan_uniform_active_) {
         scan_uniform_active_ = true;
         scan_uniform_color_ = color[0];
-        scan_uniform_start_ord_ = cursor_ord_;
+        scan_uniform_start_y_ = cursor_y_;
         scan_uniform_count_ = 0;
       }
 
@@ -588,7 +584,7 @@ void BackgroundFillOptimizer::write(Color* color, uint32_t pixel_count) {
       pixel_count -= inspect_count;
 
       if (inspect_count == to_stripe_end) {
-        emitUniformScanRun(scan_uniform_color_, scan_uniform_start_ord_,
+        emitUniformScanRun(scan_uniform_color_, scan_uniform_start_y_,
                            scan_uniform_count_);
         scan_uniform_active_ = false;
         scan_uniform_count_ = 0;
@@ -630,7 +626,7 @@ void BackgroundFillOptimizer::fill(Color color, uint32_t pixel_count) {
       if (!scan_uniform_active_) {
         scan_uniform_active_ = true;
         scan_uniform_color_ = color;
-        scan_uniform_start_ord_ = cursor_ord_;
+        scan_uniform_start_y_ = cursor_y_;
         scan_uniform_count_ = 0;
       }
 
@@ -639,7 +635,7 @@ void BackgroundFillOptimizer::fill(Color color, uint32_t pixel_count) {
       pixel_count -= inspect_count;
 
       if (inspect_count == to_stripe_end) {
-        emitUniformScanRun(scan_uniform_color_, scan_uniform_start_ord_,
+        emitUniformScanRun(scan_uniform_color_, scan_uniform_start_y_,
                            scan_uniform_count_);
         scan_uniform_active_ = false;
         scan_uniform_count_ = 0;

@@ -37,9 +37,8 @@ BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height,
 BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height,
                                                   roo::byte* buffer,
                                                   bool owns_buffer)
-    : background_mask_(
-          buffer, ((((width - 1) / kBgFillOptimizerWindowSize + 1) + 1) / 2),
-          ((((height - 1) / kBgFillOptimizerWindowSize + 1) + 1) / 2) * 2),
+    : background_mask_(buffer, ((((width - 1) / kBlock + 1) + 1) / 2),
+                       ((((height - 1) / kBlock + 1) + 1) / 2) * 2),
       palette_size_(0),
       swap_xy_(false),
       owned_buffer_(owns_buffer ? buffer : nullptr) {}
@@ -71,12 +70,9 @@ void BackgroundFillOptimizer::FrameBuffer::prefilled(uint8_t idx_in_palette) {
 }
 
 void BackgroundFillOptimizer::FrameBuffer::invalidateRect(const Box& rect) {
-  background_mask_.fillRect(
-      Box(rect.xMin() / roo_display::kBgFillOptimizerWindowSize,
-          rect.yMin() / roo_display::kBgFillOptimizerWindowSize,
-          rect.xMax() / roo_display::kBgFillOptimizerWindowSize,
-          rect.yMax() / roo_display::kBgFillOptimizerWindowSize),
-      0);
+  background_mask_.fillRect(Box(rect.xMin() / kBlock, rect.yMin() / kBlock,
+                                rect.xMax() / kBlock, rect.yMax() / kBlock),
+                            0);
 }
 
 void BackgroundFillOptimizer::FrameBuffer::setSwapXY(bool swap) {
@@ -267,11 +263,10 @@ void BackgroundFillOptimizer::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
   flushDeferredUniformRun();
   address_window_ = Box(x0, y0, x1, y1);
   address_window_area_ = address_window_.area();
-  bx_min_ = x0 / kBgFillOptimizerWindowSize;
-  bx_max_ = x1 / kBgFillOptimizerWindowSize;
+  bx_min_ = x0 / kBlock;
+  bx_max_ = x1 / kBlock;
   address_window_block_haligned_ =
-      (x0 % kBgFillOptimizerWindowSize) == 0 &&
-      (x1 % kBgFillOptimizerWindowSize) == (kBgFillOptimizerWindowSize - 1);
+      (x0 % kBlock) == 0 && (x1 % kBlock) == (kBlock - 1);
   blending_mode_ = mode;
   cursor_x_ = x0;
   cursor_y_ = y0;
@@ -304,10 +299,8 @@ uint32_t BackgroundFillOptimizer::pixelsUntilStripeEnd() const {
   const int16_t aw_x1 = address_window_.xMax();
 
   const int16_t y = cursor_y_;
-  const int16_t mod =
-      static_cast<int16_t>((y + 1) % kBgFillOptimizerWindowSize);
-  const int16_t rows_to_aligned_end =
-      (mod == 0) ? 0 : (kBgFillOptimizerWindowSize - mod);
+  const int16_t mod = static_cast<int16_t>((y + 1) % kBlock);
+  const int16_t rows_to_aligned_end = (mod == 0) ? 0 : (kBlock - mod);
   const int16_t stripe_end_y =
       std::min<int16_t>(aw_y1, y + rows_to_aligned_end);
 
@@ -329,7 +322,6 @@ void BackgroundFillOptimizer::beginPassthroughIfNeeded() {
 void BackgroundFillOptimizer::clearMaskForOrdRange(uint32_t start_ord,
                                                    uint32_t pixel_count) {
   if (pixel_count == 0) return;
-  static constexpr int16_t kBlock = kBgFillOptimizerWindowSize;
   const int16_t aw_width = address_window_.width();
   const int16_t aw_x0 = address_window_.xMin();
   const int16_t aw_y0 = address_window_.yMin();
@@ -425,7 +417,6 @@ void BackgroundFillOptimizer::processAlignedFullStripeBlock(Color* colors,
                                                             int16_t bx,
                                                             int16_t by,
                                                             int16_t aw_width) {
-  static constexpr int16_t kBlock = kBgFillOptimizerWindowSize;
   // Determine if the block is uniform color.
   bool all_same = true;
   Color first_color = *colors;
@@ -486,7 +477,6 @@ void BackgroundFillOptimizer::processAlignedFullStripeBlock(Color* colors,
 bool BackgroundFillOptimizer::tryProcessGridAlignedBlockStripes(
     Color*& color, uint32_t& pixel_count) {
   if (!address_window_block_haligned_) return false;
-  static constexpr int16_t kBlock = kBgFillOptimizerWindowSize;
   if (cursor_x_ != address_window_.xMin()) return false;
   if ((cursor_y_ % kBlock) != 0) return false;
   int16_t by = cursor_y_ / kBlock;
@@ -512,8 +502,7 @@ bool BackgroundFillOptimizer::tryProcessGridAlignedBlockStripes(
   return consumed_any;
 }
 
-void BackgroundFillOptimizer::emitUniformScanRun(Color color,
-                                                 int16_t start_y,
+void BackgroundFillOptimizer::emitUniformScanRun(Color color, int16_t start_y,
                                                  uint32_t count) {
   if (count == 0) return;
   const int16_t aw_width = address_window_.width();
@@ -525,23 +514,23 @@ void BackgroundFillOptimizer::emitUniformScanRun(Color color,
 
   uint8_t palette_idx = getIdxInPalette(color, palette_, *palette_size_);
   const int16_t rect_h = y1 - y0 + 1;
-  if (palette_idx == 0 && aw_width >= kBgFillOptimizerDynamicPaletteMinWidth &&
-      rect_h >= kBgFillOptimizerDynamicPaletteMinHeight) {
+  if (palette_idx == 0 && aw_width >= kDynamicPaletteMinWidth &&
+      rect_h >= kDynamicPaletteMinHeight) {
     palette_idx = tryAddIdxInPaletteDynamic(color);
   }
 
-  // Inexplicably, using writer and adapter comes out faster in the text scroll benchmark
-  // (by more than 3%). Need further testing, but leaving as-is for now.
+  // Inexplicably, using writer and adapter comes out faster in the text scroll
+  // benchmark (by more than 3%). Need further testing, but leaving as-is for
+  // now.
   BufferedRectWriter writer(output_, blending_mode_);
   if (palette_idx != 0) {
     RectFillWriter adapter{.color = color, .writer = writer};
-    fillRectBg(address_window_.xMin(), y0, address_window_.xMax(), y1, adapter, palette_idx);
+    fillRectBg(address_window_.xMin(), y0, address_window_.xMax(), y1, adapter,
+               palette_idx);
   } else {
-    fillMaskRect(
-        Box(bx_min_, y0 / kBgFillOptimizerWindowSize,
-            bx_max_, y1 / kBgFillOptimizerWindowSize),
-        0);
-    writer.writeRect(address_window_.xMin(), y0, address_window_.xMax(), y1, color);
+    fillMaskRect(Box(bx_min_, y0 / kBlock, bx_max_, y1 / kBlock), 0);
+    writer.writeRect(address_window_.xMin(), y0, address_window_.xMax(), y1,
+                     color);
   }
 }
 
@@ -675,8 +664,8 @@ void BackgroundFillOptimizer::writeRects(BlendingMode mode, Color* color,
     if (palette_idx == 0) {
       const int16_t rect_w = rx1 - rx0 + 1;
       const int16_t rect_h = ry1 - ry0 + 1;
-      if (rect_w >= kBgFillOptimizerDynamicPaletteMinWidth &&
-          rect_h >= kBgFillOptimizerDynamicPaletteMinHeight) {
+      if (rect_w >= kDynamicPaletteMinWidth &&
+          rect_h >= kDynamicPaletteMinHeight) {
         palette_idx = tryAddIdxInPaletteDynamic(c);
       }
     }
@@ -691,10 +680,7 @@ void BackgroundFillOptimizer::writeRects(BlendingMode mode, Color* color,
       // Not a background palette color -> clear the nibble subrectangle
       // corresponding to a region entirely enclosing the the drawn rectangle
       // before writing to the underlying device.
-      fillMaskRect(Box(rx0 / kBgFillOptimizerWindowSize,
-                       ry0 / kBgFillOptimizerWindowSize,
-                       rx1 / kBgFillOptimizerWindowSize,
-                       ry1 / kBgFillOptimizerWindowSize),
+      fillMaskRect(Box(rx0 / kBlock, ry0 / kBlock, rx1 / kBlock, ry1 / kBlock),
                    0);
       writer.writeRect(rx0, ry0, rx1, ry1, c);
     }
@@ -718,8 +704,8 @@ void BackgroundFillOptimizer::fillRects(BlendingMode mode, Color color,
     if (palette_idx == 0) {
       const int16_t rect_w = rx1 - rx0 + 1;
       const int16_t rect_h = ry1 - ry0 + 1;
-      if (rect_w >= kBgFillOptimizerDynamicPaletteMinWidth &&
-          rect_h >= kBgFillOptimizerDynamicPaletteMinHeight) {
+      if (rect_w >= kDynamicPaletteMinWidth &&
+          rect_h >= kDynamicPaletteMinHeight) {
         palette_idx = tryAddIdxInPaletteDynamic(color);
       }
     }
@@ -730,10 +716,7 @@ void BackgroundFillOptimizer::fillRects(BlendingMode mode, Color color,
       // Not a background color -> clear the nibble subrectangle
       // corresponding to a region entirely enclosing the drawn rectangle
       // before writing to the underlying device.
-      fillMaskRect(Box(rx0 / kBgFillOptimizerWindowSize,
-                       ry0 / kBgFillOptimizerWindowSize,
-                       rx1 / kBgFillOptimizerWindowSize,
-                       ry1 / kBgFillOptimizerWindowSize),
+      fillMaskRect(Box(rx0 / kBlock, ry0 / kBlock, rx1 / kBlock, ry1 / kBlock),
                    0);
       writer.writeRect(rx0, ry0, rx1, ry1, color);
     }
@@ -749,8 +732,8 @@ void BackgroundFillOptimizer::writePixels(BlendingMode mode, Color* color,
   Color* color_out = color;
   uint16_t new_pixel_count = 0;
   for (uint16_t i = 0; i < pixel_count; ++i) {
-    const int16_t bx = x[i] / kBgFillOptimizerWindowSize;
-    const int16_t by = y[i] / kBgFillOptimizerWindowSize;
+    const int16_t bx = x[i] / kBlock;
+    const int16_t by = y[i] / kBlock;
     const uint8_t old_value = background_mask_->get(bx, by);
 
     uint8_t palette_idx = getIdxInPalette(color[i], palette_, *palette_size_);
@@ -784,8 +767,8 @@ void BackgroundFillOptimizer::fillPixels(BlendingMode mode, Color color,
     int16_t* y_out = y;
     uint16_t new_pixel_count = 0;
     for (uint16_t i = 0; i < pixel_count; ++i) {
-      const int16_t bx = x[i] / kBgFillOptimizerWindowSize;
-      const int16_t by = y[i] / kBgFillOptimizerWindowSize;
+      const int16_t bx = x[i] / kBlock;
+      const int16_t by = y[i] / kBlock;
       const uint8_t old_value = background_mask_->get(bx, by);
 
       // Do not actually draw the background pixel if the corresponding
@@ -807,8 +790,8 @@ void BackgroundFillOptimizer::fillPixels(BlendingMode mode, Color color,
     // We need to draw all the pixels, but also mark the corresponding
     // bit-mask rectangles as not all-background.
     for (uint16_t i = 0; i < pixel_count; ++i) {
-      const int16_t bx = x[i] / kBgFillOptimizerWindowSize;
-      const int16_t by = y[i] / kBgFillOptimizerWindowSize;
+      const int16_t bx = x[i] / kBlock;
+      const int16_t by = y[i] / kBlock;
       const uint8_t old_value = background_mask_->get(bx, by);
       if (old_value != 0) {
         updateMaskValue(bx, by, old_value, 0);
@@ -828,16 +811,16 @@ void BackgroundFillOptimizer::drawDirectRect(const roo::byte* data,
   const int16_t dst_x1 = dst_x0 + (src_x1 - src_x0);
   const int16_t dst_y1 = dst_y0 + (src_y1 - src_y0);
 
-  const int16_t bx_min = dst_x0 / kBgFillOptimizerWindowSize;
-  const int16_t by_min = dst_y0 / kBgFillOptimizerWindowSize;
-  const int16_t bx_max = dst_x1 / kBgFillOptimizerWindowSize;
-  const int16_t by_max = dst_y1 / kBgFillOptimizerWindowSize;
+  const int16_t bx_min = dst_x0 / kBlock;
+  const int16_t by_min = dst_y0 / kBlock;
+  const int16_t bx_max = dst_x1 / kBlock;
+  const int16_t by_max = dst_y1 / kBlock;
 
   const ColorFormat& color_format = getColorFormat();
 
   for (int16_t by = by_min; by <= by_max; ++by) {
-    const int16_t block_y0 = by * kBgFillOptimizerWindowSize;
-    const int16_t block_y1 = block_y0 + kBgFillOptimizerWindowSize - 1;
+    const int16_t block_y0 = by * kBlock;
+    const int16_t block_y1 = block_y0 + kBlock - 1;
     const int16_t draw_y0 = std::max<int16_t>(block_y0, dst_y0);
     const int16_t draw_y1 = std::min<int16_t>(block_y1, dst_y1);
 
@@ -848,8 +831,8 @@ void BackgroundFillOptimizer::drawDirectRect(const roo::byte* data,
       bool must_draw = false;
 
       if (bx <= bx_max) {
-        const int16_t block_x0 = bx * kBgFillOptimizerWindowSize;
-        const int16_t block_x1 = block_x0 + kBgFillOptimizerWindowSize - 1;
+        const int16_t block_x0 = bx * kBlock;
+        const int16_t block_x1 = block_x0 + kBlock - 1;
         const int16_t draw_x0 = std::max<int16_t>(block_x0, dst_x0);
         const int16_t draw_x1 = std::min<int16_t>(block_x1, dst_x1);
 
@@ -903,8 +886,8 @@ void BackgroundFillOptimizer::drawDirectRect(const roo::byte* data,
           streak_bx0 = bx;
         }
       } else if (streak_active) {
-        const int16_t streak_block_x0 = streak_bx0 * kBgFillOptimizerWindowSize;
-        const int16_t streak_block_x1 = bx * kBgFillOptimizerWindowSize - 1;
+        const int16_t streak_block_x0 = streak_bx0 * kBlock;
+        const int16_t streak_block_x1 = bx * kBlock - 1;
         const int16_t draw_x0 = std::max<int16_t>(streak_block_x0, dst_x0);
         const int16_t draw_x1 = std::min<int16_t>(streak_block_x1, dst_x1);
 
@@ -928,9 +911,7 @@ void BackgroundFillOptimizer::fillRectBg(int16_t x0, int16_t y0, int16_t x1,
                                          uint8_t palette_idx) {
   // Iterate over the bit-map rectangle that encloses the requested rectangle.
   // Skip writing sub-rectangles that are known to be already all-background.
-  Box filter_box(
-      x0 / kBgFillOptimizerWindowSize, y0 / kBgFillOptimizerWindowSize,
-      x1 / kBgFillOptimizerWindowSize, y1 / kBgFillOptimizerWindowSize);
+  Box filter_box(x0 / kBlock, y0 / kBlock, x1 / kBlock, y1 / kBlock);
   internal::NibbleRectWindowIterator itr(background_mask_, filter_box.xMin(),
                                          filter_box.yMin(), filter_box.xMax(),
                                          filter_box.yMax());
@@ -941,25 +922,20 @@ void BackgroundFillOptimizer::fillRectBg(int16_t x0, int16_t y0, int16_t x1,
       if (x == xendl || itr.next() == palette_idx) {
         // End of the streak. Let's draw the necessary rectangle.
         if (xstart >= 0) {
-          Box box(
-              xstart * kBgFillOptimizerWindowSize,
-              y * kBgFillOptimizerWindowSize,
-              x * kBgFillOptimizerWindowSize - 1,
-              y * kBgFillOptimizerWindowSize + kBgFillOptimizerWindowSize - 1);
+          Box box(xstart * kBlock, y * kBlock, x * kBlock - 1,
+                  y * kBlock + kBlock - 1);
           if (box.clip(Box(x0, y0, x1, y1)) != Box::CLIP_RESULT_UNCHANGED) {
-            if (y0 > y * kBgFillOptimizerWindowSize ||
-                y1 < y * kBgFillOptimizerWindowSize +
-                         kBgFillOptimizerWindowSize - 1) {
+            if (y0 > y * kBlock || y1 < y * kBlock + kBlock - 1) {
               // Need to invalidate the entire line.
               fillMaskRect(Box(xstart, y, x - 1, y), 0);
             } else {
-              if (x0 > xstart * kBgFillOptimizerWindowSize) {
+              if (x0 > xstart * kBlock) {
                 const uint8_t old_value = background_mask_->get(xstart, y);
                 if (old_value != 0) {
                   updateMaskValue(xstart, y, old_value, 0);
                 }
               }
-              if (x1 < x * kBgFillOptimizerWindowSize - 1) {
+              if (x1 < x * kBlock - 1) {
                 const uint8_t old_value = background_mask_->get(x - 1, y);
                 if (old_value != 0) {
                   updateMaskValue(x - 1, y, old_value, 0);
@@ -982,11 +958,8 @@ void BackgroundFillOptimizer::fillRectBg(int16_t x0, int16_t y0, int16_t x1,
   // Identify the bit-mask rectangle that is entirely covered by the
   // requested rect. If non-empty, set all nibbles corresponding to it in
   // the mask, indicating that the area is all-bg.
-  Box inner_filter_box(
-      (x0 + kBgFillOptimizerWindowSize - 1) / kBgFillOptimizerWindowSize,
-      (y0 + kBgFillOptimizerWindowSize - 1) / kBgFillOptimizerWindowSize,
-      (x1 + 1) / kBgFillOptimizerWindowSize - 1,
-      (y1 + 1) / kBgFillOptimizerWindowSize - 1);
+  Box inner_filter_box((x0 + kBlock - 1) / kBlock, (y0 + kBlock - 1) / kBlock,
+                       (x1 + 1) / kBlock - 1, (y1 + 1) / kBlock - 1);
   if (!inner_filter_box.empty()) {
     fillMaskRect(inner_filter_box, palette_idx);
   }

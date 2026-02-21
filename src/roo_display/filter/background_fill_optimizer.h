@@ -7,15 +7,6 @@
 
 namespace roo_display {
 
-/// Size of the coarse background grid in pixels.
-static const int kBgFillOptimizerWindowSize = 4;
-
-/// Minimum rectangle width for dynamic palette enrollment.
-static const int kBgFillOptimizerDynamicPaletteMinWidth = 8;
-
-/// Minimum rectangle height for dynamic palette enrollment.
-static const int kBgFillOptimizerDynamicPaletteMinHeight = 8;
-
 // Display device filter which reduces the amount of redundant background
 // re-drawing, for a collection of up to 15 designated background colors.
 //
@@ -57,6 +48,16 @@ static const int kBgFillOptimizerDynamicPaletteMinHeight = 8;
 /// Display output filter that avoids redundant background fills.
 class BackgroundFillOptimizer : public DisplayOutput {
  public:
+  /// Size of the coarse background grid in pixels.
+  static constexpr const int kBlock = 4;
+
+  /// Minimum rectangle width for dynamic palette enrollment.
+  static constexpr const int kDynamicPaletteMinWidth = 8;
+
+  /// Minimum rectangle height for dynamic palette enrollment.
+  static constexpr const int kDynamicPaletteMinHeight = 8;
+
+
   /// Backing buffer for the optimizer state.
   class FrameBuffer {
    public:
@@ -66,8 +67,8 @@ class BackgroundFillOptimizer : public DisplayOutput {
     /// @param h Device height in pixels.
     /// @return Required backing buffer size in bytes.
     static constexpr size_t SizeForDimensions(int16_t w, int16_t h) {
-      return ((((w - 1) / kBgFillOptimizerWindowSize + 1) + 1) / 2) *
-             ((((h - 1) / kBgFillOptimizerWindowSize + 1) + 1) / 2) * 2;
+      return ((((w - 1) / kBlock + 1) + 1) / 2) *
+             ((((h - 1) / kBlock + 1) + 1) / 2) * 2;
     }
 
     /// Create a frame buffer with dynamic allocation.

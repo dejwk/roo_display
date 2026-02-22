@@ -320,7 +320,6 @@ void BackgroundFillOptimizer::clearMaskForOrdRange(uint32_t start_ord,
   const int16_t aw_width = address_window_.width();
   const int16_t aw_x0 = address_window_.xMin();
   const int16_t aw_y0 = address_window_.yMin();
-  const int16_t aw_x1 = address_window_.xMax();
   const uint32_t end_ord = start_ord + pixel_count - 1;
 
   const int16_t start_y = aw_y0 + static_cast<int16_t>(start_ord / aw_width);
@@ -501,8 +500,7 @@ void BackgroundFillOptimizer::emitUniformScanRun(Color color, int16_t start_y,
                                                  uint32_t count) {
   if (count == 0) return;
   const int16_t aw_width = address_window_.width();
-  DCHECK_EQ(0, count % aw_width);
-  const int16_t aw_y0 = address_window_.yMin();
+  DCHECK_EQ(0u, count % aw_width);
 
   const int16_t y0 = start_y;
   const int16_t y1 = y0 + static_cast<int16_t>(count / aw_width) - 1;

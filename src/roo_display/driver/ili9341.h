@@ -188,13 +188,15 @@ class Ili9341Target {
 
   void sync() __attribute__((always_inline)) { transport_.sync(); }
 
-  // The caller must call sync() between consecutive ramWrite() / ramFill() calls.
+  // The caller must call sync() between consecutive ramWrite() / ramFill()
+  // calls.
   void ramWrite(const roo::byte* data, size_t pixel_count)
       __attribute__((always_inline)) {
     transport_.writeBytes_async(data, pixel_count * 2);
   }
 
-  // The caller must call sync() between consecutive ramWrite() / ramFill() calls.
+  // The caller must call sync() between consecutive ramWrite() / ramFill()
+  // calls.
   void ramFill(const roo::byte* data, size_t pixel_count)
       __attribute__((always_inline)) {
     transport_.fill16_async(data, pixel_count);

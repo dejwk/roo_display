@@ -473,13 +473,13 @@ bool BackgroundFillOptimizer::tryProcessGridAlignedBlockStripes(
   if (!address_window_block_haligned_) return false;
   if (cursor_x_ != address_window_.xMin()) return false;
   if ((cursor_y_ % kBlock) != 0) return false;
-  int16_t by = cursor_y_ / kBlock;
   const int16_t aw_width = address_window_.width();
 
   const uint32_t stripe_pixels = static_cast<uint32_t>(aw_width) * kBlock;
   bool consumed_any = false;
   while (pixel_count >= stripe_pixels &&
          cursor_y_ + kBlock - 1 <= address_window_.yMax()) {
+    const int16_t by = cursor_y_ / kBlock;
     Color* block_start = color;
     for (int16_t block = bx_min_; block <= bx_max_; ++block) {
       processAlignedFullStripeBlock(block_start, block, by, aw_width);

@@ -103,7 +103,7 @@ void ReferenceDisplayDevice::advance() {
 
 void ReferenceDisplayDevice::init() {
   viewport_.init(raw_width(), raw_height());
-  viewport_.fillRect(0, 0, raw_width(), raw_height(), 0xFFF08080);
+  viewport_.fillRect(0, 0, raw_width() - 1, raw_height() - 1, 0xFFF08080);
 }
 
 ReferenceTouchDevice::ReferenceTouchDevice(

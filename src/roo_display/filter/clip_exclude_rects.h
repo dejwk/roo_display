@@ -166,11 +166,11 @@ class RectUnionFilter : public DisplayOutput {
   void writeRect(Color color, int16_t x0, int16_t y0, int16_t x1, int16_t y1,
                  int mask_idx, BufferedRectWriter* writer) {
     Box rect(x0, y0, x1, y1);
-    while (mask_idx < exclusion_->size() &&
+    while (mask_idx < (int)exclusion_->size() &&
            !exclusion_->at(mask_idx).intersects(rect)) {
       ++mask_idx;
     }
-    if (mask_idx == exclusion_->size()) {
+    if (mask_idx == (int)exclusion_->size()) {
       writer->writeRect(x0, y0, x1, y1, color);
       return;
     }
@@ -196,12 +196,12 @@ class RectUnionFilter : public DisplayOutput {
                 BufferedRectFiller* filler) {
     {
       Box rect(x0, y0, x1, y1);
-      while (mask_idx < exclusion_->size() &&
+      while (mask_idx < (int)exclusion_->size() &&
              !exclusion_->at(mask_idx).intersects(rect)) {
         ++mask_idx;
       }
     }
-    if (mask_idx == exclusion_->size()) {
+    if (mask_idx == (int)exclusion_->size()) {
       filler->fillRect(x0, y0, x1, y1);
       return;
     }

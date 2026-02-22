@@ -59,6 +59,7 @@ static DummyTouch dummy_touch;
 Display::Display(DisplayDevice& display_device, TouchDevice* touch_device,
                  TouchCalibration touch_calibration)
     : display_device_(display_device),
+      output_(&display_device_),
       touch_(display_device,
              touch_device == nullptr ? dummy_touch : *touch_device,
              touch_calibration),
@@ -109,6 +110,21 @@ void DrawingContext::clear() {
   draw(Clear());
   setBlendingMode(bm);
   setFillMode(fm);
+}
+
+void Display::enableTurbo() {
+  if (turbo_ != nullptr) return;
+  turbo_frame_buffer_ =
+      std::make_unique<BackgroundFillOptimizer::FrameBuffer>(width(), height());
+  turbo_ = std::make_unique<BackgroundFillOptimizer>(display_device_,
+                                                     *turbo_frame_buffer_);
+  output_ = turbo_.get();
+}
+
+void Display::disableTurbo() {
+  output_ = &display_device_;
+  turbo_.reset();
+  turbo_frame_buffer_.reset();
 }
 
 namespace {

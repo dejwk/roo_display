@@ -34,7 +34,6 @@ struct Emulator {
 #endif
 
 #include "roo_display.h"
-#include "roo_display/filter/background_fill_optimizer.h"
 #include "roo_display/shape/basic.h"
 #include "roo_display/ui/text_label.h"
 #include "roo_display/ui/tile.h"
@@ -45,18 +44,16 @@ using namespace roo_display;
 #include "roo_display/driver/ili9486.h"
 Ili9486spi<5, 17, 27> device;
 
-BackgroundFillOptimizerDevice optimized_device(device);
-Display baseline_display(device);
-Display optimized_display(optimized_device);
+Display display(device);
 
 namespace {
 
 constexpr int kRandomRectIterations = 500;
-constexpr int kRandomPixelIterations = 500000;
+constexpr int kRandomPixelIterations = 80000;
 constexpr int kRandomStreamFillRectIterations = 300;
 constexpr int kAlignedSmallRectIterations = 50000;
 constexpr int kTileHeight = 40;
-constexpr int kRowCount = 40;
+constexpr int kRowCount = 20;
 
 const std::array<Color, 4> kRowBackgrounds = {
     Color(255, 255, 255),
@@ -353,13 +350,11 @@ void runBenchmarks() {
       "------------------------------------------------------------------------"
       "---------------------");
 
-  runCondition("baseline", baseline_display);
+  runCondition("baseline", display);
 
-  optimized_device.setPalette(
-      {kRowBackgrounds[0], kRowBackgrounds[1], kRowBackgrounds[2],
-       kRowBackgrounds[3], color::White},
-      color::White);
-  runCondition("bg_fill_optimizer", optimized_display);
+  display.enableTurbo();
+  runCondition("bg_fill_optimizer", display);
+  display.disableTurbo();
 
   Serial.println("Done!");
 }
@@ -370,8 +365,7 @@ void setup() {
   Serial.begin(115200);
   SPI.begin();
 
-  baseline_display.init(color::White);
-  optimized_display.init(color::White);
+  display.init(color::White);
 }
 
 void loop() {

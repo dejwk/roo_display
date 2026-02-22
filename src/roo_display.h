@@ -9,6 +9,7 @@
 #include "roo_display/core/drawable.h"
 #include "roo_display/core/streamable.h"
 #include "roo_display/filter/background.h"
+#include "roo_display/filter/background_fill_optimizer.h"
 #include "roo_display/filter/clip_mask.h"
 #include "roo_display/filter/front_to_back_writer.h"
 #include "roo_display/filter/transformation.h"
@@ -110,9 +111,9 @@ class Display {
   }
 
   /// Returns mutable access to the display output.
-  DisplayOutput& output() { return display_device_; }
+  DisplayOutput& output() { return *output_; }
   /// Returns const access to the display output.
-  const DisplayOutput& output() const { return display_device_; }
+  const DisplayOutput& output() const { return *output_; }
 
   /// Returns calibrated touch points in display coordinates.
   ///
@@ -171,6 +172,12 @@ class Display {
   /// Clears the display, respecting the clip box and background settings.
   void clear();
 
+  void enableTurbo();
+
+  void disableTurbo();
+
+  bool isTurboEnabled() const { return turbo_ != nullptr; }
+
  private:
   Display(DisplayDevice& display_device, TouchDevice* touch_device,
           TouchCalibration touch_calibration);
@@ -196,6 +203,10 @@ class Display {
   BlendingMode blending_mode() const { return BLENDING_MODE_SOURCE_OVER; }
 
   DisplayDevice& display_device_;
+  std::unique_ptr<BackgroundFillOptimizer::FrameBuffer> turbo_frame_buffer_;
+  std::unique_ptr<BackgroundFillOptimizer> turbo_;
+  // Set to either the display_device_ or the turbo wrapper.
+  DisplayOutput* output_;
   TouchDisplay touch_;
   int16_t nest_level_;
   Orientation orientation_;

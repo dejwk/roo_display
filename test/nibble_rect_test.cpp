@@ -1,10 +1,10 @@
 
 #include "roo_display/internal/nibble_rect.h"
 
+#include "roo_backport/byte.h"
 #include "roo_display.h"
 #include "roo_display/color/color.h"
 #include "roo_display/core/offscreen.h"
-#include "roo_backport/byte.h"
 #include "testing.h"
 #include "testing_display_device.h"
 
@@ -100,7 +100,7 @@ class NibbleRectWindowIteratorRawStream {
 
   Color next() { return Grayscale4().toArgbColor(itr_.next()); }
 
-  TransparencyMode transparency() const { return TRANSPARENCY_NONE; }
+  TransparencyMode transparency() const { return kNoTransparency; }
 
  private:
   internal::NibbleRectWindowIterator itr_;

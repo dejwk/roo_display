@@ -46,9 +46,8 @@ class BufferedPixelWriter {
   /// Write a single pixel (buffered).
   void writePixel(int16_t x, int16_t y, Color color) {
     if (buffer_size_ == kPixelWritingBufferSize) flush();
-    if (color.asArgb() == 0 &&
-        (blending_mode_ == BLENDING_MODE_SOURCE_OVER ||
-         blending_mode_ == BLENDING_MODE_SOURCE_OVER_OPAQUE))
+    if (color.asArgb() == 0 && (blending_mode_ == kBlendingSourceOver ||
+                                blending_mode_ == kBlendingSourceOverOpaque))
       return;
     x_buffer_[buffer_size_] = x;
     y_buffer_[buffer_size_] = y;

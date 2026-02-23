@@ -3,8 +3,8 @@
 #ifdef ROO_TESTING
 
 #include "roo_testing/devices/display/ili9341/ili9341spi.h"
-#include "roo_testing/microcontrollers/esp32/fake_esp32.h"
 #include "roo_testing/devices/touch/xpt2046/xpt2046spi.h"
+#include "roo_testing/microcontrollers/esp32/fake_esp32.h"
 #include "roo_testing/transducers/ui/viewport/flex_viewport.h"
 #include "roo_testing/transducers/ui/viewport/fltk/fltk_viewport.h"
 
@@ -98,9 +98,9 @@ void loop() {
     RasterizableStack stack(Box(0, 0, 200, 200));
     stack.addInput(&circle);
     stack.addInput(&rect1, -4 * (i - 20), 4 * (i - 20))
-        .withMode(BLENDING_MODE_SOURCE_ATOP);
+        .withMode(kBlendingSourceAtop);
     stack.addInput(&rect2, 4 * (i - 20), 4 * (i - 20))
-        .withMode(BLENDING_MODE_SOURCE_ATOP);
+        .withMode(kBlendingSourceAtop);
     DrawingContext dc(display);
     dc.draw(stack, kCenter | kMiddle);
   }
@@ -108,10 +108,9 @@ void loop() {
     for (int i = 0; i <= 5; ++i) {
       RasterizableStack stack(Box(0, 0, 200, 200));
       stack.addInput(&circle);
-      stack.addInput(&rect1).withMode(BLENDING_MODE_SOURCE_ATOP);
-      stack.addInput(&rect2).withMode(BLENDING_MODE_SOURCE_ATOP);
-      stack.addInput(&shadow, 5 - i, i - 5)
-          .withMode(BLENDING_MODE_DESTINATION_OVER);
+      stack.addInput(&rect1).withMode(kBlendingSourceAtop);
+      stack.addInput(&rect2).withMode(kBlendingSourceAtop);
+      stack.addInput(&shadow, 5 - i, i - 5).withMode(kBlendingDestinationOver);
       DrawingContext dc(display);
       dc.draw(stack, kCenter | kMiddle);
     }
@@ -119,10 +118,10 @@ void loop() {
   {
     RasterizableStack stack(Box(0, 0, 200, 200));
     stack.addInput(&circle);
-    stack.addInput(&rect1).withMode(BLENDING_MODE_SOURCE_ATOP);
-    stack.addInput(&rect2).withMode(BLENDING_MODE_SOURCE_ATOP);
-    stack.addInput(&gradient).withMode(BLENDING_MODE_SOURCE_ATOP);
-    stack.addInput(&shadow).withMode(BLENDING_MODE_DESTINATION_OVER);
+    stack.addInput(&rect1).withMode(kBlendingSourceAtop);
+    stack.addInput(&rect2).withMode(kBlendingSourceAtop);
+    stack.addInput(&gradient).withMode(kBlendingSourceAtop);
+    stack.addInput(&shadow).withMode(kBlendingDestinationOver);
     {
       DrawingContext dc(display);
       dc.draw(stack, kCenter | kMiddle);
@@ -135,11 +134,11 @@ void loop() {
       auto fill = Fill(color::Black.withA((10 - i) * 20));
       RasterizableStack stack(Box(0, 0, 200, 200));
       stack.addInput(&circle);
-      stack.addInput(&rect1).withMode(BLENDING_MODE_SOURCE_ATOP);
-      stack.addInput(&rect2).withMode(BLENDING_MODE_SOURCE_ATOP);
-      stack.addInput(&gradient).withMode(BLENDING_MODE_SOURCE_ATOP);
-      stack.addInput(&shadow).withMode(BLENDING_MODE_DESTINATION_OVER);
-      stack.addInput(&fill).withMode(BLENDING_MODE_DESTINATION_IN);
+      stack.addInput(&rect1).withMode(kBlendingSourceAtop);
+      stack.addInput(&rect2).withMode(kBlendingSourceAtop);
+      stack.addInput(&gradient).withMode(kBlendingSourceAtop);
+      stack.addInput(&shadow).withMode(kBlendingDestinationOver);
+      stack.addInput(&fill).withMode(kBlendingDestinationIn);
       dc.draw(stack, kCenter | kMiddle);
     }
     dc.clear();

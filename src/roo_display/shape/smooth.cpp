@@ -569,7 +569,7 @@ void DrawWedge(const SmoothShape::Wedge& wedge, const Surface& s,
   uint8_t alpha = max_alpha;
   float xpax, ypay;
   bool can_minimize_scan =
-      spec.round_endings && s.fill_mode() != FILL_MODE_RECTANGLE;
+      spec.round_endings && s.fill_mode() != kFillRectangle;
 
   ys += dy;
   if (ys < box.yMin()) ys = box.yMin();
@@ -596,7 +596,7 @@ void DrawWedge(const SmoothShape::Wedge& wedge, const Surface& s,
           xs = xp;
         }
       }
-      if (alpha != 0 || s.fill_mode() == FILL_MODE_RECTANGLE) {
+      if (alpha != 0 || s.fill_mode() == kFillRectangle) {
         writer.writePixel(
             xp, yp,
             alpha == max_alpha
@@ -628,7 +628,7 @@ void DrawWedge(const SmoothShape::Wedge& wedge, const Surface& s,
           xs = xp;
         }
       }
-      if (alpha != 0 || s.fill_mode() == FILL_MODE_RECTANGLE) {
+      if (alpha != 0 || s.fill_mode() == kFillRectangle) {
         writer.writePixel(
             xp, yp,
             alpha == max_alpha
@@ -899,21 +899,19 @@ inline void FillSubrectOfRoundRect(const SmoothShape::RoundRect& rect,
   Color outline = rect.outline_color;
   switch (DetermineRectColorForRoundRect(rect, box)) {
     case TRANSPARENT: {
-      if (spec.fill_mode == FILL_MODE_RECTANGLE) {
+      if (spec.fill_mode == kFillRectangle) {
         spec.out->fillRect(spec.blending_mode, box, spec.bgcolor);
       }
       return;
     }
     case INTERIOR: {
-      if (spec.fill_mode == FILL_MODE_RECTANGLE ||
-          interior != color::Transparent) {
+      if (spec.fill_mode == kFillRectangle || interior != color::Transparent) {
         spec.out->fillRect(spec.blending_mode, box, spec.pre_blended_interior);
       }
       return;
     }
     case OUTLINE_ACTIVE: {
-      if (spec.fill_mode == FILL_MODE_RECTANGLE ||
-          outline != color::Transparent) {
+      if (spec.fill_mode == kFillRectangle || outline != color::Transparent) {
         spec.out->fillRect(spec.blending_mode, box, spec.pre_blended_outline);
         return;
       }
@@ -923,7 +921,7 @@ inline void FillSubrectOfRoundRect(const SmoothShape::RoundRect& rect,
   }
 
   // Slow case; evaluate every pixel from the rectangle.
-  if (spec.fill_mode == FILL_MODE_VISIBLE) {
+  if (spec.fill_mode == kFillVisible) {
     BufferedPixelWriter writer(*spec.out, spec.blending_mode);
     for (int16_t y = box.yMin(); y <= box.yMax(); ++y) {
       for (int16_t x = box.xMin(); x <= box.xMax(); ++x) {
@@ -1005,7 +1003,7 @@ void DrawRoundRect(SmoothShape::RoundRect rect, const Surface& s,
     FillSubrectangle(
         rect, spec,
         Box(box.xMin(), inner.yMin(), inner.xMin() - 1, inner.yMax()));
-    if (s.fill_mode() == FILL_MODE_RECTANGLE ||
+    if (s.fill_mode() == kFillRectangle ||
         rect.interior_color != color::Transparent) {
       s.out().fillRect(s.blending_mode(), inner, spec.pre_blended_interior);
     }
@@ -1438,20 +1436,19 @@ void FillSubrectOfArc(const SmoothShape::Arc& arc, const ArcDrawSpec& spec,
   Color outline_inactive = arc.outline_inactive_color;
   switch (DetermineRectColorForArc(arc, box)) {
     case TRANSPARENT: {
-      if (spec.fill_mode == FILL_MODE_RECTANGLE) {
+      if (spec.fill_mode == kFillRectangle) {
         spec.out->fillRect(spec.blending_mode, box, spec.bgcolor);
       }
       return;
     }
     case INTERIOR: {
-      if (spec.fill_mode == FILL_MODE_RECTANGLE ||
-          interior != color::Transparent) {
+      if (spec.fill_mode == kFillRectangle || interior != color::Transparent) {
         spec.out->fillRect(spec.blending_mode, box, spec.pre_blended_interior);
       }
       return;
     }
     case OUTLINE_ACTIVE: {
-      if (spec.fill_mode == FILL_MODE_RECTANGLE ||
+      if (spec.fill_mode == kFillRectangle ||
           outline_active != color::Transparent) {
         spec.out->fillRect(spec.blending_mode, box,
                            spec.pre_blended_outline_active);
@@ -1459,7 +1456,7 @@ void FillSubrectOfArc(const SmoothShape::Arc& arc, const ArcDrawSpec& spec,
       return;
     }
     case OUTLINE_INACTIVE: {
-      if (spec.fill_mode == FILL_MODE_RECTANGLE ||
+      if (spec.fill_mode == kFillRectangle ||
           outline_inactive != color::Transparent) {
         spec.out->fillRect(spec.blending_mode, box,
                            spec.pre_blended_outline_inactive);
@@ -1471,7 +1468,7 @@ void FillSubrectOfArc(const SmoothShape::Arc& arc, const ArcDrawSpec& spec,
   }
 
   // Slow case; evaluate every pixel from the rectangle.
-  if (spec.fill_mode == FILL_MODE_VISIBLE) {
+  if (spec.fill_mode == kFillVisible) {
     BufferedPixelWriter writer(*spec.out, spec.blending_mode);
     for (int16_t y = box.yMin(); y <= box.yMax(); ++y) {
       for (int16_t x = box.xMin(); x <= box.xMax(); ++x) {
@@ -1686,14 +1683,13 @@ void FillSubrectOfTriangle(const SmoothShape::Triangle& triangle,
   Color interior = triangle.color;
   switch (DetermineRectColorForTriangle(triangle, box)) {
     case TRANSPARENT: {
-      if (spec.fill_mode == FILL_MODE_RECTANGLE) {
+      if (spec.fill_mode == kFillRectangle) {
         spec.out->fillRect(spec.blending_mode, box, spec.bgcolor);
       }
       return;
     }
     case INTERIOR: {
-      if (spec.fill_mode == FILL_MODE_RECTANGLE ||
-          interior != color::Transparent) {
+      if (spec.fill_mode == kFillRectangle || interior != color::Transparent) {
         spec.out->fillRect(spec.blending_mode, box, spec.pre_blended_interior);
       }
       return;
@@ -1703,7 +1699,7 @@ void FillSubrectOfTriangle(const SmoothShape::Triangle& triangle,
   }
 
   // Slow case; evaluate every pixel from the rectangle.
-  if (spec.fill_mode == FILL_MODE_VISIBLE) {
+  if (spec.fill_mode == kFillVisible) {
     BufferedPixelWriter writer(*spec.out, spec.blending_mode);
     for (int16_t y = box.yMin(); y <= box.yMax(); ++y) {
       for (int16_t x = box.xMin(); x <= box.xMax(); ++x) {

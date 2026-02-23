@@ -63,7 +63,7 @@ void vertical() {
   auto bg = MakeTiledRaster(&raster);
   dc.setBackground(&bg);
   // Actually fill the screen with the background.
-  // (Alternatively, experiment with FILL_MODE_RECTANGLE).
+  // (Alternatively, experiment with kFillRectangle).
   dc.clear();
   // Magnify to emphasize anti-aliasing.
   dc.setTransformation(Transformation().scale(3, 3));
@@ -82,7 +82,7 @@ void checkers() {
       [](int16_t x, int16_t y) {
         return ((x / 40) - (y / 40)) % 2 ? color::White : color::MistyRose;
       },
-      TRANSPARENCY_NONE);
+      kNoTransparency);
   dc.setBackground(&bg);
   dc.clear();
 

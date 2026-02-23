@@ -202,7 +202,7 @@ TEST(BackgroundFillOptimizer, RedundantFillOptimization) {
   // This should invalidate some regions.
   int16_t sx[] = {5, 15, 25, 35, 45};
   int16_t sy[] = {6, 10, 14, 18, 22};
-  screen.fillPixels(BLENDING_MODE_SOURCE, color::Yellow, sx, sy, 5);
+  screen.fillPixels(kBlendingSource, color::Yellow, sx, sy, 5);
 
   const uint64_t test_before_second_fill =
       screen.test().device().pixelDrawCount();
@@ -297,10 +297,10 @@ TEST(BackgroundFillOptimizer, FillPixels) {
 
   int16_t x[] = {5, 15, 25, 35, 45};
   int16_t y[] = {6, 10, 14, 18, 22};
-  screen.fillPixels(BLENDING_MODE_SOURCE, color::White, x, y, 5);
+  screen.fillPixels(kBlendingSource, color::White, x, y, 5);
   int16_t sx[] = {5, 15, 25, 35, 45};
   int16_t sy[] = {6, 10, 14, 18, 22};
-  screen.fillPixels(BLENDING_MODE_SOURCE, color::Yellow, sx, sy, 5);
+  screen.fillPixels(kBlendingSource, color::Yellow, sx, sy, 5);
 
   EXPECT_CONSISTENT(screen);
   EXPECT_FRAMEBUFFER_MATCHES(screen,
@@ -323,7 +323,7 @@ TEST(BackgroundFillOptimizer, WritePixels) {
   int16_t y[] = {6, 10, 14, 18, 22};
   Color colors[] = {color::White, color::Red, color::White, color::Blue,
                     color::White};
-  screen.writePixels(BLENDING_MODE_SOURCE, colors, x, y, 5);
+  screen.writePixels(kBlendingSource, colors, x, y, 5);
 
   EXPECT_CONSISTENT(screen);
   EXPECT_FRAMEBUFFER_MATCHES(screen,
@@ -492,7 +492,7 @@ class SplitFillDrawable : public Drawable {
   void drawTo(const Surface& s) const override {
     DisplayOutput& out = s.out();
     out.setAddress(window_.xMin(), window_.yMin(), window_.xMax(),
-                   window_.yMax(), BLENDING_MODE_SOURCE);
+                   window_.yMax(), kBlendingSource);
     out.fill(first_, first_count_);
     out.fill(second_, second_count_);
   }
@@ -510,7 +510,7 @@ Offscreen<Rgb888> MakeCirclePatternSourceBuffer(Color bg, Color big_circle,
   constexpr int kHeight = 50;
 
   // Draw the source pattern using shape primitives. Using offscreen w/o
-  // transparency to force FILL_MODE_RECTANGLE, but not using Rgb565 to avoid
+  // transparency to force kFillRectangle, but not using Rgb565 to avoid
   // the direct draw path.
   Offscreen<Rgb888> source(kWidth, kHeight, bg, Rgb888());
   DrawingContext dc(source);
@@ -603,14 +603,14 @@ TEST(BackgroundFillOptimizer, WriteChunkedUniformStripeOptimization) {
   Color data[32];
   for (int i = 0; i < 32; ++i) data[i] = kFill;
 
-  screen.setAddress(0, 0, 7, 3, BLENDING_MODE_SOURCE);
+  screen.setAddress(0, 0, 7, 3, kBlendingSource);
   screen.write(data, 5);
   screen.write(data + 5, 7);
   screen.write(data + 12, 20);
 
   const uint64_t draw_after_first = screen.test().device().pixelDrawCount();
 
-  screen.setAddress(0, 0, 7, 3, BLENDING_MODE_SOURCE);
+  screen.setAddress(0, 0, 7, 3, kBlendingSource);
   screen.write(data, 6);
   screen.write(data + 6, 26);
 
@@ -639,14 +639,14 @@ TEST(BackgroundFillOptimizer, WritePassthroughThenUniformNextStripe) {
     data[i] = kStripe;
   }
 
-  screen.setAddress(0, 0, 7, 7, BLENDING_MODE_SOURCE);
+  screen.setAddress(0, 0, 7, 7, kBlendingSource);
   screen.write(data, 13);
   screen.write(data + 13, 11);
   screen.write(data + 24, 40);
 
   const uint64_t draw_after_first = screen.test().device().pixelDrawCount();
 
-  screen.setAddress(0, 0, 7, 7, BLENDING_MODE_SOURCE);
+  screen.setAddress(0, 0, 7, 7, kBlendingSource);
   screen.write(data, 9);
   screen.write(data + 9, 55);
 
@@ -669,7 +669,7 @@ TEST(BackgroundFillOptimizer, FillColorTransitionFlushesDeferredRun) {
 
   // 8x4 window (32 px) fits one stripe in scan mode.
   // Split into 12 + 20 so both fills occur before stripe-end emission.
-  screen.setAddress(0, 0, 7, 3, BLENDING_MODE_SOURCE);
+  screen.setAddress(0, 0, 7, 3, kBlendingSource);
   screen.fill(kA, 12);
   screen.fill(kB, 20);
 
@@ -690,7 +690,7 @@ TEST(BackgroundFillOptimizer, FillColorTransitionWithOffsetWindow) {
   // 8x4 window at y=1. First stripe has only 3 rows (24 px) due 4-row stripe
   // alignment. Split 12 + 20 forces color transition mid-stripe and then
   // continues into the next stripe.
-  screen.setAddress(2, 1, 9, 4, BLENDING_MODE_SOURCE);
+  screen.setAddress(2, 1, 9, 4, kBlendingSource);
   screen.fill(kA, 12);
   screen.fill(kB, 20);
 
@@ -743,7 +743,7 @@ TEST(BackgroundFillOptimizer, WriteAlignedStripeThenTailAdvancesColorPointer) {
 
   // 8x8 destination window is grid-aligned and 4x4-block compatible.
   // First 32 px form one full 8x4 stripe; remaining 8 px are the tail.
-  screen.setAddress(0, 0, 7, 7, BLENDING_MODE_SOURCE);
+  screen.setAddress(0, 0, 7, 7, kBlendingSource);
   screen.write(data, 40);
 
   EXPECT_CONSISTENT(screen);

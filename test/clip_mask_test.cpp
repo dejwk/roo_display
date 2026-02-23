@@ -107,68 +107,68 @@ typedef FakeFilteringOffscreen<Grayscale4, SimpleRoundMask> RefDeviceSimple;
 typedef FilteredOutput<Grayscale4, SimpleRoundMask> TestDeviceSimple;
 
 TEST(ClipMask, SimpleTests) {
-  TestFillRects<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
+  TestFillRects<TestDeviceSimple, RefDeviceSimple>(kBlendingSource,
                                                    Orientation());
-  TestFillHLines<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
+  TestFillHLines<TestDeviceSimple, RefDeviceSimple>(kBlendingSource,
                                                     Orientation());
-  TestFillVLines<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
+  TestFillVLines<TestDeviceSimple, RefDeviceSimple>(kBlendingSource,
                                                     Orientation());
-  TestFillDegeneratePixels<TestDeviceSimple, RefDeviceSimple>(
-      BLENDING_MODE_SOURCE, Orientation());
-  TestFillPixels<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
+  TestFillDegeneratePixels<TestDeviceSimple, RefDeviceSimple>(kBlendingSource,
+                                                              Orientation());
+  TestFillPixels<TestDeviceSimple, RefDeviceSimple>(kBlendingSource,
                                                     Orientation());
 
-  TestWriteRects<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
+  TestWriteRects<TestDeviceSimple, RefDeviceSimple>(kBlendingSource,
                                                     Orientation());
-  TestWriteHLines<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
+  TestWriteHLines<TestDeviceSimple, RefDeviceSimple>(kBlendingSource,
                                                      Orientation());
-  TestWriteVLines<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
+  TestWriteVLines<TestDeviceSimple, RefDeviceSimple>(kBlendingSource,
                                                      Orientation());
-  TestWriteDegeneratePixels<TestDeviceSimple, RefDeviceSimple>(
-      BLENDING_MODE_SOURCE, Orientation());
-  TestWritePixels<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
+  TestWriteDegeneratePixels<TestDeviceSimple, RefDeviceSimple>(kBlendingSource,
+                                                               Orientation());
+  TestWritePixels<TestDeviceSimple, RefDeviceSimple>(kBlendingSource,
                                                      Orientation());
-  TestWritePixelsSnake<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
+  TestWritePixelsSnake<TestDeviceSimple, RefDeviceSimple>(kBlendingSource,
                                                           Orientation());
-  TestWriteRectWindowSimple<TestDeviceSimple, RefDeviceSimple>(
-      BLENDING_MODE_SOURCE, Orientation());
+  TestWriteRectWindowSimple<TestDeviceSimple, RefDeviceSimple>(kBlendingSource,
+                                                               Orientation());
 }
 
 TEST(ClipMask, StressTests) {
-  TestWritePixelsStress<TestDeviceSimple, RefDeviceSimple>(BLENDING_MODE_SOURCE,
+  TestWritePixelsStress<TestDeviceSimple, RefDeviceSimple>(kBlendingSource,
                                                            Orientation());
-  TestWriteRectWindowStress<TestDeviceSimple, RefDeviceSimple>(
-      BLENDING_MODE_SOURCE, Orientation());
+  TestWriteRectWindowStress<TestDeviceSimple, RefDeviceSimple>(kBlendingSource,
+                                                               Orientation());
 }
 
 typedef FakeFilteringOffscreen<Grayscale4, LargeMask> RefDeviceLarge;
 typedef FilteredOutput<Grayscale4, LargeMask> TestDeviceLarge;
 
 TEST(ClipMask, SimpleLargeTests) {
-  TestFillRects<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
+  TestFillRects<TestDeviceLarge, RefDeviceLarge>(kBlendingSource,
                                                  Orientation());
-  TestFillHLines<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
+  TestFillHLines<TestDeviceLarge, RefDeviceLarge>(kBlendingSource,
                                                   Orientation());
-  TestFillVLines<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
+  TestFillVLines<TestDeviceLarge, RefDeviceLarge>(kBlendingSource,
                                                   Orientation());
-  TestFillDegeneratePixels<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
+  TestFillDegeneratePixels<TestDeviceLarge, RefDeviceLarge>(kBlendingSource,
                                                             Orientation());
-  TestFillPixels<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
+  TestFillPixels<TestDeviceLarge, RefDeviceLarge>(kBlendingSource,
                                                   Orientation());
 
-  TestWriteRects<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
+  TestWriteRects<TestDeviceLarge, RefDeviceLarge>(kBlendingSource,
                                                   Orientation());
-  TestWriteHLines<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
+  TestWriteHLines<TestDeviceLarge, RefDeviceLarge>(kBlendingSource,
                                                    Orientation());
-  TestWriteVLines<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
+  TestWriteVLines<TestDeviceLarge, RefDeviceLarge>(kBlendingSource,
                                                    Orientation());
-  TestWriteDegeneratePixels<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
+  TestWriteDegeneratePixels<TestDeviceLarge, RefDeviceLarge>(kBlendingSource,
                                                              Orientation());
-  TestWritePixels<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
+  TestWritePixels<TestDeviceLarge, RefDeviceLarge>(kBlendingSource,
                                                    Orientation());
-  TestWritePixelsSnake<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
+  TestWritePixelsSnake<TestDeviceLarge, RefDeviceLarge>(kBlendingSource,
                                                         Orientation());
-  TestWriteRectWindowSimple<TestDeviceLarge, RefDeviceLarge>(BLENDING_MODE_SOURCE,
+  TestWriteRectWindowSimple<TestDeviceLarge, RefDeviceLarge>(kBlendingSource,
                                                              Orientation());
 }
 

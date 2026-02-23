@@ -10,14 +10,14 @@ void DisplayOutput::fill(Color color, uint32_t pixel_count) {
   Color chunk[kChunkSize];
 
   if (pixel_count < kChunkSize) {
-    roo_io::PatternFill<4>((roo::byte*)chunk, pixel_count,
-                           (const roo::byte*)(&color));
+    roo_io::PatternFill<4>((roo::byte *)chunk, pixel_count,
+                           (const roo::byte *)(&color));
     write(chunk, pixel_count);
     return;
   }
 
-  roo_io::PatternFill<4>((roo::byte*)chunk, kChunkSize,
-                         (const roo::byte*)(&color));
+  roo_io::PatternFill<4>((roo::byte *)chunk, kChunkSize,
+                         (const roo::byte *)(&color));
 
   const uint32_t remainder = pixel_count % kChunkSize;
   if (remainder > 0) {
@@ -55,7 +55,7 @@ void DisplayOutput::drawDirectRect(const roo::byte *data,
       int16_t dst_tile_y1 = dst_tile_y0 + tile_h - 1;
 
       setAddress(dst_tile_x0, dst_tile_y0, dst_tile_x1, dst_tile_y1,
-                 BLENDING_MODE_SOURCE);
+                 kBlendingSource);
       write(buffer, tile_w * tile_h);
     }
   }

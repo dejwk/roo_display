@@ -58,10 +58,10 @@ void rasterizable_stack_lifebuoy() {
 
   RasterizableStack stack(Box(0, 0, 200, 200));
   stack.addInput(&circle);
-  stack.addInput(&rect1).withMode(BLENDING_MODE_SOURCE_ATOP);
-  stack.addInput(&rect2).withMode(BLENDING_MODE_SOURCE_ATOP);
-  stack.addInput(&gradient).withMode(BLENDING_MODE_SOURCE_ATOP);
-  stack.addInput(&shadow).withMode(BLENDING_MODE_DESTINATION_OVER);
+  stack.addInput(&rect1).withMode(kBlendingSourceAtop);
+  stack.addInput(&rect2).withMode(kBlendingSourceAtop);
+  stack.addInput(&gradient).withMode(kBlendingSourceAtop);
+  stack.addInput(&shadow).withMode(kBlendingDestinationOver);
   {
     DrawingContext dc(display);
     dc.draw(stack, kCenter | kMiddle);
@@ -121,12 +121,12 @@ class HeatingSpiralBody : public RasterizableStack {
     addInput(&inlet_);
     outlet_i_ =
         SmoothThickLine({90, 25}, {100, 25}, thickness_inner_, color::Black);
-    addInput(&outlet_i_).withMode(BLENDING_MODE_DESTINATION_OUT);
+    addInput(&outlet_i_).withMode(kBlendingDestinationOut);
     for (int i = 0; i < 12; ++i) {
       elements_ri_[i] =
           SmoothThickLine({10, (float)i * 14 + 32}, {90, (float)i * 14 + 25},
                           thickness_inner_, color::White);
-      addInput(&elements_ri_[i]).withMode(BLENDING_MODE_DESTINATION_OUT);
+      addInput(&elements_ri_[i]).withMode(kBlendingDestinationOut);
     }
     for (int i = 0; i < 12; ++i) {
       elements_l_[i] =
@@ -136,11 +136,11 @@ class HeatingSpiralBody : public RasterizableStack {
       elements_li_[i] =
           SmoothThickLine({10, (float)i * 14 + 32}, {90, (float)i * 14 + 39},
                           thickness_inner_, color::White);
-      addInput(&elements_li_[i]).withMode(BLENDING_MODE_DESTINATION_OUT);
+      addInput(&elements_li_[i]).withMode(kBlendingDestinationOut);
     }
     inlet_i_ = SmoothThickLine({90, 12 * 14 + 25}, {100, 12 * 14 + 25},
                                thickness_inner_, color::Black);
-    addInput(&inlet_i_).withMode(BLENDING_MODE_DESTINATION_OUT);
+    addInput(&inlet_i_).withMode(kBlendingDestinationOut);
   }
 
  private:
@@ -172,12 +172,12 @@ class Tank : public RasterizableStack {
         heated_spiral_content_(),
         heating_spiral_body_() {
     casing_.addInput(&casing_body_);
-    casing_.addInput(&casing_gradient_).withMode(BLENDING_MODE_SOURCE_ATOP);
+    casing_.addInput(&casing_gradient_).withMode(kBlendingSourceAtop);
     casing_.addInput(&casing_wall_);
     addInput(&casing_);
     heated_spiral_.addInput(&heated_spiral_content_);
     heated_spiral_.addInput(&heated_spiral_gradient_)
-        .withMode(BLENDING_MODE_SOURCE_ATOP);
+        .withMode(kBlendingSourceAtop);
     addInput(&heated_spiral_);
     addInput(&heating_spiral_body_);
   }

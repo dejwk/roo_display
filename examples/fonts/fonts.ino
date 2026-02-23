@@ -38,6 +38,7 @@ struct Emulator {
 
 #include <string>
 
+#include "roo_backport/string_view.h"
 #include "roo_display.h"
 #include "roo_display/font/font.h"
 #include "roo_display/shape/basic.h"
@@ -140,7 +141,6 @@ struct Emulator {
 #include "roo_fonts/NotoSerif_Regular/60.h"
 #include "roo_fonts/NotoSerif_Regular/8.h"
 #include "roo_fonts/NotoSerif_Regular/90.h"
-#include "roo_backport/string_view.h"
 
 using namespace roo_display;
 
@@ -275,7 +275,7 @@ void setup() {
 
 int16_t printLn(DrawingContext& dc, const Font& font, int16_t x, int16_t y,
                 roo::string_view text, Color color) {
-  dc.draw(StringViewLabel(text, font, color, FILL_MODE_RECTANGLE), x,
+  dc.draw(StringViewLabel(text, font, color, kFillRectangle), x,
           y + font.metrics().glyphYMax());
   return font.metrics().linespace() + 1;
 }

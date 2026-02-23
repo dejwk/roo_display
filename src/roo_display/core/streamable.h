@@ -157,8 +157,8 @@ inline void FillRectFromStream(DisplayOutput& output, const Box& extents,
                                PixelStream* stream, Color bgcolor,
                                FillMode fill_mode, BlendingMode blending_mode,
                                TransparencyMode transparency) {
-  if (fill_mode == FILL_MODE_RECTANGLE || transparency == TRANSPARENCY_NONE) {
-    if (bgcolor.a() == 0 || transparency == TRANSPARENCY_NONE) {
+  if (fill_mode == kFillRectangle || transparency == kNoTransparency) {
+    if (bgcolor.a() == 0 || transparency == kNoTransparency) {
       fillReplaceRect(output, extents, stream, blending_mode);
     } else if (bgcolor.a() == 0xFF) {
       fillPaintRectOverOpaqueBg(output, extents, bgcolor, stream,
@@ -433,13 +433,11 @@ class Streamable : public virtual Drawable {
 
   /// Return the transparency mode for pixels in this stream.
   ///
-  /// This is an optimization hint. The default is `TRANSPARENCY_GRADUAL`, which
+  /// This is an optimization hint. The default is `kTransparency`, which
   /// is always safe. If pixels are guaranteed fully opaque or 1-bit alpha,
-  /// return `TRANSPARENCY_NONE` or `TRANSPARENCY_BINARY` to enable faster
+  /// return `kNoTransparency` or `kCrudeTransparency` to enable faster
   /// blending paths.
-  virtual TransparencyMode getTransparencyMode() const {
-    return TRANSPARENCY_GRADUAL;
-  }
+  virtual TransparencyMode getTransparencyMode() const { return kTransparency; }
 
  private:
   void drawTo(const Surface& s) const override {

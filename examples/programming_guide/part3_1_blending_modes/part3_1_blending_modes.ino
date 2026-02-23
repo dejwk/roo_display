@@ -57,11 +57,11 @@ void loop() {
     DrawingContext dc(offscreen);
     dc.clear();
     dc.draw(circle);
-    dc.setBlendingMode(BLENDING_MODE_SOURCE_ATOP);
+    dc.setBlendingMode(kBlendingSourceAtop);
     dc.draw(rect1);
     dc.draw(rect2);
     dc.draw(gradient);
-    dc.setBlendingMode(BLENDING_MODE_DESTINATION_OVER);
+    dc.setBlendingMode(kBlendingDestinationOver);
     dc.draw(shadow);
   }
 

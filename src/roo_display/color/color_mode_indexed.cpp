@@ -7,14 +7,14 @@ Color transparent = color::Transparent;
 
 TransparencyMode DeterminePaletteTransparencyMode(const Color* palette,
                                                   int palette_size) {
-  TransparencyMode mode = TRANSPARENCY_NONE;
+  TransparencyMode mode = kNoTransparency;
   for (int i = 0; i < palette_size; ++i) {
     uint8_t a = palette[i].a();
     if (a < 255) {
       if (a == 0) {
-        mode = TRANSPARENCY_BINARY;
+        mode = kCrudeTransparency;
       } else {
-        return TRANSPARENCY_GRADUAL;
+        return kTransparency;
       }
     }
   }
@@ -23,7 +23,7 @@ TransparencyMode DeterminePaletteTransparencyMode(const Color* palette,
 
 }  // namespace
 
-Palette::Palette() : Palette(nullptr, &transparent, 1, TRANSPARENCY_GRADUAL) {}
+Palette::Palette() : Palette(nullptr, &transparent, 1, kTransparency) {}
 
 Palette Palette::ReadOnly(const Color* colors, int size) {
   return Palette(nullptr, colors, size,
@@ -52,7 +52,7 @@ Palette Palette::Dynamic(int size) {
   std::unique_ptr<internal::PaletteIndex> index(
       new internal::PaletteIndex(size));
   const Color* palette = index->palette();
-  return Palette(std::move(index), palette, 0, TRANSPARENCY_NONE);
+  return Palette(std::move(index), palette, 0, kNoTransparency);
 }
 
 // Returns the index of a specified color, if exists in the palette.
@@ -68,9 +68,9 @@ uint8_t Palette::getIndexOfColor(Color color) {
     size_ = idx + 1;
     if (color.a() != 0xFF) {
       if (color.a() != 0) {
-        transparency_mode_ = TRANSPARENCY_GRADUAL;
-      } else if (transparency_mode_ == TRANSPARENCY_NONE) {
-        transparency_mode_ = TRANSPARENCY_BINARY;
+        transparency_mode_ = kTransparency;
+      } else if (transparency_mode_ == kNoTransparency) {
+        transparency_mode_ = kCrudeTransparency;
       }
     }
   }

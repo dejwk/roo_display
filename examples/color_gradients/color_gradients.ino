@@ -8,7 +8,6 @@ using namespace roo_display;
 // Select the driver to match your display device.
 #include "roo_display/driver/ili9341.h"
 #include "roo_display/driver/st7789.h"
-#include "roo_display/driver/st7796.h"
 #include "roo_display/driver/touch_xpt2046.h"
 #include "roo_display/products/lilygo/t_display_s3.h"
 
@@ -36,6 +35,7 @@ Display display(device);
 #include "roo_display/color/gradient.h"
 #include "roo_display/ui/text_label.h"
 #include "roo_display/ui/tile.h"
+// Needs "dejwk/roo_fonts_basic".
 #include "roo_fonts/NotoSans_Condensed/15.h"
 
 void setup() {
@@ -43,8 +43,8 @@ void setup() {
   // device.initTransport();
   display.init(Graylevel(0xF0));
 
-//   // Uncomment if using backlit.
-//   backlit.begin();
+  //   // Uncomment if using backlit.
+  //   backlit.begin();
 }
 
 void DrawRgbGradient(DrawingContext& dc, Color start, Color end, Color border,

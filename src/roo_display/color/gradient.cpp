@@ -1,4 +1,5 @@
 #include "roo_display/color/gradient.h"
+
 #include "roo_display/color/interpolation.h"
 
 namespace roo_display {
@@ -6,16 +7,16 @@ namespace roo_display {
 ColorGradient::ColorGradient(std::vector<Node> gradient, Boundary boundary)
     : gradient_(std::move(gradient)),
       boundary_(boundary),
-      transparency_mode_(TRANSPARENCY_NONE),
+      transparency_mode_(kNoTransparency),
       inv_period_(1.0f / (gradient_.back().value - gradient_.front().value)) {
   for (const Node& n : gradient_) {
     uint8_t a = n.color.a();
     if (a != 255) {
       if (a != 0) {
-        transparency_mode_ = TRANSPARENCY_GRADUAL;
+        transparency_mode_ = kTransparency;
         break;
       }
-      transparency_mode_ = TRANSPARENCY_BINARY;
+      transparency_mode_ = kCrudeTransparency;
     }
   }
 }
@@ -69,7 +70,8 @@ Color ColorGradient::getColor(float value) const {
     Color right = gradient_[right_bound].color;
     return InterpolateColors(left, right, if_a);
     // uint32_t a =
-    //     ((uint16_t)left.a() * (256 - if_a) + (uint16_t)right.a() * if_a) / 256;
+    //     ((uint16_t)left.a() * (256 - if_a) + (uint16_t)right.a() * if_a) /
+    //     256;
     // int16_t if_c;
     // if (left.a() == right.a()) {
     //   // Common case, e.g. both colors opaque.
@@ -83,11 +85,14 @@ Color ColorGradient::getColor(float value) const {
     //   if_c = (int16_t)(256 * f_c);
     // }
     // uint32_t r =
-    //     ((uint16_t)left.r() * (256 - if_c) + (uint16_t)right.r() * if_c) / 256;
+    //     ((uint16_t)left.r() * (256 - if_c) + (uint16_t)right.r() * if_c) /
+    //     256;
     // uint32_t g =
-    //     ((uint16_t)left.g() * (256 - if_c) + (uint16_t)right.g() * if_c) / 256;
+    //     ((uint16_t)left.g() * (256 - if_c) + (uint16_t)right.g() * if_c) /
+    //     256;
     // uint32_t b =
-    //     ((uint16_t)left.b() * (256 - if_c) + (uint16_t)right.b() * if_c) / 256;
+    //     ((uint16_t)left.b() * (256 - if_c) + (uint16_t)right.b() * if_c) /
+    //     256;
     // return Color(a << 24 | r << 16 | g << 8 | b);
   }
 }

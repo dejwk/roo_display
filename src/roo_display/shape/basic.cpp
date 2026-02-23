@@ -118,8 +118,8 @@ void Rect::drawTo(const Surface &s) const {
   filler.fillHLine(x0, y1, x1);
   filler.fillVLine(x0, y0 + 1, y1 - 1);
   filler.fillVLine(x1, y0 + 1, y1 - 1);
-  if (s.fill_mode() == FILL_MODE_RECTANGLE && x1 - x0 >= 2 && y1 - y0 >= 2) {
-    s.out().fillRect(BLENDING_MODE_SOURCE, Box(x0 + 1, y0 + 1, x1 - 1, y1 - 1),
+  if (s.fill_mode() == kFillRectangle && x1 - x0 >= 2 && y1 - y0 >= 2) {
+    s.out().fillRect(kBlendingSource, Box(x0 + 1, y0 + 1, x1 - 1, y1 - 1),
                      s.bgcolor());
   }
 }
@@ -362,7 +362,7 @@ void FilledRoundRect::drawTo(const Surface &s) const {
   Box extents(x0_ + s.dx(), y0_ + s.dy(), x1_ + s.dx(), y1_ + s.dy());
   fillRoundRect(s.out(), extents, radius_, s.clip_box(),
                 AlphaBlend(s.bgcolor(), this->color()), s.blending_mode());
-  if (s.fill_mode() == FILL_MODE_RECTANGLE) {
+  if (s.fill_mode() == kFillRectangle) {
     fillRoundRectBg(s.out(), extents, radius_, s.clip_box(), s.bgcolor(),
                     s.blending_mode());
   }
@@ -373,7 +373,7 @@ void FilledCircle::drawTo(const Surface &s) const {
               y0_ + diameter_ - 1 + s.dy());
   fillRoundRect(s.out(), extents, diameter_ >> 1, s.clip_box(),
                 AlphaBlend(s.bgcolor(), this->color()), s.blending_mode());
-  if (s.fill_mode() == FILL_MODE_RECTANGLE) {
+  if (s.fill_mode() == kFillRectangle) {
     fillRoundRectBg(s.out(), extents, diameter_ >> 1, s.clip_box(), s.bgcolor(),
                     s.blending_mode());
   }

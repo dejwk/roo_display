@@ -244,7 +244,7 @@ class OffscreenDevice : public DisplayDevice {
 
     // Fallback: iterate AddressWindow order and write pixel-by-pixel.
     setAddress(dst_x0, dst_y0, dst_x0 + width - 1, dst_y0 + height - 1,
-               BLENDING_MODE_SOURCE);
+               kBlendingSource);
     uint32_t pixel_count = static_cast<uint32_t>(width) * height;
 
     if constexpr (ColorTraits<ColorMode>::pixels_per_byte == 1) {
@@ -518,7 +518,7 @@ class Offscreen : public Rasterizable {
     Box extents = d.extents();
     Surface s(device_, -extents.xMin(), -extents.yMin(),
               Box(0, 0, extents.width(), extents.height()), false, bgColor,
-              FILL_MODE_RECTANGLE, BLENDING_MODE_SOURCE);
+              kFillRectangle, kBlendingSource);
     s.drawObject(d);
   }
 
@@ -590,8 +590,8 @@ class Offscreen : public Rasterizable {
   int16_t dx() const { return -raster_.extents().xMin(); }
   int16_t dy() const { return -raster_.extents().yMin(); }
   bool is_write_once() const { return false; }
-  FillMode fill_mode() const { return FILL_MODE_VISIBLE; }
-  BlendingMode blending_mode() const { return BLENDING_MODE_SOURCE_OVER; }
+  FillMode fill_mode() const { return kFillVisible; }
+  BlendingMode blending_mode() const { return kBlendingSourceOver; }
 
   OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                   storage_type>
@@ -608,11 +608,11 @@ class Offscreen : public Rasterizable {
 // Creates an offscreen whose color format matches the provided device.
 template <typename Device, typename... Args>
 auto OffscreenForDevice(const Device& device, Args&&... args)
-  -> Offscreen<typename Device::ColorMode, Device::pixel_order,
-         Device::byte_order> {
+    -> Offscreen<typename Device::ColorMode, Device::pixel_order,
+                 Device::byte_order> {
   return Offscreen<typename Device::ColorMode, Device::pixel_order,
-           Device::byte_order>(std::forward<Args>(args)...,
-                     device.color_mode());
+                   Device::byte_order>(std::forward<Args>(args)...,
+                                       device.color_mode());
 }
 
 // Convenience specialization for constructing bit maps, e.g. to set them
@@ -751,14 +751,14 @@ struct BlendingWriter {
       BlendingWriterOperator<ColorMode, pixel_order, byte_order, blending_mode>;
 };
 
-// BLENDING_MODE_SOURCE specialization of the writer.
+// kBlendingSource specialization of the writer.
 
 // // For sub-byte color modes.
 // template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder
 // byte_order,
 //           uint8_t pixels_per_byte, typename storage_type>
 // class BlendingWriter<ColorMode, pixel_order, byte_order,
-// BLENDING_MODE_SOURCE,
+// kBlendingSource,
 //                     pixels_per_byte, storage_type> {
 //  public:
 //   BlendingWriter(ColorMode &color_mode, const Color *color)
@@ -797,7 +797,7 @@ struct BlendingWriter {
 // byte_order,
 //           typename storage_type>
 // class BlendingWriter<ColorMode, pixel_order, byte_order,
-// BLENDING_MODE_SOURCE, 1,
+// kBlendingSource, 1,
 //                     storage_type> {
 //  public:
 //   BlendingWriter(const ColorMode &color_mode, const Color *color)
@@ -974,14 +974,13 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order, blending_mode,
   Color color_;
 };
 
-// Optimized specialization for BLENDING_MODE_SOURCE.
+// Optimized specialization for kBlendingSource.
 
 // For sub-byte color modes.
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           uint8_t pixels_per_byte, typename storage_type>
 class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
-                             BLENDING_MODE_SOURCE, pixels_per_byte,
-                             storage_type> {
+                             kBlendingSource, pixels_per_byte, storage_type> {
  public:
   BlendingFillerOperator(ColorMode& color_mode, Color color)
       : color_mode_(color_mode),
@@ -1027,7 +1026,7 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           typename storage_type>
 class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
-                             BLENDING_MODE_SOURCE, 1, storage_type> {
+                             kBlendingSource, 1, storage_type> {
  public:
   BlendingFillerOperator(const ColorMode& color_mode, Color color)
       : color_mode_(color_mode) {
@@ -1168,21 +1167,21 @@ class GenericFiller<ColorMode, pixel_order, byte_order, 1, storage_type> {
 
 inline BlendingMode ResolveBlendingModeForFill(
     BlendingMode mode, TransparencyMode transparency_mode, Color color) {
-  if (transparency_mode == TRANSPARENCY_NONE) {
+  if (transparency_mode == kNoTransparency) {
     if (color.isOpaque()) {
       switch (mode) {
-        case BLENDING_MODE_SOURCE_OVER:
-        case BLENDING_MODE_SOURCE_OVER_OPAQUE:
-        case BLENDING_MODE_SOURCE_IN:
-        case BLENDING_MODE_SOURCE_ATOP: {
-          return BLENDING_MODE_SOURCE;
+        case kBlendingSourceOver:
+        case kBlendingSourceOverOpaque:
+        case kBlendingSourceIn:
+        case kBlendingSourceAtop: {
+          return kBlendingSource;
         }
-        case BLENDING_MODE_DESTINATION_IN:
-        case BLENDING_MODE_DESTINATION_OUT:
-        case BLENDING_MODE_DESTINATION_ATOP:
-        case BLENDING_MODE_CLEAR:
-        case BLENDING_MODE_EXCLUSIVE_OR: {
-          return BLENDING_MODE_DESTINATION;
+        case kBlendingDestinationIn:
+        case kBlendingDestinationOut:
+        case kBlendingDestinationAtop:
+        case kBlendingClear:
+        case kBlendingXor: {
+          return kBlendingDestination;
         }
         default: {
           return mode;
@@ -1190,18 +1189,18 @@ inline BlendingMode ResolveBlendingModeForFill(
       };
     } else if (color.a() == 0) {
       switch (mode) {
-        case BLENDING_MODE_SOURCE:
-        case BLENDING_MODE_SOURCE_IN:
-        case BLENDING_MODE_SOURCE_OUT:
-        case BLENDING_MODE_DESTINATION_IN:
-        case BLENDING_MODE_DESTINATION_ATOP:
-        case BLENDING_MODE_SOURCE_OVER:
-        case BLENDING_MODE_SOURCE_OVER_OPAQUE:
-        case BLENDING_MODE_SOURCE_ATOP:
-        case BLENDING_MODE_DESTINATION_OVER:
-        case BLENDING_MODE_DESTINATION_OUT:
-        case BLENDING_MODE_EXCLUSIVE_OR: {
-          return BLENDING_MODE_DESTINATION;
+        case kBlendingSource:
+        case kBlendingSourceIn:
+        case kBlendingSourceOut:
+        case kBlendingDestinationIn:
+        case kBlendingDestinationAtop:
+        case kBlendingSourceOver:
+        case kBlendingSourceOverOpaque:
+        case kBlendingSourceAtop:
+        case kBlendingDestinationOver:
+        case kBlendingDestinationOut:
+        case kBlendingXor: {
+          return kBlendingDestination;
         }
         default: {
           return mode;
@@ -1209,21 +1208,21 @@ inline BlendingMode ResolveBlendingModeForFill(
       }
     } else {
       switch (mode) {
-        case BLENDING_MODE_SOURCE_OVER:
-        case BLENDING_MODE_SOURCE_ATOP: {
-          return BLENDING_MODE_SOURCE_OVER_OPAQUE;
+        case kBlendingSourceOver:
+        case kBlendingSourceAtop: {
+          return kBlendingSourceOverOpaque;
         }
-        case BLENDING_MODE_SOURCE_IN: {
-          return BLENDING_MODE_SOURCE;
+        case kBlendingSourceIn: {
+          return kBlendingSource;
         }
-        case BLENDING_MODE_SOURCE_OUT:
-        case BLENDING_MODE_DESTINATION_OVER:
-        case BLENDING_MODE_DESTINATION_IN:
-        case BLENDING_MODE_DESTINATION_OUT:
-        case BLENDING_MODE_DESTINATION_ATOP:
-        case BLENDING_MODE_CLEAR:
-        case BLENDING_MODE_EXCLUSIVE_OR: {
-          return BLENDING_MODE_DESTINATION;
+        case kBlendingSourceOut:
+        case kBlendingDestinationOver:
+        case kBlendingDestinationIn:
+        case kBlendingDestinationOut:
+        case kBlendingDestinationAtop:
+        case kBlendingClear:
+        case kBlendingXor: {
+          return kBlendingDestination;
         }
         default: {
           return mode;
@@ -1233,24 +1232,24 @@ inline BlendingMode ResolveBlendingModeForFill(
   } else {
     if (color.isOpaque()) {
       switch (mode) {
-        case BLENDING_MODE_SOURCE_OVER:
-        case BLENDING_MODE_SOURCE_OVER_OPAQUE: {
-          return BLENDING_MODE_SOURCE;
+        case kBlendingSourceOver:
+        case kBlendingSourceOverOpaque: {
+          return kBlendingSource;
         }
-        case BLENDING_MODE_SOURCE_ATOP: {
-          return BLENDING_MODE_SOURCE_IN;
+        case kBlendingSourceAtop: {
+          return kBlendingSourceIn;
         }
-        case BLENDING_MODE_DESTINATION_IN: {
-          return BLENDING_MODE_DESTINATION;
+        case kBlendingDestinationIn: {
+          return kBlendingDestination;
         }
-        case BLENDING_MODE_DESTINATION_OUT: {
-          return BLENDING_MODE_CLEAR;
+        case kBlendingDestinationOut: {
+          return kBlendingClear;
         }
-        case BLENDING_MODE_DESTINATION_ATOP: {
-          return BLENDING_MODE_DESTINATION_OVER;
+        case kBlendingDestinationAtop: {
+          return kBlendingDestinationOver;
         }
-        case BLENDING_MODE_EXCLUSIVE_OR: {
-          return BLENDING_MODE_SOURCE_OUT;
+        case kBlendingXor: {
+          return kBlendingSourceOut;
         }
         default: {
           return mode;
@@ -1258,20 +1257,20 @@ inline BlendingMode ResolveBlendingModeForFill(
       };
     } else if (color.a() == 0) {
       switch (mode) {
-        case BLENDING_MODE_SOURCE:
-        case BLENDING_MODE_SOURCE_IN:
-        case BLENDING_MODE_SOURCE_OUT:
-        case BLENDING_MODE_DESTINATION_IN:
-        case BLENDING_MODE_DESTINATION_ATOP: {
-          return BLENDING_MODE_CLEAR;
+        case kBlendingSource:
+        case kBlendingSourceIn:
+        case kBlendingSourceOut:
+        case kBlendingDestinationIn:
+        case kBlendingDestinationAtop: {
+          return kBlendingClear;
         }
-        case BLENDING_MODE_SOURCE_OVER:
-        case BLENDING_MODE_SOURCE_OVER_OPAQUE:
-        case BLENDING_MODE_SOURCE_ATOP:
-        case BLENDING_MODE_DESTINATION_OVER:
-        case BLENDING_MODE_DESTINATION_OUT:
-        case BLENDING_MODE_EXCLUSIVE_OR: {
-          return BLENDING_MODE_DESTINATION;
+        case kBlendingSourceOver:
+        case kBlendingSourceOverOpaque:
+        case kBlendingSourceAtop:
+        case kBlendingDestinationOver:
+        case kBlendingDestinationOut:
+        case kBlendingXor: {
+          return kBlendingDestination;
         }
         default: {
           return mode;
@@ -1286,23 +1285,23 @@ inline BlendingMode ResolveBlendingModeForFill(
 
 inline BlendingMode ResolveBlendingModeForWrite(
     BlendingMode mode, TransparencyMode transparency_mode) {
-  if (transparency_mode == TRANSPARENCY_NONE) {
+  if (transparency_mode == kNoTransparency) {
     switch (mode) {
-      case BLENDING_MODE_SOURCE_OVER:
-      case BLENDING_MODE_SOURCE_ATOP: {
-        return BLENDING_MODE_SOURCE_OVER_OPAQUE;
+      case kBlendingSourceOver:
+      case kBlendingSourceAtop: {
+        return kBlendingSourceOverOpaque;
       }
-      case BLENDING_MODE_SOURCE_IN: {
-        return BLENDING_MODE_SOURCE;
+      case kBlendingSourceIn: {
+        return kBlendingSource;
       }
-      case BLENDING_MODE_SOURCE_OUT:
-      case BLENDING_MODE_DESTINATION_OVER:
-      case BLENDING_MODE_DESTINATION_IN:
-      case BLENDING_MODE_DESTINATION_OUT:
-      case BLENDING_MODE_DESTINATION_ATOP:
-      case BLENDING_MODE_CLEAR:
-      case BLENDING_MODE_EXCLUSIVE_OR: {
-        return BLENDING_MODE_DESTINATION;
+      case kBlendingSourceOut:
+      case kBlendingDestinationOver:
+      case kBlendingDestinationIn:
+      case kBlendingDestinationOut:
+      case kBlendingDestinationAtop:
+      case kBlendingClear:
+      case kBlendingXor: {
+        return kBlendingDestination;
       }
       default: {
         return mode;
@@ -1330,7 +1329,7 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                                                BlendingMode blending_mode) {
   window_.setAddress(x0, y0, x1, y1, raw_width(), raw_height(),
                      orienter_.orientation());
-  if (blending_mode != BLENDING_MODE_SOURCE) {
+  if (blending_mode != kBlendingSource) {
     blending_mode = internal::ResolveBlendingModeForWrite(
         blending_mode, color_mode_.transparency());
   }
@@ -1354,21 +1353,21 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
 void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                      storage_type>::write(Color* color, uint32_t pixel_count) {
-  if (blending_mode_ == BLENDING_MODE_SOURCE) {
-    typename internal::BlendingWriter<ColorMode, pixel_order, byte_order>::
-        template Operator<BLENDING_MODE_SOURCE>
-            writer(color_mode_, color);
+  if (blending_mode_ == kBlendingSource) {
+    typename internal::BlendingWriter<
+        ColorMode, pixel_order, byte_order>::template Operator<kBlendingSource>
+        writer(color_mode_, color);
     writeToWindow(writer, pixel_count);
   } else {
-    if (blending_mode_ == BLENDING_MODE_DESTINATION) return;
-    if (blending_mode_ == BLENDING_MODE_SOURCE_OVER_OPAQUE) {
+    if (blending_mode_ == kBlendingDestination) return;
+    if (blending_mode_ == kBlendingSourceOverOpaque) {
       typename internal::BlendingWriter<ColorMode, pixel_order, byte_order>::
-          template Operator<BLENDING_MODE_SOURCE_OVER_OPAQUE>
+          template Operator<kBlendingSourceOverOpaque>
               writer(color_mode_, color);
       writeToWindow(writer, pixel_count);
-    } else if (blending_mode_ == BLENDING_MODE_SOURCE_OVER) {
+    } else if (blending_mode_ == kBlendingSourceOver) {
       typename internal::BlendingWriter<ColorMode, pixel_order, byte_order>::
-          template Operator<BLENDING_MODE_SOURCE_OVER>
+          template Operator<kBlendingSourceOver>
               writer(color_mode_, color);
       writeToWindow(writer, pixel_count);
     } else {
@@ -1410,27 +1409,27 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
   roo::byte* buffer = buffer_;
   int16_t w = raw_width();
   orienter_.OrientPixels(x, y, pixel_count);
-  if (blending_mode == BLENDING_MODE_SOURCE) {
-    typename internal::BlendingWriter<ColorMode, pixel_order, byte_order>::
-        template Operator<BLENDING_MODE_SOURCE>
-            write(color_mode_, color);
+  if (blending_mode == kBlendingSource) {
+    typename internal::BlendingWriter<
+        ColorMode, pixel_order, byte_order>::template Operator<kBlendingSource>
+        write(color_mode_, color);
     while (pixel_count-- > 0) {
       write(buffer, *x++ + *y++ * w);
     }
   } else {
     blending_mode = internal::ResolveBlendingModeForWrite(
         blending_mode, color_mode_.transparency());
-    if (blending_mode == BLENDING_MODE_DESTINATION) return;
-    if (blending_mode == BLENDING_MODE_SOURCE_OVER_OPAQUE) {
+    if (blending_mode == kBlendingDestination) return;
+    if (blending_mode == kBlendingSourceOverOpaque) {
       typename internal::BlendingWriter<ColorMode, pixel_order, byte_order>::
-          template Operator<BLENDING_MODE_SOURCE_OVER_OPAQUE>
+          template Operator<kBlendingSourceOverOpaque>
               write(color_mode_, color);
       while (pixel_count-- > 0) {
         write(buffer, *x++ + *y++ * w);
       }
-    } else if (blending_mode == BLENDING_MODE_SOURCE_OVER) {
+    } else if (blending_mode == kBlendingSourceOver) {
       typename internal::BlendingWriter<ColorMode, pixel_order, byte_order>::
-          template Operator<BLENDING_MODE_SOURCE_OVER>
+          template Operator<kBlendingSourceOver>
               write(color_mode_, color);
       while (pixel_count-- > 0) {
         write(buffer, *x++ + *y++ * w);
@@ -1473,22 +1472,22 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
   roo::byte* buffer = buffer_;
   int16_t w = raw_width();
   orienter_.OrientPixels(x, y, pixel_count);
-  if (blending_mode != BLENDING_MODE_SOURCE) {
+  if (blending_mode != kBlendingSource) {
     blending_mode = internal::ResolveBlendingModeForFill(
         blending_mode, color_mode_.transparency(), color);
-    if (blending_mode == BLENDING_MODE_DESTINATION) return;
+    if (blending_mode == kBlendingDestination) return;
   }
-  if (blending_mode == BLENDING_MODE_DESTINATION) return;
-  if (blending_mode == BLENDING_MODE_SOURCE_OVER_OPAQUE) {
+  if (blending_mode == kBlendingDestination) return;
+  if (blending_mode == kBlendingSourceOverOpaque) {
     typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
-        template Operator<BLENDING_MODE_SOURCE_OVER_OPAQUE>
+        template Operator<kBlendingSourceOverOpaque>
             fill(color_mode_, color);
     while (pixel_count-- > 0) {
       fill(buffer, *x++ + *y++ * w);
     }
-  } else if (blending_mode == BLENDING_MODE_SOURCE_OVER) {
+  } else if (blending_mode == kBlendingSourceOver) {
     typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
-        template Operator<BLENDING_MODE_SOURCE_OVER>
+        template Operator<kBlendingSourceOver>
             fill(color_mode_, color);
     while (pixel_count-- > 0) {
       fill(buffer, *x++ + *y++ * w);
@@ -1514,10 +1513,10 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                                                int16_t* y0, int16_t* x1,
                                                int16_t* y1, uint16_t count) {
   orienter_.OrientRects(x0, y0, x1, y1, count);
-  if (blending_mode != BLENDING_MODE_SOURCE) {
+  if (blending_mode != kBlendingSource) {
     blending_mode = internal::ResolveBlendingModeForWrite(
         blending_mode, color_mode_.transparency());
-    if (blending_mode == BLENDING_MODE_DESTINATION) return;
+    if (blending_mode == kBlendingDestination) return;
   }
   while (count-- > 0) {
     fillRectsAbsolute(blending_mode, *color++, x0++, y0++, x1++, y1++, 1);
@@ -1532,10 +1531,10 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                                               int16_t* y0, int16_t* x1,
                                               int16_t* y1, uint16_t count) {
   orienter_.OrientRects(x0, y0, x1, y1, count);
-  if (blending_mode != BLENDING_MODE_SOURCE) {
+  if (blending_mode != kBlendingSource) {
     blending_mode = internal::ResolveBlendingModeForFill(
         blending_mode, color_mode_.transparency(), color);
-    if (blending_mode == BLENDING_MODE_DESTINATION) return;
+    if (blending_mode == kBlendingDestination) return;
   }
   if (y0 == y1) {
     fillHlinesAbsolute(blending_mode, color, x0, y0, x1, count);
@@ -1622,19 +1621,19 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
   } else {
     int16_t w = raw_width();
     roo::byte* buffer = buffer_;
-    if (blending_mode == BLENDING_MODE_SOURCE) {
+    if (blending_mode == kBlendingSource) {
       typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
-          template Operator<BLENDING_MODE_SOURCE>
+          template Operator<kBlendingSource>
               fill(color_mode_, color);
       fillRectsAbsoluteImpl(fill, buffer, w, x0, y0, x1, y1, count);
-    } else if (blending_mode == BLENDING_MODE_SOURCE_OVER_OPAQUE) {
+    } else if (blending_mode == kBlendingSourceOverOpaque) {
       typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
-          template Operator<BLENDING_MODE_SOURCE_OVER_OPAQUE>
+          template Operator<kBlendingSourceOverOpaque>
               fill(color_mode_, color);
       fillRectsAbsoluteImpl(fill, buffer, w, x0, y0, x1, y1, count);
-    } else if (blending_mode == BLENDING_MODE_SOURCE_OVER) {
+    } else if (blending_mode == kBlendingSourceOver) {
       typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
-          template Operator<BLENDING_MODE_SOURCE_OVER>
+          template Operator<kBlendingSourceOver>
               fill(color_mode_, color);
       fillRectsAbsoluteImpl(fill, buffer, w, x0, y0, x1, y1, count);
     } else {
@@ -1668,19 +1667,19 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                                                        uint16_t count) {
   roo::byte* buffer = buffer_;
   int16_t w = raw_width();
-  if (blending_mode == BLENDING_MODE_SOURCE) {
+  if (blending_mode == kBlendingSource) {
+    typename internal::BlendingFiller<
+        ColorMode, pixel_order, byte_order>::template Operator<kBlendingSource>
+        fill(color_mode_, color);
+    fillHlinesAbsoluteImpl(fill, buffer, w, x0, y0, x1, count);
+  } else if (blending_mode == kBlendingSourceOverOpaque) {
     typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
-        template Operator<BLENDING_MODE_SOURCE>
+        template Operator<kBlendingSourceOverOpaque>
             fill(color_mode_, color);
     fillHlinesAbsoluteImpl(fill, buffer, w, x0, y0, x1, count);
-  } else if (blending_mode == BLENDING_MODE_SOURCE_OVER_OPAQUE) {
+  } else if (blending_mode == kBlendingSourceOver) {
     typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
-        template Operator<BLENDING_MODE_SOURCE_OVER_OPAQUE>
-            fill(color_mode_, color);
-    fillHlinesAbsoluteImpl(fill, buffer, w, x0, y0, x1, count);
-  } else if (blending_mode == BLENDING_MODE_SOURCE_OVER) {
-    typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
-        template Operator<BLENDING_MODE_SOURCE_OVER>
+        template Operator<kBlendingSourceOver>
             fill(color_mode_, color);
     fillHlinesAbsoluteImpl(fill, buffer, w, x0, y0, x1, count);
   } else {
@@ -1718,19 +1717,19 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                                                        uint16_t count) {
   roo::byte* buffer = buffer_;
   int16_t w = raw_width();
-  if (blending_mode == BLENDING_MODE_SOURCE) {
+  if (blending_mode == kBlendingSource) {
+    typename internal::BlendingFiller<
+        ColorMode, pixel_order, byte_order>::template Operator<kBlendingSource>
+        fill(color_mode_, color);
+    fillVlinesAbsoluteImpl(fill, buffer, w, x0, y0, y1, count);
+  } else if (blending_mode == kBlendingSourceOverOpaque) {
     typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
-        template Operator<BLENDING_MODE_SOURCE>
+        template Operator<kBlendingSourceOverOpaque>
             fill(color_mode_, color);
     fillVlinesAbsoluteImpl(fill, buffer, w, x0, y0, y1, count);
-  } else if (blending_mode == BLENDING_MODE_SOURCE_OVER_OPAQUE) {
+  } else if (blending_mode == kBlendingSourceOver) {
     typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
-        template Operator<BLENDING_MODE_SOURCE_OVER_OPAQUE>
-            fill(color_mode_, color);
-    fillVlinesAbsoluteImpl(fill, buffer, w, x0, y0, y1, count);
-  } else if (blending_mode == BLENDING_MODE_SOURCE_OVER) {
-    typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
-        template Operator<BLENDING_MODE_SOURCE_OVER>
+        template Operator<kBlendingSourceOver>
             fill(color_mode_, color);
     fillVlinesAbsoluteImpl(fill, buffer, w, x0, y0, y1, count);
   } else {

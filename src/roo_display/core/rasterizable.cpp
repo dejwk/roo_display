@@ -261,7 +261,8 @@ inline void WriteRectVisibleOverOpaqueBg(DisplayOutput &output,
 
 inline void WriteRectVisibleOverBg(DisplayOutput &output, const Box &extents,
                                    int16_t dx, int16_t dy, Color bgcolor,
-                                   const Rasterizable &object, BlendingMode mode) {
+                                   const Rasterizable &object,
+                                   BlendingMode mode) {
   int32_t count = extents.area();
   Color buf[count];
   bool same =
@@ -302,12 +303,12 @@ void Rasterizable::drawTo(const Surface &s) const {
   Color bgcolor = s.bgcolor();
   DisplayOutput &output = s.out();
   BlendingMode mode = s.blending_mode();
-  if (fill_mode == FILL_MODE_RECTANGLE || transparency == TRANSPARENCY_NONE) {
+  if (fill_mode == kFillRectangle || transparency == kNoTransparency) {
     if (pixel_count <= 64) {
       FillReplaceRect(output, box, s.dx(), s.dy(), *this, mode);
       return;
     }
-    if (bgcolor.a() == 0 || transparency == TRANSPARENCY_NONE) {
+    if (bgcolor.a() == 0 || transparency == kNoTransparency) {
       for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
         for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
           FillReplaceRect(output,

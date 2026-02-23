@@ -42,7 +42,7 @@ class Rgb666h {
     return fromArgbColor(AlphaBlendOverOpaque(toArgbColor(bg), color));
   }
 
-  constexpr TransparencyMode transparency() const { return TRANSPARENCY_NONE; }
+  constexpr TransparencyMode transparency() const { return kNoTransparency; }
 };
 
 }  // namespace ili9488
@@ -221,9 +221,7 @@ class Ili9488Target {
     writeCommand(RAMWR);
   }
 
-  void sync() __attribute__((always_inline)) {
-    transport_.sync();
-  }
+  void sync() __attribute__((always_inline)) { transport_.sync(); }
 
   void ramWrite(const roo::byte* data, size_t pixel_count)
       __attribute__((always_inline)) {

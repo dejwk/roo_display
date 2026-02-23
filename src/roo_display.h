@@ -199,8 +199,8 @@ class Display {
   int16_t dx() const { return 0; }
   int16_t dy() const { return 0; }
   bool is_write_once() const { return false; }
-  FillMode fill_mode() const { return FILL_MODE_VISIBLE; }
-  BlendingMode blending_mode() const { return BLENDING_MODE_SOURCE_OVER; }
+  FillMode fill_mode() const { return kFillVisible; }
+  BlendingMode blending_mode() const { return kBlendingSourceOver; }
 
   DisplayDevice& display_device_;
   std::unique_ptr<BackgroundFillOptimizer::FrameBuffer> turbo_frame_buffer_;
@@ -349,7 +349,7 @@ class DrawingContext {
   /// ClippingBufferedPixelWriter that respects the current clip box and
   /// uses the specified blending mode.
   void drawPixels(const std::function<void(ClippingBufferedPixelWriter&)>& fn,
-                  BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER);
+                  BlendingMode blending_mode = kBlendingSourceOver);
 
   /// Draws the object using its inherent coordinates. The point (0, 0) in the
   /// object's coordinates maps to (0, 0) in the context's coordinates

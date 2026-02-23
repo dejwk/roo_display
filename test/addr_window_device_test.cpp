@@ -158,7 +158,7 @@ class AddrWindowDeviceTest
     : public testing::TestWithParam<std::tuple<BlendingMode, Orientation>> {};
 
 class AddrWindowDeviceBlendingTest
-  : public testing::TestWithParam<std::tuple<BlendingMode, Orientation>> {};
+    : public testing::TestWithParam<std::tuple<BlendingMode, Orientation>> {};
 
 TEST_P(AddrWindowDeviceTest, FillRects) {
   TestFillRects<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
@@ -303,7 +303,7 @@ TEST_P(AddrWindowDeviceBlendingTest, AddressWindowFillSpan) {
 INSTANTIATE_TEST_SUITE_P(
     AddrWindowDeviceTests, AddrWindowDeviceTest,
     testing::Combine(
-        testing::Values(BLENDING_MODE_SOURCE),
+        testing::Values(kBlendingSource),
         testing::Values(Orientation::RightDown(), Orientation::DownRight(),
                         Orientation::LeftDown(), Orientation::DownLeft(),
                         Orientation::RightUp(), Orientation::UpRight(),
@@ -312,15 +312,12 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     AddrWindowDeviceTestsBlending, AddrWindowDeviceBlendingTest,
     testing::Combine(
-        testing::Values(BLENDING_MODE_SOURCE, BLENDING_MODE_SOURCE_OVER,
-                        BLENDING_MODE_SOURCE_OVER_OPAQUE,
-                        BLENDING_MODE_SOURCE_IN, BLENDING_MODE_SOURCE_OUT,
-                        BLENDING_MODE_SOURCE_ATOP, BLENDING_MODE_DESTINATION,
-                        BLENDING_MODE_DESTINATION_OVER,
-                        BLENDING_MODE_DESTINATION_IN,
-                        BLENDING_MODE_DESTINATION_OUT,
-                        BLENDING_MODE_DESTINATION_ATOP,
-                        BLENDING_MODE_EXCLUSIVE_OR, BLENDING_MODE_CLEAR),
+        testing::Values(kBlendingSource, kBlendingSourceOver,
+                        kBlendingSourceOverOpaque, kBlendingSourceIn,
+                        kBlendingSourceOut, kBlendingSourceAtop,
+                        kBlendingDestination, kBlendingDestinationOver,
+                        kBlendingDestinationIn, kBlendingDestinationOut,
+                        kBlendingDestinationAtop, kBlendingXor, kBlendingClear),
         testing::Values(Orientation::RightDown(), Orientation::DownLeft())));
 
 }  // namespace roo_display

@@ -25,8 +25,8 @@ void FillIndexedPalette(Color* colors, int size) {
 }  // namespace
 
 void Draw(DisplayDevice& output, int16_t x, int16_t y, const Box& clip_box,
-          const Drawable& object, FillMode fill_mode = FILL_MODE_VISIBLE,
-          BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER,
+          const Drawable& object, FillMode fill_mode = kFillVisible,
+          BlendingMode blending_mode = kBlendingSourceOver,
           Color bgcolor = color::Transparent) {
   output.begin();
   Surface s(output, x, y, clip_box, false, bgcolor, fill_mode, blending_mode);
@@ -35,8 +35,8 @@ void Draw(DisplayDevice& output, int16_t x, int16_t y, const Box& clip_box,
 }
 
 void Draw(DisplayDevice& output, int16_t x, int16_t y, const Drawable& object,
-          FillMode fill_mode = FILL_MODE_VISIBLE,
-          BlendingMode blending_mode = BLENDING_MODE_SOURCE_OVER,
+          FillMode fill_mode = kFillVisible,
+          BlendingMode blending_mode = kBlendingSourceOver,
           Color bgcolor = color::Transparent) {
   Box clip_box(0, 0, output.effective_width() - 1,
                output.effective_height() - 1);

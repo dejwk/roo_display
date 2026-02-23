@@ -139,7 +139,7 @@ class FilledRect : public RectBase, public Rasterizable {
   Box extents() const override { return RectBase::extents(); }
 
   TransparencyMode getTransparencyMode() const override {
-    return color().isOpaque() ? TRANSPARENCY_NONE : TRANSPARENCY_GRADUAL;
+    return color().isOpaque() ? kNoTransparency : kTransparency;
   }
 
   std::unique_ptr<PixelStream> createStream() const override;

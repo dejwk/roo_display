@@ -107,9 +107,9 @@ unsigned long benchmarkFont(const Font& font, FillMode fill_mode) {
 }
 
 void runFontBenchmark(const Font& font, const char* name) {
-  unsigned long visible = benchmarkFont(font, FILL_MODE_VISIBLE);
+  unsigned long visible = benchmarkFont(font, kFillVisible);
   delay(200);
-  unsigned long rect = benchmarkFont(font, FILL_MODE_RECTANGLE);
+  unsigned long rect = benchmarkFont(font, kFillRectangle);
   delay(200);
 
   Serial.printf("%-28s %12lu %12lu\n", name, visible, rect);

@@ -89,8 +89,7 @@ class TFT_eSPI_Adapter : public DisplayDevice {
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     while (count-- > 0) {
       uint32_t pixel_count = (*x1 - *x0 + 1) * (*y1 - *y0 + 1);
-      TFT_eSPI_Adapter::setAddress(*x0++, *y0++, *x1++, *y1++,
-                                   BLENDING_MODE_SOURCE);
+      TFT_eSPI_Adapter::setAddress(*x0++, *y0++, *x1++, *y1++, kBlendingSource);
       Color mycolor = *color++;
       ApplyBlendingOverBackground(mode, bgcolor_, &mycolor, 1);
       uint16_t raw_color = to_raw_color(mycolor);
@@ -105,8 +104,7 @@ class TFT_eSPI_Adapter : public DisplayDevice {
 
     while (count-- > 0) {
       uint32_t pixel_count = (*x1 - *x0 + 1) * (*y1 - *y0 + 1);
-      TFT_eSPI_Adapter::setAddress(*x0++, *y0++, *x1++, *y1++,
-                                   BLENDING_MODE_SOURCE);
+      TFT_eSPI_Adapter::setAddress(*x0++, *y0++, *x1++, *y1++, kBlendingSource);
       tft_.pushBlock(raw_color, pixel_count);
     }
   }
@@ -165,22 +163,22 @@ class TFT_eSPI_Adapter : public DisplayDevice {
           switch (direction) {
             case Compactor::RIGHT: {
               TFT_eSPI_Adapter::setAddress(x, y, x + count - 1, y,
-                                           BLENDING_MODE_SOURCE);
+                                           kBlendingSource);
               break;
             }
             case Compactor::DOWN: {
               TFT_eSPI_Adapter::setAddress(x, y, x, y + count - 1,
-                                           BLENDING_MODE_SOURCE);
+                                           kBlendingSource);
               break;
             }
             case Compactor::LEFT: {
               TFT_eSPI_Adapter::setAddress(x - count + 1, y, x, y,
-                                           BLENDING_MODE_SOURCE);
+                                           kBlendingSource);
               break;
             }
             case Compactor::UP: {
               TFT_eSPI_Adapter::setAddress(x, y - count + 1, x, y,
-                                           BLENDING_MODE_SOURCE);
+                                           kBlendingSource);
               break;
             }
           }

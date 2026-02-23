@@ -53,7 +53,7 @@ struct RectFillerVisible {
           }
         }
       }
-    } else if (transparency_mode == TRANSPARENCY_GRADUAL) {
+    } else if (transparency_mode == kTransparency) {
       for (int16_t j = extents.yMin(); j <= extents.yMax(); ++j) {
         for (int16_t i = extents.xMin(); i <= extents.xMax(); ++i) {
           Color color = stream->next();
@@ -87,7 +87,7 @@ struct RectFillerRectangle {
       while (count-- > 0) {
         writer.writeColor(stream->next());
       }
-    } else if (transparency_mode == TRANSPARENCY_GRADUAL) {
+    } else if (transparency_mode == kTransparency) {
       if (bgcolor.a() == 0xFF) {
         while (count-- > 0) {
           writer.writeColor(AlphaBlendOverOpaque(bgcolor, stream->next()));
@@ -112,14 +112,14 @@ template <typename RawPixelStream>
 void FillRectFromRawStream(DisplayOutput &output, const Box &extents,
                            RawPixelStream *stream, Color bgcolor,
                            FillMode fill_mode, BlendingMode blending_mode) {
-  if (stream->transparency() == TRANSPARENCY_NONE &&
-      (blending_mode == BLENDING_MODE_SOURCE_OVER ||
-       blending_mode == BLENDING_MODE_SOURCE_OVER_OPAQUE)) {
+  if (stream->transparency() == kNoTransparency &&
+      (blending_mode == kBlendingSourceOver ||
+       blending_mode == kBlendingSourceOverOpaque)) {
     // The stream will overwrite the entire rectangle anyway.
-    blending_mode = BLENDING_MODE_SOURCE;
+    blending_mode = kBlendingSource;
     bgcolor = color::Transparent;
   }
-  if (fill_mode == FILL_MODE_RECTANGLE) {
+  if (fill_mode == kFillRectangle) {
     RectFillerRectangle<RawPixelStream> fill;
     fill(output, extents, bgcolor, stream, blending_mode,
          stream->transparency());
@@ -246,9 +246,9 @@ class RawStreamableFilledRect {
     void skip(uint32_t count) {}
 
     TransparencyMode transparency() const {
-      return color_.isOpaque() ? TRANSPARENCY_NONE
-             : color_.a() == 0 ? TRANSPARENCY_BINARY
-                               : TRANSPARENCY_GRADUAL;
+      return color_.isOpaque() ? kNoTransparency
+             : color_.a() == 0 ? kCrudeTransparency
+                               : kTransparency;
     }
 
    private:

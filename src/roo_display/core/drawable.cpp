@@ -5,10 +5,10 @@
 namespace roo_display {
 
 void Drawable::drawTo(const Surface& s) const {
-  if (s.fill_mode() == FILL_MODE_RECTANGLE) {
+  if (s.fill_mode() == kFillRectangle) {
     Box box = Box::Intersect(s.clip_box(), extents().translate(s.dx(), s.dy()));
     if (!box.empty()) {
-      s.out().fillRect(BLENDING_MODE_SOURCE, box, s.bgcolor());
+      s.out().fillRect(kBlendingSource, box, s.bgcolor());
     }
   }
   drawInteriorTo(s);

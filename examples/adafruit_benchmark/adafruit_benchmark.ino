@@ -15,10 +15,9 @@ struct Emulator {
   FltkViewport viewport;
   FlexViewport flexViewport;
 
-  FakeSt77xxSpi display;
+  FakeIli9341Spi display;
 
-  Emulator()
-      : viewport(), flexViewport(viewport, 1), display(flexViewport, 240, 240) {
+  Emulator() : viewport(), flexViewport(viewport, 1), display(flexViewport) {
     FakeEsp32().attachSpiDevice(display, 18, 19, 23);
     FakeEsp32().gpio.attachOutput(5, display.cs());
     FakeEsp32().gpio.attachOutput(2, display.dc());
@@ -49,9 +48,9 @@ struct Emulator {
 #include "roo_display.h"
 #include "roo_display/font/font.h"
 #include "roo_display/font/font_adafruit_fixed_5x7.h"
+#include "roo_display/shape/basic.h"
 #include "roo_display/ui/string_printer.h"
 #include "roo_display/ui/text_label.h"
-#include "roo_display/shape/basic.h"
 
 using namespace roo_display;
 

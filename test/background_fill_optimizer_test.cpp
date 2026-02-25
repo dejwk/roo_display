@@ -245,11 +245,11 @@ TEST(BackgroundFillOptimizer, NonPaletteColorInvalidatesMask) {
 
   // Draw a foreground color (not in palette).
   dc.draw(FilledRect(10, 10, 20, 20, color::Yellow));
-  EXPECT_EQ(121, screen.test().device().pixelDrawCount());
+  EXPECT_EQ(121u, screen.test().device().pixelDrawCount());
 
   // Now fill with background color - should still write since mask invalidated.
   dc.draw(FilledRect(10, 10, 20, 20, color::White));
-  EXPECT_EQ(242, screen.test().device().pixelDrawCount());
+  EXPECT_EQ(242u, screen.test().device().pixelDrawCount());
 
   EXPECT_CONSISTENT(screen);
 
@@ -348,7 +348,7 @@ TEST(BackgroundFillOptimizer, WriteRects) {
   dc.draw(FilledRect(4, 4, 14, 12, color::White));
   EXPECT_EQ(0u, screen.test().device().pixelDrawCount());
   dc.draw(FilledRect(26, 18, 38, 30, color::Green));
-  EXPECT_EQ(169, screen.test().device().pixelDrawCount());
+  EXPECT_EQ(169u, screen.test().device().pixelDrawCount());
 
   EXPECT_CONSISTENT(screen);
   EXPECT_FRAMEBUFFER_MATCHES(screen,
@@ -372,7 +372,7 @@ TEST(BackgroundFillOptimizer, FillRects) {
   dc.draw(FilledRect(4, 4, 16, 10, color::Green));
   dc.draw(FilledRect(18, 12, 30, 20, color::Green));
   dc.draw(FilledRect(8, 20, 20, 28, color::Green));
-  EXPECT_EQ(325, screen.test().device().pixelDrawCount());
+  EXPECT_EQ(325u, screen.test().device().pixelDrawCount());
 
   EXPECT_CONSISTENT(screen);
   EXPECT_FRAMEBUFFER_MATCHES(screen,
@@ -394,15 +394,15 @@ TEST(BackgroundFillOptimizer, FillRectBgWithNonPaletteOverlay) {
 
   // First, fill large background area.
   dc.draw(FilledRect(0, 0, 47, 31, color::White));
-  EXPECT_EQ(0, screen.test().device().pixelDrawCount());
+  EXPECT_EQ(0u, screen.test().device().pixelDrawCount());
 
   // Draw non-palette color, invalidating mask.
   dc.draw(FilledRect(12, 8, 36, 24, color::Yellow));
-  EXPECT_EQ(425, screen.test().device().pixelDrawCount());
+  EXPECT_EQ(425u, screen.test().device().pixelDrawCount());
 
   // Fill background again in same region - should still match reference.
   dc.draw(FilledRect(0, 0, 47, 31, color::White));
-  EXPECT_EQ(985, screen.test().device().pixelDrawCount());
+  EXPECT_EQ(985u, screen.test().device().pixelDrawCount());
 
   EXPECT_CONSISTENT(screen);
   EXPECT_FRAMEBUFFER_MATCHES(screen,
@@ -431,7 +431,7 @@ TEST(BackgroundFillOptimizer, RepeatedBackgroundFillPattern) {
   dc.draw(FilledRect(28, 12, 36, 20, color::Blue));
   dc.draw(FilledRect(8, 20, 16, 28, color::Black));
   dc.draw(FilledRect(20, 24, 32, 30, color::Red));
-  EXPECT_EQ(253, screen.test().device().pixelDrawCount());
+  EXPECT_EQ(253u, screen.test().device().pixelDrawCount());
 
   EXPECT_CONSISTENT(screen);
   EXPECT_FRAMEBUFFER_MATCHES(screen,
@@ -460,7 +460,7 @@ TEST(BackgroundFillOptimizer, AlternatingColors) {
   dc.draw(FilledRect(6, 20, 14, 30, color::White));
   dc.draw(FilledRect(18, 20, 26, 30, color::Red));
   dc.draw(FilledRect(30, 20, 38, 30, color::Blue));
-  EXPECT_EQ(324, screen.test().device().pixelDrawCount());
+  EXPECT_EQ(324u, screen.test().device().pixelDrawCount());
 
   EXPECT_CONSISTENT(screen);
   EXPECT_FRAMEBUFFER_MATCHES(screen,

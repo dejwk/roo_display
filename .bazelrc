@@ -1,5 +1,9 @@
 common --registry="https://raw.githubusercontent.com/dejwk/roo-registry/main/" --registry="https://bcr.bazel.build"
 
+# Enable testing-specific code paths (e.g. tiny buffer sizes) only for bazel
+# test invocations, not for normal library builds.
+test --copt=-DROO_DISPLAY_TESTING
+
 build:asan --strip=never
 build:asan --copt -fsanitize=address
 build:asan --copt -DADDRESS_SANITIZER

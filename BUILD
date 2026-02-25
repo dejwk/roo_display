@@ -1,6 +1,12 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
+UNIT_TEST_DEPS = [
+    ":roo_display",
+    ":testing",
+    "@roo_testing//:arduino_gtest_main",
+]
+
 cc_library(
     name = "roo_display",
     srcs = glob(
@@ -35,24 +41,19 @@ cc_library(
 
 cc_library(
     name = "testing",
-    srcs = glob(
-        [
-            "src/**/*.cpp",
-            "src/**/*.c",
-            "src/**/*.h",
-            "src/**/*.inl",
-        ],
-        exclude = ["test/**"],
-    ),
-    defines = ["ROO_DISPLAY_TESTING"],
+    hdrs = [
+        "test/testing.h",
+        "test/testing_display_device.h",
+        "test/testing_drawable.h",
+        "test/testing_viewport.h",
+    ],
     includes = [
-        "src",
+        "test",
     ],
     linkstatic = 1,
     visibility = ["//visibility:public"],
     deps = [
-        "@roo_collections",
-        "@roo_io",
+        ":roo_display",
         "@roo_testing//:arduino_gtest_main",
     ],
 )
@@ -64,11 +65,8 @@ cc_test(
         "test/testing.h",
         "test/testing_display_device.h",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -78,11 +76,8 @@ cc_test(
         "test/testing.h",
         "test/testing_display_device.h",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -90,11 +85,8 @@ cc_test(
     srcs = [
         "test/color_test.cpp",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -102,11 +94,8 @@ cc_test(
     srcs = [
         "test/color_blending_test.cpp",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -116,11 +105,8 @@ cc_test(
         "test/testing.h",
         "test/testing_display_device.h",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -128,11 +114,8 @@ cc_test(
     srcs = [
         "test/color_subpixel_test.cpp",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -140,11 +123,8 @@ cc_test(
     srcs = [
         "test/color_rect_io_test.cpp",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -153,11 +133,8 @@ cc_test(
         "test/drawing_context_test.cpp",
         "test/testing.h",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -167,11 +144,8 @@ cc_test(
         "test/testing.h",
         "test/testing_display_device.h",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -181,11 +155,8 @@ cc_test(
         "test/testing.h",
         "test/testing_display_device.h",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -195,11 +166,8 @@ cc_test(
         "test/testing.h",
         "test/testing_display_device.h",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -208,9 +176,7 @@ cc_test(
         "test/orientation_test.cpp",
     ],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -220,9 +186,7 @@ cc_test(
         "test/testing.h",
     ],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -232,9 +196,7 @@ cc_test(
         "test/testing.h",
     ],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -243,11 +205,8 @@ cc_test(
         "test/streamable_stack_test.cpp",
         "test/testing.h",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -257,9 +216,7 @@ cc_test(
         "test/testing.h",
     ],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -268,11 +225,8 @@ cc_test(
         "test/rasterizable_stack_test.cpp",
         "test/testing.h",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -282,9 +236,7 @@ cc_test(
         "test/testing.h",
     ],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -294,9 +246,7 @@ cc_test(
         "test/testing.h",
     ],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -308,9 +258,7 @@ cc_test(
         #        "test/testing_drawable.h"
     ],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -320,9 +268,7 @@ cc_test(
         "test/testing.h",
     ],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -332,9 +278,7 @@ cc_test(
         "test/testing.h",
     ],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -345,9 +289,7 @@ cc_test(
         "test/transformed_test.cpp",
     ],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -358,9 +300,7 @@ cc_test(
         "test/tile_test.cpp",
     ],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -371,9 +311,7 @@ cc_test(
         "test/testing_drawable.h",
     ],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -384,9 +322,7 @@ cc_test(
         "test/text_label_test.cpp",
     ],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -396,9 +332,7 @@ cc_test(
         "test/testing.h",
     ],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -407,9 +341,7 @@ cc_test(
         "test/driver_compile_test.cpp",
     ],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -418,9 +350,7 @@ cc_test(
         "test/products_compile_test.cpp",
     ],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -431,9 +361,7 @@ cc_test(
         "test/testing_display_device.h",
     ],
     linkstatic = 1,
-    deps = [
-        ":testing",
-    ],
+    deps = UNIT_TEST_DEPS,
 )
 
 cc_test(
@@ -442,10 +370,8 @@ cc_test(
         "test/driver_ili9341_test.cpp",
         "test/testing_viewport.h",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
+    deps = UNIT_TEST_DEPS + [
         "@roo_testing//roo_testing/devices/display/ili9341:spi",
         "@roo_testing//roo_testing/microcontrollers/esp32:core",
         "@roo_testing//roo_testing/transducers/ui/viewport",
@@ -458,10 +384,8 @@ cc_test(
         "test/driver_st7735_test.cpp",
         "test/testing_viewport.h",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
+    deps = UNIT_TEST_DEPS + [
         "@roo_testing//roo_testing/devices/display/st77xx:spi",
         "@roo_testing//roo_testing/microcontrollers/esp32:core",
         "@roo_testing//roo_testing/transducers/ui/viewport",
@@ -474,10 +398,8 @@ cc_test(
         "test/driver_ili9486_test.cpp",
         "test/testing_viewport.h",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
+    deps = UNIT_TEST_DEPS + [
         "@roo_testing//roo_testing/devices/display/ili9486:spi",
         "@roo_testing//roo_testing/microcontrollers/esp32:core",
         "@roo_testing//roo_testing/transducers/ui/viewport",
@@ -490,10 +412,8 @@ cc_test(
         "test/driver_ili9488_test.cpp",
         "test/testing_viewport.h",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
+    deps = UNIT_TEST_DEPS + [
         "@roo_testing//roo_testing/devices/display/ili9488:spi",
         "@roo_testing//roo_testing/microcontrollers/esp32:core",
         "@roo_testing//roo_testing/transducers/ui/viewport",
@@ -506,10 +426,8 @@ cc_test(
         "test/driver_ssd1327_test.cpp",
         "test/testing_viewport.h",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
+    deps = UNIT_TEST_DEPS + [
         "@roo_testing//roo_testing/devices/display/ssd1327:spi",
         "@roo_testing//roo_testing/microcontrollers/esp32:core",
         "@roo_testing//roo_testing/transducers/ui/viewport",
@@ -522,10 +440,8 @@ cc_test(
         "test/testing_viewport.h",
         "test/touch_xpt2046_test.cpp",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
+    deps = UNIT_TEST_DEPS + [
         "@roo_testing//roo_testing/devices/touch/xpt2046:spi",
         "@roo_testing//roo_testing/microcontrollers/esp32:core",
         "@roo_testing//roo_testing/transducers/ui/viewport",
@@ -538,10 +454,8 @@ cc_test(
         "test/testing_viewport.h",
         "test/touch_ft6x36_test.cpp",
     ],
-    copts = ["-Iexternal/gtest/include"],
     linkstatic = 1,
-    deps = [
-        ":testing",
+    deps = UNIT_TEST_DEPS + [
         "@roo_testing//roo_testing/devices/touch/ft6x36",
         "@roo_testing//roo_testing/microcontrollers/esp32:core",
         "@roo_testing//roo_testing/transducers/ui/viewport",

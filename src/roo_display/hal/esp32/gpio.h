@@ -7,8 +7,12 @@
 #ifdef ARDUINO
 // Support possible pin remapping in Arduino framework.
 #include "Arduino.h"
+#if defined(BOARD_HAS_PIN_REMAP) && !defined(BOARD_USES_HW_GPIO_NUMBERS)
 #define ROO_DISPLAY_GPIO_PIN_REMAP(pin) digitalPinToGPIONumber(pin)
-#else
+#endif
+#endif  // ARDUINO
+
+#ifndef ROO_DISPLAY_GPIO_PIN_REMAP
 #define ROO_DISPLAY_GPIO_PIN_REMAP(pin) (pin)
 #endif
 

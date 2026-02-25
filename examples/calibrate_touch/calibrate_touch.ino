@@ -72,7 +72,7 @@ void setup() {
 class TouchCalibrator {
  public:
   TouchCalibrator(Display& display, const Font& font)
-      : display_(display), font_(font), state_(IDLE), last_touch_event_(0) {}
+      : display_(display), font_(font), state_(IDLE), last_touch_event_() {}
 
   void loop() {
     int16_t xstart;
@@ -112,30 +112,37 @@ class TouchCalibrator {
         case IDLE_DOUBLE_PRESSED: {
           int16_t old_x = x;
           int16_t old_y = y;
+          bool first_draw = true;
           // Draw the crosshairs and track movement, until released.
           while (true) {
-            {
-              DrawingContext dc(display);
-              dc.draw(Line(0, y, display.width() - 1, y, color::Red));
-              dc.draw(Line(x, 0, x, display.height() - 1, color::Red));
-              if (x != old_x) {
-                dc.draw(Line(old_x, 0, old_x, display.height() - 1,
-                             color::DarkGray));
-              }
-              if (y != old_y) {
-                dc.draw(Line(0, old_y, display.width() - 1, old_y,
-                             color::DarkGray));
-              }
-              dc.draw(Line(0, y, display.width() - 1, y, color::Red));
-              dc.draw(Line(x, 0, x, display.height() - 1, color::Red));
-            }
             TouchPoint tp;
             auto touch = display_.getTouch(&tp, 1);
             if (touch.touch_points != 0) {
-              old_x = x;
-              old_y = y;
-              x = tp.x;
-              y = tp.y;
+              int16_t new_x = tp.x;
+              int16_t new_y = tp.y;
+              bool moved = first_draw || new_x != x || new_y != y;
+              if (moved) {
+                old_x = x;
+                old_y = y;
+                x = new_x;
+                y = new_y;
+                DrawingContext dc(display);
+                dc.draw(Line(0, y, display.width() - 1, y, color::Red));
+                dc.draw(Line(x, 0, x, display.height() - 1, color::Red));
+                if (x != old_x) {
+                  dc.draw(Line(old_x, 0, old_x, display.height() - 1,
+                               color::DarkGray));
+                }
+                if (y != old_y) {
+                  dc.draw(Line(0, old_y, display.width() - 1, old_y,
+                               color::DarkGray));
+                }
+                dc.draw(Line(0, y, display.width() - 1, y, color::Red));
+                dc.draw(Line(x, 0, x, display.height() - 1, color::Red));
+                first_draw = false;
+              } else {
+                delay(1);
+              }
               if ((x - xstart) * (x - xstart) + (y - ystart) * (y - ystart) >
                   400) {
                 // Drag. Remove the possibility to interpret as double-click.
@@ -146,10 +153,16 @@ class TouchCalibrator {
                   touch.timestamp - last_touch_event_;
               {
                 DrawingContext dc(display);
-                dc.draw(Line(0, old_y, display.width() - 1, old_y,
-                             color::DarkGray));
-                dc.draw(Line(old_x, 0, old_x, display.height() - 1,
-                             color::DarkGray));
+                if (old_y != y) {
+                  dc.draw(Line(0, old_y, display.width() - 1, old_y,
+                               color::DarkGray));
+                }
+                if (old_x != x) {
+                  dc.draw(Line(old_x, 0, old_x, display.height() - 1,
+                               color::DarkGray));
+                }
+                dc.draw(Line(0, y, display.width() - 1, y, color::DarkGray));
+                dc.draw(Line(x, 0, x, display.height() - 1, color::DarkGray));
               }
               if (touch_time > roo_time::Millis(250) ||
                   touch_time < roo_time::Millis(50)) {
@@ -216,7 +229,6 @@ class TouchCalibrator {
     Box calib_rect(raw_width / 8, raw_height / 8, raw_width * 7 / 8 - 1,
                    raw_height * 7 / 8 - 1);
     Orientation orientation;
-    bool swap_xy = false;
     TouchCalibration c = display.touchCalibration();
     display.setTouchCalibration(TouchCalibration());
     readCalibrationData(calib_rect.xMin(), calib_rect.yMin(), input.tl);
@@ -385,9 +397,15 @@ class TouchCalibrator {
       dc.draw(FilledCircle::ByRadius(x, y, 2, color::Blue));
 
       // Draw the arrow.
-      FpPoint center{display_.width() / 2 - 0.5, display_.height() / 2 - 0.5};
-      FpPoint arrow_finish{0.9 * x + 0.1 * center.x, 0.9 * y + 0.1 * center.y};
-      FpPoint arrow_base{0.8 * x + 0.2 * center.x, 0.8 * y + 0.2 * center.y};
+      float center_x = 0.5f * static_cast<float>(display_.width()) - 0.5f;
+      float center_y = 0.5f * static_cast<float>(display_.height()) - 0.5f;
+      FpPoint center{center_x, center_y};
+      float x_f = static_cast<float>(x);
+      float y_f = static_cast<float>(y);
+      FpPoint arrow_finish{0.9f * x_f + 0.1f * center.x,
+                           0.9f * y_f + 0.1f * center.y};
+      FpPoint arrow_base{0.8f * x_f + 0.2f * center.x,
+                         0.8f * y_f + 0.2f * center.y};
       dc.draw(SmoothLine(center, arrow_base, color::Black));
       dc.draw(SmoothWedgedLine(arrow_base, 7, arrow_finish, 0, color::Black,
                                ENDING_FLAT));

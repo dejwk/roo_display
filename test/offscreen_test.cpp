@@ -13,7 +13,7 @@
 #include "roo_display/core/streamable.h"
 #include "roo_display/font/font.h"
 #include "roo_display/internal/color_io.h"
-#include "roo_fonts/NotoSans_Italic/12.h"
+#include "roo_fonts/NotoSerif_Italic/12.h"
 #include "testing_display_device.h"
 
 using namespace testing;
@@ -964,7 +964,7 @@ TEST_F(OffscreenTest, DrawingOffscreenRasterizable) {
                                           "*************"));
 }
 
-const Font& font() { return font_NotoSans_Italic_12(); }
+const Font& font() { return font_NotoSerif_Italic_12(); }
 
 class Label : public Drawable {
  public:
@@ -995,10 +995,10 @@ TEST_F(OffscreenTest, OffscreenForTranslucentDrawable) {
   EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), Box(0, 0, 9, 6),
                                           "**********"
                                           "**********"
-                                          "*****EC***"
-                                          "*****58***"
-                                          "****E2****"
-                                          "****AA****"
+                                          "*****B8***"
+                                          "*****A ***"
+                                          "******5***"
+                                          "*****8E***"
                                           "**********"));
 }
 

@@ -2,14 +2,14 @@
 #include "roo_display.h"
 #include "roo_display/color/color.h"
 #include "roo_display/font/font.h"
-#include "roo_fonts/NotoSans_Italic/12.h"
+#include "roo_fonts/NotoSerif_Italic/12.h"
 #include "testing_drawable.h"
 
 using namespace testing;
 
 namespace roo_display {
 
-const Font &font() { return font_NotoSans_Italic_12(); }
+const Font &font() { return font_NotoSerif_Italic_12(); }
 
 class Label : public Drawable {
  public:
@@ -28,16 +28,16 @@ class Label : public Drawable {
 };
 
 TEST(SmoothFontTest, FontMetrics) {
-  EXPECT_EQ(16, font().metrics().linespace());
+  EXPECT_EQ(15, font().metrics().linespace());
   EXPECT_EQ(10, font().metrics().ascent());
   EXPECT_EQ(-3, font().metrics().descent());
-  EXPECT_EQ(3, font().metrics().linegap());
+  EXPECT_EQ(2, font().metrics().linegap());
   EXPECT_EQ(-3, font().metrics().glyphXMin());
   EXPECT_EQ(-2, font().metrics().glyphYMin());
-  EXPECT_EQ(12, font().metrics().glyphXMax());
-  EXPECT_EQ(13, font().metrics().glyphYMax());
-  EXPECT_EQ(16, font().metrics().maxWidth());
-  EXPECT_EQ(16, font().metrics().maxHeight());
+  EXPECT_EQ(14, font().metrics().glyphXMax());
+  EXPECT_EQ(12, font().metrics().glyphYMax());
+  EXPECT_EQ(18, font().metrics().maxWidth());
+  EXPECT_EQ(15, font().metrics().maxHeight());
 }
 
 TEST(SmoothFontTest, HorizontalStringMetrics) {
@@ -47,7 +47,7 @@ TEST(SmoothFontTest, HorizontalStringMetrics) {
   EXPECT_EQ(-1, metrics.lsb());
   EXPECT_EQ(-1, metrics.glyphXMin());
 
-  EXPECT_EQ(21, metrics.glyphXMax());
+  EXPECT_EQ(22, metrics.glyphXMax());
 
   EXPECT_EQ(10, metrics.bearingY());
   EXPECT_EQ(0, metrics.rsb());
@@ -55,10 +55,10 @@ TEST(SmoothFontTest, HorizontalStringMetrics) {
   EXPECT_EQ(-2, metrics.glyphYMin());
   EXPECT_EQ(10, metrics.glyphYMax());
 
-  EXPECT_EQ(23, metrics.width());
+  EXPECT_EQ(24, metrics.width());
   EXPECT_EQ(13, metrics.height());
 
-  EXPECT_EQ(22, metrics.advance());
+  EXPECT_EQ(23, metrics.advance());
 }
 
 TEST(SmoothFontTest, SimpleTextNoBackground) {
@@ -69,19 +69,19 @@ TEST(SmoothFontTest, SimpleTextNoBackground) {
                                      "                          "
                                      "                          "
                                      "                          "
-                                     "           3DE2           "
-                                     "     4*2   B5  5          "
-                                     "     CC4   *  1C          "
-                                     "    5A96 3C*E5D*E4688EA   "
-                                     "    C377  6A  97  9D4 D3  "
-                                     "   5A 69  97  C4  C7  B5  "
-                                     "   DEEEB  C3  E1  *1  D3  "
-                                     "  6B114D  *1 2D  2E  2E   "
-                                     "  D3  1* 3D  4C  5*2 B8   "
-                                     " 6B    E16A  1CE397CE9    "
-                                     "         97      C4       "  // Baseline.
-                                     "         D2      E1       "
-                                     "       4E8      2D        "
+                                     "            2BD8          "
+                                     "      5E    B63922        "
+                                     "      A*1   *1 2D1        "
+                                     "     74E3 2BEB3CEB6EC5BC  "
+                                     "    1A C6  6B  6B  6D4 E4 "
+                                     "    92 A8  98  98  9A  D5 "
+                                     "   3D99CA  C5  C5  C5  *3 "
+                                     "   B1  5D  *1  *1  E1 5D  "
+                                     "  58   4* 3E  1*  2E 1D5  "
+                                     " 7*E4 4E*B6B   BC65DCC6   "
+                                     "          A7      97      "  // Baseline.
+                                     "         1E2      C5      "
+                                     "        7C6       EE2     "
                                      "                          "));
 }
 
@@ -99,19 +99,19 @@ TEST(SmoothFontTest, SimpleTextWithBackground) {
                                      "11111111111111111111111111"
                                      "11111111111111111111111111"
                                      "11111111111111111111111111"
-                                     "1          3DE2         11"
-                                     "1    4*2   B5  5        11"
-                                     "1    CC4   *  1C        11"
-                                     "1   5A96 3C*E5D*E4688EA 11"
-                                     "1   C377  6A  97  9D4 D311"
-                                     "1  5A 69  97  C4  C7  B511"
-                                     "1  DEEEB  C3  E1  *1  D311"
-                                     "1 6B114D  *1 2D  2E  2E 11"
-                                     "1 D3  1* 3D  4C  5*2 B8 11"
-                                     "16B    E16A  1CE397CE9  11"
-                                     "1        97      C4     11"
-                                     "1        D2      E1     11"
-                                     "1      4E8      2D      11"
+                                     "1           2BD8         1"
+                                     "1     5E    B63922       1"
+                                     "1     A*1   *1 2D1       1"
+                                     "1    74E3 2BEB3CEB6EC5BC 1"
+                                     "1   1A C6  6B  6B  6D4 E41"
+                                     "1   92 A8  98  98  9A  D51"
+                                     "1  3D99CA  C5  C5  C5  *31"
+                                     "1  B1  5D  *1  *1  E1 5D 1"
+                                     "1 58   4* 3E  1*  2E 1D5 1"
+                                     "17*E4 4E*B6B   BC65DCC6  1"
+                                     "1         A7      97     1"
+                                     "1        1E2      C5     1"
+                                     "1       7C6       EE2    1"
                                      "11111111111111111111111111"));
 }
 
@@ -127,19 +127,19 @@ TEST(SmoothFontTest, ClippedTextWithBackground) {
                                      "11111111111111111111111111"
                                      "11111111111111111111111111"
                                      "11111111111111111111111111"
-                                     "111111     3DE2   11111111"
-                                     "111111*2   B5  5  11111111"
-                                     "111111C4   *  1C  11111111"
-                                     "11111196 3C*E5D*E411111111"
-                                     "11111177  6A  97  11111111"
-                                     "11111169  97  C4  11111111"
-                                     "111111EB  C3  E1  11111111"
-                                     "1111114D  *1 2D  211111111"
-                                     "1111111* 3D  4C  511111111"
-                                     "111111 E16A  1CE3911111111"
-                                     "111111   97      C11111111"
-                                     "111111   D2      E11111111"
-                                     "111111 4E8      2D11111111"
+                                     "111111      2BD8  11111111"
+                                     "1111115E    B6392211111111"
+                                     "111111A*1   *1 2D111111111"
+                                     "1111114E3 2BEB3CEB11111111"
+                                     "111111 C6  6B  6B 11111111"
+                                     "111111 A8  98  98 11111111"
+                                     "1111119CA  C5  C5 11111111"
+                                     "111111 5D  *1  *1 11111111"
+                                     "111111 4* 3E  1*  11111111"
+                                     "1111114E*B6B   BC611111111"
+                                     "111111    A7      11111111"
+                                     "111111   1E2      11111111"
+                                     "111111  7C6       11111111"
                                      "11111111111111111111111111"));
 }
 

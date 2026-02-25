@@ -1,6 +1,34 @@
 // https://github.com/dejwk/roo_display/blob/master/doc/programming_guide.md#basic-setup
 
 #include "Arduino.h"
+
+#ifdef ROO_TESTING
+
+#include "roo_testing/devices/display/st77xx/st77xx.h"
+#include "roo_testing/microcontrollers/esp32/fake_esp32.h"
+#include "roo_testing/transducers/ui/viewport/flex_viewport.h"
+#include "roo_testing/transducers/ui/viewport/fltk/fltk_viewport.h"
+
+using roo_testing_transducers::FlexViewport;
+using roo_testing_transducers::FltkViewport;
+
+struct Emulator {
+  FltkViewport viewport;
+  FlexViewport flexViewport;
+
+  FakeSt77xxSpi display;
+
+  Emulator()
+      : viewport(), flexViewport(viewport, 1), display(flexViewport, 240, 240) {
+    FakeEsp32().attachSpiDevice(display, 4, 5, 6);
+    FakeEsp32().gpio.attachOutput(7, display.cs());
+    FakeEsp32().gpio.attachOutput(2, display.dc());
+    FakeEsp32().gpio.attachOutput(3, display.rst());
+  }
+} emulator;
+
+#endif
+
 #include "roo_display.h"
 
 using namespace roo_display;
@@ -25,7 +53,7 @@ static constexpr int kSpiMosi = 6;
 // #include "roo_display/backlit/esp32_ledc.h"
 // LedcBacklit backlit(kBlPin);
 
-St7796spi_320x480<kCsPin, kDcPin, kRstPin> device;
+St7789spi_240x240<kCsPin, kDcPin, kRstPin> device;
 Display display(device);
 
 #include <string>

@@ -2,7 +2,7 @@
 
 #include "roo_display/hal/config.h"
 
-#if defined(ARDUINO)
+#if defined(ARDUINO) || defined(ROO_TESTING)
 
 #include "roo_display/hal/arduino/i2c.h"
 
@@ -24,4 +24,4 @@ using I2cSlaveDevice = Esp32I2cSlaveDevice;
 
 }  // namespace roo_display
 
-#endif  // defined ARDUINO
+#endif  // defined(ARDUINO) || defined(ROO_TESTING)

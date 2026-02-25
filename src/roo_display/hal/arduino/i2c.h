@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(ARDUINO)
+#if defined(ARDUINO) || defined(ROO_TESTING)
 #include <Arduino.h>
 
 #include "roo_backport.h"
@@ -63,4 +63,4 @@ class ArduinoI2cSlaveDevice {
 
 }  // namespace roo_display
 
-#endif  // defined(ARDUINO)
+#endif  // defined(ARDUINO) || defined(ROO_TESTING)

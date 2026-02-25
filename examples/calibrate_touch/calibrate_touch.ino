@@ -44,7 +44,7 @@ struct Emulator {
 #include "roo_display/shape/basic.h"
 #include "roo_display/shape/smooth.h"
 #include "roo_display/ui/text_label.h"
-#include "roo_fonts/NotoSans_Condensed/12.h"
+#include "roo_fonts/NotoSans_Regular/12.h"
 #include "roo_io/text/string_printf.h"
 #include "roo_time.h"
 
@@ -479,6 +479,6 @@ class TouchCalibrator {
 };
 
 void loop(void) {
-  TouchCalibrator calibrator(display, font_NotoSans_Condensed_12());
+  TouchCalibrator calibrator(display, font_NotoSans_Regular_12());
   calibrator.loop();
 }

@@ -1,3 +1,5 @@
+// NOTE: this example requires the companion font library, roo_fonts_basic.
+
 #include "Arduino.h"
 
 #ifdef ROO_TESTING

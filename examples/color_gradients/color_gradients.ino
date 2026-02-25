@@ -1,5 +1,7 @@
 // https://github.com/dejwk/roo_display/blob/master/doc/programming_guide.md#basic-setup
 
+// NOTE: this example requires the companion font library, roo_fonts_basic.
+
 #include "Arduino.h"
 
 #ifdef ROO_TESTING

@@ -33,9 +33,9 @@ struct Emulator {
 #include "roo_display/font/font.h"
 #include "roo_display/shape/basic.h"
 #include "roo_display/ui/text_label.h"
-#include "roo_fonts/NotoSerif_BoldItalic/15.h"
-#include "roo_fonts/NotoSerif_BoldItalic/27.h"
-#include "roo_fonts/NotoSerif_BoldItalic/40.h"
+#include "roo_fonts/NotoSerif_Italic/15.h"
+#include "roo_fonts/NotoSerif_Italic/27.h"
+#include "roo_fonts/NotoSerif_Italic/40.h"
 
 using namespace roo_display;
 
@@ -64,7 +64,7 @@ void simpleAlignment() {
   // This is why you generally should use padding when working with aligned
   // text. (See simpleAlignmentWithPadding, below).
   DrawingContext dc(display);
-  StringViewLabel label("jW", font_NotoSerif_BoldItalic_27(), color::Black);
+  StringViewLabel label("jW", font_NotoSerif_Italic_27(), color::Black);
 
   dc.clear();
 
@@ -85,7 +85,7 @@ void simpleAlignmentWithPadding() {
   // This example show how to add some absolute padding to the alignment.
   // In this case, we're moving the text 10 pixels into the center.
   DrawingContext dc(display);
-  StringViewLabel label("jW", font_NotoSerif_BoldItalic_27(), color::Black);
+  StringViewLabel label("jW", font_NotoSerif_Italic_27(), color::Black);
 
   dc.clear();
 
@@ -121,10 +121,9 @@ void baselineAlignment() {
   // something else, and add some absolute offset with offsetBy()).
 
   DrawingContext dc(display);
-  StringViewLabel label1("Hop ", font_NotoSerif_BoldItalic_15(), color::Black);
-  StringViewLabel label2("Hop ", font_NotoSerif_BoldItalic_40(), color::Black);
-  StringViewLabel label3("Hooray", font_NotoSerif_BoldItalic_27(),
-                         color::Black);
+  StringViewLabel label1("Hop ", font_NotoSerif_Italic_15(), color::Black);
+  StringViewLabel label2("Hop ", font_NotoSerif_Italic_40(), color::Black);
+  StringViewLabel label3("Hooray", font_NotoSerif_Italic_27(), color::Black);
 
   dc.clear();
   dc.draw(Line(0, 0, display.width() - 1, 0, color::Red), kMiddle);
@@ -149,12 +148,10 @@ void subregionAlignment() {
   left.clear();
   right.setBackgroundColor(color::Beige);
   right.clear();
-  left.draw(
-      StringViewLabel("Left", font_NotoSerif_BoldItalic_40(), color::Black),
-      kMiddle | kCenter);
-  right.draw(
-      StringViewLabel("Right", font_NotoSerif_BoldItalic_40(), color::Black),
-      kMiddle | kCenter);
+  left.draw(StringViewLabel("Left", font_NotoSerif_Italic_40(), color::Black),
+            kMiddle | kCenter);
+  right.draw(StringViewLabel("Right", font_NotoSerif_Italic_40(), color::Black),
+             kMiddle | kCenter);
 }
 
 void tile() {
@@ -162,11 +159,11 @@ void tile() {
   // background first.
   DrawingContext dc(display);
   dc.draw(MakeTileOf(
-      StringViewLabel("Top", font_NotoSerif_BoldItalic_40(), color::Black),
+      StringViewLabel("Top", font_NotoSerif_Italic_40(), color::Black),
       Box(0, 0, display.width() - 1, display.height() / 2 - 1),
       kBottom.shiftBy(-10) | kCenter, color::Bisque));
   dc.draw(MakeTileOf(
-      StringViewLabel("Bottom", font_NotoSerif_BoldItalic_40(), color::Black),
+      StringViewLabel("Bottom", font_NotoSerif_Italic_40(), color::Black),
       Box(0, display.height() / 2, display.width() - 1, display.height() - 1),
       kTop.shiftBy(10) | kCenter, color::Beige));
 }

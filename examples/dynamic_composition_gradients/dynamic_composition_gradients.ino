@@ -16,21 +16,15 @@ struct Emulator {
   FlexViewport flexViewport;
 
   FakeIli9341Spi display;
-  FakeXpt2046Spi touch;
 
   Emulator()
       : viewport(),
         flexViewport(viewport, 6, FlexViewport::kRotationRight),
-        display(flexViewport),
-        touch(flexViewport, FakeXpt2046Spi::Calibration(318, 346, 3824, 3909,
-                                                        false, true, false)) {
+        display(flexViewport) {
     FakeEsp32().attachSpiDevice(display, 18, 19, 23);
     FakeEsp32().gpio.attachOutput(5, display.cs());
     FakeEsp32().gpio.attachOutput(17, display.dc());
     FakeEsp32().gpio.attachOutput(27, display.rst());
-
-    FakeEsp32().attachSpiDevice(touch, 18, 19, 23);
-    FakeEsp32().gpio.attachOutput(2, touch.cs());
   }
 } emulator;
 
@@ -50,8 +44,6 @@ struct Emulator {
 #include "roo_display/shape/smooth.h"
 #include "roo_display/ui/string_printer.h"
 #include "roo_display/ui/text_label.h"
-#include "roo_fonts/NotoSans_Bold/27.h"
-#include "roo_fonts/NotoSans_Condensed/12.h"
 
 using namespace roo_display;
 
@@ -59,7 +51,7 @@ Ili9341spi<5, 17, 27> display_device(Orientation().rotateLeft());
 
 Display display(display_device);
 
-LedcBacklit backlit(16, 1);
+// LedcBacklit backlit(16, 1);
 
 void setup() {
   Serial.begin(115200);
@@ -68,17 +60,17 @@ void setup() {
 }
 
 void loop() {
-  FpPoint center{display.width() / 2.0 - 0.5, display.height() / 2.0 - 0.5};
+  FpPoint center{display.width() / 2.0f - 0.5f, display.height() / 2.0f - 0.5f};
   for (int i = 0; i <= 40; i += 1) {
     DrawingContext dc(display);
-    dc.draw(SmoothThickArc(center, 71, 42, -2.0, 2.0,
+    dc.draw(SmoothThickArc(center, 71, 42, -2.0f, 2.0f,
                            color::Navy.withA(i * 6 + 15)));
   }
-  auto arc = SmoothThickArc(center, 71, 42, -2.0, 2.0, color::Black);
+  auto arc = SmoothThickArc(center, 71, 42, -2.0f, 2.0f, color::Black);
   for (int i = 0; i <= 20; i += 2) {
     Color c = AlphaBlend(color::Navy, color::Gold.withA(i * 12 + 15));
-    auto gradient =
-        AngularGradient(center, ColorGradient({{-2.1, color::Navy}, {2.1, c}}));
+    auto gradient = AngularGradient(
+        center, ColorGradient({{-2.1f, color::Navy}, {2.1f, c}}));
 
     RasterizableStack stack(arc.extents());
     stack.addInput(&arc);
@@ -88,10 +80,10 @@ void loop() {
   }
   for (int i = 0; i <= 20; i += 1) {
     auto gradient =
-        AngularGradient(center, ColorGradient({{-2.1 - i * 0.5, color::Navy},
-                                               {2.0 - i * 0.4, color::Gold},
-                                               {4.1 - i * 0.25, color::Red},
-                                               {10, color::Red}}));
+        AngularGradient(center, ColorGradient({{-2.1f - i * 0.5f, color::Navy},
+                                               {2.0f - i * 0.4f, color::Gold},
+                                               {4.1f - i * 0.25f, color::Red},
+                                               {10.0f, color::Red}}));
 
     RasterizableStack stack(arc.extents());
     stack.addInput(&arc);
@@ -100,12 +92,13 @@ void loop() {
     dc.draw(stack);
   }
   for (int i = 0; i <= 20; i += 1) {
-    auto gradient = LinearGradient({(int)center.x, (int)center.y}, 1, 0.2,
-                                   ColorGradient({{-150, color::Red},
-                                                  {(i - 12) * 15, color::Red},
-                                                  {(i - 10) * 15, color::Gold},
-                                                  {(i - 8) * 15, color::Red},
-                                                  {150, color::Red}}));
+    auto gradient =
+        LinearGradient({(int16_t)center.x, (int16_t)center.y}, 1, 0.2,
+                       ColorGradient({{-150.0f, color::Red},
+                                      {(i - 12) * 15.0f, color::Red},
+                                      {(i - 10) * 15.0f, color::Gold},
+                                      {(i - 8) * 15.0f, color::Red},
+                                      {150.0f, color::Red}}));
 
     RasterizableStack stack(arc.extents());
     stack.addInput(&arc);
@@ -116,7 +109,7 @@ void loop() {
 
   for (int i = 0; i <= 40; i += 1) {
     DrawingContext dc(display);
-    dc.draw(SmoothThickArc(center, 71, 42, -2.0, 2.0,
+    dc.draw(SmoothThickArc(center, 71, 42, -2.0f, 2.0f,
                            color::Red.withA(255 - (i * 6 + 15))));
   }
   {

@@ -12,6 +12,12 @@ cc_library(
         ],
         exclude = ["test/**"],
     ),
+    defines = [
+        # the emulation is accurate enough that we can let roo_display believe it's
+        # running on the real ESP32, which allows us to test the GPIO pin remapping logic.
+        "ESP_PLATFORM",
+        "CONFIG_IDF_TARGET_ESP32=1",
+    ],
     includes = [
         "src",
     ],

@@ -28,7 +28,7 @@
         "type": "git",
         "url": "https://github.com/dejwk/roo_display"
     },
-    "version": "2.3.2",
+    "version": "3.0.0",
     "homepage": "https://github.com/dejwk/roo_display",
     "frameworks": [
         "*"

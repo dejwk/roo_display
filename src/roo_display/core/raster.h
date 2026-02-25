@@ -315,6 +315,7 @@ class Raster : public Rasterizable {
       // Fast format check: only proceed when format, pixel, and byte order
       // match.
       bool format_match =
+          format.mode() != DisplayOutput::ColorFormat::kUnspecified &&
           format.mode() == internal::ColorFormatTraits<ColorMode>::mode &&
           format.pixel_order() == pixel_order &&
           format.byte_order() == byte_order;

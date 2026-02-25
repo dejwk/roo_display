@@ -11,7 +11,10 @@ namespace roo_display {
 namespace internal {
 
 template <typename ColorMode>
-struct ColorFormatTraits;
+struct ColorFormatTraits {
+  static constexpr const DisplayOutput::ColorFormat::Mode mode =
+      DisplayOutput::ColorFormat::kUnspecified;
+};
 
 template <>
 struct ColorFormatTraits<Rgb565> {

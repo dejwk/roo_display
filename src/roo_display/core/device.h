@@ -273,6 +273,7 @@ class DisplayDevice : public DisplayOutput {
 class DisplayOutput::ColorFormat {
  public:
   enum Mode {
+    kUnspecified,
     kModeArgb8888,
     kModeRgba8888,
     kModeRgb888,

@@ -10,6 +10,7 @@
 #include "roo_display/color/traits.h"
 #include "roo_display/internal/color_io.h"
 #include "roo_io/data/byte_order.h"
+#include "roo_logging/stream.h"
 namespace roo_display {
 
 /// Porter-Duff style blending modes.
@@ -96,6 +97,8 @@ constexpr BlendingMode BLENDING_MODE_DESTINATION_OUT =
 /// @deprecated Use `BlendingMode::kXor` instead.
 constexpr BlendingMode BLENDING_MODE_EXCLUSIVE_OR = BlendingMode::kXor;
 
+roo_logging::Stream& operator<<(roo_logging::Stream& os, BlendingMode mode);
+
 /// Transparency information for a stream or color mode.
 enum class TransparencyMode {
   /// All colors are fully opaque.
@@ -112,6 +115,8 @@ constexpr TransparencyMode TRANSPARENCY_NONE = TransparencyMode::kNone;
 constexpr TransparencyMode TRANSPARENCY_BINARY = TransparencyMode::kCrude;
 /// @deprecated Use `TransparencyMode::kFull` instead.
 constexpr TransparencyMode TRANSPARENCY_GRADUAL = TransparencyMode::kFull;
+
+roo_logging::Stream& operator<<(roo_logging::Stream& os, TransparencyMode mode);
 
 namespace internal {
 

@@ -3,6 +3,7 @@
 #include "roo_display/color/blending.h"
 #include "roo_display/color/color.h"
 #include "roo_display/core/box.h"
+#include "roo_logging/stream.h"
 
 namespace roo_display {
 
@@ -26,6 +27,8 @@ enum class FillMode {
 constexpr FillMode FILL_MODE_RECTANGLE = FillMode::kExtents;
 /// @deprecated Use `FillMode::kVisible` instead.
 constexpr FillMode FILL_MODE_VISIBLE = FillMode::kVisible;
+
+roo_logging::Stream &operator<<(roo_logging::Stream &os, FillMode mode);
 
 class Rasterizable;
 

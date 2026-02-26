@@ -4,6 +4,29 @@
 
 namespace roo_display {
 
+namespace {
+
+const char* ToString(FillMode mode) {
+  switch (mode) {
+    case FillMode::kExtents:
+      return "FillMode::kExtents";
+    case FillMode::kVisible:
+      return "FillMode::kVisible";
+  }
+  return "FillMode::kUnknown";
+}
+
+class EmptyDrawable : public Drawable {
+ public:
+  Box extents() const override { return Box(); }
+};
+
+}  // namespace
+
+roo_logging::Stream& operator<<(roo_logging::Stream& os, FillMode mode) {
+  return os << ToString(mode);
+}
+
 void Drawable::drawTo(const Surface& s) const {
   if (s.fill_mode() == FillMode::kExtents) {
     Box box = Box::Intersect(s.clip_box(), extents().translate(s.dx(), s.dy()));
@@ -13,15 +36,6 @@ void Drawable::drawTo(const Surface& s) const {
   }
   drawInteriorTo(s);
 }
-
-namespace {
-
-class EmptyDrawable : public Drawable {
- public:
-  Box extents() const override { return Box(); }
-};
-
-}  // namespace
 
 const Drawable* Drawable::Empty() {
   static EmptyDrawable empty;

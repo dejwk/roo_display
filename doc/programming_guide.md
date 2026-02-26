@@ -309,7 +309,7 @@ void loop() {
 
 ![img4](images/img4.png)
 
-So far, we have been using the default background color, which we had set in the call to `device.init()`. That default background may be overriden in the drawing context:
+So far, we have been using the default background color, which we had set in the call to `display.init(bgcolor)`. That default background may be overriden in the drawing context:
 
 ```cpp
 void loop() {
@@ -855,7 +855,8 @@ Generally, using font metrics can help write your application so that it can wor
 
 You can also call `font.properties()` to find out basic facts about the font, such as whether it is proportional or monospace, whether it is antialiased, and whether it uses kerning.
 
-Finally, by calling `font.getHorizontalStringGlyphMetrics(StringView)` you can measure the properties of glyphs or entire strings, without drawing them. Specifically, you can obtain a `GlyphMetrics` object, which reveals the string's bounding box, as well as the advance width, which is essentially the width for the purpose of alignment.
+Finally, by calling `font.getHorizontalStringMetrics(string_view)`,
+and `font.getHorizontalStringGlyphMetrics(...)` you can measure the properties of glyphs or entire strings, without drawing them. Specifically, you can obtain a `GlyphMetrics` object, which reveals the string's bounding box, as well as the advance width, which is essentially the width for the purpose of alignment.
 
 That said, the same properties are also captured by `TextLabel`'s `extents()` and `anchorExtents()`, which are generally simpler to use (see below).
 
@@ -2465,7 +2466,7 @@ The native coordinate system used by your touch device can be completely differe
 
 How do you figure out the right values? First of all, check the `roo_display/products` subdirectory for your specific hardware unit - if you are in luck, and your device is explicitly supported, the touch will be tentatively pre-calibrated.
 
-When using raw drivers, or if the default calibration is off, you can measure the necessary calibration parameters for your specific unit by using the helper script at `roo_display/examples/calibrate_touch.ino`. The script will guide you through the steps.
+When using raw drivers, or if the default calibration is off, you can measure the necessary calibration parameters for your specific unit by using the helper script at `roo_display/examples/calibrate_touch/calibrate_touch.ino`. The script will guide you through the steps.
 
 #### Usage
 
@@ -3488,7 +3489,7 @@ Note that:
 
 ### Using the background-fill optimizer
 
-The `BackgroundFillOptimizer` filter can very significantly improve performance of applications in which large solid areas are repetitively redrawn.
+The `BackgroundFillOptimizer` filter can very significantly improve performance on slow displays, in applications in which large solid areas are repetitively redrawn. The canonical use case is a simple UI, with plain color areas (no gradients or other fancy stuff).
 
 A common scenario is like this: you clear a rectangular area to draw some new content in it, paying no attention to whatever content was there before. But it is often the case that many pixels already had the correct (bacgkround) color and didn't really need to be overwritten. If only you knew which those were, you could have skipped them over, saving the SPI bandwidth.
 
@@ -3496,7 +3497,25 @@ A canonical solution to achieve that would be to use a framebuffer, keeping a co
 
 `BackgroundFillOptimizer` is akin to a reduced-resolution framebuffer, using only 1/4 of a bit per pixel, rather than 16 bits per pixel (rounding up to 4.8 KB for the same ILI9486 display). Specifically, the filter assigns 4 bits to each 4x4 rectangle, and uses it to encode whether that rectangle is solid-filled with one of the predefined 15 'fill' colors (which you need to specify when you instantiate the filter). These data are used to optimize out rectangle fills using these predefined colors. Only those 4x4 sub-rectangles are drawn that are not already solid-filled with that given color.
 
-The most natural way to use `BackgroundFillOptimizer` is to put it directly in front of a device driver, as in the following example:
+The simplest way to use `BackgroundFillOptimizer` is to simply call `display.enableTurbo()`. The optimizer will then kick in for all further drawing, until you explicitly turn it off.
+
+```cpp
+
+// ...
+
+
+Display display(device);
+
+void setup() {
+  // ...
+  display.enableTurbo();
+}
+
+```
+
+The optimizer will automatically and dynamically track color usage and internally maintain a palette of up to 15 background colors.
+
+You can also use it manually, and you would typically want to put it directly in front of a device driver, as in the following example:
 
 ```cpp
 
@@ -3530,6 +3549,10 @@ void loop() {
 ```
 
 If you run this example, you will notice that the frame rate is so high that it is hard to believe that you're looking at a single glyph at any given time. (Increase the delay if you need to convince yourself of that.)
+
+Note: the palette is optional: whatever colors you specify, they get 'pinned' in the palette, and never removed from it, even if they (temporarily) do not appear on the screen.
+
+In the worst-case scenario (lots of colors, not much plain areas), the optimizer will introduce some rendering overhead; typically on the order of 10% (empirically observed on a 40 MHz ILI9341 display).
 
 ### Adding new device drivers
 

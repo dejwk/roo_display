@@ -31,7 +31,7 @@ struct ColorFormatTraits<Rgb565Dma> {
 }  // namespace internal
 
 template <roo_io::ByteOrder byte_order>
-struct RawFullByteBlender<internal::Rgb565Dma, kBlendingSourceOver,
+struct RawFullByteBlender<internal::Rgb565Dma, BlendingMode::kSourceOver,
                           byte_order> {
   inline void operator()(roo::byte *dst, Color src,
                          const internal::Rgb565Dma &mode) const {

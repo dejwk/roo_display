@@ -96,9 +96,9 @@ void loop() {
     RasterizableStack stack(Box(0, 0, 200, 200));
     stack.addInput(&circle);
     stack.addInput(&rect1, -4 * (i - 20), 4 * (i - 20))
-        .withMode(kBlendingSourceAtop);
+        .withMode(BlendingMode::kSourceAtop);
     stack.addInput(&rect2, 4 * (i - 20), 4 * (i - 20))
-        .withMode(kBlendingSourceAtop);
+        .withMode(BlendingMode::kSourceAtop);
     DrawingContext dc(display);
     dc.draw(stack, kCenter | kMiddle);
   }
@@ -106,9 +106,10 @@ void loop() {
     for (int i = 0; i <= 5; ++i) {
       RasterizableStack stack(Box(0, 0, 200, 200));
       stack.addInput(&circle);
-      stack.addInput(&rect1).withMode(kBlendingSourceAtop);
-      stack.addInput(&rect2).withMode(kBlendingSourceAtop);
-      stack.addInput(&shadow, 5 - i, i - 5).withMode(kBlendingDestinationOver);
+      stack.addInput(&rect1).withMode(BlendingMode::kSourceAtop);
+      stack.addInput(&rect2).withMode(BlendingMode::kSourceAtop);
+      stack.addInput(&shadow, 5 - i, i - 5)
+          .withMode(BlendingMode::kDestinationOver);
       DrawingContext dc(display);
       dc.draw(stack, kCenter | kMiddle);
     }
@@ -116,10 +117,10 @@ void loop() {
   {
     RasterizableStack stack(Box(0, 0, 200, 200));
     stack.addInput(&circle);
-    stack.addInput(&rect1).withMode(kBlendingSourceAtop);
-    stack.addInput(&rect2).withMode(kBlendingSourceAtop);
-    stack.addInput(&gradient).withMode(kBlendingSourceAtop);
-    stack.addInput(&shadow).withMode(kBlendingDestinationOver);
+    stack.addInput(&rect1).withMode(BlendingMode::kSourceAtop);
+    stack.addInput(&rect2).withMode(BlendingMode::kSourceAtop);
+    stack.addInput(&gradient).withMode(BlendingMode::kSourceAtop);
+    stack.addInput(&shadow).withMode(BlendingMode::kDestinationOver);
     {
       DrawingContext dc(display);
       dc.draw(stack, kCenter | kMiddle);
@@ -132,11 +133,11 @@ void loop() {
       auto fill = Fill(color::Black.withA((10 - i) * 20));
       RasterizableStack stack(Box(0, 0, 200, 200));
       stack.addInput(&circle);
-      stack.addInput(&rect1).withMode(kBlendingSourceAtop);
-      stack.addInput(&rect2).withMode(kBlendingSourceAtop);
-      stack.addInput(&gradient).withMode(kBlendingSourceAtop);
-      stack.addInput(&shadow).withMode(kBlendingDestinationOver);
-      stack.addInput(&fill).withMode(kBlendingDestinationIn);
+      stack.addInput(&rect1).withMode(BlendingMode::kSourceAtop);
+      stack.addInput(&rect2).withMode(BlendingMode::kSourceAtop);
+      stack.addInput(&gradient).withMode(BlendingMode::kSourceAtop);
+      stack.addInput(&shadow).withMode(BlendingMode::kDestinationOver);
+      stack.addInput(&fill).withMode(BlendingMode::kDestinationIn);
       dc.draw(stack, kCenter | kMiddle);
     }
     dc.clear();

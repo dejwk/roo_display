@@ -27,12 +27,12 @@ class SuperRectangleStream {
                    : (inner.width() == width ? (int32_t)width * inner.height()
                                              : inner.width())),
         width_skip_(width - inner.width()),
-        transparency_(delegate_->transparency() != kNoTransparency
+        transparency_(delegate_->transparency() != TransparencyMode::kNone
                           ? delegate_->transparency()
                       : width == inner.width() && inner.xMin() == 0 &&
                               inner.yMin() == 0
-                          ? kNoTransparency
-                          : kCrudeTransparency) {}
+                          ? TransparencyMode::kNone
+                          : TransparencyMode::kCrude) {}
 
   SuperRectangleStream(SuperRectangleStream &&) = default;
 
@@ -93,13 +93,13 @@ class UnionStream {
   UnionStream(std::unique_ptr<Bg> bg, std::unique_ptr<Fg> fg)
       : bg_(std::move(bg)),
         fg_(std::move(fg)),
-        transparency_(bg_->transparency() == kNoTransparency &&
-                              fg_->transparency() == kNoTransparency
-                          ? kNoTransparency
-                      : bg_->transparency() == kTransparency ||
-                              fg_->transparency() == kTransparency
-                          ? kTransparency
-                          : kCrudeTransparency) {}
+        transparency_(bg_->transparency() == TransparencyMode::kNone &&
+                              fg_->transparency() == TransparencyMode::kNone
+                          ? TransparencyMode::kNone
+                      : bg_->transparency() == TransparencyMode::kFull ||
+                              fg_->transparency() == TransparencyMode::kFull
+                          ? TransparencyMode::kFull
+                          : TransparencyMode::kCrude) {}
 
   UnionStream(UnionStream &&) = default;
 

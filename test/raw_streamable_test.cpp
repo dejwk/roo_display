@@ -13,8 +13,8 @@ namespace roo_display {
 
 template <typename RawStreamable>
 void Draw(DisplayDevice& output, int16_t x, int16_t y, const Box& clip_box,
-          const RawStreamable& object, FillMode fill_mode = kFillVisible,
-          BlendingMode blending_mode = kBlendingSourceOver,
+          const RawStreamable& object, FillMode fill_mode = FillMode::kVisible,
+          BlendingMode blending_mode = BlendingMode::kSourceOver,
           Color bgcolor = color::Transparent) {
   output.begin();
   DrawableRawStreamable<RawStreamable> drawable(object);
@@ -25,8 +25,8 @@ void Draw(DisplayDevice& output, int16_t x, int16_t y, const Box& clip_box,
 
 template <typename RawStreamable>
 void Draw(DisplayDevice& output, int16_t x, int16_t y,
-          const RawStreamable& object, FillMode fill_mode = kFillVisible,
-          BlendingMode blending_mode = kBlendingSourceOver,
+          const RawStreamable& object, FillMode fill_mode = FillMode::kVisible,
+          BlendingMode blending_mode = BlendingMode::kSourceOver,
           Color bgcolor = color::Transparent) {
   Box clip_box(0, 0, output.effective_width() - 1,
                output.effective_height() - 1);
@@ -163,7 +163,7 @@ TEST(Streamable, TransparencyWithBackground) {
                                   "LQD TOL"
                                   "F9F ...");
   FakeOffscreen<Rgb565> test_screen(5, 6, color::Black);
-  Draw(test_screen, 1, 2, input, kFillRectangle, kBlendingSourceOver,
+  Draw(test_screen, 1, 2, input, FillMode::kExtents, BlendingMode::kSourceOver,
        color::White);
   EXPECT_THAT(test_screen, MatchesContent(Rgb565(), 5, 6,
                                           "___ ___ ___ ___ ___"
@@ -187,7 +187,7 @@ TEST(Streamable, AlphaTransparencyOverriddenReplace) {
   auto input =
       MakeTestStreamable(Argb4444(), Box(0, 0, 3, 0), "4488 F678 F1A3 73E3");
   FakeOffscreen<Argb4444> test_screen(6, 1, color::Black);
-  Draw(test_screen, 1, 0, input, kFillVisible, kBlendingSource);
+  Draw(test_screen, 1, 0, input, FillMode::kVisible, BlendingMode::kSource);
   EXPECT_THAT(test_screen, MatchesContent(Argb4444(), 6, 1,
                                           "F000 4488 F678 F1A3 73E3 F000"));
 }
@@ -196,7 +196,7 @@ TEST(Streamable, AlphaTransparencyWithTranslucentBackground) {
   auto input = MakeTestStreamable(Argb4444(), Box(0, 0, 4, 0),
                                   "4488 F678 F1A3 73E3 0000");
   FakeOffscreen<Argb4444> test_screen(6, 1, color::Black);
-  Draw(test_screen, 1, 0, input, kFillRectangle, kBlendingSourceOver,
+  Draw(test_screen, 1, 0, input, FillMode::kExtents, BlendingMode::kSourceOver,
        Color(0x7FFFFFFF));
   EXPECT_THAT(test_screen, MatchesContent(Argb4444(), 6, 1,
                                           "F000 F677 F678 F1A3 F5A5 F777"));

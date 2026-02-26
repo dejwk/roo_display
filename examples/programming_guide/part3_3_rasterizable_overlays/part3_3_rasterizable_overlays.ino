@@ -77,6 +77,6 @@ void loop() {
     overlaid.set(120, 25, (millis() % 1000) / 2);
   }
   DrawingContext dc(display);
-  dc.setFillMode(kFillRectangle);
+  dc.setFillMode(FillMode::kExtents);
   dc.draw(overlaid, kCenter | kMiddle);
 }

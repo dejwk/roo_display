@@ -21,7 +21,7 @@ void TileBase::draw(const Surface& s, const Drawable& content) const {
 
 void TileBase::drawInternal(const Surface& s, const Drawable& content) const {
   FillMode fill_mode =
-      bgcolor_ == color::Transparent ? s.fill_mode() : kFillRectangle;
+      bgcolor_ == color::Transparent ? s.fill_mode() : FillMode::kExtents;
   Box extents =
       Box::Intersect(s.clip_box(), border_.extents().translate(s.dx(), s.dy()));
   if (extents.empty()) return;
@@ -29,7 +29,7 @@ void TileBase::drawInternal(const Surface& s, const Drawable& content) const {
   Box interior = Box::Intersect(s.clip_box(),
                                 border_.interior().translate(s.dx(), s.dy()));
   if (interior.empty()) {
-    if (fill_mode == kFillRectangle) {
+    if (fill_mode == FillMode::kExtents) {
       s.out().fillRect(
           s.blending_mode(),
           Box(extents.xMin(), extents.yMin(), extents.xMax(), extents.yMax()),
@@ -37,7 +37,7 @@ void TileBase::drawInternal(const Surface& s, const Drawable& content) const {
     }
     return;
   }
-  if (fill_mode == kFillRectangle) {
+  if (fill_mode == FillMode::kExtents) {
     if (extents.yMin() < interior.yMin()) {
       // Draw the top bg bar.
       s.out().fillRect(s.blending_mode(),
@@ -57,7 +57,7 @@ void TileBase::drawInternal(const Surface& s, const Drawable& content) const {
                 s.dy() + border_.y_offset(), extents, s.is_write_once(),
                 bgcolor, fill_mode, s.blending_mode());
   inner.drawObject(content);
-  if (fill_mode == kFillRectangle) {
+  if (fill_mode == FillMode::kExtents) {
     if (extents.xMax() > interior.xMax()) {
       // Draw the right bg bar.
       s.out().fillRect(s.blending_mode(),

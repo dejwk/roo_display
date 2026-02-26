@@ -132,12 +132,12 @@ class Composition {
 // transparent result.
 bool IsBlendingModeSourceClearing(BlendingMode blending_mode) {
   switch (blending_mode) {
-    case kBlendingSource:
-    case kBlendingSourceIn:
-    case kBlendingSourceOut:
-    case kBlendingDestinationIn:
-    case kBlendingDestinationAtop:
-    case kBlendingClear: {
+    case BlendingMode::kSource:
+    case BlendingMode::kSourceIn:
+    case BlendingMode::kSourceOut:
+    case BlendingMode::kDestinationIn:
+    case BlendingMode::kDestinationAtop:
+    case BlendingMode::kClear: {
       return true;
     }
     default: {
@@ -150,12 +150,12 @@ bool IsBlendingModeSourceClearing(BlendingMode blending_mode) {
 // transparent result.
 bool IsBlendingModeDestinationClearing(BlendingMode blending_mode) {
   switch (blending_mode) {
-    case kBlendingSourceIn:
-    case kBlendingSourceAtop:
-    case kBlendingDestination:
-    case kBlendingDestinationIn:
-    case kBlendingDestinationOut:
-    case kBlendingClear: {
+    case BlendingMode::kSourceIn:
+    case BlendingMode::kSourceAtop:
+    case BlendingMode::kDestination:
+    case BlendingMode::kDestinationIn:
+    case BlendingMode::kDestinationOut:
+    case BlendingMode::kClear: {
       return true;
     }
     default: {
@@ -748,7 +748,7 @@ void StreamableStack::drawTo(const Surface& s) const {
   Program prg;
   composition.Compile(&prg);
   Engine engine(&prg);
-  if (s.fill_mode() == kFillRectangle) {
+  if (s.fill_mode() == FillMode::kExtents) {
     WriteRect(&engine, bounds, &*streams.begin(), &*blending_modes.begin(), s);
   } else {
     WriteVisible(&engine, bounds, &*streams.begin(), &*blending_modes.begin(),

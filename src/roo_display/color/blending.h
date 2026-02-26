@@ -13,88 +13,105 @@
 namespace roo_display {
 
 /// Porter-Duff style blending modes.
-enum BlendingMode {
+enum class BlendingMode {
 
   /// The new ARGB8888 value completely replaces the old one.
-  kBlendingSource,
+  kSource,
 
   /// Source is placed (alpha-blended) over the destination. This is the
   /// default blending mode.
-  kBlendingSourceOver,
+  kSourceOver,
 
   /// The source that overlaps the destination, replaces the destination.
-  kBlendingSourceIn,
+  kSourceIn,
 
   /// Source which overlaps the destination, replaces the destination.
   /// Destination is placed elsewhere.
-  kBlendingSourceAtop,
+  kSourceAtop,
 
   /// Only the destination will be present.
-  kBlendingDestination,
+  kDestination,
 
   /// Destination is placed over the source.
-  kBlendingDestinationOver,
+  kDestinationOver,
 
   /// Destination which overlaps the source, replaces the source.
-  kBlendingDestinationIn,
+  kDestinationIn,
 
   /// Destination which overlaps the source replaces the source. Source is
   /// placed elsewhere.
-  kBlendingDestinationAtop,
+  kDestinationAtop,
 
   /// No regions are enabled.
-  kBlendingClear,
+  kClear,
 
   /// Source is placed, where it falls outside of the destination.
-  kBlendingSourceOut,
+  kSourceOut,
 
   /// Destination is placed, where it falls outside of the source.
-  kBlendingDestinationOut,
+  kDestinationOut,
 
   /// The non-overlapping regions of source and destination are combined.
-  kBlendingXor,
+  kXor,
 
-  /// Similar to kBlendingSourceOver, but assumes that the destination is
+  /// Similar to kSourceOver, but assumes that the destination is
   /// opaque.
   ///
   /// Don't use it directly. It is used internally by the framework, as an
   /// optimization, when it is detected that source-over is performed over an
   /// opaque background.
-  kBlendingSourceOverOpaque,
+  kSourceOverOpaque,
 
-  /// Similar to kBlendingDestinationOver, but assumes that the source is
+  /// Similar to kDestinationOver, but assumes that the source is
   /// opaque.
-  kBlendingDestinationOverOpaque,
-
-  // Aliases for backwards compatibility; do not use in new code.
-  BLENDING_MODE_SOURCE = kBlendingSource,
-  BLENDING_MODE_SOURCE_OVER = kBlendingSourceOver,
-  BLENDING_MODE_SOURCE_IN = kBlendingSourceIn,
-  BLENDING_MODE_SOURCE_ATOP = kBlendingSourceAtop,
-  BLENDING_MODE_DESTINATION = kBlendingDestination,
-  BLENDING_MODE_DESTINATION_OVER = kBlendingDestinationOver,
-  BLENDING_MODE_DESTINATION_IN = kBlendingDestinationIn,
-  BLENDING_MODE_DESTINATION_ATOP = kBlendingDestinationAtop,
-  BLENDING_MODE_CLEAR = kBlendingClear,
-  BLENDING_MODE_SOURCE_OUT = kBlendingSourceOut,
-  BLENDING_MODE_DESTINATION_OUT = kBlendingDestinationOut,
-  BLENDING_MODE_EXCLUSIVE_OR = kBlendingXor,
+  kDestinationOverOpaque
 };
+
+/// @deprecated Use `BlendingMode::kSource` instead.
+constexpr BlendingMode BLENDING_MODE_SOURCE = BlendingMode::kSource;
+/// @deprecated Use `BlendingMode::kSourceOver` instead.
+constexpr BlendingMode BLENDING_MODE_SOURCE_OVER = BlendingMode::kSourceOver;
+/// @deprecated Use `BlendingMode::kSourceIn` instead.
+constexpr BlendingMode BLENDING_MODE_SOURCE_IN = BlendingMode::kSourceIn;
+/// @deprecated Use `BlendingMode::kSourceAtop` instead.
+constexpr BlendingMode BLENDING_MODE_SOURCE_ATOP = BlendingMode::kSourceAtop;
+/// @deprecated Use `BlendingMode::kDestination` instead.
+constexpr BlendingMode BLENDING_MODE_DESTINATION = BlendingMode::kDestination;
+/// @deprecated Use `BlendingMode::kDestinationOver` instead.
+constexpr BlendingMode BLENDING_MODE_DESTINATION_OVER =
+    BlendingMode::kDestinationOver;
+/// @deprecated Use `BlendingMode::kDestinationIn` instead.
+constexpr BlendingMode BLENDING_MODE_DESTINATION_IN =
+    BlendingMode::kDestinationIn;
+/// @deprecated Use `BlendingMode::kDestinationAtop` instead.
+constexpr BlendingMode BLENDING_MODE_DESTINATION_ATOP =
+    BlendingMode::kDestinationAtop;
+/// @deprecated Use `BlendingMode::kClear` instead.
+constexpr BlendingMode BLENDING_MODE_CLEAR = BlendingMode::kClear;
+/// @deprecated Use `BlendingMode::kSourceOut` instead.
+constexpr BlendingMode BLENDING_MODE_SOURCE_OUT = BlendingMode::kSourceOut;
+/// @deprecated Use `BlendingMode::kDestinationOut` instead.
+constexpr BlendingMode BLENDING_MODE_DESTINATION_OUT =
+    BlendingMode::kDestinationOut;
+/// @deprecated Use `BlendingMode::kXor` instead.
+constexpr BlendingMode BLENDING_MODE_EXCLUSIVE_OR = BlendingMode::kXor;
 
 /// Transparency information for a stream or color mode.
-enum TransparencyMode {
+enum class TransparencyMode {
   /// All colors are fully opaque.
-  kNoTransparency,
+  kNone,
   /// Colors are either fully opaque or fully transparent.
-  kCrudeTransparency,
+  kCrude,
   /// Colors may include partial transparency (alpha channel).
-  kTransparency,
-
-  // For backwards compatibility; do not use in new code.
-  TRANSPARENCY_NONE = kNoTransparency,
-  TRANSPARENCY_BINARY = kCrudeTransparency,
-  TRANSPARENCY_GRADUAL = kTransparency,
+  kFull,
 };
+
+/// @deprecated Use `TransparencyMode::kNone` instead.
+constexpr TransparencyMode TRANSPARENCY_NONE = TransparencyMode::kNone;
+/// @deprecated Use `TransparencyMode::kCrude` instead.
+constexpr TransparencyMode TRANSPARENCY_BINARY = TransparencyMode::kCrude;
+/// @deprecated Use `TransparencyMode::kFull` instead.
+constexpr TransparencyMode TRANSPARENCY_GRADUAL = TransparencyMode::kFull;
 
 namespace internal {
 
@@ -118,54 +135,55 @@ inline constexpr uint8_t __div_65280_rounded(uint32_t arg) {
 template <typename Functor, typename... Args>
 auto BlenderSpecialization(const BlendingMode blending_mode, Args&&... args)
     -> decltype(std::declval<Functor>()
-                    .template operator()<kBlendingSourceOver>(args...)) {
+                    .template operator()<BlendingMode::kSourceOver>(args...)) {
   Functor functor;
-  if (blending_mode == kBlendingSource) {
-    return functor.template operator()<kBlendingSource>(
+  if (blending_mode == BlendingMode::kSource) {
+    return functor.template operator()<BlendingMode::kSource>(
         std::forward<Args>(args)...);
-  } else if (blending_mode == kBlendingSourceOver) {
-    return functor.template operator()<kBlendingSourceOver>(
+  } else if (blending_mode == BlendingMode::kSourceOver) {
+    return functor.template operator()<BlendingMode::kSourceOver>(
         std::forward<Args>(args)...);
-  } else if (blending_mode == kBlendingSourceOverOpaque) {
-    return functor.template operator()<kBlendingSourceOverOpaque>(
+  } else if (blending_mode == BlendingMode::kSourceOverOpaque) {
+    return functor.template operator()<BlendingMode::kSourceOverOpaque>(
         std::forward<Args>(args)...);
   } else {
     switch (blending_mode) {
-      case kBlendingSourceIn:
-        return functor.template operator()<kBlendingSourceIn>(
+      case BlendingMode::kSourceIn:
+        return functor.template operator()<BlendingMode::kSourceIn>(
             std::forward<Args>(args)...);
-      case kBlendingSourceAtop:
-        return functor.template operator()<kBlendingSourceAtop>(
+      case BlendingMode::kSourceAtop:
+        return functor.template operator()<BlendingMode::kSourceAtop>(
             std::forward<Args>(args)...);
-      case kBlendingDestination:
-        return functor.template operator()<kBlendingDestination>(
+      case BlendingMode::kDestination:
+        return functor.template operator()<BlendingMode::kDestination>(
             std::forward<Args>(args)...);
-      case kBlendingDestinationOver:
-        return functor.template operator()<kBlendingDestinationOver>(
+      case BlendingMode::kDestinationOver:
+        return functor.template operator()<BlendingMode::kDestinationOver>(
             std::forward<Args>(args)...);
-      case kBlendingDestinationOverOpaque:
-        return functor.template operator()<kBlendingDestinationOverOpaque>(
+      case BlendingMode::kDestinationOverOpaque:
+        return functor
+            .template operator()<BlendingMode::kDestinationOverOpaque>(
+                std::forward<Args>(args)...);
+      case BlendingMode::kDestinationIn:
+        return functor.template operator()<BlendingMode::kDestinationIn>(
             std::forward<Args>(args)...);
-      case kBlendingDestinationIn:
-        return functor.template operator()<kBlendingDestinationIn>(
+      case BlendingMode::kDestinationAtop:
+        return functor.template operator()<BlendingMode::kDestinationAtop>(
             std::forward<Args>(args)...);
-      case kBlendingDestinationAtop:
-        return functor.template operator()<kBlendingDestinationAtop>(
+      case BlendingMode::kClear:
+        return functor.template operator()<BlendingMode::kClear>(
             std::forward<Args>(args)...);
-      case kBlendingClear:
-        return functor.template operator()<kBlendingClear>(
+      case BlendingMode::kSourceOut:
+        return functor.template operator()<BlendingMode::kSourceOut>(
             std::forward<Args>(args)...);
-      case kBlendingSourceOut:
-        return functor.template operator()<kBlendingSourceOut>(
+      case BlendingMode::kDestinationOut:
+        return functor.template operator()<BlendingMode::kDestinationOut>(
             std::forward<Args>(args)...);
-      case kBlendingDestinationOut:
-        return functor.template operator()<kBlendingDestinationOut>(
-            std::forward<Args>(args)...);
-      case kBlendingXor:
-        return functor.template operator()<kBlendingXor>(
+      case BlendingMode::kXor:
+        return functor.template operator()<BlendingMode::kXor>(
             std::forward<Args>(args)...);
       default:
-        return functor.template operator()<kBlendingSourceOver>(
+        return functor.template operator()<BlendingMode::kSourceOver>(
             std::forward<Args>(args)...);
     }
   }
@@ -177,12 +195,12 @@ template <BlendingMode blending_mode>
 struct BlendOp;
 
 template <>
-struct BlendOp<kBlendingSource> {
+struct BlendOp<BlendingMode::kSource> {
   inline Color operator()(Color dst, Color src) const { return src; }
 };
 
 template <>
-struct BlendOp<kBlendingSourceOverOpaque> {
+struct BlendOp<BlendingMode::kSourceOverOpaque> {
   inline Color operator()(Color dst, Color src) const {
     uint16_t alpha = src.a();
     uint16_t inv_alpha = alpha ^ 0xFF;
@@ -215,7 +233,7 @@ struct BlendOp<kBlendingSourceOverOpaque> {
 #endif
 
 template <>
-struct BlendOp<kBlendingSourceOver> {
+struct BlendOp<BlendingMode::kSourceOver> {
   // Fa = 1; Fb = 1 – αs
   // co = αs x Cs + αb x Cb x (1 – αs)
   // αo = αs + αb x (1 – αs)
@@ -227,7 +245,7 @@ struct BlendOp<kBlendingSourceOver> {
     }
     uint16_t dst_alpha = dst.a();
     if (dst_alpha == 0xFF) {
-      return BlendOp<kBlendingSourceOverOpaque>()(dst, src);
+      return BlendOp<BlendingMode::kSourceOverOpaque>()(dst, src);
     }
     if (src_alpha == 0) {
       return dst;
@@ -285,7 +303,7 @@ struct BlendOp<kBlendingSourceOver> {
 };
 
 template <>
-struct BlendOp<kBlendingSourceAtop> {
+struct BlendOp<BlendingMode::kSourceAtop> {
   // Fa = αb; Fb = 1 – αs
   // co = αs x Cs x αb + αb x Cb x (1 – αs)
   // αo = αs x αb + αb x (1 – αs)
@@ -313,26 +331,26 @@ struct BlendOp<kBlendingSourceAtop> {
 };
 
 template <>
-struct BlendOp<kBlendingDestination> {
+struct BlendOp<BlendingMode::kDestination> {
   inline Color operator()(Color dst, Color src) const { return dst; }
 };
 
 template <>
-struct BlendOp<kBlendingDestinationOverOpaque> {
+struct BlendOp<BlendingMode::kDestinationOverOpaque> {
   inline Color operator()(Color dst, Color src) const {
-    return BlendOp<kBlendingSourceOverOpaque>()(src, dst);
+    return BlendOp<BlendingMode::kSourceOverOpaque>()(src, dst);
   }
 };
 
 template <>
-struct BlendOp<kBlendingDestinationOver> {
+struct BlendOp<BlendingMode::kDestinationOver> {
   inline Color operator()(Color dst, Color src) const {
-    return BlendOp<kBlendingSourceOver>()(src, dst);
+    return BlendOp<BlendingMode::kSourceOver>()(src, dst);
   }
 };
 
 template <>
-struct BlendOp<kBlendingClear> {
+struct BlendOp<BlendingMode::kClear> {
   inline Color operator()(Color dst, Color src) const {
     return dst == color::Transparent && src == color::Transparent
                ? color::Transparent
@@ -341,7 +359,7 @@ struct BlendOp<kBlendingClear> {
 };
 
 template <>
-struct BlendOp<kBlendingSourceIn> {
+struct BlendOp<BlendingMode::kSourceIn> {
   // Fa = αb; Fb = 0
   // co = αs x Cs x αb
   // αo = αs x αb
@@ -362,21 +380,21 @@ struct BlendOp<kBlendingSourceIn> {
 };
 
 template <>
-struct BlendOp<kBlendingDestinationIn> {
+struct BlendOp<BlendingMode::kDestinationIn> {
   inline Color operator()(Color dst, Color src) const {
-    return BlendOp<kBlendingSourceIn>()(src, dst);
+    return BlendOp<BlendingMode::kSourceIn>()(src, dst);
   }
 };
 
 template <>
-struct BlendOp<kBlendingDestinationAtop> {
+struct BlendOp<BlendingMode::kDestinationAtop> {
   inline Color operator()(Color dst, Color src) const {
-    return BlendOp<kBlendingSourceAtop>()(src, dst);
+    return BlendOp<BlendingMode::kSourceAtop>()(src, dst);
   }
 };
 
 template <>
-struct BlendOp<kBlendingSourceOut> {
+struct BlendOp<BlendingMode::kSourceOut> {
   // Fa = 1 – αb; Fb = 0
   // co = αs x Cs x (1 – αb)
   // αo = αs x (1 – αb)
@@ -398,14 +416,14 @@ struct BlendOp<kBlendingSourceOut> {
 };
 
 template <>
-struct BlendOp<kBlendingDestinationOut> {
+struct BlendOp<BlendingMode::kDestinationOut> {
   inline Color operator()(Color dst, Color src) const {
-    return BlendOp<kBlendingSourceOut>()(src, dst);
+    return BlendOp<BlendingMode::kSourceOut>()(src, dst);
   }
 };
 
 template <>
-struct BlendOp<kBlendingXor> {
+struct BlendOp<BlendingMode::kXor> {
   // Fa = 1 - αb; Fb = 1 – αs
   // co = αs x Cs x (1 - αb) + αb x Cb x (1 – αs)
   // αo = αs x (1 - αb) + αb x (1 – αs)
@@ -440,7 +458,7 @@ struct BlendOp<kBlendingXor> {
 // over the background color (bgc), ignoring background color's alpha, as if it
 // is fully opaque.
 inline Color AlphaBlendOverOpaque(Color bgc, Color fgc) {
-  return BlendOp<kBlendingSourceOverOpaque>()(bgc, fgc);
+  return BlendOp<BlendingMode::kSourceOverOpaque>()(bgc, fgc);
 }
 
 template <BlendingMode mode>
@@ -573,7 +591,7 @@ inline void ApplyBlendingOverBackground(BlendingMode mode, Color bg, Color* src,
 // semi-transparent. If the background is (or should be treated as) opaque, use
 // AlphaBlendOverOpaque() instead.
 inline Color AlphaBlend(Color bgc, Color fgc) {
-  return BlendOp<kBlendingSourceOver>()(bgc, fgc);
+  return BlendOp<BlendingMode::kSourceOver>()(bgc, fgc);
 }
 
 template <typename ColorMode, BlendingMode blending_mode,
@@ -591,7 +609,7 @@ struct RawFullByteBlender {
 };
 
 template <typename ColorMode, roo_io::ByteOrder byte_order>
-struct RawFullByteBlender<ColorMode, kBlendingSource, byte_order> {
+struct RawFullByteBlender<ColorMode, BlendingMode::kSource, byte_order> {
   void operator()(roo::byte* dst, Color src, const ColorMode& mode) const {
     ColorIo<ColorMode, byte_order> io;
     io.store(src, dst, mode);
@@ -604,7 +622,7 @@ struct RawFullByteBlender<ColorMode, kBlendingSource, byte_order> {
 };
 
 template <typename ColorMode, roo_io::ByteOrder byte_order>
-struct RawFullByteBlender<ColorMode, kBlendingDestination, byte_order> {
+struct RawFullByteBlender<ColorMode, BlendingMode::kDestination, byte_order> {
   void operator()(roo::byte* dst, Color src, const ColorMode& mode) const {
     // No-op, leave dst as is.
   }
@@ -625,7 +643,7 @@ struct RawSubByteBlender {
 };
 
 template <typename ColorMode>
-struct RawSubByteBlender<ColorMode, kBlendingSource> {
+struct RawSubByteBlender<ColorMode, BlendingMode::kSource> {
   uint8_t operator()(uint8_t dst, Color src,
                      const ColorMode& color_mode) const {
     return color_mode.fromArgbColor(src);
@@ -637,7 +655,7 @@ struct RawSubByteBlender<ColorMode, kBlendingSource> {
 };
 
 template <typename ColorMode>
-struct RawSubByteBlender<ColorMode, kBlendingDestination> {
+struct RawSubByteBlender<ColorMode, BlendingMode::kDestination> {
   uint8_t operator()(uint8_t dst, Color src,
                      const ColorMode& color_mode) const {
     return dst;

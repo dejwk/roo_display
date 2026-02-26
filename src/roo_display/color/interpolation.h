@@ -34,7 +34,7 @@ struct RawColorInterpolator {
                    const ColorMode& color_mode) const {
     Color c1_argb = color_mode.toArgbColor(c1);
     Color c2_argb = color_mode.toArgbColor(c2);
-    return color_mode.transparency() == kNoTransparency
+    return color_mode.transparency() == TransparencyMode::kNone
                ? InterpolateOpaqueColors(c1_argb, c2_argb, fraction)
                : InterpolateColors(c1_argb, c2_argb, fraction);
   }

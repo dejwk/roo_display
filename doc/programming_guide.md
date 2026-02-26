@@ -288,14 +288,14 @@ void loop() {
 
 ![img3](images/img3.png)
 
-Often, you need to overwrite previous content. In order to do so without flicker (which would have occured if you simply cleared the background), you can tell the drawing context to fill the entire extents rectangle, returned by `object.extents()`, when drawing an `object`. You can do so by setting `fill mode` to `kFillRectangle` (replacing the default, `kFillVisible`):
+Often, you need to overwrite previous content. In order to do so without flicker (which would have occured if you simply cleared the background), you can tell the drawing context to fill the entire extents rectangle, returned by `object.extents()`, when drawing an `object`. You can do so by setting `fill mode` to `FillMode::kExtents` (replacing the default, `FillMode::kVisible`):
 
 ```cpp
 /// ...
 
 void loop() {
   DrawingContext dc(display);
-  dc.setFillMode(kFillRectangle);
+  dc.setFillMode(FillMode::kExtents);
   dc.draw(
     TextLabel("12:00 ", font_NotoSans_Regular_27(), color::Blue),
     5, 30);
@@ -315,14 +315,14 @@ So far, we have been using the default background color, which we had set in the
 void loop() {
   DrawingContext dc(display);
   dc.setBackgroundColor(color::Pink);
-  dc.setFillMode(kFillRectangle);
+  dc.setFillMode(FillMode::kExtents);
   dc.draw(
     TextLabel(
         "Hello, World!",
         font_NotoSans_Regular_27(),
         color::Black),
     15, 35);
-  dc.setFillMode(kFillVisible);
+  dc.setFillMode(FillMode::kVisible);
   dc.draw(
     TextLabel(
         "Hello, World!",
@@ -334,7 +334,7 @@ void loop() {
 
 ![img5](images/img5.png)
 
-Note that since the font is anti-aliased, setting the correct background color matters even with `kFillVisible`. Using background that does not match the underlying background results in 'colored' text edges, as seen in the example above.
+Note that since the font is anti-aliased, setting the correct background color matters even with `FillMode::kVisible`. Using background that does not match the underlying background results in 'colored' text edges, as seen in the example above.
 
 ### Alignment
 
@@ -533,7 +533,7 @@ void loop() {
 
 ### Tiles
 
-Often, you need to draw variable-sized contents over some preallocated space. A simple example is to overwrite some previously drawn text with new text that might possibly be shorter. In this case, even if you set `kFillRectangle`, the original contents will not be completely erased, since the new contents has smaller extents.
+Often, you need to draw variable-sized contents over some preallocated space. A simple example is to overwrite some previously drawn text with new text that might possibly be shorter. In this case, even if you set `FillMode::kExtents`, the original contents will not be completely erased, since the new contents has smaller extents.
 
 You can solve this problem using the `Tile` utility class. A tile is a rectangular 'container' of a predefined size, which you can think of as padding of a specified background color around your drawable. The position of your drawable within the tile is given by an alignment.
 
@@ -582,7 +582,7 @@ void loop() {
 
 ![img16](images/img16.png)
 
-You can omit the tile's background color. It will then default to `color::Background`, inheriting the drawing context's background, but still forcing `kFillRectangle`. That is, such a tile will draw its entire extents, regardless of the fill mode settings. It is most likely the the most commonly needed behavior: the background is 'invisible' yet the contents get redrawn when needed without extra hassle.
+You can omit the tile's background color. It will then default to `color::Background`, inheriting the drawing context's background, but still forcing `FillMode::kExtents`. That is, such a tile will draw its entire extents, regardless of the fill mode settings. It is most likely the the most commonly needed behavior: the background is 'invisible' yet the contents get redrawn when needed without extra hassle.
 
 If you need to, however, you can force the tile to respect the fill mode settings, by explicitly specifying `color::Transparent` as the background.
 
@@ -1579,12 +1579,12 @@ void loop() {
   PngFile penguin(decoder, SD, "/penguin-small.png");
   {
     DrawingContext dc(display, Box(20, 0, 239, 319));
-    // Drawing with the default fill mode (kFillVisible).
+    // Drawing with the default fill mode (FillMode::kVisible).
     dc.draw(penguin, kCenter | kMiddle);
   }
   {
     DrawingContext dc(display, Box(240, 0, 459, 319));
-    dc.setFillMode(kFillRectangle);
+    dc.setFillMode(FillMode::kExtents);
     dc.setBackgroundColor(color::MistyRose);
     dc.draw(penguin, kCenter | kMiddle);
   }
@@ -2130,13 +2130,13 @@ void loop() {
 
 As you can see, clip masks can be useful for drawing complex geometry with minimum RAM footprint. We just need to draw the primitives multiple times, applying different masks. It will usually be slower than preparing everything in a 'real' Rgb565 offscreen and drawing it out, but it only needs 9600 bytes for the entire 320x200 screen, as opposed to over 153 KB for Rgb565 (that we may not be able to allocate).
 
-#### Offscreens with transparency: kBlendingSource
+#### Offscreens with transparency: BlendingMode::kSource
 
 Ocassionally, you may want to use an Offscreen with an alpha channel, that is, using one of the color modes that support transparency, such as ARGB8888, ARGB6666, ARGB4444, Alpha4, etc. This way you can prepare translucent contents in the offscreen buffer, and later alpha-blend it over something else. It poses an interesting challenge: how do you actually draw translucent contents to such an offscreen? Whatever you draw, will, by default, be alpha-blended over the existing content. The issue is similar to painting on glass: the more paint you put on the glass, the more opaque it becomes, no matter how tranlucent the paint is. How do you _replace_ the underlying color with translucency, effectively 'erasing' the glass before you put the new paint on?
 
-The solution it to call `setBlendingMode(kBlendingSource)` on the DrawingContext, changing from the default `kBlendingSourceOver` (alpha-blending) to simple replacement.
+The solution it to call `setBlendingMode(BlendingMode::kSource)` on the DrawingContext, changing from the default `BlendingMode::kSourceOver` (alpha-blending) to simple replacement.
 
-> Note: when drawing an opaque color, kBlendingSource is effectively identical to kBlendingSourceOver - the new color will replace the previous one.
+> Note: when drawing an opaque color, BlendingMode::kSource is effectively identical to BlendingMode::kSourceOver - the new color will replace the previous one.
 
 > Note: you don't need to use alpha channel just to draw translucent content to an offscreen, as long as the result itself can be opaque.
 
@@ -2235,7 +2235,7 @@ void loop() {
   auto bg = MakeTiledRaster(&raster);
   dc.setBackground(&bg);
   // Actually fill the screen with the background.
-  // (Alternatively, experiment with kFillRectangle).
+  // (Alternatively, experiment with FillMode::kExtents).
   dc.clear();
   // Magnify to emphasize anti-aliasing.
   dc.setTransformation(Transformation().scale(3, 3));
@@ -2257,7 +2257,7 @@ void loop() {
   DrawingContext dc(display);
   auto bg = MakeRasterizable(Box(60, 60, 259, 179), [](int16_t x, int16_t y) {
     return ((x / 40) - (y / 40)) % 2 ? color::White : color::MistyRose;
-  }, kNoTransparency);
+  }, TransparencyMode::kNone);
   dc.setBackground(&bg);
   dc.clear();
 
@@ -2271,7 +2271,7 @@ void loop() {
 
 ![img33](images/img33.png)
 
-Note `kNoTransparency`, the third argument to `MakeRasterizable()`. It is an optional hint: we are telling the library that the colors of the background rasterizable will always be fully opaque. Providing this hint speeds up rendering.
+Note `TransparencyMode::kNone`, the third argument to `MakeRasterizable()`. It is an optional hint: we are telling the library that the colors of the background rasterizable will always be fully opaque. Providing this hint speeds up rendering.
 
 We specified the bounds of our background. We did it primarily to show that it is actually possible, and that the combination of the rasterizable background and the background color works as you might have expected (the rasterizable is drawn 'in front of' the background color). If your rasterizable is unbounded, you can specify `Box::MaximumBox()` as the extents (or just use `display.extents()`).
 
@@ -2303,7 +2303,7 @@ Finally, you can set a background, just like a background color, as a display de
 
 auto bg = MakeRasterizable(Box::MaximumBox(), [](int16_t x, int16_t y) {
   return ((x / 20) - (y / 20)) % 2 ? color::White : color::MistyRose;
-}, kNoTransparency);
+}, TransparencyMode::kNone);
 
 void setup() {
   // ...
@@ -2590,7 +2590,7 @@ class Drawable {
   friend void Surface::drawObject(const Drawable &object) const;
 
   // Draws this object's content, respecting the fill mode. That is, if
-  // s.fill_mode() == kFillRectangle, the method must fill the entire
+  // s.fill_mode() == FillMode::kExtents, the method must fill the entire
   // (clipped) extents() rectangle (using s.bgcolor() for transparent parts).
   //
   // The default implementation fills the clipped extents() rectangle
@@ -2681,9 +2681,9 @@ Note that the drawing context will take care of any offsets due to alignment, so
 
 Also, you can apply any paremeterization supported by the drawing context. For example, you can add backgrounds or transformations, apply clip masks, and set background colors.
 
-##### Handling kFillRectangle
+##### Handling FillMode::kExtents
 
-If you looked carefully at the definition of the `Drawable` class before, you may have noticed that the difference between `drawTo()` and `drawInteriorTo` is that the former needs to respect the drawing context's fill mode. That is, in case of kFillRectangle, `drawTo()` needs to draw all pixels of the `extents()` rectangle - even those that are fully transparent. In some cases it is simple or even trivial,  e.g. for objects that are naturally rectangular, such as images. In other cases it is difficult - which is why the default implementation is provided in the first place. The rule of thumb: if it is simple enough, override `drawTo()`; otherwise, override `drawInteriorTo()`.
+If you looked carefully at the definition of the `Drawable` class before, you may have noticed that the difference between `drawTo()` and `drawInteriorTo` is that the former needs to respect the drawing context's fill mode. That is, in case of FillMode::kExtents, `drawTo()` needs to draw all pixels of the `extents()` rectangle - even those that are fully transparent. In some cases it is simple or even trivial,  e.g. for objects that are naturally rectangular, such as images. In other cases it is difficult - which is why the default implementation is provided in the first place. The rule of thumb: if it is simple enough, override `drawTo()`; otherwise, override `drawInteriorTo()`.
 
 #### Drawing to the surface
 
@@ -2759,7 +2759,7 @@ Checking for clipping at every item adds some overhead, so it is better to optim
 \anchor blending-modes
 ### Blending modes
 
-By default, when you are drawing to an offscreen, or to a device with a framebuffer, everything you draw is alpha-blended over pre-existing content. In the section about [offscreens](#using-off-screen-buffers), we saw how to override this behavior by setting the blending mode to `kBlendingSource`, causing the new content to simply replace pre-existing content.
+By default, when you are drawing to an offscreen, or to a device with a framebuffer, everything you draw is alpha-blended over pre-existing content. In the section about [offscreens](#using-off-screen-buffers), we saw how to override this behavior by setting the blending mode to `BlendingMode::kSource`, causing the new content to simply replace pre-existing content.
 
 What else can you do with blending modes?
 
@@ -2798,11 +2798,11 @@ void loop() {
     DrawingContext dc(offscreen);
     dc.clear();
     dc.draw(circle);
-    dc.setBlendingMode(kBlendingSourceAtop);
+    dc.setBlendingMode(BlendingMode::kSourceAtop);
     dc.draw(rect1);
     dc.draw(rect2);
     dc.draw(gradient);
-    dc.setBlendingMode(kBlendingDestinationOver);
+    dc.setBlendingMode(BlendingMode::kDestinationOver);
     dc.draw(shadow);
   }
 
@@ -2815,7 +2815,7 @@ void loop() {
 
 ![img57](images/img57.png)
 
-We used `kBlendingSourceAtop` to draw two rectangles and a gradient in a way they are 'clipped' to the underlying ring. We then used `kBlendingDestinationOver` to put the ring shadow under the picture.
+We used `BlendingMode::kSourceAtop` to draw two rectangles and a gradient in a way they are 'clipped' to the underlying ring. We then used `BlendingMode::kDestinationOver` to put the ring shadow under the picture.
 
 Note that blending modes behave well on the edges of our (smooth) shapes - everything is nicely anti-aliased.
 
@@ -2861,10 +2861,10 @@ void loop() {
 
   RasterizableStack stack(Box(0, 0, 200, 200));
   stack.addInput(&circle);
-  stack.addInput(&rect1).withMode(kBlendingSourceAtop);
-  stack.addInput(&rect2).withMode(kBlendingSourceAtop);
-  stack.addInput(&gradient).withMode(kBlendingSourceAtop);
-  stack.addInput(&shadow).withMode(kBlendingDestinationOver);
+  stack.addInput(&rect1).withMode(BlendingMode::kSourceAtop);
+  stack.addInput(&rect2).withMode(BlendingMode::kSourceAtop);
+  stack.addInput(&gradient).withMode(BlendingMode::kSourceAtop);
+  stack.addInput(&shadow).withMode(BlendingMode::kDestinationOver);
   {
     DrawingContext dc(display);
     dc.draw(stack, kCenter | kMiddle);
@@ -2927,12 +2927,12 @@ class HeatingSpiralBody : public RasterizableStack {
                              thickness_outer_, color::Black);
     addInput(&inlet_);
     outlet_i_ = SmoothThickLine({90, 25}, {100, 25}, thickness_inner_, color::Black);
-    addInput(&outlet_i_).withMode(kBlendingDestinationOut);
+    addInput(&outlet_i_).withMode(BlendingMode::kDestinationOut);
     for (int i = 0; i < 12; ++i) {
       elements_ri_[i] =
           SmoothThickLine({10, (float)i * 14 + 32}, {90, (float)i * 14 + 25},
                           thickness_inner_, color::White);
-      addInput(&elements_ri_[i]).withMode(kBlendingDestinationOut);
+      addInput(&elements_ri_[i]).withMode(BlendingMode::kDestinationOut);
     }
     for (int i = 0; i < 12; ++i) {
       elements_l_[i] =
@@ -2942,11 +2942,11 @@ class HeatingSpiralBody : public RasterizableStack {
       elements_li_[i] =
           SmoothThickLine({10, (float)i * 14 + 32}, {90, (float)i * 14 + 39},
                           thickness_inner_, color::White);
-      addInput(&elements_li_[i]).withMode(kBlendingDestinationOut);
+      addInput(&elements_li_[i]).withMode(BlendingMode::kDestinationOut);
     }
     inlet_i_ = SmoothThickLine({90, 12 * 14 + 25}, {100, 12 * 14 + 25},
                              thickness_inner_, color::Black);
-    addInput(&inlet_i_).withMode(kBlendingDestinationOut);
+    addInput(&inlet_i_).withMode(BlendingMode::kDestinationOut);
   }
 
  private:
@@ -2977,12 +2977,12 @@ class Tank : public RasterizableStack {
         heated_spiral_content_(),
         heating_spiral_body_() {
     casing_.addInput(&casing_body_);
-    casing_.addInput(&casing_gradient_).withMode(kBlendingSourceAtop);
+    casing_.addInput(&casing_gradient_).withMode(BlendingMode::kSourceAtop);
     casing_.addInput(&casing_wall_);
     addInput(&casing_);
     heated_spiral_.addInput(&heated_spiral_content_);
     heated_spiral_.addInput(&heated_spiral_gradient_)
-        .withMode(kBlendingSourceAtop);
+        .withMode(BlendingMode::kSourceAtop);
     addInput(&heated_spiral_);
     addInput(&heating_spiral_body_);
   }
@@ -3029,7 +3029,7 @@ void loop() {
   StreamableStack stack(Box(0, 0, 199, 199));
   auto c = SmoothFilledCircle({100, 100}, 79, color::Black);
   stack.addInput(&roo2(), Box(0, 0, 177, 177), 11, 11);
-  stack.addInput(&c).withMode(kBlendingDestinationAtop);
+  stack.addInput(&c).withMode(BlendingMode::kDestinationAtop);
   DrawingContext dc(display);
   dc.draw(stack, kCenter | kMiddle);
 }
@@ -3072,12 +3072,12 @@ class Tank : public StreamableStack {
             {0, 0}, 0, 1,
             ColorGradient({{0, color::Blue}, {219, color::Red}})) {
     casing_.addInput(&casing_body_);
-    casing_.addInput(&casing_gradient_).withMode(kBlendingSourceAtop);
+    casing_.addInput(&casing_gradient_).withMode(BlendingMode::kSourceAtop);
     casing_.addInput(&casing_wall_);
     addInput(&casing_);
     heated_spiral_.addInput(&heater_spiral_content(), 5, 21);
     heated_spiral_.addInput(&heated_spiral_gradient_)
-        .withMode(kBlendingSourceAtop);
+        .withMode(BlendingMode::kSourceAtop);
     addInput(&heated_spiral_);
     addInput(&heater_spiral_body(), 5, 21);
   }
@@ -3157,7 +3157,7 @@ void loop() {
     overlaid.set(120, 25, (millis() % 1000) / 2);
   }
   DrawingContext dc(display);
-  dc.setFillMode(kFillRectangle);
+  dc.setFillMode(FillMode::kExtents);
   dc.draw(overlaid, kCenter | kMiddle);
 }
 ```
@@ -3244,7 +3244,7 @@ void loop() {
   DrawingContext dc(display);
   dc.setClipBox(invalid);
   invalid = pedro;
-  dc.setFillMode(kFillRectangle);
+  dc.setFillMode(FillMode::kExtents);
   dc.draw(overlaid, kCenter | kMiddle);
 }
 ```
@@ -3256,7 +3256,7 @@ void loop() {
 If you look at the implementation of the `BackgroundFilter` or the `ForegroundFilter`, you will notice that they are specialization of the `BlendingFilter` class, defined in `roo_display/filter/blender.h`:
 
 ```cpp
-using BackgroundFilter = BlendingFilter<BlendOp<kBlendingSourceOver>>;
+using BackgroundFilter = BlendingFilter<BlendOp<BlendingMode::kSourceOver>>;
 ```
 
 From this definition, you can see how to specialize `BlendingFilter` to use any blending mode you need. You can also chain more than one filter, thus creating complex rasterizable composition stacks.

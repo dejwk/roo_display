@@ -100,7 +100,7 @@ class NibbleRectWindowIteratorRawStream {
 
   Color next() { return Grayscale4().toArgbColor(itr_.next()); }
 
-  TransparencyMode transparency() const { return kNoTransparency; }
+  TransparencyMode transparency() const { return TransparencyMode::kNone; }
 
  private:
   internal::NibbleRectWindowIterator itr_;

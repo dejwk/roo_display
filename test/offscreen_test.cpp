@@ -526,26 +526,30 @@ void TestWriter(ColorMode color_mode) {
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order>
 void TestWriter(ColorMode color_mode) {
-  TestWriter<ColorMode, pixel_order, byte_order, kBlendingSource>(color_mode);
-  TestWriter<ColorMode, pixel_order, byte_order, kBlendingSourceOver>(
+  TestWriter<ColorMode, pixel_order, byte_order, BlendingMode::kSource>(
       color_mode);
-  TestWriter<ColorMode, pixel_order, byte_order, kBlendingSourceOverOpaque>(
+  TestWriter<ColorMode, pixel_order, byte_order, BlendingMode::kSourceOver>(
       color_mode);
-  TestWriter<ColorMode, pixel_order, byte_order, kBlendingSourceIn>(color_mode);
-  TestWriter<ColorMode, pixel_order, byte_order, kBlendingSourceOut>(
+  TestWriter<ColorMode, pixel_order, byte_order,
+             BlendingMode::kSourceOverOpaque>(color_mode);
+  TestWriter<ColorMode, pixel_order, byte_order, BlendingMode::kSourceIn>(
       color_mode);
-  TestWriter<ColorMode, pixel_order, byte_order, kBlendingSourceAtop>(
+  TestWriter<ColorMode, pixel_order, byte_order, BlendingMode::kSourceOut>(
       color_mode);
-  TestWriter<ColorMode, pixel_order, byte_order, kBlendingDestination>(
+  TestWriter<ColorMode, pixel_order, byte_order, BlendingMode::kSourceAtop>(
       color_mode);
-  TestWriter<ColorMode, pixel_order, byte_order, kBlendingDestinationOver>(
+  TestWriter<ColorMode, pixel_order, byte_order, BlendingMode::kDestination>(
       color_mode);
-  TestWriter<ColorMode, pixel_order, byte_order, kBlendingDestinationIn>(
+  TestWriter<ColorMode, pixel_order, byte_order,
+             BlendingMode::kDestinationOver>(color_mode);
+  TestWriter<ColorMode, pixel_order, byte_order, BlendingMode::kDestinationIn>(
       color_mode);
-  TestWriter<ColorMode, pixel_order, byte_order, kBlendingDestinationOut>(
+  TestWriter<ColorMode, pixel_order, byte_order, BlendingMode::kDestinationOut>(
       color_mode);
-  TestWriter<ColorMode, pixel_order, byte_order, kBlendingXor>(color_mode);
-  TestWriter<ColorMode, pixel_order, byte_order, kBlendingClear>(color_mode);
+  TestWriter<ColorMode, pixel_order, byte_order, BlendingMode::kXor>(
+      color_mode);
+  TestWriter<ColorMode, pixel_order, byte_order, BlendingMode::kClear>(
+      color_mode);
 }
 
 template <typename ColorMode, ColorPixelOrder pixel_order>
@@ -587,26 +591,30 @@ void TestFiller(ColorMode color_mode) {
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order>
 void TestFiller(ColorMode color_mode) {
-  TestFiller<ColorMode, pixel_order, byte_order, kBlendingSource>(color_mode);
-  TestFiller<ColorMode, pixel_order, byte_order, kBlendingSourceOver>(
+  TestFiller<ColorMode, pixel_order, byte_order, BlendingMode::kSource>(
       color_mode);
-  TestFiller<ColorMode, pixel_order, byte_order, kBlendingSourceOverOpaque>(
+  TestFiller<ColorMode, pixel_order, byte_order, BlendingMode::kSourceOver>(
       color_mode);
-  TestFiller<ColorMode, pixel_order, byte_order, kBlendingSourceIn>(color_mode);
-  TestFiller<ColorMode, pixel_order, byte_order, kBlendingSourceOut>(
+  TestFiller<ColorMode, pixel_order, byte_order,
+             BlendingMode::kSourceOverOpaque>(color_mode);
+  TestFiller<ColorMode, pixel_order, byte_order, BlendingMode::kSourceIn>(
       color_mode);
-  TestFiller<ColorMode, pixel_order, byte_order, kBlendingSourceAtop>(
+  TestFiller<ColorMode, pixel_order, byte_order, BlendingMode::kSourceOut>(
       color_mode);
-  TestFiller<ColorMode, pixel_order, byte_order, kBlendingDestination>(
+  TestFiller<ColorMode, pixel_order, byte_order, BlendingMode::kSourceAtop>(
       color_mode);
-  TestFiller<ColorMode, pixel_order, byte_order, kBlendingDestinationOver>(
+  TestFiller<ColorMode, pixel_order, byte_order, BlendingMode::kDestination>(
       color_mode);
-  TestFiller<ColorMode, pixel_order, byte_order, kBlendingDestinationIn>(
+  TestFiller<ColorMode, pixel_order, byte_order,
+             BlendingMode::kDestinationOver>(color_mode);
+  TestFiller<ColorMode, pixel_order, byte_order, BlendingMode::kDestinationIn>(
       color_mode);
-  TestFiller<ColorMode, pixel_order, byte_order, kBlendingDestinationOut>(
+  TestFiller<ColorMode, pixel_order, byte_order, BlendingMode::kDestinationOut>(
       color_mode);
-  TestFiller<ColorMode, pixel_order, byte_order, kBlendingXor>(color_mode);
-  TestFiller<ColorMode, pixel_order, byte_order, kBlendingClear>(color_mode);
+  TestFiller<ColorMode, pixel_order, byte_order, BlendingMode::kXor>(
+      color_mode);
+  TestFiller<ColorMode, pixel_order, byte_order, BlendingMode::kClear>(
+      color_mode);
 }
 
 template <typename ColorMode, ColorPixelOrder pixel_order>
@@ -651,7 +659,7 @@ TEST(Offscreen, IndexedDynamicPaletteFillsOnDraw) {
   EXPECT_EQ(palette.size(), 0);
 
   DrawingContext dc(offscreen);
-  dc.setBlendingMode(kBlendingSource);
+  dc.setBlendingMode(BlendingMode::kSource);
   Color first = Color(0xFF112233);
   Color second = Color(0xFF445566);
   dc.draw(SolidRect(0, 0, 0, 0, first));
@@ -827,7 +835,7 @@ TEST_P(OffscreenTest, WriteRectWindowStress) {
 INSTANTIATE_TEST_SUITE_P(
     OffscreenTestsOrientations, OffscreenTest,
     testing::Combine(
-        testing::Values(kBlendingSource, kBlendingSourceOver),
+        testing::Values(BlendingMode::kSource, BlendingMode::kSourceOver),
         testing::Values(Orientation::RightDown(), Orientation::DownRight(),
                         Orientation::LeftDown(), Orientation::DownLeft(),
                         Orientation::RightUp(), Orientation::UpRight(),
@@ -836,12 +844,15 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     OffscreenTestsBlending, OffscreenTest,
     testing::Combine(
-        testing::Values(kBlendingSource, kBlendingSourceOver,
-                        kBlendingSourceOverOpaque, kBlendingSourceIn,
-                        kBlendingSourceOut, kBlendingSourceAtop,
-                        kBlendingDestination, kBlendingDestinationOver,
-                        kBlendingDestinationIn, kBlendingDestinationOut,
-                        kBlendingDestinationAtop, kBlendingXor, kBlendingClear),
+        testing::Values(BlendingMode::kSource, BlendingMode::kSourceOver,
+                        BlendingMode::kSourceOverOpaque,
+                        BlendingMode::kSourceIn, BlendingMode::kSourceOut,
+                        BlendingMode::kSourceAtop, BlendingMode::kDestination,
+                        BlendingMode::kDestinationOver,
+                        BlendingMode::kDestinationIn,
+                        BlendingMode::kDestinationOut,
+                        BlendingMode::kDestinationAtop, BlendingMode::kXor,
+                        BlendingMode::kClear),
         testing::Values(Orientation::RightDown(), Orientation::DownLeft())));
 
 // Now, let's also test some basic functionality.

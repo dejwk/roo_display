@@ -12,8 +12,8 @@ using namespace testing;
 namespace roo_display {
 
 void Draw(DisplayDevice& output, int16_t x, int16_t y, const Box& clip_box,
-          const Drawable& object, FillMode fill_mode = kFillVisible,
-          BlendingMode blending_mode = kBlendingSourceOver,
+          const Drawable& object, FillMode fill_mode = FillMode::kVisible,
+          BlendingMode blending_mode = BlendingMode::kSourceOver,
           Color bgcolor = color::Transparent) {
   output.begin();
   Surface s(output, x, y, clip_box, false, bgcolor, fill_mode, blending_mode);
@@ -22,8 +22,8 @@ void Draw(DisplayDevice& output, int16_t x, int16_t y, const Box& clip_box,
 }
 
 void Draw(DisplayDevice& output, int16_t x, int16_t y, const Drawable& object,
-          FillMode fill_mode = kFillVisible,
-          BlendingMode blending_mode = kBlendingSourceOver,
+          FillMode fill_mode = FillMode::kVisible,
+          BlendingMode blending_mode = BlendingMode::kSourceOver,
           Color bgcolor = color::Transparent) {
   Box clip_box(0, 0, output.effective_width() - 1,
                output.effective_height() - 1);
@@ -44,8 +44,8 @@ setter_fn circle(int16_t x0, int16_t y0, int16_t r) {
 }
 
 TEST(Rasterizable, SimpleFilledCircle) {
-  auto input =
-      MakeRasterizable(Box(0, 0, 6, 7), circle(2, 2, 3), kNoTransparency);
+  auto input = MakeRasterizable(Box(0, 0, 6, 7), circle(2, 2, 3),
+                                TransparencyMode::kNone);
 
   FakeOffscreen<Rgb565> test_screen(9, 10, color::Black);
   Draw(test_screen, 1, 2, input);
@@ -63,8 +63,8 @@ TEST(Rasterizable, SimpleFilledCircle) {
 }
 
 TEST(Rasterizable, SimpleFilledCircleClipped) {
-  auto input =
-      MakeRasterizable(Box(0, 0, 6, 7), circle(2, 2, 3), kNoTransparency);
+  auto input = MakeRasterizable(Box(0, 0, 6, 7), circle(2, 2, 3),
+                                TransparencyMode::kNone);
 
   FakeOffscreen<Rgb565> test_screen(9, 10, color::Black);
   Draw(test_screen, 1, 2, Box(0, 0, 3, 4), input);
@@ -82,8 +82,8 @@ TEST(Rasterizable, SimpleFilledCircleClipped) {
 }
 
 TEST(Rasterizable, SimpleFilledCircleAsStreamable) {
-  auto input =
-      MakeRasterizable(Box(0, 0, 6, 7), circle(2, 2, 3), kNoTransparency);
+  auto input = MakeRasterizable(Box(0, 0, 6, 7), circle(2, 2, 3),
+                                TransparencyMode::kNone);
 
   FakeOffscreen<Rgb565> test_screen(9, 10, color::Black);
   Draw(test_screen, 1, 2, ForcedStreamable(&input));
@@ -101,8 +101,8 @@ TEST(Rasterizable, SimpleFilledCircleAsStreamable) {
 }
 
 TEST(Rasterizable, SimpleFilledCircleClippedAsStreamable) {
-  auto input =
-      MakeRasterizable(Box(0, 0, 6, 7), circle(2, 2, 3), kNoTransparency);
+  auto input = MakeRasterizable(Box(0, 0, 6, 7), circle(2, 2, 3),
+                                TransparencyMode::kNone);
 
   FakeOffscreen<Rgb565> test_screen(9, 10, color::Black);
   Draw(test_screen, 1, 2, Box(0, 0, 3, 4), ForcedStreamable(&input));

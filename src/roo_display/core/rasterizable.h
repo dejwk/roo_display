@@ -82,7 +82,8 @@ class SimpleRasterizable : public Rasterizable {
 template <typename Getter>
 /// Create a `SimpleRasterizable` from a getter function.
 SimpleRasterizable<Getter> MakeRasterizable(
-    Box extents, Getter getter, TransparencyMode transparency = kTransparency) {
+    Box extents, Getter getter,
+    TransparencyMode transparency = TransparencyMode::kFull) {
   return SimpleRasterizable<Getter>(extents, getter, transparency);
 }
 
@@ -130,7 +131,8 @@ class SimpleTiledRasterizable : public Rasterizable {
 template <typename Getter>
 /// Create a tiled rasterizable from a getter function.
 SimpleTiledRasterizable<Getter> MakeTiledRasterizable(
-    Box extents, Getter getter, TransparencyMode transparency = kTransparency) {
+    Box extents, Getter getter,
+    TransparencyMode transparency = TransparencyMode::kFull) {
   return SimpleTiledRasterizable<Getter>(extents, getter, transparency);
 }
 

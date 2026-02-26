@@ -318,7 +318,7 @@ void SmoothFontV2::drawGlyphModeVisible(
     bool compressed, const roo::byte* PROGMEM data, const Box& clip_box,
     Color color, Color bgcolor, BlendingMode blending_mode) const {
   Surface s(output, x + metrics.bearingX(), y - metrics.bearingY(), clip_box,
-            false, bgcolor, kFillVisible, blending_mode);
+            false, bgcolor, FillMode::kVisible, blending_mode);
   if (rle() && compressed) {
     RleImage4bppxBiased<Alpha4> glyph(metrics.width(), metrics.height(), data,
                                       color);
@@ -338,10 +338,11 @@ void SmoothFontV2::drawBordered(DisplayOutput& output, int16_t x, int16_t y,
             y - metrics().glyphYMin());
 
   // NOTE: bgColor is part of the source, not destination.
-  if (bgColor.a() == 0xFF && (blending_mode == kBlendingSourceOver ||
-                              blending_mode == kBlendingSourceOverOpaque)) {
+  if (bgColor.a() == 0xFF &&
+      (blending_mode == BlendingMode::kSourceOver ||
+       blending_mode == BlendingMode::kSourceOverOpaque)) {
     // All souce pixels will be fully opaque.
-    blending_mode = kBlendingSource;
+    blending_mode = BlendingMode::kSource;
   }
 
   if (outer.clip(clip_box) == Box::CLIP_RESULT_EMPTY) return;
@@ -362,7 +363,7 @@ void SmoothFontV2::drawBordered(DisplayOutput& output, int16_t x, int16_t y,
         Box(outer.xMin(), inner.yMin(), inner.xMin() - 1, inner.yMax()),
         bgColor);
   }
-  Surface s(output, x, y, clip_box, false, bgColor, kFillRectangle,
+  Surface s(output, x, y, clip_box, false, bgColor, FillMode::kExtents,
             blending_mode);
   s.drawObject(glyph);
   if (outer.xMax() > inner.xMax()) {
@@ -645,7 +646,7 @@ void SmoothFontV2::drawHorizontalString(const Surface& s, const char* utf8_data,
       glyphs.pushNull();
       kern = 0;
     }
-    if (s.fill_mode() == kFillVisible) {
+    if (s.fill_mode() == FillMode::kVisible) {
       // No fill; simply draw and shift.
       drawGlyphModeVisible(output, x - preadvanced, y, glyphs.left_metrics(),
                            glyphs.left_compressed(), glyphs.left_data(),

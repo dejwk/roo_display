@@ -126,7 +126,7 @@ void loop() {
   {
     DrawingContext dc(
         display, Box(0, 0, display.width() - 1, display.height() / 2 + 14));
-    dc.setFillMode(kFillRectangle);
+    dc.setFillMode(FillMode::kExtents);
     // Using tile to make sure that the entire 'anchor' extents are filled.
     // Otherwise, only the bounding box of the drawn text would be filled,
     // and those can differ for different digits, so e.g. '1' would leave
@@ -141,7 +141,7 @@ void loop() {
     DrawingContext dc(display, Box(0, display.height() / 2 + 16,
                                    display.width() - 1, display.height() - 1));
     dc.setBackgroundColor(color::BlueViolet);
-    dc.setFillMode(kFillRectangle);
+    dc.setFillMode(FillMode::kExtents);
     // See above.
     auto label = StringViewLabel(date, dateFont, color::BlanchedAlmond);
     dc.draw(MakeTileOf(label, label.anchorExtents()),

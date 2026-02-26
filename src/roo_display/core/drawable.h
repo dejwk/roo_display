@@ -11,20 +11,21 @@ class Drawable;
 
 /// Specifies whether a `Drawable` should fill its entire extents box,
 /// including fully transparent pixels.
-enum FillMode {
+enum class FillMode {
   /// Fill the entire extents box (possibly with fully transparent pixels).
   ///
   /// Useful when drawing over a synthetic background and you want previous
   /// content replaced with that background.
-  kFillRectangle = 0,
+  kExtents = 0,
 
   /// Fully transparent pixels do not need to be filled.
-  kFillVisible = 1,
-
-  // For backwards compatibility; do not use in new code.
-  FILL_MODE_VISIBLE = kFillVisible,
-  FILL_MODE_RECTANGLE = kFillRectangle,
+  kVisible = 1,
 };
+
+/// @deprecated Use `FillMode::kExtents` instead.
+constexpr FillMode FILL_MODE_RECTANGLE = FillMode::kExtents;
+/// @deprecated Use `FillMode::kVisible` instead.
+constexpr FillMode FILL_MODE_VISIBLE = FillMode::kVisible;
 
 class Rasterizable;
 
@@ -64,11 +65,11 @@ class Surface {
   /// @param is_write_once Whether this surface is write-once.
   /// @param bg Background color used for blending.
   /// @param fill_mode Fill behavior for transparent pixels.
-  /// @param blending_mode DefakFillVisiblee.
+  /// @param blending_mode DefaFillMode::kVisiblee.
   Surface(DisplayOutput &out, int16_t dx, int16_t dy, Box clip,
           bool is_write_once, Color bg = color::Transparent,
-          FillMode fill_mode = kFillVisible,
-          BlendingMode blending_mode = kBlendingSourceOver)
+          FillMode fill_mode = FillMode::kVisible,
+          BlendingMode blending_mode = BlendingMode::kSourceOver)
       : out_(&out),
         dx_(dx),
         dy_(dy),
@@ -78,7 +79,7 @@ class Surface {
         fill_mode_(fill_mode),
         blending_mode_(blending_mode) {
     if (bg.a() == 0xFF) {
-      blending_mode = kBlendingSource;
+      blending_mode = BlendingMode::kSource;
     }
   }
 
@@ -88,11 +89,12 @@ class Surface {
   /// @param clip Clip box in device coordinates.
   /// @param is_write_once Whether this surface is write-once.
   /// @param bg Background color used for blending.
-  /// @param fill_mode Fill behavior for transparent pixels.kFillVisible
+  /// @param fill_mode Fill behavior for transparent pixels.FillMode::kVisible
   /// @param blending_mode Default blending mode.
   Surface(DisplayOutput *out, Box clip, bool is_write_once,
-          Color bg = color::Transparent, FillMode fill_mode = kFillVisible,
-          BlendingMode blending_mode = kBlendingSourceOver)
+          Color bg = color::Transparent,
+          FillMode fill_mode = FillMode::kVisible,
+          BlendingMode blending_mode = BlendingMode::kSourceOver)
       : out_(out),
         dx_(0),
         dy_(0),
@@ -101,9 +103,9 @@ class Surface {
         bgcolor_(bg),
         fill_mode_(fill_mode),
         blending_mode_(blending_mode) {
-    if (bg.a() == 0xFF && (blending_mode == kBlendingSourceOver ||
-                           blending_mode == kBlendingSourceOverOpaque)) {
-      blending_mode = kBlendingSource;
+    if (bg.a() == 0xFF && (blending_mode == BlendingMode::kSourceOver ||
+                           blending_mode == BlendingMode::kSourceOverOpaque)) {
+      blending_mode = BlendingMode::kSource;
     }
   }
 
@@ -138,10 +140,10 @@ class Surface {
   void set_bgcolor(Color bgcolor) { bgcolor_ = bgcolor; }
 
   /// Return the fill mode the drawable should observe.
-  /// kFillVisible
-  /// If `kFillRectangle`, the drawable must fill its entire (clipped)
+  /// FillMode::kVisible
+  /// If `FillMode::kExtents`, the drawable must fill its entire (clipped)
   /// extents even if some pixels are completely transparent. If
-  /// `kFillVisible`, the drawable may omit fully transparent pixels.
+  /// `FillMode::kVisible`, the drawable may omit fully transparent pixels.
   /// This assumes the appropriate background has been pre-applied.
   FillMode fill_mode() const { return fill_mode_; }
 
@@ -150,10 +152,10 @@ class Surface {
 
   /// Return the default blending mode for drawing.
   ///
-  /// If the mode is `kBlendingSourceOver`, a drawable may replace it
-  /// with `kBlendingSource` when all pixels it writes are fully opaque.
-  /// If an opaque background is specified, `kBlendingSourceOver` is
-  /// automatically replaced with `kBlendingSource`.
+  /// If the mode is `BlendingMode::kSourceOver`, a drawable may replace it
+  /// with `BlendingMode::kSource` when all pixels it writes are fully opaque.
+  /// If an opaque background is specified, `BlendingMode::kSourceOver` is
+  /// automatically replaced with `BlendingMode::kSource`.
   BlendingMode blending_mode() const { return blending_mode_; }
 
   /// Set the default blending mode.
@@ -250,7 +252,7 @@ class Drawable {
 
   /// Draw this object's content, respecting the fill mode.
   ///
-  /// If `s.fill_mode() == kFillRectangle`, the method must fill the entire
+  /// If `s.fill_mode() == FillMode::kExtents`, the method must fill the entire
   /// (clipped) `extents()` rectangle (using `s.bgcolor()` for transparent
   /// parts).
   ///

@@ -40,7 +40,7 @@ void setup() {
 void loop() {
   DrawingContext dc(display);
   // Comment out this line to see the difference.
-  dc.setFillMode(kFillRectangle);
+  dc.setFillMode(FillMode::kExtents);
   dc.draw(TextLabel("12:00 ", font_NotoSans_Regular_27(), color::Blue), 5, 30);
   dc.draw(TextLabel("21:41 ", font_NotoSans_Regular_27(), color::Red), 5, 30);
 

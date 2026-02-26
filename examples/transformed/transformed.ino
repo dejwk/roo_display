@@ -95,7 +95,7 @@ void loop(void) {
     utf8[3] = 0;
   }
   StringViewLabel label((const char*)utf8, font_NotoSerif_BoldItalic_27(), fg,
-                        kFillRectangle);
+                        FillMode::kExtents);
   DrawingContext dc(display);
   dc.setBackgroundColor(bg);
   dc.setTransformation(Transformation()

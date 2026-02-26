@@ -127,7 +127,7 @@ class StreamFillRectDrawable : public Drawable {
     DisplayOutput& out = s.out();
     out.setAddress(bounds_.xMin() + s.dx(), bounds_.yMin() + s.dy(),
                    bounds_.xMax() + s.dx(), bounds_.yMax() + s.dy(),
-                   kBlendingSource);
+                   BlendingMode::kSource);
     uint32_t total_pixels = bounds_.area();
     while (total_pixels > 0) {
       uint32_t batch_pixels = std::min<uint32_t>(total_pixels, 64u);
@@ -156,7 +156,7 @@ class UniformWriteRectDrawable : public Drawable {
     std::fill_n(pixels.begin(), pixel_count, color_);
     out.setAddress(bounds_.xMin() + s.dx(), bounds_.yMin() + s.dy(),
                    bounds_.xMax() + s.dx(), bounds_.yMax() + s.dy(),
-                   kBlendingSource);
+                   BlendingMode::kSource);
     out.write(pixels.data(), pixel_count);
   }
 

@@ -42,7 +42,9 @@ class Argb8888 {
     return color.asArgb();
   }
 
-  constexpr TransparencyMode transparency() const { return kTransparency; }
+  constexpr TransparencyMode transparency() const {
+    return TransparencyMode::kFull;
+  }
 };
 
 /// 32-bit RGBA color mode.
@@ -58,7 +60,9 @@ class Rgba8888 {
     return color.asArgb() << 8 | color.asArgb() >> 24;
   }
 
-  constexpr TransparencyMode transparency() const { return kTransparency; }
+  constexpr TransparencyMode transparency() const {
+    return TransparencyMode::kFull;
+  }
 };
 
 namespace internal {
@@ -90,7 +94,9 @@ class Rgb888 {
     return color.asArgb() & 0x00FFFFFF;
   }
 
-  constexpr TransparencyMode transparency() const { return kNoTransparency; }
+  constexpr TransparencyMode transparency() const {
+    return TransparencyMode::kNone;
+  }
 };
 
 /// 24-bit ARGB 6-6-6-6 color mode.
@@ -122,7 +128,9 @@ class Argb6666 {
            internal::TruncTo6bit(color.b());
   }
 
-  constexpr TransparencyMode transparency() const { return kTransparency; }
+  constexpr TransparencyMode transparency() const {
+    return TransparencyMode::kFull;
+  }
 };
 
 /// 16-bit ARGB 4-4-4-4 color mode.
@@ -153,7 +161,9 @@ class Argb4444 {
            internal::TruncTo4bit(color.b());
   }
 
-  constexpr TransparencyMode transparency() const { return kTransparency; }
+  constexpr TransparencyMode transparency() const {
+    return TransparencyMode::kFull;
+  }
 };
 
 /// 16-bit RGB565 color mode (opaque).
@@ -182,11 +192,13 @@ class Rgb565 {
            internal::TruncTo5bit(color.b());
   }
 
-  constexpr TransparencyMode transparency() const { return kNoTransparency; }
+  constexpr TransparencyMode transparency() const {
+    return TransparencyMode::kNone;
+  }
 };
 
 template <roo_io::ByteOrder byte_order>
-struct RawFullByteBlender<Rgb565, kBlendingSourceOver, byte_order> {
+struct RawFullByteBlender<Rgb565, BlendingMode::kSourceOver, byte_order> {
   inline void operator()(roo::byte* dst, Color src, const Rgb565& mode) const {
     ColorIo<Rgb565, byte_order> io;
     Color bg = io.load(dst, mode);
@@ -238,7 +250,9 @@ class Rgb565WithTransparency {
                                   transparency_);
   }
 
-  constexpr TransparencyMode transparency() const { return kCrudeTransparency; }
+  constexpr TransparencyMode transparency() const {
+    return TransparencyMode::kCrude;
+  }
 
   uint16_t raw_transparency_color() const { return transparency_; }
 
@@ -247,7 +261,7 @@ class Rgb565WithTransparency {
 };
 
 template <roo_io::ByteOrder byte_order>
-struct RawFullByteBlender<Rgb565WithTransparency, kBlendingSourceOver,
+struct RawFullByteBlender<Rgb565WithTransparency, BlendingMode::kSourceOver,
                           byte_order> {
   inline void operator()(roo::byte* dst, Color src,
                          const Rgb565WithTransparency& mode) const {
@@ -277,11 +291,13 @@ class Grayscale8 {
            3;
   }
 
-  constexpr TransparencyMode transparency() const { return kNoTransparency; }
+  constexpr TransparencyMode transparency() const {
+    return TransparencyMode::kNone;
+  }
 };
 
 template <roo_io::ByteOrder byte_order>
-struct RawFullByteBlender<Grayscale8, kBlendingSourceOver, byte_order> {
+struct RawFullByteBlender<Grayscale8, BlendingMode::kSourceOver, byte_order> {
   inline void operator()(roo::byte* dst, Color src,
                          const Grayscale8& mode) const {
     uint8_t bg = static_cast<uint8_t>(*dst);
@@ -293,7 +309,8 @@ struct RawFullByteBlender<Grayscale8, kBlendingSourceOver, byte_order> {
 };
 
 template <roo_io::ByteOrder byte_order>
-struct RawFullByteBlender<Grayscale8, kBlendingSourceOverOpaque, byte_order> {
+struct RawFullByteBlender<Grayscale8, BlendingMode::kSourceOverOpaque,
+                          byte_order> {
   inline void operator()(roo::byte* dst, Color src,
                          const Grayscale8& mode) const {
     uint8_t bg = static_cast<uint8_t>(*dst);
@@ -330,7 +347,9 @@ class GrayAlpha8 {
             3) << 8;
   }
 
-  constexpr TransparencyMode transparency() const { return kTransparency; }
+  constexpr TransparencyMode transparency() const {
+    return TransparencyMode::kFull;
+  }
 };
 
 // 16 shades of gray.
@@ -350,11 +369,13 @@ class Grayscale4 {
            7;
   }
 
-  constexpr TransparencyMode transparency() const { return kNoTransparency; }
+  constexpr TransparencyMode transparency() const {
+    return TransparencyMode::kNone;
+  }
 };
 
 template <>
-struct RawSubByteBlender<Grayscale4, kBlendingSourceOver> {
+struct RawSubByteBlender<Grayscale4, BlendingMode::kSourceOver> {
   inline uint8_t operator()(uint8_t bg, Color color,
                             const Grayscale4& mode) const {
     uint8_t raw = mode.fromArgbColor(color);
@@ -364,7 +385,7 @@ struct RawSubByteBlender<Grayscale4, kBlendingSourceOver> {
 };
 
 template <>
-struct RawSubByteBlender<Grayscale4, kBlendingSourceOverOpaque> {
+struct RawSubByteBlender<Grayscale4, BlendingMode::kSourceOverOpaque> {
   inline uint8_t operator()(uint8_t bg, Color color,
                             const Grayscale4& mode) const {
     uint8_t raw = mode.fromArgbColor(color);
@@ -399,14 +420,16 @@ class Alpha8 {
 
   constexpr Color color() const { return color_; }
 
-  constexpr TransparencyMode transparency() const { return kTransparency; }
+  constexpr TransparencyMode transparency() const {
+    return TransparencyMode::kFull;
+  }
 
  private:
   Color color_;
 };
 
 template <roo_io::ByteOrder byte_order>
-struct RawFullByteBlender<Alpha8, kBlendingSourceOver, byte_order> {
+struct RawFullByteBlender<Alpha8, BlendingMode::kSourceOver, byte_order> {
   inline void operator()(roo::byte* dst, Color src, const Alpha8& mode) const {
     uint8_t bg = static_cast<uint8_t>(*dst);
     uint16_t front_alpha = src.a();
@@ -450,14 +473,16 @@ class Alpha4 {
   constexpr Color color() const { return color_; }
   void setColor(Color color) { color_ = color; }
 
-  constexpr TransparencyMode transparency() const { return kTransparency; }
+  constexpr TransparencyMode transparency() const {
+    return TransparencyMode::kFull;
+  }
 
  private:
   Color color_;
 };
 
 template <>
-struct RawSubByteBlender<Alpha4, kBlendingSourceOver> {
+struct RawSubByteBlender<Alpha4, BlendingMode::kSourceOver> {
   inline uint8_t operator()(uint8_t bg, Color color, const Alpha4& mode) const {
     uint8_t front_alpha = color.a();
     if (front_alpha == 0xFF || bg == 0xF) return 0xF;
@@ -503,13 +528,13 @@ class Monochrome {
   void setBg(Color bg) { bg_ = bg; }
 
   constexpr TransparencyMode transparency() const {
-    return bg().a() == 0xFF ? (fg().a() == 0xFF   ? kNoTransparency
-                               : fg().a() == 0x00 ? kCrudeTransparency
-                                                  : kTransparency)
-           : bg().a() == 0x00
-               ? (fg().a() == 0x00 || fg().a() == 0xFF ? kCrudeTransparency
-                                                       : kTransparency)
-               : kTransparency;
+    return bg().a() == 0xFF   ? (fg().a() == 0xFF   ? TransparencyMode::kNone
+                                 : fg().a() == 0x00 ? TransparencyMode::kCrude
+                                                    : TransparencyMode::kFull)
+           : bg().a() == 0x00 ? (fg().a() == 0x00 || fg().a() == 0xFF
+                                     ? TransparencyMode::kCrude
+                                     : TransparencyMode::kFull)
+                              : TransparencyMode::kFull;
   }
 
   constexpr bool hasTransparency() const {
@@ -522,7 +547,7 @@ class Monochrome {
 };
 
 template <>
-struct RawSubByteBlender<Monochrome, kBlendingSourceOver> {
+struct RawSubByteBlender<Monochrome, BlendingMode::kSourceOver> {
   inline uint8_t operator()(uint8_t bg, Color color,
                             const Monochrome& mode) const {
     return mode.fg().a() == 0 ? bg : mode.fromArgbColor(mode.fg());

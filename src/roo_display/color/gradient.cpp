@@ -7,16 +7,16 @@ namespace roo_display {
 ColorGradient::ColorGradient(std::vector<Node> gradient, Boundary boundary)
     : gradient_(std::move(gradient)),
       boundary_(boundary),
-      transparency_mode_(kNoTransparency),
+      transparency_mode_(TransparencyMode::kNone),
       inv_period_(1.0f / (gradient_.back().value - gradient_.front().value)) {
   for (const Node& n : gradient_) {
     uint8_t a = n.color.a();
     if (a != 255) {
       if (a != 0) {
-        transparency_mode_ = kTransparency;
+        transparency_mode_ = TransparencyMode::kFull;
         break;
       }
-      transparency_mode_ = kCrudeTransparency;
+      transparency_mode_ = TransparencyMode::kCrude;
     }
   }
 }

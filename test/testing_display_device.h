@@ -71,12 +71,11 @@ class TestDisplayDevice : public DisplayDevice {
 
   void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
                       int16_t src_x0, int16_t src_y0, int16_t src_x1,
-                      int16_t src_y1, int16_t dst_x0,
-                      int16_t dst_y0) override {
-    refc_.drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1,
-                         src_y1, dst_x0, dst_y0);
-    test_.drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1,
-                         src_y1, dst_x0, dst_y0);
+                      int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override {
+    refc_.drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1, src_y1,
+                         dst_x0, dst_y0);
+    test_.drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1, src_y1,
+                         dst_x0, dst_y0);
   }
 
   const ColorFormat& getColorFormat() const override {
@@ -405,7 +404,7 @@ void TestWriteRectWindowStress(BlendingMode blending_mode,
 
 std::ostream& operator<<(std::ostream& os,
                          const std::tuple<BlendingMode, Orientation>& pair) {
-  os << std::get<0>(pair) << ", " << std::get<1>(pair);
+  os << (int)std::get<0>(pair) << ", " << std::get<1>(pair);
   return os;
 }
 

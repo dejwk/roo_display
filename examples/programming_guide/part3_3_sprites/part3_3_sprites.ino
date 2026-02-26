@@ -109,6 +109,6 @@ void loop() {
   DrawingContext dc(display);
   dc.setClipBox(invalid);
   invalid = pedro;
-  dc.setFillMode(kFillRectangle);
+  dc.setFillMode(FillMode::kExtents);
   dc.draw(overlaid, kCenter | kMiddle);
 }

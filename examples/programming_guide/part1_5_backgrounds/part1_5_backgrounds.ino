@@ -40,10 +40,10 @@ void setup() {
 void loop() {
   DrawingContext dc(display);
   dc.setBackgroundColor(color::Pink);
-  dc.setFillMode(kFillRectangle);
+  dc.setFillMode(FillMode::kExtents);
   dc.draw(TextLabel("Hello, World!", font_NotoSans_Regular_27(), color::Black),
           15, 35);
-  dc.setFillMode(kFillVisible);
+  dc.setFillMode(FillMode::kVisible);
   dc.draw(TextLabel("Hello, World!", font_NotoSans_Regular_27(), color::Black),
           15, 75);
 }

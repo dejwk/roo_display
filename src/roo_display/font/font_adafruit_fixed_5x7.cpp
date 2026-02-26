@@ -138,7 +138,7 @@ void drawGlyph(const Surface& s, char32_t code, Color color, bool whitespace) {
   }
   y -= ascent;
   if (code < 32 || code > 127) return;
-  if (s.fill_mode() == kFillVisible) {
+  if (s.fill_mode() == FillMode::kVisible) {
     ClippingBufferedPixelFiller filler(s.out(), color, s.clip_box(),
                                        s.blending_mode());
     for (int8_t i = 0; i < 5; i++) {

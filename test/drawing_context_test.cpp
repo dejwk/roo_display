@@ -61,7 +61,7 @@ TEST(DrawingContext, DrawSimpleWithBackground) {
       [](int16_t x, int16_t y) -> Color {
         return (x + y) % 2 ? color::Transparent : Color(0xFF777777);
       },
-      kTransparency);
+      TransparencyMode::kFull);
   {
     DrawingContext dc(display);
     dc.setBackground(&bg);
@@ -265,8 +265,8 @@ TEST(DrawingContext, ContextOfSurface) {
 
    private:
     void drawTo(const Surface& s) const override {
-      s.out().fillRect(kBlendingSource, extents().translate(s.dx(), s.dy()),
-                       color::White);
+      s.out().fillRect(BlendingMode::kSource,
+                       extents().translate(s.dx(), s.dy()), color::White);
     }
   };
 

@@ -74,7 +74,7 @@ void loop() {
 
     RasterizableStack stack(arc.extents());
     stack.addInput(&arc);
-    stack.addInput(&gradient).withMode(kBlendingSourceAtop);
+    stack.addInput(&gradient).withMode(BlendingMode::kSourceAtop);
     DrawingContext dc(display);
     dc.draw(stack);
   }
@@ -87,7 +87,7 @@ void loop() {
 
     RasterizableStack stack(arc.extents());
     stack.addInput(&arc);
-    stack.addInput(&gradient).withMode(kBlendingSourceAtop);
+    stack.addInput(&gradient).withMode(BlendingMode::kSourceAtop);
     DrawingContext dc(display);
     dc.draw(stack);
   }
@@ -102,7 +102,7 @@ void loop() {
 
     RasterizableStack stack(arc.extents());
     stack.addInput(&arc);
-    stack.addInput(&gradient).withMode(kBlendingSourceAtop);
+    stack.addInput(&gradient).withMode(BlendingMode::kSourceAtop);
     DrawingContext dc(display);
     dc.draw(stack);
   }

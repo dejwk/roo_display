@@ -33,12 +33,12 @@ class TextLabel : public Drawable {
   /// Construct from a string-like value (moves into internal storage).
   template <typename String>
   TextLabel(const String& label, const Font& font, Color color,
-            FillMode fill_mode = kFillVisible)
+            FillMode fill_mode = FillMode::kVisible)
       : TextLabel(std::string(std::move(label)), font, color, fill_mode) {}
 
   /// Construct from an owned string.
   TextLabel(std::string label, const Font& font, Color color,
-            FillMode fill_mode = kFillVisible)
+            FillMode fill_mode = FillMode::kVisible)
       : font_(&font),
         label_(std::move(label)),
         color_(color),
@@ -47,8 +47,8 @@ class TextLabel : public Drawable {
 
   void drawTo(const Surface& s) const override {
     Surface news = s;
-    if (fill_mode() == kFillRectangle) {
-      news.set_fill_mode(kFillRectangle);
+    if (fill_mode() == FillMode::kExtents) {
+      news.set_fill_mode(FillMode::kExtents);
     }
     font().drawHorizontalString(news, label(), color());
   }
@@ -94,8 +94,8 @@ class ClippedTextLabel : public TextLabel {
 
   void drawTo(const Surface& s) const override {
     Surface news(s);
-    if (fill_mode() == kFillRectangle) {
-      news.set_fill_mode(kFillRectangle);
+    if (fill_mode() == FillMode::kExtents) {
+      news.set_fill_mode(FillMode::kExtents);
     }
     // news.clipToExtents(metrics().screen_extents());
     font().drawHorizontalString(news, label(), color());
@@ -112,13 +112,13 @@ class StringViewLabel : public Drawable {
   /// Construct from a string-like value without copying.
   template <typename String>
   StringViewLabel(String& label, const Font& font, const Color color,
-                  FillMode fill_mode = kFillVisible)
+                  FillMode fill_mode = FillMode::kVisible)
       : StringViewLabel(roo::string_view(std::move(label)), font, color,
                         fill_mode) {}
 
   /// Construct from a `string_view`.
   StringViewLabel(roo::string_view label, const Font& font, Color color,
-                  FillMode fill_mode = kFillVisible)
+                  FillMode fill_mode = FillMode::kVisible)
       : font_(&font),
         label_(std::move(label)),
         color_(color),
@@ -127,8 +127,8 @@ class StringViewLabel : public Drawable {
 
   void drawTo(const Surface& s) const override {
     Surface news = s;
-    if (fill_mode() == kFillRectangle) {
-      news.set_fill_mode(kFillRectangle);
+    if (fill_mode() == FillMode::kExtents) {
+      news.set_fill_mode(FillMode::kExtents);
     }
     font().drawHorizontalString(news, label(), color());
   }
@@ -173,8 +173,8 @@ class ClippedStringViewLabel : public StringViewLabel {
 
   void drawTo(const Surface& s) const override {
     Surface news(s);
-    if (fill_mode() == kFillRectangle) {
-      news.set_fill_mode(kFillRectangle);
+    if (fill_mode() == FillMode::kExtents) {
+      news.set_fill_mode(FillMode::kExtents);
     }
     font().drawHorizontalString(news, label(), color());
   }

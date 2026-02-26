@@ -134,7 +134,7 @@ class DisplayOutput {
   // // Convenience method to fill a single rectangle using REPLACE mode.
   // // Invalidates the address window.
   // inline void fillRect(const Box &rect, Color color) {
-  //   fillRect(kBlendingSource, rect, color);
+  //   fillRect(BlendingMode::kSource, rect, color);
   // }
 
   /// Fill a single rectangle. Invalidates the address window.
@@ -150,7 +150,7 @@ class DisplayOutput {
     fillRects(blending_mode, color, &x0, &y0, &x1, &y1, 1);
   }
 
-  /// Fill a single rectangle using `kBlendingSource`.
+  /// Fill a single rectangle using `BlendingMode::kSource`.
   ///
   /// Invalidates the address window.
   ///
@@ -161,7 +161,7 @@ class DisplayOutput {
   /// @param color The fill color.
   inline void fillRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
                        Color color) {
-    fillRects(kBlendingSource, color, &x0, &y0, &x1, &y1, 1);
+    fillRects(BlendingMode::kSource, color, &x0, &y0, &x1, &y1, 1);
   }
 
   /// Return the native color format used by this device for direct drawing.
@@ -249,10 +249,10 @@ class DisplayDevice : public DisplayOutput {
 
   /// Provide a background color hint for source-over blending.
   ///
-  /// Devices that support `kBlendingSourceOver` should ignore this hint.
+  /// Devices that support `BlendingMode::kSourceOver` should ignore this hint.
   /// Devices that do not support alpha blending (e.g. hardware can't read the
   /// framebuffer) should use this color as the assumed background for writes
-  /// using `kBlendingSourceOver`.
+  /// using `BlendingMode::kSourceOver`.
   virtual void setBgColorHint(Color bgcolor) {}
 
  protected:
@@ -350,9 +350,9 @@ class DisplayOutput::ColorFormat {
       case kModeGrayAlpha8:
       case kModeAlpha8:
       case kModeAlpha4:
-        return kTransparency;
+        return TransparencyMode::kFull;
       default:
-        return kNoTransparency;
+        return TransparencyMode::kNone;
     }
   }
 

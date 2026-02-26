@@ -303,7 +303,7 @@ TEST_P(AddrWindowDeviceBlendingTest, AddressWindowFillSpan) {
 INSTANTIATE_TEST_SUITE_P(
     AddrWindowDeviceTests, AddrWindowDeviceTest,
     testing::Combine(
-        testing::Values(kBlendingSource),
+        testing::Values(BlendingMode::kSource),
         testing::Values(Orientation::RightDown(), Orientation::DownRight(),
                         Orientation::LeftDown(), Orientation::DownLeft(),
                         Orientation::RightUp(), Orientation::UpRight(),
@@ -312,12 +312,15 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     AddrWindowDeviceTestsBlending, AddrWindowDeviceBlendingTest,
     testing::Combine(
-        testing::Values(kBlendingSource, kBlendingSourceOver,
-                        kBlendingSourceOverOpaque, kBlendingSourceIn,
-                        kBlendingSourceOut, kBlendingSourceAtop,
-                        kBlendingDestination, kBlendingDestinationOver,
-                        kBlendingDestinationIn, kBlendingDestinationOut,
-                        kBlendingDestinationAtop, kBlendingXor, kBlendingClear),
+        testing::Values(BlendingMode::kSource, BlendingMode::kSourceOver,
+                        BlendingMode::kSourceOverOpaque,
+                        BlendingMode::kSourceIn, BlendingMode::kSourceOut,
+                        BlendingMode::kSourceAtop, BlendingMode::kDestination,
+                        BlendingMode::kDestinationOver,
+                        BlendingMode::kDestinationIn,
+                        BlendingMode::kDestinationOut,
+                        BlendingMode::kDestinationAtop, BlendingMode::kXor,
+                        BlendingMode::kClear),
         testing::Values(Orientation::RightDown(), Orientation::DownLeft())));
 
 }  // namespace roo_display

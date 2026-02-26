@@ -307,9 +307,9 @@ class Raster : public Rasterizable {
         Box::Intersect(s.clip_box().translate(-s.dx(), -s.dy()), extents_);
     if (bounds.empty()) return;
     TransparencyMode source_transparency = getTransparencyMode();
-    bool source_opaque = (source_transparency == kNoTransparency);
-    bool replace_ok = source_opaque ||
-                      (s.fill_mode() == kFillRectangle && s.bgcolor().a() == 0);
+    bool source_opaque = (source_transparency == TransparencyMode::kNone);
+    bool replace_ok = source_opaque || (s.fill_mode() == FillMode::kExtents &&
+                                        s.bgcolor().a() == 0);
     if (replace_ok) {
       const DisplayOutput::ColorFormat& format = s.out().getColorFormat();
       // Fast format check: only proceed when format, pixel, and byte order
@@ -322,15 +322,16 @@ class Raster : public Rasterizable {
       if (format_match) {
         BlendingMode mode = s.blending_mode();
         // Porter-Duff folding: source-over is source when the source is opaque.
-        bool blend_is_source =
-            mode == kBlendingSource || ((mode == kBlendingSourceOver ||
-                                         mode == kBlendingSourceOverOpaque) &&
-                                        source_opaque);
+        bool blend_is_source = mode == BlendingMode::kSource ||
+                               ((mode == BlendingMode::kSourceOver ||
+                                 mode == BlendingMode::kSourceOverOpaque) &&
+                                source_opaque);
         // When both source and destination are opaque, SOURCE_IN/SOURCE_ATOP
         // reduce to a straight source copy as well.
         if (!blend_is_source && source_opaque &&
-            format.transparency() == kNoTransparency &&
-            (mode == kBlendingSourceIn || mode == kBlendingSourceAtop)) {
+            format.transparency() == TransparencyMode::kNone &&
+            (mode == BlendingMode::kSourceIn ||
+             mode == BlendingMode::kSourceAtop)) {
           blend_is_source = true;
         }
         if (blend_is_source) {

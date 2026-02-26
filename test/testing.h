@@ -786,7 +786,7 @@ std::ostream& operator<<(std::ostream& os, Rgb565 mode) {
 
 std::ostream& operator<<(std::ostream& os, Rgb565WithTransparency mode) {
   os << "RGB_565_WITH_TRANSPARENCY";
-  if (mode.transparency() != kNoTransparency) {
+  if (mode.transparency() != TransparencyMode::kNone) {
     uint16_t transparency = mode.fromArgbColor(Color(0));
     os << " (transparency: 0x";
     internal::PrintHexByte(transparency >> 8, os);
@@ -1047,7 +1047,7 @@ class FakeOffscreen : public DisplayDevice {
         color_mode_(std::move(color_mode)),
         buffer_(new Color[width * height]),
         extents_(0, 0, width - 1, height - 1) {
-    writeRect(kBlendingSource, 0, 0, width - 1, height - 1, background);
+    writeRect(BlendingMode::kSource, 0, 0, width - 1, height - 1, background);
     resetPixelDrawCount();
   }
 
@@ -1057,8 +1057,8 @@ class FakeOffscreen : public DisplayDevice {
         color_mode_(std::move(color_mode)),
         buffer_(new Color[extents.width() * extents.height()]),
         extents_(extents) {
-    writeRect(kBlendingSource, 0, 0, extents.width() - 1, extents.height() - 1,
-              background);
+    writeRect(BlendingMode::kSource, 0, 0, extents.width() - 1,
+              extents.height() - 1, background);
     resetPixelDrawCount();
   }
 
@@ -1422,7 +1422,7 @@ class ForcedFillRect : public Drawable {
  private:
   void drawTo(const Surface& s) const override {
     Surface news = s;
-    news.set_fill_mode(kFillRectangle);
+    news.set_fill_mode(FillMode::kExtents);
     news.drawObject(delegate_);
   }
 
@@ -1440,8 +1440,8 @@ ForcedFillRect<Obj> ForceFillRect(Obj obj) {
 template <typename ColorMode>
 FakeOffscreen<ColorMode> CoercedTo(
     const Drawable& drawable, ColorMode color_mode = ColorMode(),
-    Color fill = color::Transparent, FillMode fill_mode = kFillVisible,
-    BlendingMode blending_mode = kBlendingSourceOver,
+    Color fill = color::Transparent, FillMode fill_mode = FillMode::kVisible,
+    BlendingMode blending_mode = BlendingMode::kSourceOver,
     Color bgcolor = color::Transparent) {
   FakeOffscreen<ColorMode> result(drawable.extents(), fill, color_mode);
   result.begin();

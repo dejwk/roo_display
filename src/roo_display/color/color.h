@@ -126,8 +126,8 @@ namespace color {
 
 /// Transparent color (special behavior in fills).
 ///
-/// When drawn in `kFillRectangle`, substituted by the current surface's
-/// background color. When drawn in `kFillVisible`, pixels are not pushed
+/// When drawn in `FillMode::kExtents`, substituted by the current surface's
+/// background color. When drawn in `FillMode::kVisible`, pixels are not pushed
 /// to the device, leaving previous content intact.
 static constexpr auto Transparent = Color(0);
 
@@ -135,7 +135,7 @@ static constexpr auto Transparent = Color(0);
 ///
 /// Substituted by the current surface background regardless of fill mode.
 /// Use this to force background pixels to be pushed even in
-/// `kFillVisible`.
+/// `FillMode::kVisible`.
 static constexpr auto Background = Color(0x00FFFFFF);
 
 }  // namespace color

@@ -20,7 +20,7 @@ class StreamableStack : public Streamable {
           extents_(extents),
           dx_(0),
           dy_(0),
-          blending_mode_(kBlendingSourceOver) {}
+          blending_mode_(BlendingMode::kSourceOver) {}
 
     /// Create an input layer with an offset.
     Input(const Streamable* obj, Box extents, uint16_t dx, uint16_t dy)
@@ -28,7 +28,7 @@ class StreamableStack : public Streamable {
           extents_(extents.translate(dx, dy)),
           dx_(dx),
           dy_(dy),
-          blending_mode_(kBlendingSourceOver) {}
+          blending_mode_(BlendingMode::kSourceOver) {}
 
     /// Return extents in stack coordinates.
     const Box& extents() const { return extents_; }

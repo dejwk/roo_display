@@ -55,7 +55,7 @@ void DisplayOutput::drawDirectRect(const roo::byte *data,
       int16_t dst_tile_y1 = dst_tile_y0 + tile_h - 1;
 
       setAddress(dst_tile_x0, dst_tile_y0, dst_tile_x1, dst_tile_y1,
-                 kBlendingSource);
+                 BlendingMode::kSource);
       write(buffer, tile_w * tile_h);
     }
   }

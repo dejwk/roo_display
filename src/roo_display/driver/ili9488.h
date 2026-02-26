@@ -42,7 +42,9 @@ class Rgb666h {
     return fromArgbColor(AlphaBlendOverOpaque(toArgbColor(bg), color));
   }
 
-  constexpr TransparencyMode transparency() const { return kNoTransparency; }
+  constexpr TransparencyMode transparency() const {
+    return TransparencyMode::kNone;
+  }
 };
 
 }  // namespace ili9488

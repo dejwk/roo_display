@@ -105,7 +105,7 @@ TEST(Color, AlphaBlendSourceAtopFull) {
           Color fg(as, cs, cs, cs);
           Color bg(ad, cd, cd, cd);
           EXPECT_PRED3(Near, BlendReferenceSourceAtop(bg, fg),
-                       BlendOp<kBlendingSourceAtop>()(bg, fg), 1)
+                       BlendOp<BlendingMode::kSourceAtop>()(bg, fg), 1)
               << bg << ", " << fg;
         }
       }
@@ -121,7 +121,7 @@ TEST(Color, AlphaBlendSourceInFull) {
           Color fg(as, cs, cs, cs);
           Color bg(ad, cd, cd, cd);
           EXPECT_PRED3(Near, BlendReferenceSourceIn(bg, fg),
-                       BlendOp<kBlendingSourceIn>()(bg, fg), 1)
+                       BlendOp<BlendingMode::kSourceIn>()(bg, fg), 1)
               << bg << ", " << fg;
         }
       }
@@ -137,7 +137,7 @@ TEST(Color, AlphaBlendSourceOutFull) {
           Color fg(as, cs, cs, cs);
           Color bg(ad, cd, cd, cd);
           EXPECT_PRED3(Near, BlendReferenceSourceOut(bg, fg),
-                       BlendOp<kBlendingSourceOut>()(bg, fg), 1)
+                       BlendOp<BlendingMode::kSourceOut>()(bg, fg), 1)
               << bg << ", " << fg;
         }
       }
@@ -153,7 +153,7 @@ TEST(Color, AlphaBlendSourceXorFull) {
           Color fg(as, cs, cs, cs);
           Color bg(ad, cd, cd, cd);
           EXPECT_PRED3(Near, BlendReferenceXor(bg, fg),
-                       BlendOp<kBlendingXor>()(bg, fg), 1)
+                       BlendOp<BlendingMode::kXor>()(bg, fg), 1)
               << bg << ", " << fg;
         }
       }

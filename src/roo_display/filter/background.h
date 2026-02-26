@@ -6,6 +6,6 @@
 namespace roo_display {
 
 /// Filtering device that blends with a rasterizable background.
-using BackgroundFilter = BlendingFilter<BlendOp<kBlendingSourceOver>>;
+using BackgroundFilter = BlendingFilter<BlendOp<BlendingMode::kSourceOver>>;
 
 }  // namespace roo_display

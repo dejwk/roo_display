@@ -82,7 +82,7 @@ auto slantedGradient = MakeRasterizable(
     [](int16_t x, int16_t y) {
       return hsvGradient[(kGradientSize + x - y / 4) % kGradientSize];
     },
-    kNoTransparency);
+    TransparencyMode::kNone);
 
 Color hashColor1;
 Color hashColor2;
@@ -92,7 +92,7 @@ auto hashGrid = MakeRasterizable(
     [](int16_t x, int16_t y) {
       return (x / 4 + y / 4) % 2 == 0 ? hashColor1 : hashColor2;
     },
-    kNoTransparency);
+    TransparencyMode::kNone);
 
 void simpleBackground() {
   // This example shows how anti-aliased text gets rendered over arbitrary
@@ -106,11 +106,11 @@ void simpleBackground() {
   // We use leading and trailing spaces, because the rescaled labels have
   // slightly different dimensions, and the spaces add some clear padding.
   auto labelOrig = StringViewLabel(" Afy ", font_NotoSans_Italic_60(),
-                                   color::Black, kFillRectangle);
+                                   color::Black, FillMode::kExtents);
   auto labelScaled = StringViewLabel("  Afy  ", font_NotoSans_Italic_12(),
-                                     color::Black, kFillRectangle);
+                                     color::Black, FillMode::kExtents);
   auto labelScaledMore = StringViewLabel(" Afy ", font_NotoSans_Italic_8(),
-                                         color::Black, kFillRectangle);
+                                         color::Black, FillMode::kExtents);
   {
     display.setBackground(&slantedGradient);
     DrawingContext dc(display);
@@ -120,14 +120,14 @@ void simpleBackground() {
   delay(2000);
   {
     DrawingContext dc(display);
-    dc.setFillMode(kFillRectangle);
+    dc.setFillMode(FillMode::kExtents);
     dc.setTransformation(Transformation().scale(5, 5));
     dc.draw(labelScaled, kCenter | kMiddle);
   }
   delay(2000);
   {
     DrawingContext dc(display);
-    dc.setFillMode(kFillRectangle);
+    dc.setFillMode(FillMode::kExtents);
     dc.setTransformation(Transformation().scale(8, 8));
     dc.draw(labelScaledMore, kCenter | kMiddle.shiftBy(-5));
   }
@@ -274,8 +274,8 @@ void timerBenchmark(TimerBenchmark* benchmark, unsigned int seconds) {
     fps = 1000.0 * frames / t;
     int first_changed = timerToString(t, time);
     {
-      auto label =
-          ClippedStringViewLabel(time, timerFont, color::Black, kFillRectangle);
+      auto label = ClippedStringViewLabel(time, timerFont, color::Black,
+                                          FillMode::kExtents);
       // In case of the (optimal) inplace drawing, we need to use
       // color::Background (which is actually the default which could
       // generally be omitted), so that the entire bounding box of the glyph
@@ -374,7 +374,9 @@ class MyGrayscale {
 
   // Indicates that all emitted colors are non-transparent. The library uses
   // this hint to optimize alpha-blending.
-  constexpr TransparencyMode transparency() const { return kNoTransparency; }
+  constexpr TransparencyMode transparency() const {
+    return TransparencyMode::kNone;
+  }
 };
 
 const ProgMemRaster<MyGrayscale>& diamond_plate() {
@@ -395,7 +397,7 @@ void scrollingText() {
   StringViewLabel label(
       "Check out this awesome text banner. Note anti-aliased "
       "glyphs, with overlapping bounding boxes: 'Afy', 'fff'.  ",
-      font_NotoSans_Italic_27(), color::DarkRed, kFillRectangle);
+      font_NotoSans_Italic_27(), color::DarkRed, FillMode::kExtents);
   for (int i = 0; i < label.extents().width(); i += 4) {
     {
       DrawingContext dc(display);

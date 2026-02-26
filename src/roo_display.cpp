@@ -95,8 +95,8 @@ void Display::clear() {
 void DrawingContext::fill(Color color) {
   BlendingMode bm = blendingMode();
   FillMode fm = fillMode();
-  setBlendingMode(kBlendingSource);
-  setFillMode(kFillRectangle);
+  setBlendingMode(BlendingMode::kSource);
+  setFillMode(FillMode::kExtents);
   draw(Fill(color));
   setBlendingMode(bm);
   setFillMode(fm);
@@ -105,8 +105,8 @@ void DrawingContext::fill(Color color) {
 void DrawingContext::clear() {
   BlendingMode bm = blendingMode();
   FillMode fm = fillMode();
-  setBlendingMode(kBlendingSource);
-  setFillMode(kFillRectangle);
+  setBlendingMode(BlendingMode::kSource);
+  setFillMode(FillMode::kExtents);
   draw(Clear());
   setBlendingMode(bm);
   setFillMode(fm);
@@ -235,7 +235,7 @@ class ErasedDrawable : public Drawable {
     Surface news = s;
     ColorFilter<Erasure> filter(s.out(), s.bgcolor());
     news.set_out(&filter);
-    news.set_blending_mode(kBlendingSource);
+    news.set_blending_mode(BlendingMode::kSource);
     news.drawObject(*delegate_);
   }
 
@@ -269,7 +269,7 @@ bool Fill::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax,
 
 void Fill::drawTo(const Surface& s) const {
   Color color = AlphaBlend(s.bgcolor(), color_);
-  if (color == color::Transparent && s.fill_mode() == kFillVisible) {
+  if (color == color::Transparent && s.fill_mode() == FillMode::kVisible) {
     return;
   }
   s.out().fillRect(s.blending_mode(), s.clip_box(), color);
@@ -287,7 +287,8 @@ bool Clear::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
 }
 
 void Clear::drawTo(const Surface& s) const {
-  if (s.fill_mode() == kFillVisible && s.bgcolor() == color::Transparent) {
+  if (s.fill_mode() == FillMode::kVisible &&
+      s.bgcolor() == color::Transparent) {
     return;
   }
   s.out().fillRect(s.blending_mode(), s.clip_box(), s.bgcolor());

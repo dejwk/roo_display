@@ -118,6 +118,23 @@
 // Rounded rects (outline)  48110
 // Rounded rects (filled)   1507374
 //
+// (update, 2026-02-27) - pretty much the same
+//
+// Adafruit_RooDisplay Test!
+// Benchmark                Time (microseconds)
+// Screen fill              619359
+// Text                     18421
+// Lines                    363490
+// Horiz/Vert Lines         50976
+// Rectangles (outline)     29040
+// Rectangles (filled)      1509598
+// Circles (filled)         178139
+// Circles (outline)        110680
+// Triangles (outline)      74116
+// Triangles (filled)       509793
+// Rounded rects (outline)  47719
+// Rounded rects (filled)   1506992
+//
 // TFT_eSPI
 // ---------------------------------------------
 // Screen fill              619494
@@ -225,13 +242,17 @@ using namespace roo_display;
 // Change these two lines to use a different driver, transport, or pins.
 #include "roo_display/driver/ili9341.h"
 Ili9341spi<5, 17, 27> device;
+// #include "roo_display/driver/ili9486.h"
+// Ili9486spi<5, 17, 27> device;
+
 #else
+
 #include "TFT_eSPI.h"
 #include "roo_display/driver/TFT_eSPI_adapter.h"
 TFT_eSPI_Adapter device;
 #endif
 
-LedcBacklit backlit(16, 1);
+LedcBacklit backlit(16);
 
 Display display(device);
 FontAdafruitFixed5x7 adafont;
@@ -252,7 +273,7 @@ unsigned long testFilledRoundRects();
 void testRooDisplay() {
   Serial.println("Adafruit_RooDisplay Test!");
 
-  SPI.begin();
+  SPI.begin(18, 19, 23);
   display.init();
 
   Serial.println(F("Benchmark                Time (microseconds)"));
@@ -309,6 +330,7 @@ void testRooDisplay() {
 
 void setup() {
   Serial.begin(115200);
+  backlit.begin();
   testRooDisplay();
 }
 

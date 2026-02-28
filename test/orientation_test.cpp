@@ -136,22 +136,22 @@ void TestProperties(Orientation o, Orientation::HorizontalDirection hdir,
 }
 
 TEST(Orientation, Properties) {
-  TestProperties(Orientation::RightDown(), Orientation::LEFT_TO_RIGHT,
-                 Orientation::TOP_TO_BOTTOM, false, false);
-  TestProperties(Orientation::DownRight(), Orientation::LEFT_TO_RIGHT,
-                 Orientation::TOP_TO_BOTTOM, true, true);
-  TestProperties(Orientation::LeftDown(), Orientation::RIGHT_TO_LEFT,
-                 Orientation::TOP_TO_BOTTOM, false, true);
-  TestProperties(Orientation::DownLeft(), Orientation::RIGHT_TO_LEFT,
-                 Orientation::TOP_TO_BOTTOM, true, false);
-  TestProperties(Orientation::RightUp(), Orientation::LEFT_TO_RIGHT,
-                 Orientation::BOTTOM_TO_TOP, false, true);
-  TestProperties(Orientation::UpRight(), Orientation::LEFT_TO_RIGHT,
-                 Orientation::BOTTOM_TO_TOP, true, false);
-  TestProperties(Orientation::LeftUp(), Orientation::RIGHT_TO_LEFT,
-                 Orientation::BOTTOM_TO_TOP, false, false);
-  TestProperties(Orientation::UpLeft(), Orientation::RIGHT_TO_LEFT,
-                 Orientation::BOTTOM_TO_TOP, true, true);
+  TestProperties(Orientation::RightDown(), Orientation::kLeftToRight,
+                 Orientation::kTopToBottom, false, false);
+  TestProperties(Orientation::DownRight(), Orientation::kLeftToRight,
+                 Orientation::kTopToBottom, true, true);
+  TestProperties(Orientation::LeftDown(), Orientation::kRightToLeft,
+                 Orientation::kTopToBottom, false, true);
+  TestProperties(Orientation::DownLeft(), Orientation::kRightToLeft,
+                 Orientation::kTopToBottom, true, false);
+  TestProperties(Orientation::RightUp(), Orientation::kLeftToRight,
+                 Orientation::kBottomToTop, false, true);
+  TestProperties(Orientation::UpRight(), Orientation::kLeftToRight,
+                 Orientation::kBottomToTop, true, false);
+  TestProperties(Orientation::LeftUp(), Orientation::kRightToLeft,
+                 Orientation::kBottomToTop, false, false);
+  TestProperties(Orientation::UpLeft(), Orientation::kRightToLeft,
+                 Orientation::kBottomToTop, true, true);
 }
 
 }  // namespace roo_display

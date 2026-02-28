@@ -3,6 +3,8 @@
 #include <assert.h>
 #include <inttypes.h>
 
+#include "roo_logging.h"
+
 namespace roo_display {
 
 /// Represents the orientation of a display device.
@@ -27,6 +29,24 @@ class Orientation {
 
   /// Vertical direction of the display.
   enum class VerticalDirection { kTopToBottom = 0, kBottomToTop = 1 };
+
+  static constexpr HorizontalDirection kLeftToRight =
+      HorizontalDirection::kLeftToRight;
+  static constexpr HorizontalDirection kRightToLeft =
+      HorizontalDirection::kRightToLeft;
+  static constexpr VerticalDirection kTopToBottom =
+      VerticalDirection::kTopToBottom;
+  static constexpr VerticalDirection kBottomToTop =
+      VerticalDirection::kBottomToTop;
+
+  [[deprecated("Use `Orientation::kLeftToRight` instead.")]]
+  static constexpr HorizontalDirection LEFT_TO_RIGHT = kLeftToRight;
+  [[deprecated("Use `Orientation::kRightToLeft` instead.")]]
+  static constexpr HorizontalDirection RIGHT_TO_LEFT = kRightToLeft;
+  [[deprecated("Use `Orientation::kTopToBottom` instead.")]]
+  static constexpr VerticalDirection TOP_TO_BOTTOM = kTopToBottom;
+  [[deprecated("Use `Orientation::kBottomToTop` instead.")]]
+  static constexpr VerticalDirection BOTTOM_TO_TOP = kBottomToTop;
 
   constexpr Orientation() : orientation_(0) {}
 
@@ -71,17 +91,17 @@ class Orientation {
 
   /// Return the horizontal direction.
   HorizontalDirection getHorizontalDirection() const {
-    return (orientation_ & 2) == 0 ? LEFT_TO_RIGHT : RIGHT_TO_LEFT;
+    return (orientation_ & 2) == 0 ? kLeftToRight : kRightToLeft;
   }
 
   /// Return whether horizontal direction is left-to-right.
   bool isLeftToRight() const {
-    return getHorizontalDirection() == LEFT_TO_RIGHT;
+    return getHorizontalDirection() == kLeftToRight;
   }
 
   /// Return whether horizontal direction is right-to-left.
   bool isRightToLeft() const {
-    return getHorizontalDirection() == RIGHT_TO_LEFT;
+    return getHorizontalDirection() == kRightToLeft;
   }
 
   /// Flip the horizontal direction.
@@ -89,14 +109,14 @@ class Orientation {
 
   /// Return the vertical direction.
   VerticalDirection getVerticalDirection() const {
-    return (orientation_ & 4) == 0 ? TOP_TO_BOTTOM : BOTTOM_TO_TOP;
+    return (orientation_ & 4) == 0 ? kTopToBottom : kBottomToTop;
   }
 
   /// Return whether vertical direction is top-to-bottom.
-  bool isTopToBottom() const { return getVerticalDirection() == TOP_TO_BOTTOM; }
+  bool isTopToBottom() const { return getVerticalDirection() == kTopToBottom; }
 
   /// Return whether vertical direction is bottom-to-top.
-  bool isBottomToTop() const { return getVerticalDirection() == BOTTOM_TO_TOP; }
+  bool isBottomToTop() const { return getVerticalDirection() == kBottomToTop; }
 
   /// Flip the vertical direction.
   Orientation flipVertically() const { return Orientation(orientation_ ^ 4); }

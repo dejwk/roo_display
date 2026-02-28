@@ -58,7 +58,7 @@ TEST(Raster, MonochromeMsbFirst) {
 
 TEST(Raster, MonochromeLsbFirst) {
   unsigned char data[] = {0xC1, 0x26, 0xE7};
-  ConstDramRaster<Monochrome, COLOR_PIXEL_ORDER_LSB_FIRST> raster(
+  ConstDramRaster<Monochrome, ColorPixelOrder::kLsbFirst> raster(
       4, 6, (const roo::byte*)data, WhiteOnBlack());
   EXPECT_THAT(raster, MatchesContent(WhiteOnBlack(), 4, 6,
                                      "*   "
@@ -79,7 +79,7 @@ TEST(Raster, Grayscale4MsbFirst) {
 
 TEST(Raster, Grayscale4LsbFirst) {
   unsigned char data[] = {0xC1, 0x26, 0xE7};
-  ConstDramRaster<Grayscale4, COLOR_PIXEL_ORDER_LSB_FIRST> raster(
+  ConstDramRaster<Grayscale4, ColorPixelOrder::kLsbFirst> raster(
       3, 2, (const roo::byte*)data);
   EXPECT_THAT(raster, MatchesContent(Grayscale4(), 3, 2,
                                      "1C6"
@@ -88,7 +88,7 @@ TEST(Raster, Grayscale4LsbFirst) {
 
 TEST(Raster, Indexed1MsbFirst) {
   roo::byte data[1] = {static_cast<roo::byte>(0x00)};
-  SubByteColorIo<Indexed1, COLOR_PIXEL_ORDER_MSB_FIRST> io;
+  SubByteColorIo<Indexed1, ColorPixelOrder::kMsbFirst> io;
   const uint8_t indices[] = {0, 1, 1, 0, 1, 0, 0, 1};
   for (int i = 0; i < 8; ++i) {
     io.storeRaw(indices[i], &data[0], i);
@@ -104,7 +104,7 @@ TEST(Raster, Indexed1MsbFirst) {
 
 TEST(Raster, Indexed1LsbFirst) {
   roo::byte data[1] = {static_cast<roo::byte>(0x00)};
-  SubByteColorIo<Indexed1, COLOR_PIXEL_ORDER_LSB_FIRST> io;
+  SubByteColorIo<Indexed1, ColorPixelOrder::kLsbFirst> io;
   const uint8_t indices[] = {0, 1, 1, 0, 1, 0, 0, 1};
   for (int i = 0; i < 8; ++i) {
     io.storeRaw(indices[i], &data[0], i);
@@ -112,7 +112,7 @@ TEST(Raster, Indexed1LsbFirst) {
   Color colors[2];
   FillIndexedPalette(colors, 2);
   Palette palette = Palette::ReadOnly(colors, 2);
-  ConstDramRaster<Indexed1, COLOR_PIXEL_ORDER_LSB_FIRST> raster(
+  ConstDramRaster<Indexed1, ColorPixelOrder::kLsbFirst> raster(
       4, 2, data, Indexed1(&palette));
   EXPECT_THAT(raster, MatchesContent(Indexed1(&palette), 4, 2,
                                      "0110"
@@ -122,7 +122,7 @@ TEST(Raster, Indexed1LsbFirst) {
 TEST(Raster, Indexed2MsbFirst) {
   roo::byte data[2] = {static_cast<roo::byte>(0x00),
                        static_cast<roo::byte>(0x00)};
-  SubByteColorIo<Indexed2, COLOR_PIXEL_ORDER_MSB_FIRST> io;
+  SubByteColorIo<Indexed2, ColorPixelOrder::kMsbFirst> io;
   const uint8_t indices[] = {0, 1, 2, 3, 3, 2, 1, 0};
   for (int i = 0; i < 8; ++i) {
     io.storeRaw(indices[i], &data[i / 4], i % 4);
@@ -139,7 +139,7 @@ TEST(Raster, Indexed2MsbFirst) {
 TEST(Raster, Indexed2LsbFirst) {
   roo::byte data[2] = {static_cast<roo::byte>(0x00),
                        static_cast<roo::byte>(0x00)};
-  SubByteColorIo<Indexed2, COLOR_PIXEL_ORDER_LSB_FIRST> io;
+  SubByteColorIo<Indexed2, ColorPixelOrder::kLsbFirst> io;
   const uint8_t indices[] = {0, 1, 2, 3, 3, 2, 1, 0};
   for (int i = 0; i < 8; ++i) {
     io.storeRaw(indices[i], &data[i / 4], i % 4);
@@ -147,7 +147,7 @@ TEST(Raster, Indexed2LsbFirst) {
   Color colors[4];
   FillIndexedPalette(colors, 4);
   Palette palette = Palette::ReadOnly(colors, 4);
-  ConstDramRaster<Indexed2, COLOR_PIXEL_ORDER_LSB_FIRST> raster(
+  ConstDramRaster<Indexed2, ColorPixelOrder::kLsbFirst> raster(
       4, 2, data, Indexed2(&palette));
   EXPECT_THAT(raster, MatchesContent(Indexed2(&palette), 4, 2,
                                      "0123"
@@ -171,7 +171,7 @@ TEST(Raster, Indexed4LsbFirst) {
   Color colors[16];
   FillIndexedPalette(colors, 16);
   Palette palette = Palette::ReadOnly(colors, 16);
-  ConstDramRaster<Indexed4, COLOR_PIXEL_ORDER_LSB_FIRST> raster(
+  ConstDramRaster<Indexed4, ColorPixelOrder::kLsbFirst> raster(
       3, 2, (const roo::byte*)data, Indexed4(&palette));
   EXPECT_THAT(raster, MatchesContent(Indexed4(&palette), 3, 2,
                                      "1C6"
@@ -201,7 +201,7 @@ TEST(Raster, Alpha4MsbFirst) {
 
 TEST(Raster, Alpha4LsbFirst) {
   unsigned char data[] = {0xC1, 0x26, 0xE7};
-  ConstDramRaster<Alpha4, COLOR_PIXEL_ORDER_LSB_FIRST> raster(
+  ConstDramRaster<Alpha4, ColorPixelOrder::kLsbFirst> raster(
       3, 2, (const roo::byte*)data, Alpha4(color::Blue));
   EXPECT_THAT(raster, MatchesContent(Argb4444(), 3, 2,
                                      "100F C00F 600F"

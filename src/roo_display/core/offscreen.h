@@ -122,7 +122,7 @@ class AddressWindow {
 /// example, `Orientation::Default().rotateLeft()` renders content rotated
 /// 90 degrees counter-clockwise.
 template <typename ColorMode,
-          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
+          ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst,
           ByteOrder byte_order = roo_io::kBigEndian,
           int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           typename storage_type = ColorStorageType<ColorMode>>
@@ -432,7 +432,7 @@ class OffscreenDevice : public DisplayDevice {
 /// dc.draw(...);
 /// ```
 template <typename ColorMode,
-          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
+          ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst,
           ByteOrder byte_order = roo_io::kBigEndian,
           int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           typename storage_type = ColorStorageType<ColorMode>>

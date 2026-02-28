@@ -332,7 +332,7 @@ class DisplayOutput::ColorFormat {
 
  protected:
   ColorFormat(Mode mode, roo_io::ByteOrder byte_order,
-              ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST)
+              ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst)
       : mode_(mode),
         byte_order_(byte_order),
         pixel_order_(pixel_order),

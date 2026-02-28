@@ -77,5 +77,5 @@ TEST(St7735Driver, ColorFormat) {
 
   EXPECT_EQ(DisplayOutput::ColorFormat::kModeRgb565, format.mode());
   EXPECT_EQ(roo_io::kBigEndian, format.byte_order());
-  EXPECT_EQ(COLOR_PIXEL_ORDER_MSB_FIRST, format.pixel_order());
+  EXPECT_EQ(ColorPixelOrder::kMsbFirst, format.pixel_order());
 }

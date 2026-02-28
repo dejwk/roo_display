@@ -560,8 +560,8 @@ void TestWriter(ColorMode color_mode) {
 
 template <typename ColorMode>
 void TestWriter(ColorMode color_mode = ColorMode()) {
-  TestWriter<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST>(color_mode);
-  TestWriter<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST>(color_mode);
+  TestWriter<ColorMode, ColorPixelOrder::kLsbFirst>(color_mode);
+  TestWriter<ColorMode, ColorPixelOrder::kLsbFirst>(color_mode);
 }
 
 TEST(Writer, Grayscale4) { TestWriter<Grayscale4>(); }
@@ -625,8 +625,8 @@ void TestFiller(ColorMode color_mode = ColorMode()) {
 
 template <typename ColorMode>
 void TestFiller(ColorMode color_mode = ColorMode()) {
-  TestFiller<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST>(color_mode);
-  TestFiller<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST>(color_mode);
+  TestFiller<ColorMode, ColorPixelOrder::kLsbFirst>(color_mode);
+  TestFiller<ColorMode, ColorPixelOrder::kLsbFirst>(color_mode);
 }
 
 TEST(Filler, Grayscale4) { TestFiller<Grayscale4>(); }
@@ -722,7 +722,7 @@ TEST(AddressWindow, Advance200) {
 }
 
 template <typename ColorMode,
-          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
+          ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst,
           ByteOrder byte_order = roo_io::kBigEndian>
 const ConstDramRaster<ColorMode, pixel_order, byte_order> RasterOf(
     const OffscreenDevice<ColorMode, pixel_order, byte_order>& offscreen) {
@@ -733,7 +733,7 @@ class OffscreenTest
     : public testing::TestWithParam<std::tuple<BlendingMode, Orientation>> {};
 
 template <typename ColorMode,
-          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
+          ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst,
           ByteOrder byte_order = roo_io::kBigEndian,
           int8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           typename storage_type = ColorStorageType<ColorMode>>

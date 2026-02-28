@@ -76,14 +76,14 @@ class Rgb565DmaBlendingWriterOperator {
 };
 
 template <>
-struct BlendingWriter<Rgb565Dma, COLOR_PIXEL_ORDER_MSB_FIRST,
+struct BlendingWriter<Rgb565Dma, ColorPixelOrder::kMsbFirst,
                       roo_io::kLittleEndian> {
   template <BlendingMode blending_mode>
   using Operator = Rgb565DmaBlendingWriterOperator<blending_mode>;
 };
 
 template <>
-class GenericWriter<Rgb565Dma, COLOR_PIXEL_ORDER_MSB_FIRST,
+class GenericWriter<Rgb565Dma, ColorPixelOrder::kMsbFirst,
                     roo_io::kLittleEndian, 1, uint16_t> {
  public:
   GenericWriter(const Rgb565Dma &color_mode, BlendingMode blending_mode,
@@ -151,14 +151,14 @@ class Rgb565DmaBlendingFillerOperator {
 };
 
 template <>
-struct BlendingFiller<Rgb565Dma, COLOR_PIXEL_ORDER_MSB_FIRST,
+struct BlendingFiller<Rgb565Dma, ColorPixelOrder::kMsbFirst,
                       roo_io::kLittleEndian> {
   template <BlendingMode blending_mode>
   using Operator = Rgb565DmaBlendingFillerOperator<blending_mode>;
 };
 
 template <>
-class GenericFiller<Rgb565Dma, COLOR_PIXEL_ORDER_MSB_FIRST,
+class GenericFiller<Rgb565Dma, ColorPixelOrder::kMsbFirst,
                     roo_io::kLittleEndian, 1, uint16_t> {
  public:
   GenericFiller(const Rgb565Dma &color_mode, BlendingMode blending_mode,
@@ -272,7 +272,7 @@ template <FlushMode flush_mode>
 class ParallelRgb565 : public DisplayDevice {
  public:
   using ColorMode = Rgb565;
-  static constexpr ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST;
+  static constexpr ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst;
   static constexpr ByteOrder byte_order = roo_io::kLittleEndian;
 
   ParallelRgb565(Config cfg)
@@ -311,7 +311,7 @@ class ParallelRgb565 : public DisplayDevice {
 
   const ColorFormat &getColorFormat() const override {
     static const ::roo_display::internal::ColorFormatImpl<
-        Rgb565, roo_io::kLittleEndian, COLOR_PIXEL_ORDER_MSB_FIRST>
+        Rgb565, roo_io::kLittleEndian, ColorPixelOrder::kMsbFirst>
         format(color_mode());
     return format;
   }
@@ -336,7 +336,7 @@ class ParallelRgb565 : public DisplayDevice {
  private:
   using Dev =
       OffscreenDevice<typename internal::Traits<flush_mode>::ColorMode,
-                      COLOR_PIXEL_ORDER_MSB_FIRST, roo_io::kLittleEndian>;
+                      ColorPixelOrder::kMsbFirst, roo_io::kLittleEndian>;
 
   Config cfg_;
   std::unique_ptr<Dev> buffer_;

@@ -215,7 +215,7 @@ struct PtrTypeResolver<const uint8_t*> {
 /// `DramRaster`, `ConstDramRaster`, or `ProgMemRaster` aliases instead of this
 /// template directly.
 template <typename PtrTypeT, typename ColorModeT,
-          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
+          ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst,
           ByteOrder byte_order = roo_io::kBigEndian>
 class Raster : public Rasterizable {
  public:
@@ -381,7 +381,7 @@ class Raster : public Rasterizable {
 };
 
 template <typename ColorMode,
-          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
+          ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst,
           ByteOrder byte_order = roo_io::kBigEndian>
 class DramRaster
     : public Raster<roo::byte*, ColorMode, pixel_order, byte_order> {
@@ -411,7 +411,7 @@ class DramRaster
 };
 
 template <typename ColorMode,
-          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
+          ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst,
           ByteOrder byte_order = roo_io::kBigEndian>
 class ConstDramRaster
     : public Raster<const roo::byte*, ColorMode, pixel_order, byte_order> {
@@ -442,7 +442,7 @@ class ConstDramRaster
 };
 
 template <typename ColorMode,
-          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
+          ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst,
           ByteOrder byte_order = roo_io::kBigEndian>
 class ProgMemRaster : public Raster<const roo::byte * PROGMEM, ColorMode,
                                     pixel_order, byte_order> {
@@ -476,27 +476,27 @@ class ProgMemRaster : public Raster<const roo::byte * PROGMEM, ColorMode,
 
 template <typename ColorMode>
 using DramRasterBE =
-    DramRaster<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST, roo_io::kBigEndian>;
+    DramRaster<ColorMode, ColorPixelOrder::kMsbFirst, roo_io::kBigEndian>;
 
 template <typename ColorMode>
 using DramRasterLE =
-    DramRaster<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST, roo_io::kLittleEndian>;
+    DramRaster<ColorMode, ColorPixelOrder::kMsbFirst, roo_io::kLittleEndian>;
 
 template <typename ColorMode>
 using ConstDramRasterBE =
-    ConstDramRaster<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST, roo_io::kBigEndian>;
+    ConstDramRaster<ColorMode, ColorPixelOrder::kMsbFirst, roo_io::kBigEndian>;
 
 template <typename ColorMode>
 using ConstDramRasterLE =
-    ConstDramRaster<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST,
+    ConstDramRaster<ColorMode, ColorPixelOrder::kMsbFirst,
                     roo_io::kLittleEndian>;
 
 template <typename ColorMode>
 using ProgMemRasterBE =
-    ProgMemRaster<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST, roo_io::kBigEndian>;
+    ProgMemRaster<ColorMode, ColorPixelOrder::kMsbFirst, roo_io::kBigEndian>;
 
 template <typename ColorMode>
-using ProgMemRasterLE = ProgMemRaster<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST,
+using ProgMemRasterLE = ProgMemRaster<ColorMode, ColorPixelOrder::kMsbFirst,
                                       roo_io::kLittleEndian>;
 
 }  // namespace roo_display

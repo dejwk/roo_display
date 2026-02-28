@@ -10,7 +10,7 @@ namespace roo_display {
 namespace {
 
 template <typename ColorMode, roo_io::ByteOrder byte_order,
-          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>
+          ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst>
 std::vector<roo::byte> MakeRectData(const std::vector<Color>& colors,
                                     int16_t width, int16_t height,
                                     size_t row_width_bytes,
@@ -40,7 +40,7 @@ std::vector<roo::byte> MakeRectData(const std::vector<Color>& colors,
 }
 
 template <typename ColorMode, roo_io::ByteOrder byte_order,
-          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST>
+          ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst>
 std::vector<Color> ExpectRect(const roo::byte* data, size_t row_width_bytes,
                               int16_t x0, int16_t y0, int16_t x1, int16_t y1,
                               const ColorMode& mode = ColorMode()) {
@@ -139,7 +139,7 @@ TEST(ColorRectIo, Rgb565MultiLineLarge) {
 
 TEST(ColorRectIo, Grayscale4ContiguousFullRows) {
   Grayscale4 mode;
-  ColorRectIo<Grayscale4, roo_io::kNativeEndian, COLOR_PIXEL_ORDER_LSB_FIRST>
+  ColorRectIo<Grayscale4, roo_io::kNativeEndian, ColorPixelOrder::kLsbFirst>
       rect_io;
 
   constexpr int16_t width = 8;
@@ -147,7 +147,7 @@ TEST(ColorRectIo, Grayscale4ContiguousFullRows) {
   constexpr size_t row_width_bytes = 4;
   auto colors = MakeColors(width, height, 0xA1B2C3D4);
   auto data = MakeRectData<Grayscale4, roo_io::kNativeEndian,
-                           COLOR_PIXEL_ORDER_LSB_FIRST>(colors, width, height,
+                           ColorPixelOrder::kLsbFirst>(colors, width, height,
                                                         row_width_bytes, mode);
 
   std::vector<Color> output(width * height);
@@ -155,14 +155,14 @@ TEST(ColorRectIo, Grayscale4ContiguousFullRows) {
                     output.data(), mode);
 
   auto expected = ExpectRect<Grayscale4, roo_io::kNativeEndian,
-                             COLOR_PIXEL_ORDER_LSB_FIRST>(
+                             ColorPixelOrder::kLsbFirst>(
       data.data(), row_width_bytes, 0, 0, width - 1, height - 1, mode);
   EXPECT_EQ(expected, output);
 }
 
 TEST(ColorRectIo, Grayscale4Misaligned) {
   Grayscale4 mode;
-  ColorRectIo<Grayscale4, roo_io::kNativeEndian, COLOR_PIXEL_ORDER_LSB_FIRST>
+  ColorRectIo<Grayscale4, roo_io::kNativeEndian, ColorPixelOrder::kLsbFirst>
       rect_io;
 
   constexpr int16_t width = 10;
@@ -170,7 +170,7 @@ TEST(ColorRectIo, Grayscale4Misaligned) {
   constexpr size_t row_width_bytes = 5;
   auto colors = MakeColors(width, height, 0x11223344);
   auto data = MakeRectData<Grayscale4, roo_io::kNativeEndian,
-                           COLOR_PIXEL_ORDER_LSB_FIRST>(colors, width, height,
+                           ColorPixelOrder::kLsbFirst>(colors, width, height,
                                                         row_width_bytes, mode);
 
   std::vector<Color> output(8 * 3);
@@ -178,14 +178,14 @@ TEST(ColorRectIo, Grayscale4Misaligned) {
                     mode);
 
   auto expected = ExpectRect<Grayscale4, roo_io::kNativeEndian,
-                             COLOR_PIXEL_ORDER_LSB_FIRST>(
+                             ColorPixelOrder::kLsbFirst>(
       data.data(), row_width_bytes, 1, 1, 8, 3, mode);
   EXPECT_EQ(expected, output);
 }
 
 TEST(ColorRectIo, Grayscale4Aligned) {
   Grayscale4 mode;
-  ColorRectIo<Grayscale4, roo_io::kNativeEndian, COLOR_PIXEL_ORDER_LSB_FIRST>
+  ColorRectIo<Grayscale4, roo_io::kNativeEndian, ColorPixelOrder::kLsbFirst>
       rect_io;
 
   constexpr int16_t width = 6;
@@ -193,7 +193,7 @@ TEST(ColorRectIo, Grayscale4Aligned) {
   constexpr size_t row_width_bytes = 3;
   auto colors = MakeColors(width, height, 0x55667788);
   auto data = MakeRectData<Grayscale4, roo_io::kNativeEndian,
-                           COLOR_PIXEL_ORDER_LSB_FIRST>(colors, width, height,
+                           ColorPixelOrder::kLsbFirst>(colors, width, height,
                                                         row_width_bytes, mode);
 
   std::vector<Color> output(4 * 2);
@@ -201,7 +201,7 @@ TEST(ColorRectIo, Grayscale4Aligned) {
                     mode);
 
   auto expected = ExpectRect<Grayscale4, roo_io::kNativeEndian,
-                             COLOR_PIXEL_ORDER_LSB_FIRST>(
+                             ColorPixelOrder::kLsbFirst>(
       data.data(), row_width_bytes, 2, 3, 5, 4, mode);
   EXPECT_EQ(expected, output);
 }
@@ -213,17 +213,17 @@ TEST(ColorRectIo, Grayscale4MultiLinePadded) {
   constexpr size_t row_width_bytes = 8;
   auto colors = MakeColors(width, height, 0x0BADF00D);
   auto data = MakeRectData<Grayscale4, roo_io::kNativeEndian,
-                           COLOR_PIXEL_ORDER_LSB_FIRST>(colors, width, height,
+                           ColorPixelOrder::kLsbFirst>(colors, width, height,
                                                         row_width_bytes, mode);
 
   std::vector<Color> output(6 * 4);
-  ColorRectIo<Grayscale4, roo_io::kNativeEndian, COLOR_PIXEL_ORDER_LSB_FIRST>
+  ColorRectIo<Grayscale4, roo_io::kNativeEndian, ColorPixelOrder::kLsbFirst>
       rect_io;
   rect_io.decode(data.data(), row_width_bytes, 3, 2, 8, 5, output.data(),
                     mode);
 
   auto expected = ExpectRect<Grayscale4, roo_io::kNativeEndian,
-                             COLOR_PIXEL_ORDER_LSB_FIRST>(
+                             ColorPixelOrder::kLsbFirst>(
       data.data(), row_width_bytes, 3, 2, 8, 5, mode);
   EXPECT_EQ(expected, output);
 }

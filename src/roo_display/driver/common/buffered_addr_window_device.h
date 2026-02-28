@@ -14,7 +14,7 @@ template <typename Target>
 class BufferedAddrWindowDevice : public DisplayDevice {
  public:
   using ColorMode = typename Target::ColorMode;
-  static constexpr ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST;
+  static constexpr ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst;
   static constexpr ByteOrder byte_order = Target::byte_order;
   typedef ColorStorageType<typename Target::ColorMode> raw_color_type;
 

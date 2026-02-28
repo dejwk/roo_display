@@ -139,7 +139,7 @@ struct SubByteColorIo;
 
 // Specialization that works for for Monochrome LSB-first.
 template <typename ColorMode>
-struct SubByteColorIo<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST, 8> {
+struct SubByteColorIo<ColorMode, ColorPixelOrder::kLsbFirst, 8> {
   void storeRaw(uint8_t raw_color, roo::byte* target, int index) const {
     if (raw_color) {
       *target |= (roo::byte{0x01} << index);
@@ -168,7 +168,7 @@ struct SubByteColorIo<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST, 8> {
 
 // Specialization that works for for Monochrome MSB-first.
 template <typename ColorMode>
-struct SubByteColorIo<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST, 8> {
+struct SubByteColorIo<ColorMode, ColorPixelOrder::kMsbFirst, 8> {
   void storeRaw(uint8_t raw_color, roo::byte* target, int index) {
     if (raw_color) {
       *target |= (roo::byte{0x80} >> index);
@@ -197,7 +197,7 @@ struct SubByteColorIo<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST, 8> {
 
 // Specialization that works for for 4bpp color modes.
 template <typename ColorMode>
-struct SubByteColorIo<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST, 2> {
+struct SubByteColorIo<ColorMode, ColorPixelOrder::kLsbFirst, 2> {
   void storeRaw(uint8_t raw_color, roo::byte* target, int index) {
     roo::byte mask = roo::byte{0xF0} >> (index << 2);
     *target &= mask;
@@ -217,7 +217,7 @@ struct SubByteColorIo<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST, 2> {
 };
 
 template <typename ColorMode>
-struct SubByteColorIo<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST, 2> {
+struct SubByteColorIo<ColorMode, ColorPixelOrder::kMsbFirst, 2> {
   void storeRaw(uint8_t raw_color, roo::byte* target, int index) {
     roo::byte mask = (roo::byte{0x0F} << (index << 2));
     *target &= mask;
@@ -238,7 +238,7 @@ struct SubByteColorIo<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST, 2> {
 
 // Specialization that works for for 2bpp color modes.
 template <typename ColorMode>
-struct SubByteColorIo<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST, 4> {
+struct SubByteColorIo<ColorMode, ColorPixelOrder::kLsbFirst, 4> {
   void storeRaw(uint8_t raw_color, roo::byte* target, int index) {
     roo::byte mask = roo::byte{0x03} << (index << 1);
     *target &= ~mask;
@@ -260,7 +260,7 @@ struct SubByteColorIo<ColorMode, COLOR_PIXEL_ORDER_LSB_FIRST, 4> {
 };
 
 template <typename ColorMode, roo_io::ByteOrder byte_order,
-          ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST,
+          ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst,
           typename Enable = void>
 struct ColorRectIo;
 
@@ -438,7 +438,7 @@ struct ColorRectIo<
 };
 
 template <typename ColorMode>
-struct SubByteColorIo<ColorMode, COLOR_PIXEL_ORDER_MSB_FIRST, 4> {
+struct SubByteColorIo<ColorMode, ColorPixelOrder::kMsbFirst, 4> {
   void storeRaw(uint8_t raw_color, roo::byte* target, int index) {
     roo::byte mask = (roo::byte{0x03} << ((3 - index) << 1));
     *target &= ~mask;

@@ -119,7 +119,7 @@ struct ColorFormatTraits<Indexed<8>> {
 };
 
 template <typename ColorMode, roo_io::ByteOrder kByteOrder,
-          ColorPixelOrder kPixelOrder = COLOR_PIXEL_ORDER_MSB_FIRST>
+          ColorPixelOrder kPixelOrder = ColorPixelOrder::kMsbFirst>
 class ColorFormatImpl : public DisplayOutput::ColorFormat {
  public:
   ColorFormatImpl(const ColorMode& mode)

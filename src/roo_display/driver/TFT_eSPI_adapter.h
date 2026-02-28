@@ -31,7 +31,7 @@ namespace roo_display {
 class TFT_eSPI_Adapter : public DisplayDevice {
  public:
   using ColorMode = Rgb565;
-  static constexpr ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST;
+  static constexpr ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst;
   static constexpr ByteOrder byte_order = roo_io::kBigEndian;
 
   TFT_eSPI_Adapter(uint16_t width, uint16_t height)
@@ -144,7 +144,7 @@ class TFT_eSPI_Adapter : public DisplayDevice {
 
   const ColorFormat& getColorFormat() const override {
     static const internal::ColorFormatImpl<Rgb565, roo_io::kBigEndian,
-                                           COLOR_PIXEL_ORDER_MSB_FIRST>
+                                           ColorPixelOrder::kMsbFirst>
         format(color_mode());
     return format;
   }

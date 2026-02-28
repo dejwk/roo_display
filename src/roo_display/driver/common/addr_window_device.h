@@ -52,7 +52,7 @@ template <typename Target>
 class AddrWindowDevice : public DisplayDevice {
  public:
   using ColorMode = typename Target::ColorMode;
-  static constexpr ColorPixelOrder pixel_order = COLOR_PIXEL_ORDER_MSB_FIRST;
+  static constexpr ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst;
   static constexpr ByteOrder byte_order = Target::byte_order;
   static constexpr int kBytesPerPixel =
       ColorTraits<typename Target::ColorMode>::bytes_per_pixel;
@@ -234,7 +234,7 @@ class AddrWindowDevice : public DisplayDevice {
   const ColorFormat& getColorFormat() const override {
     static const internal::ColorFormatImpl<typename Target::ColorMode,
                                            Target::byte_order,
-                                           COLOR_PIXEL_ORDER_MSB_FIRST>
+                                           ColorPixelOrder::kMsbFirst>
         format(color_mode());
     return format;
   }

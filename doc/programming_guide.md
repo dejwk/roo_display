@@ -2143,11 +2143,9 @@ As we discussed before, `roo_display` supports basic integer-valued affine trans
 
 Additionally, and specifically for rasters (e.g. from ofscreens), you can use much more powerful, 'smooth' transformations. They include rotations by arbitrary angles, scaling by arbitrary floating-point factors, shearing, and even perspective projections.
 
-To use these transformations, you need to first compose the desired transformation object using the API defined in `roo_display/shape/smooth_transformation.h`. Then, you call the template function `TransformRaster`, which returns a rasterizable object.
+To use these transformations, you need to first compose the desired transformation object using the API defined in `roo_display/shape/smooth_transformation.h`. Then, you call the template function `TransformRaster`, which returns a rasterizable object. You can then draw it, or, as you will learn from subsequent sections, use it as a background or an element of a dynamic composition.
 
-You already know the rest: you can draw that transformed image directly, or use it as a background or an element of a dynamic composition.
-
-A complete demo, showcasing composable transformations and rainbow text (discussed later in the section on [color filters](#color-filters)), is available as the `dancing_rainbow_text` example. Here are the main parts:
+A complete demo, showcasing composable transformations and rainbow text (discussed later in the section on [color filters](#color-filters)), is available as the `dancing_rainbow_text` example. Here are the main parts, focused on the transformation:
 
 ```cpp
 void setup() {

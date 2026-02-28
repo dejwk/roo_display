@@ -2440,7 +2440,7 @@ void loop() {
                         ColorGradient({{0, HsvToRgb(60, 0.8, 0.95)},
                                        {M_PI / 3, HsvToRgb(0, 0.8, 0.99)},
                                        {M_PI / 1.5, HsvToRgb(60, 0.8, 0.95)}},
-                                      ColorGradient::PERIODIC),
+                                      ColorGradient::Boundary::kPeriodic),
                         Box(20, 20, w / 2 - 21, h / 2 - 21));
     dc.setBackground(&gradient);
     dc.clear();
@@ -2460,7 +2460,7 @@ void loop() {
                                                     {80, HsvToRgb(240, s, v)},
                                                     {100, HsvToRgb(300, s, v)},
                                                     {120, HsvToRgb(360, s, v)}},
-                                                   ColorGradient::PERIODIC),
+                                                   ColorGradient::Boundary::kPeriodic),
                                      Box(20, 20, w / 2 - 21, h / 2 - 21));
     dc.setBackground(&gradient);
     dc.clear();
@@ -2480,7 +2480,7 @@ void loop() {
                                                   {80, HsvToRgb(240, s, v)},
                                                   {100, HsvToRgb(300, s, v)},
                                                   {120, HsvToRgb(360, s, v)}},
-                                                 ColorGradient::PERIODIC),
+                                                 ColorGradient::Boundary::kPeriodic),
                                    Box(20, 20, w / 2 - 21, h / 2 - 21));
     dc.setBackground(&gradient);
     dc.clear();
@@ -3372,7 +3372,7 @@ public:
                                             {80 + shift, HsvToRgb(240, s, v)},
                                             {100 + shift, HsvToRgb(300, s, v)},
                                             {120 + shift, HsvToRgb(360, s, v)}},
-                                           ColorGradient::PERIODIC));
+                                           ColorGradient::Boundary::kPeriodic));
 
     // Impose a destination-in blending filter. The destination-in causes the
     // text to be 'cut out' of the background (i.e. the gradient defined above),
@@ -3426,7 +3426,7 @@ auto bg = LinearGradient(
     {0, 0}, 0.0, 1.0,
     ColorGradient({{0.0, Graylevel(0xFF)},
                    {(float)display.height(), Graylevel(0x80)}},
-                  ColorGradient::TRUNCATED));
+                  ColorGradient::Boundary::kTruncated));
 
 void setup() {
   // ...

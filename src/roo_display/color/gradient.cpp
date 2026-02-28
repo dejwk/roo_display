@@ -24,10 +24,10 @@ ColorGradient::ColorGradient(std::vector<Node> gradient, Boundary boundary)
 Color ColorGradient::getColor(float value) const {
   // Adjust the value, handling the boundary type.
   switch (boundary_) {
-    case EXTENDED: {
+    case Boundary::kExtended: {
       break;
     }
-    case TRUNCATED: {
+    case Boundary::kTruncated: {
       if (value < gradient_.front().value) {
         float diff = gradient_.front().value - value;
         if (diff >= 1) return color::Transparent;
@@ -40,7 +40,7 @@ Color ColorGradient::getColor(float value) const {
       }
       break;
     }
-    case PERIODIC: {
+    case Boundary::kPeriodic: {
       if (value < gradient_.front().value || value > gradient_.back().value) {
         float adj = value - gradient_.front().value;
         float period = gradient_.back().value - gradient_.front().value;
@@ -232,6 +232,24 @@ void AngularGradient::readColors(const int16_t* x, const int16_t* y,
   while (count-- > 0) {
     *result++ = gradient_.getColor(atan2f(*x++ - cx_, cy_ - *y++));
   }
+}
+
+roo_logging::Stream& operator<<(roo_logging::Stream& os, ColorGradient::Boundary boundary) {
+  switch (boundary) {
+    case ColorGradient::Boundary::kExtended:
+      os << "ColorGradient::Boundary::kExtended";
+      break;
+    case ColorGradient::Boundary::kTruncated:
+      os << "ColorGradient::Boundary::kTruncated";
+      break;
+    case ColorGradient::Boundary::kPeriodic:
+      os << "ColorGradient::Boundary::kPeriodic";
+      break;
+    default:
+      os << "ColorGradient::Boundary::(unknown)";
+      break;
+  }
+  return os;
 }
 
 }  // namespace roo_display

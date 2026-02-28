@@ -66,7 +66,7 @@ void loop() {
                         ColorGradient({{0, HsvToRgb(60, 0.8, 0.95)},
                                        {M_PI / 3, HsvToRgb(0, 0.8, 0.99)},
                                        {M_PI / 1.5, HsvToRgb(60, 0.8, 0.95)}},
-                                      ColorGradient::PERIODIC),
+                                      ColorGradient::Boundary::kPeriodic),
                         Box(w / 2 + 20, 20, w - 21, h / 2 - 21));
     dc.setBackground(&gradient);
     dc.clear();
@@ -86,7 +86,7 @@ void loop() {
                                                     {80, HsvToRgb(240, s, v)},
                                                     {100, HsvToRgb(300, s, v)},
                                                     {120, HsvToRgb(360, s, v)}},
-                                                   ColorGradient::PERIODIC),
+                                                   ColorGradient::Boundary::kPeriodic),
                                      Box(20, h / 2 + 20, w / 2 - 21, h - 21));
     dc.setBackground(&gradient);
     dc.clear();
@@ -106,7 +106,7 @@ void loop() {
                                                   {80, HsvToRgb(240, s, v)},
                                                   {100, HsvToRgb(300, s, v)},
                                                   {120, HsvToRgb(360, s, v)}},
-                                                 ColorGradient::PERIODIC),
+                                                 ColorGradient::Boundary::kPeriodic),
                                    Box(w / 2 + 20, h / 2 + 20, w - 21, h - 21));
     dc.setBackground(&gradient);
     dc.clear();

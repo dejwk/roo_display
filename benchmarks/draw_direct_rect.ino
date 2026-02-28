@@ -106,8 +106,8 @@ void PopulateSource(OffscreenT& offscreen, int16_t width, int16_t height) {
     Color base = PickGradientColor(width, height);
     Color edge = HsvToRgb(0.0f, 0.0f, 0.12f);
     auto gradient = RadialGradientSq(
-        {cx, cy},
-        ColorGradient({{0, base}, {radius_sq, edge}}, ColorGradient::EXTENDED));
+        {cx, cy}, ColorGradient({{0, base}, {radius_sq, edge}},
+                                ColorGradient::Boundary::kExtended));
     dc.setBackground(&gradient);
     dc.clear();
     dc.draw(TextLabel("&", SelectFont(width, height), color::White),

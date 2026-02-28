@@ -11,6 +11,7 @@
 #include "roo_display/core/rasterizable.h"
 #include "roo_display/shape/point.h"
 #include "roo_display/shape/smooth.h"
+#include "roo_logging.h"
 
 namespace roo_display {
 
@@ -24,24 +25,32 @@ class ColorGradient {
   };
 
   /// Boundary behavior outside gradient range.
-  enum Boundary {
+  enum class Boundary {
     // Boundary values are extended to infinity.
-    EXTENDED,
+    kExtended,
 
     // color::Transparent is assumed outside the boundary.
-    TRUNCATED,
+    kTruncated,
 
     // The gradient repeats periodically. The end boundary of the previous
     // repetition is the start boundary of a next repetition.
-    PERIODIC,
+    kPeriodic,
   };
+
+  [[deprecated("Use `ColorGradient::Boundary::kExtended` instead.")]]
+  static constexpr Boundary EXTENDED = Boundary::kExtended;
+  [[deprecated("Use `ColorGradient::Boundary::kTruncated` instead.")]]
+  static constexpr Boundary TRUNCATED = Boundary::kTruncated;
+  [[deprecated("Use `ColorGradient::Boundary::kPeriodic` instead.")]]
+  static constexpr Boundary PERIODIC = Boundary::kPeriodic;
 
   /// Create a gradient specification.
   ///
   /// Node list must contain at least one node for EXTENDED/TRUNCATED, and at
   /// least two nodes with different values for PERIODIC. Nodes must be sorted
   /// by value. Equal successive values create sharp transitions.
-  ColorGradient(std::vector<Node> gradient, Boundary boundary = EXTENDED);
+  ColorGradient(std::vector<Node> gradient,
+                Boundary boundary = Boundary::kExtended);
 
   /// Return the color for a given value.
   ///
@@ -58,6 +67,9 @@ class ColorGradient {
   TransparencyMode transparency_mode_;
   float inv_period_;
 };
+
+roo_logging::Stream& operator<<(roo_logging::Stream& os,
+                                ColorGradient::Boundary boundary);
 
 /// Radial gradient based on distance from the center.
 class RadialGradient : public Rasterizable {

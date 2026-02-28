@@ -35,7 +35,7 @@ auto bg = LinearGradient(
     {0, 0}, 0.0, 1.0,
     ColorGradient({{0.0, Graylevel(0xFF)},
                    {(float)display.height(), Graylevel(0x80)}},
-                  ColorGradient::TRUNCATED));
+                  ColorGradient::Boundary::kTruncated));
 
 void setup() {
   SPI.begin(kSpiSck, kSpiMiso, kSpiMosi);
@@ -73,7 +73,7 @@ public:
                                             {80 + shift, HsvToRgb(240, s, v)},
                                             {100 + shift, HsvToRgb(300, s, v)},
                                             {120 + shift, HsvToRgb(360, s, v)}},
-                                           ColorGradient::PERIODIC));
+                                           ColorGradient::Boundary::kPeriodic));
 
     // Impose a destination-in blending filter. The destination-in causes the
     // text to be 'cut out' of the background (i.e. the gradient defined above),

@@ -158,7 +158,7 @@ void FilledRect::drawTo(const Surface &s) const {
   int16_t y1 = y1_ + s.dy();
   Color color = AlphaBlend(s.bgcolor(), this->color());
   Box box(x0, y0, x1, y1);
-  if (box.clip(s.clip_box())) {
+  if (box.clip(s.clip_box()) != Box::ClipResult::kEmpty) {
     s.out().fillRect(s.blending_mode(), box, color);
   }
 }

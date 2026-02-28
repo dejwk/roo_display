@@ -204,17 +204,17 @@ void DrawingContext::drawInternalWithBackground(Surface& s,
 void DrawingContext::drawInternalTransformed(Surface& s,
                                              const Drawable& object) {
   if (!transformed_) {
-    if (s.clipToExtents(object.extents()) == Box::CLIP_RESULT_EMPTY) return;
+    if (s.clipToExtents(object.extents()) == Box::ClipResult::kEmpty) return;
     s.drawObject(object);
   } else if (!transformation_.is_rescaled() && !transformation_.xy_swap()) {
     // Translation only.
     s.set_dx(s.dx() + transformation_.x_offset());
     s.set_dy(s.dy() + transformation_.y_offset());
-    if (s.clipToExtents(object.extents()) == Box::CLIP_RESULT_EMPTY) return;
+    if (s.clipToExtents(object.extents()) == Box::ClipResult::kEmpty) return;
     s.drawObject(object);
   } else {
     auto transformed = TransformedDrawable(transformation_, &object);
-    if (s.clipToExtents(transformed.extents()) == Box::CLIP_RESULT_EMPTY) {
+    if (s.clipToExtents(transformed.extents()) == Box::ClipResult::kEmpty) {
       return;
     }
     s.drawObject(transformed);

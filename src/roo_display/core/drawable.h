@@ -277,7 +277,7 @@ class Drawable {
 
 inline void Surface::drawObject(const Drawable &object) const {
   Surface s = *this;
-  if (s.clipToExtents(object.extents()) == Box::CLIP_RESULT_EMPTY) return;
+  if (s.clipToExtents(object.extents()) == Box::ClipResult::kEmpty) return;
   object.drawTo(s);
 }
 

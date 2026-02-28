@@ -917,7 +917,7 @@ void BackgroundFillOptimizer::fillRectBg(int16_t x0, int16_t y0, int16_t x1,
         if (xstart >= 0) {
           Box box(xstart * kBlock, y * kBlock, x * kBlock - 1,
                   y * kBlock + kBlock - 1);
-          if (box.clip(Box(x0, y0, x1, y1)) != Box::CLIP_RESULT_UNCHANGED) {
+          if (box.clip(Box(x0, y0, x1, y1)) != Box::ClipResult::kUnchanged) {
             if (y0 > y * kBlock || y1 < y * kBlock + kBlock - 1) {
               // Need to invalidate the entire line.
               fillMaskRect(Box(xstart, y, x - 1, y), 0);

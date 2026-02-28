@@ -196,9 +196,9 @@ void SmoothFont::drawBordered(DisplayOutput& output, int16_t x, int16_t y,
     blending_mode = BlendingMode::kSource;
   }
 
-  if (outer.clip(clip_box) == Box::CLIP_RESULT_EMPTY) return;
+  if (outer.clip(clip_box) == Box::ClipResult::kEmpty) return;
   Box inner = glyph.extents().translate(x, y);
-  if (inner.clip(clip_box) == Box::CLIP_RESULT_EMPTY) {
+  if (inner.clip(clip_box) == Box::ClipResult::kEmpty) {
     output.fillRect(blending_mode, outer, bgColor);
     return;
   }

@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "roo_logging.h"
+
 namespace roo_display {
 
 /// Axis-aligned integer rectangle.
@@ -10,11 +12,14 @@ namespace roo_display {
 class Box {
  public:
   /// Result of clipping a box to a clip region.
-  enum ClipResult {
-    CLIP_RESULT_EMPTY = 0,
-    CLIP_RESULT_REDUCED,
-    CLIP_RESULT_UNCHANGED
-  };
+  enum class ClipResult { kEmpty = 0, kReduced, kUnchanged };
+
+  [[deprecated("Use `Box::ClipResult::kEmpty` instead.")]]
+  static constexpr ClipResult CLIP_RESULT_EMPTY = ClipResult::kEmpty;
+  [[deprecated("Use `Box::ClipResult::kReduced` instead.")]]
+  static constexpr ClipResult CLIP_RESULT_REDUCED = ClipResult::kReduced;
+  [[deprecated("Use `Box::ClipResult::kUnchanged` instead.")]]
+  static constexpr ClipResult CLIP_RESULT_UNCHANGED = ClipResult::kUnchanged;
 
   /// Return the intersection of two boxes (may be empty).
   inline static Box Intersect(const Box& a, const Box& b) {
@@ -55,18 +60,25 @@ class Box {
 
   /// Return whether the box is empty.
   bool empty() const { return xMax_ < xMin_ || yMax_ < yMin_; }
+
   /// Minimum x (inclusive).
   int16_t xMin() const { return xMin_; }
+
   /// Minimum y (inclusive).
   int16_t yMin() const { return yMin_; }
+
   /// Maximum x (inclusive).
   int16_t xMax() const { return xMax_; }
+
   /// Maximum y (inclusive).
   int16_t yMax() const { return yMax_; }
+
   /// Width in pixels (inclusive coordinates).
   int16_t width() const { return xMax_ - xMin_ + 1; }
+
   /// Height in pixels (inclusive coordinates).
   int16_t height() const { return yMax_ - yMin_ + 1; }
+
   /// Area in pixels.
   int32_t area() const { return width() * height(); }
 
@@ -91,24 +103,24 @@ class Box {
   ///
   /// @return Clip result indicating whether the box was reduced or emptied.
   ClipResult clip(const Box& clip_box) {
-    ClipResult result = CLIP_RESULT_UNCHANGED;
+    ClipResult result = ClipResult::kUnchanged;
     if (xMin_ < clip_box.xMin()) {
       xMin_ = clip_box.xMin();
-      result = CLIP_RESULT_REDUCED;
+      result = ClipResult::kReduced;
     }
     if (xMax_ > clip_box.xMax()) {
       xMax_ = clip_box.xMax();
-      result = CLIP_RESULT_REDUCED;
+      result = ClipResult::kReduced;
     }
     if (yMin_ < clip_box.yMin()) {
       yMin_ = clip_box.yMin();
-      result = CLIP_RESULT_REDUCED;
+      result = ClipResult::kReduced;
     }
     if (yMax_ > clip_box.yMax()) {
       yMax_ = clip_box.yMax();
-      result = CLIP_RESULT_REDUCED;
+      result = ClipResult::kReduced;
     }
-    return empty() ? CLIP_RESULT_EMPTY : result;
+    return empty() ? ClipResult::kEmpty : result;
   }
 
   /// Return a translated copy of this box.
@@ -163,9 +175,19 @@ inline bool operator==(const Box& a, const Box& b) {
 /// Inequality operator for boxes.
 inline bool operator!=(const Box& a, const Box& b) { return !(a == b); }
 
+/// Logging operator for boxes.
+roo_logging::Stream& operator<<(roo_logging::Stream& os, const Box& box);
+
+/// Logging operator for box clip results.
+roo_logging::Stream& operator<<(roo_logging::Stream& os,
+                                Box::ClipResult clip_result);
+
 }  // namespace roo_display
 
 #if defined(__linux__) || defined(__linux) || defined(linux)
+
+// Unit testing support.
+
 #include <ostream>
 
 namespace roo_display {

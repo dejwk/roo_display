@@ -23,10 +23,10 @@ namespace roo_display {
 class Orientation {
  public:
   /// Horizontal direction of the display.
-  enum HorizontalDirection { LEFT_TO_RIGHT = 0, RIGHT_TO_LEFT = 1 };
+  enum class HorizontalDirection { kLeftToRight = 0, kRightToLeft = 1 };
 
   /// Vertical direction of the display.
-  enum VerticalDirection { TOP_TO_BOTTOM = 0, BOTTOM_TO_TOP = 1 };
+  enum class VerticalDirection { kTopToBottom = 0, kBottomToTop = 1 };
 
   constexpr Orientation() : orientation_(0) {}
 

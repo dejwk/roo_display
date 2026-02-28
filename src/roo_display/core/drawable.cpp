@@ -13,7 +13,7 @@ const char* ToString(FillMode mode) {
     case FillMode::kVisible:
       return "FillMode::kVisible";
   }
-  return "FillMode::kUnknown";
+  return "FillMode::(unknown)";
 }
 
 class EmptyDrawable : public Drawable {

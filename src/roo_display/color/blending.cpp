@@ -34,7 +34,7 @@ const char* ToString(BlendingMode mode) {
     case BlendingMode::kDestinationOverOpaque:
       return "BlendingMode::kDestinationOverOpaque";
   }
-  return "BlendingMode::kUnknown";
+  return "BlendingMode::(unknown)";
 }
 
 const char* ToString(TransparencyMode mode) {
@@ -46,7 +46,7 @@ const char* ToString(TransparencyMode mode) {
     case TransparencyMode::kFull:
       return "TransparencyMode::kFull";
   }
-  return "TransparencyMode::kUnknown";
+  return "TransparencyMode::(unknown)";
 }
 
 }  // namespace

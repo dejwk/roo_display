@@ -11,7 +11,7 @@ const char* ToString(ColorPixelOrder order) {
     case ColorPixelOrder::kLsbFirst:
       return "ColorPixelOrder::kLsbFirst";
   }
-  return "ColorPixelOrder::kUnknown";
+  return "ColorPixelOrder::(unknown)";
 }
 
 }  // namespace

@@ -289,16 +289,16 @@ SmoothFontV2::SmoothFontV2(const roo::byte* font_data PROGMEM)
       FontMetrics(ascent, descent, linegap, xMin, yMin, xMax, yMax,
                   max_right_overhang),
       FontProperties(
-          encoding_bytes_ > 1 ? FontProperties::CHARSET_UNICODE_BMP
-                              : FontProperties::CHARSET_ASCII,
+          encoding_bytes_ > 1 ? FontProperties::Charset::kUnicodeBmp
+                              : FontProperties::Charset::kAscii,
           min_advance == max_advance && kerning_format_ == kKerningFormatNone
-              ? FontProperties::SPACING_MONOSPACE
-              : FontProperties::SPACING_PROPORTIONAL,
-          alpha_bits_ > 1 ? FontProperties::SMOOTHING_GRAYSCALE
-                          : FontProperties::SMOOTHING_NONE,
+              ? FontProperties::Spacing::kMonospace
+              : FontProperties::Spacing::kProportional,
+          alpha_bits_ > 1 ? FontProperties::Smoothing::kGrayscale
+                          : FontProperties::Smoothing::kNone,
           kerning_format_ != kKerningFormatNone
-              ? FontProperties::KERNING_PAIRS
-              : FontProperties::KERNING_NONE));
+              ? FontProperties::Kerning::kPairs
+              : FontProperties::Kerning::kNone));
 
   // Serial.println(String() + "Loaded font with " + glyph_count_ +
   //                " glyphs, size " + (ascent - descent));

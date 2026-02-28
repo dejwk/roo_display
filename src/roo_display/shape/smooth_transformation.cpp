@@ -92,6 +92,23 @@ AffineTransformation ShearVerticallyAbout(float sy, float base_x) {
       .then(Translate(base_x, 0.0f));
 }
 
+ProjectiveTransformation Projective(float m11, float m12, float m13, float m21,
+                                    float m22, float m23, float m31, float m32,
+                                    float m33) {
+  return ProjectiveTransformation(m11, m12, m13, m21, m22, m23, m31, m32, m33);
+}
+
+ProjectiveTransformation Perspective(float px, float py) {
+  return Projective(1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, px, py, 1.0f);
+}
+
+ProjectiveTransformation PerspectiveAbout(float px, float py,
+                                          const FpPoint& base) {
+  return Translate(-base.x, -base.y)
+      .then(Perspective(px, py))
+      .then(Translate(base.x, base.y));
+}
+
 AffineTransformation IdentityTransformation::then(
     AffineTransformation t) const {
   return t;
@@ -102,6 +119,11 @@ Translation IdentityTransformation::then(Translation t) const { return t; }
 Scaling IdentityTransformation::then(Scaling t) const { return t; }
 
 Rotation IdentityTransformation::then(Rotation t) const { return t; }
+
+ProjectiveTransformation IdentityTransformation::then(
+    ProjectiveTransformation t) const {
+  return t;
+}
 
 Translation Translation::then(Translation t) const {
   return Translation(dx_ + t.dx(), dy_ + t.dy());
@@ -124,6 +146,10 @@ AffineTransformation Translation::then(AffineTransformation t) const {
                               t.a21() * dx_ + t.a21() * dy_ + t.ty());
 }
 
+ProjectiveTransformation Translation::then(ProjectiveTransformation t) const {
+  return ProjectiveTransformation(*this).then(t);
+}
+
 AffineTransformation Scaling::then(Translation t) const {
   return AffineTransformation(sx_, 0, 0, sy_, t.dx(), t.dy());
 }
@@ -140,6 +166,10 @@ AffineTransformation Scaling::then(Rotation t) const {
 AffineTransformation Scaling::then(AffineTransformation t) const {
   return AffineTransformation(sx_ * t.a11(), sy_ * t.a12(), sx_ * t.a21(),
                               sy_ * t.a22(), t.tx(), t.ty());
+}
+
+ProjectiveTransformation Scaling::then(ProjectiveTransformation t) const {
+  return ProjectiveTransformation(*this).then(t);
 }
 
 Box Rotation::transformExtents(Box extents) const {
@@ -166,6 +196,10 @@ AffineTransformation Rotation::then(AffineTransformation t) const {
                               t.a21() * cos_theta_ + t.a22() * sin_theta_,
                               -t.a21() * sin_theta_ + t.a22() * cos_theta_,
                               t.tx(), t.ty());
+}
+
+ProjectiveTransformation Rotation::then(ProjectiveTransformation t) const {
+  return ProjectiveTransformation(*this).then(t);
 }
 
 Box AffineTransformation::transformExtents(Box extents) const {
@@ -197,6 +231,64 @@ AffineTransformation AffineTransformation::then(AffineTransformation t) const {
       t.a21() * a11_ + t.a22() * a21_, t.a21() * a12_ + t.a22() * a22_,
       t.a11() * tx_ + t.a12() * ty_ + t.tx(),
       t.a21() * tx_ + t.a22() * ty_ + t.ty());
+}
+
+ProjectiveTransformation AffineTransformation::then(
+    ProjectiveTransformation t) const {
+  return ProjectiveTransformation(*this).then(t);
+}
+
+ProjectiveTransformation ProjectiveTransformation::then(Translation t) const {
+  return then(ProjectiveTransformation(t));
+}
+
+ProjectiveTransformation ProjectiveTransformation::then(Scaling t) const {
+  return then(ProjectiveTransformation(t));
+}
+
+ProjectiveTransformation ProjectiveTransformation::then(Rotation t) const {
+  return then(ProjectiveTransformation(t));
+}
+
+ProjectiveTransformation ProjectiveTransformation::then(
+    AffineTransformation t) const {
+  return then(ProjectiveTransformation(t));
+}
+
+ProjectiveTransformation ProjectiveTransformation::then(
+    ProjectiveTransformation t) const {
+  return ProjectiveTransformation(
+      t.m11() * m11_ + t.m12() * m21_ + t.m13() * m31_,
+      t.m11() * m12_ + t.m12() * m22_ + t.m13() * m32_,
+      t.m11() * m13_ + t.m12() * m23_ + t.m13() * m33_,
+      t.m21() * m11_ + t.m22() * m21_ + t.m23() * m31_,
+      t.m21() * m12_ + t.m22() * m22_ + t.m23() * m32_,
+      t.m21() * m13_ + t.m22() * m23_ + t.m23() * m33_,
+      t.m31() * m11_ + t.m32() * m21_ + t.m33() * m31_,
+      t.m31() * m12_ + t.m32() * m22_ + t.m33() * m32_,
+      t.m31() * m13_ + t.m32() * m23_ + t.m33() * m33_);
+}
+
+ProjectiveTransformation ProjectiveTransformation::inversion() const {
+  float c11 = m22_ * m33_ - m23_ * m32_;
+  float c12 = -(m21_ * m33_ - m23_ * m31_);
+  float c13 = m21_ * m32_ - m22_ * m31_;
+  float c21 = -(m12_ * m33_ - m13_ * m32_);
+  float c22 = m11_ * m33_ - m13_ * m31_;
+  float c23 = -(m11_ * m32_ - m12_ * m31_);
+  float c31 = m12_ * m23_ - m13_ * m22_;
+  float c32 = -(m11_ * m23_ - m13_ * m21_);
+  float c33 = m11_ * m22_ - m12_ * m21_;
+
+  float det = m11_ * c11 + m12_ * c12 + m13_ * c13;
+  float inv_det = 1.0f / det;
+  return ProjectiveTransformation(c11 * inv_det, c21 * inv_det, c31 * inv_det,
+                                  c12 * inv_det, c22 * inv_det, c32 * inv_det,
+                                  c13 * inv_det, c23 * inv_det, c33 * inv_det);
+}
+
+Box ProjectiveTransformation::transformExtents(Box extents) const {
+  return TransformExtents(*this, extents);
 }
 
 }  // namespace roo_display

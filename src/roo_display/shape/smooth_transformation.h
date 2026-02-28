@@ -34,6 +34,8 @@ class Scaling;
 class Rotation;
 /// Affine transformation (composition of translation, scaling, rotation).
 class AffineTransformation;
+/// Projective transformation (homography in 2D).
+class ProjectiveTransformation;
 
 /// Return a translation by the specified vector.
 Translation Translate(float dx, float dy);
@@ -83,6 +85,20 @@ AffineTransformation ShearVertically(float sy);
 /// Return a vertical shear rooted at `base_x`.
 AffineTransformation ShearVerticallyAbout(float sy, float base_x);
 
+/// Return a projective transformation with the specified homography matrix.
+ProjectiveTransformation Projective(float m11, float m12, float m13, float m21,
+                                   float m22, float m23, float m31, float m32,
+                                   float m33);
+
+/// Return a perspective transformation rooted at the origin.
+///
+/// Maps (x, y) to (x / d, y / d), where d = 1 + px * x + py * y.
+ProjectiveTransformation Perspective(float px, float py);
+
+/// Return a perspective transformation rooted at `base`.
+ProjectiveTransformation PerspectiveAbout(float px, float py,
+                                         const FpPoint& base);
+
 template <typename RasterType, typename TransformationType>
 class TransformedRaster;
 
@@ -104,6 +120,7 @@ class IdentityTransformation {
   Scaling then(Scaling t) const;
   Rotation then(Rotation t) const;
   AffineTransformation then(AffineTransformation t) const;
+  ProjectiveTransformation then(ProjectiveTransformation t) const;
 
   IdentityTransformation inversion() const { return *this; }
 
@@ -125,6 +142,7 @@ class Translation {
   AffineTransformation then(Scaling t) const;
   AffineTransformation then(Rotation t) const;
   AffineTransformation then(AffineTransformation t) const;
+  ProjectiveTransformation then(ProjectiveTransformation t) const;
 
   Translation inversion() const { return Translation(-dx_, -dy_); }
 
@@ -154,6 +172,7 @@ class Scaling {
   Scaling then(Scaling t) const;
   AffineTransformation then(Rotation t) const;
   AffineTransformation then(AffineTransformation t) const;
+  ProjectiveTransformation then(ProjectiveTransformation t) const;
 
   Scaling inversion() const { return Scaling(1.0f / sx_, 1.0f / sy_); }
 
@@ -192,6 +211,7 @@ class Rotation {
   AffineTransformation then(Scaling t) const;
   Rotation then(Rotation t) const;
   AffineTransformation then(AffineTransformation t) const;
+  ProjectiveTransformation then(ProjectiveTransformation t) const;
 
   Rotation inversion() const { return Rotation(-theta_); }
 
@@ -242,6 +262,7 @@ class AffineTransformation {
   AffineTransformation then(Scaling t) const;
   AffineTransformation then(Rotation t) const;
   AffineTransformation then(AffineTransformation t) const;
+  ProjectiveTransformation then(ProjectiveTransformation t) const;
 
   AffineTransformation inversion() const {
     float inv_det = 1.0f / (a11_ * a22_ - a12_ * a21_);
@@ -260,6 +281,112 @@ class AffineTransformation {
  private:
   float a11_, a12_, a21_, a22_;
   float tx_, ty_;
+};
+
+/// General projective transformation (2D homography).
+class ProjectiveTransformation {
+ public:
+  ProjectiveTransformation(float m11, float m12, float m13, float m21,
+                           float m22, float m23, float m31, float m32,
+                           float m33)
+      : m11_(m11),
+        m12_(m12),
+        m13_(m13),
+        m21_(m21),
+        m22_(m22),
+        m23_(m23),
+        m31_(m31),
+        m32_(m32),
+        m33_(m33) {}
+
+  ProjectiveTransformation(IdentityTransformation t)
+      : m11_(1.0f),
+        m12_(0.0f),
+        m13_(0.0f),
+        m21_(0.0f),
+        m22_(1.0f),
+        m23_(0.0f),
+        m31_(0.0f),
+        m32_(0.0f),
+        m33_(1.0f) {}
+
+  ProjectiveTransformation(Translation t)
+      : m11_(1.0f),
+        m12_(0.0f),
+        m13_(t.dx()),
+        m21_(0.0f),
+        m22_(1.0f),
+        m23_(t.dy()),
+        m31_(0.0f),
+        m32_(0.0f),
+        m33_(1.0f) {}
+
+  ProjectiveTransformation(Scaling t)
+      : m11_(t.sx()),
+        m12_(0.0f),
+        m13_(0.0f),
+        m21_(0.0f),
+        m22_(t.sy()),
+        m23_(0.0f),
+        m31_(0.0f),
+        m32_(0.0f),
+        m33_(1.0f) {}
+
+  ProjectiveTransformation(Rotation t)
+      : m11_(t.cos_theta()),
+        m12_(-t.sin_theta()),
+        m13_(0.0f),
+        m21_(t.sin_theta()),
+        m22_(t.cos_theta()),
+        m23_(0.0f),
+        m31_(0.0f),
+        m32_(0.0f),
+        m33_(1.0f) {}
+
+  ProjectiveTransformation(AffineTransformation t)
+      : m11_(t.a11()),
+        m12_(t.a12()),
+        m13_(t.tx()),
+        m21_(t.a21()),
+        m22_(t.a22()),
+        m23_(t.ty()),
+        m31_(0.0f),
+        m32_(0.0f),
+        m33_(1.0f) {}
+
+  FpPoint apply(FpPoint p) const {
+    float w = p.x * m31_ + p.y * m32_ + m33_;
+    return FpPoint{(p.x * m11_ + p.y * m12_ + m13_) / w,
+                   (p.x * m21_ + p.y * m22_ + m23_) / w};
+  }
+
+  float m11() const { return m11_; }
+  float m12() const { return m12_; }
+  float m13() const { return m13_; }
+  float m21() const { return m21_; }
+  float m22() const { return m22_; }
+  float m23() const { return m23_; }
+  float m31() const { return m31_; }
+  float m32() const { return m32_; }
+  float m33() const { return m33_; }
+
+  ProjectiveTransformation then(IdentityTransformation t) const {
+    return *this;
+  }
+  ProjectiveTransformation then(Translation t) const;
+  ProjectiveTransformation then(Scaling t) const;
+  ProjectiveTransformation then(Rotation t) const;
+  ProjectiveTransformation then(AffineTransformation t) const;
+  ProjectiveTransformation then(ProjectiveTransformation t) const;
+
+  ProjectiveTransformation inversion() const;
+
+  Box transformExtents(Box extents) const;
+
+ private:
+  float m11_, m12_, m13_;
+  float m21_, m22_, m23_;
+  float m31_, m32_, m33_;
 };
 
 // Uses bi-linear interpolation.

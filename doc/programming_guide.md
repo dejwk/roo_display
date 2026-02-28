@@ -703,6 +703,9 @@ You will see an easier way to initialize a clip mask in the section on offscreen
 
 > Note: drawing with a clip mask is noticeably slower. Use wisely.
 
+> Note: you will learn a more powerful method of text styling, in the section on
+> [color filters](#color-filters).
+
 ### Transformations
 
 You can apply basic affine transformations (integer scaling, right-angle rotation, translation) to anything you draw.
@@ -2078,7 +2081,7 @@ The colors are added to the palette in the order you use them. When you try to d
 
 #### Clip masks
 
-In an earlier section, we saw how to use clip masks to restrict drawing to non-rectangular, complex areas. A clip mask, however, is essentially a 1-bit-per-pixel raster. It means that we can offscreens to construct bit masks!
+In an earlier section, we saw how to use clip masks to restrict drawing to non-rectangular, complex areas. A clip mask, however, is essentially a 1-bit-per-pixel raster. It means that we can use offscreens to construct bit masks!
 
 In fact, the library provides a convenience subclass `BitMaskOffscreen` to make it straightforward:
 
@@ -2129,6 +2132,9 @@ void loop() {
 ![img31](images/img31.png)
 
 As you can see, clip masks can be useful for drawing complex geometry with minimum RAM footprint. We just need to draw the primitives multiple times, applying different masks. It will usually be slower than preparing everything in a 'real' Rgb565 offscreen and drawing it out, but it only needs 9600 bytes for the entire 320x200 screen, as opposed to over 153 KB for Rgb565 (that we may not be able to allocate).
+
+> Note: for text styling, and generally stencil drawing, you may also want to explore
+> a further section on [color filters](#color-filters).
 
 #### Offscreens with transparency: BlendingMode::kSource
 
@@ -3100,6 +3106,7 @@ void loop() {
 
 This sketch produces the same output as before, but it takes only 160 ms (down from 270 ms), at the expense of about 6 KB PROGMEM space needed to store the pre-rendered images.
 
+\anchor color-filters
 ### Using rasterizable overlays and color filters
 
 Dynamic composition, discussed in the previous section, requires that your inputs are rasterizables or streamables. If you draw content that is neither (e.g. text), you are not completely out of luck - you can still inject some dynamic composition.
@@ -3260,6 +3267,105 @@ using BackgroundFilter = BlendingFilter<BlendOp<BlendingMode::kSourceOver>>;
 ```
 
 From this definition, you can see how to specialize `BlendingFilter` to use any blending mode you need. You can also chain more than one filter, thus creating complex rasterizable composition stacks.
+
+You can use blending filter to create cool font effects (e.g. multicolor text). To do that,
+define your color 'background' as a rasterizable, and then use 'destination-in' blender
+to make text behave like a 'stencil' that carves itself out within that background:
+
+
+```cpp
+inline const Font &font() { return font_NotoSerif_Italic_90(); }
+
+class MyLabel : public Drawable {
+public:
+  MyLabel(std::string text)
+      : Drawable(),
+        extents_(font().getHorizontalStringMetrics(text).screen_extents()),
+        text_(std::move(text)) {}
+
+  Box extents() const override { return extents_; }
+
+  void drawTo(const Surface &surface) const override {
+    float v = 0.9;
+    float s = 0.7;
+    float t = (float)millis() / 2000.0;
+    float angle = 0.5 * sinf(t); // angle between approx. -30° - 30°.
+    float dx = 0.5 * cosf(angle);
+    float dy = 0.5 * sinf(angle);
+    float shift = t * 100;
+    auto bg = LinearGradient({0, 0}, dx, dy,
+                             ColorGradient({{0 + shift, HsvToRgb(0, s, v)},
+                                            {20 + shift, HsvToRgb(60, s, v)},
+                                            {40 + shift, HsvToRgb(120, s, v)},
+                                            {60 + shift, HsvToRgb(180, s, v)},
+                                            {80 + shift, HsvToRgb(240, s, v)},
+                                            {100 + shift, HsvToRgb(300, s, v)},
+                                            {120 + shift, HsvToRgb(360, s, v)}},
+                                           ColorGradient::PERIODIC));
+
+    // Impose a destination-in blending filter. The destination-in causes the
+    // text to be 'cut out' of the background (i.e. the gradient defined above),
+    // showing the background only where the text would be.
+    BlendingFilter<BlendOp<BlendingMode::kDestinationIn>> filter(surface.out(),
+                                                                 &bg);
+    // We set up a new surface, which mostly inherits from the original one, but
+    // with the blending filter as the output device. This way, when we draw the
+    // text to this surface, it will be processed by the filter, which will
+    // combine it with the background gradient, and then output the final result
+    // to the original surface.
+    Surface news = surface;
+    news.set_out(&filter);
+
+    // Very important: we don't want to use the background inherited from the
+    // original surface, which is often an opaque color hint coming from the
+    // underlying device. For 'destination-in' blending, the 'source' (text in
+    // this case) is used as a 'cut mask', so it is important to preserve its
+    // translucency.
+    news.set_bgcolor(color::Transparent);
+
+    DrawingContext dc(news);
+    dc.draw(TextLabel(text_, font(), color::Black));
+  }
+
+private:
+  Box extents_;
+  std::string text_;
+};
+
+void loop() {
+  int w = display.width();
+  int h = display.height();
+
+  {
+    DrawingContext dc(display);
+    dc.draw(MyLabel("Hello!"), kCenter | kMiddle);
+  }
+  delay(1);
+}
+```
+
+![img64](images/img64.png)
+
+Or, adding background gradient, because why not:
+
+```cpp
+// ...
+
+auto bg = LinearGradient(
+    {0, 0}, 0.0, 1.0,
+    ColorGradient({{0.0, Graylevel(0xFF)},
+                   {(float)display.height(), Graylevel(0x80)}},
+                  ColorGradient::TRUNCATED));
+
+void setup() {
+  // ...
+  display.setBackground(&bg);
+  display.init(color::White);
+  // ...
+}
+```
+
+![img65](images/img65.png)
 
 ### Using 'write-once' mode (experimental)
 

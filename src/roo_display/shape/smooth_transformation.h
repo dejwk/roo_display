@@ -300,44 +300,44 @@ class TransformedRaster : public Rasterizable {
       int32_t offset =
           xMin - orig_extents.xMin() + (yMin - orig_extents.yMin()) * w;
       if (xMin == xMax && yMin == yMax) {
-        result[i] = original_.color_mode().toArgbColor(reader(ptr, offset));
+        result[i] = reader(ptr, offset, original_.color_mode());
         continue;
       }
       if (xMin == xMax) {
         int16_t interpolation_fraction = (int16_t)(256 * (orig.y - yMin));
         if (yMin < orig_extents.yMin()) {
-          result[i] = InterpolateColors(
-              color::Transparent,
-              original_.color_mode().toArgbColor(reader(ptr, offset + w)),
-              interpolation_fraction);
+          result[i] =
+              InterpolateColors(color::Transparent,
+                                reader(ptr, offset + w, original_.color_mode()),
+                                interpolation_fraction);
         } else if (yMax > orig_extents.yMax()) {
           result[i] =
               InterpolateColors(original_.get(xMin, yMin), color::Transparent,
                                 interpolation_fraction);
         } else {
-          result[i] = InterpolateColors(
-              original_.color_mode().toArgbColor(reader(ptr, offset)),
-              original_.color_mode().toArgbColor(reader(ptr, offset + w)),
-              interpolation_fraction);
+          result[i] =
+              InterpolateColors(reader(ptr, offset, original_.color_mode()),
+                                reader(ptr, offset + w, original_.color_mode()),
+                                interpolation_fraction);
         }
         continue;
       }
       if (yMin == yMax) {
         int16_t interpolation_fraction = (uint16_t)(256 * (orig.x - xMin));
         if (xMin < orig_extents.xMin()) {
-          result[i] = InterpolateColors(
-              color::Transparent,
-              original_.color_mode().toArgbColor(reader(ptr, offset + 1)),
-              interpolation_fraction);
+          result[i] =
+              InterpolateColors(color::Transparent,
+                                reader(ptr, offset + 1, original_.color_mode()),
+                                interpolation_fraction);
         } else if (xMax > orig_extents.xMax()) {
-          result[i] = InterpolateColors(
-              original_.color_mode().toArgbColor(reader(ptr, offset)),
-              color::Transparent, interpolation_fraction);
+          result[i] =
+              InterpolateColors(reader(ptr, offset, original_.color_mode()),
+                                color::Transparent, interpolation_fraction);
         } else {
-          result[i] = InterpolateColors(
-              original_.color_mode().toArgbColor(reader(ptr, offset)),
-              original_.color_mode().toArgbColor(reader(ptr, offset + 1)),
-              interpolation_fraction);
+          result[i] =
+              InterpolateColors(reader(ptr, offset, original_.color_mode()),
+                                reader(ptr, offset + 1, original_.color_mode()),
+                                interpolation_fraction);
         }
         continue;
       }
@@ -352,19 +352,18 @@ class TransformedRaster : public Rasterizable {
 
       // if (xMin >= orig_extents.xMin()) {
       //   if (yMin >= orig_extents.yMin()) {
-      //     a = original_.color_mode().toArgbColor(reader(ptr, offset));
+      //     a = reader(ptr, offset, original_.color_mode());
       //   }
       //   if (yMax <= orig_extents.yMax()) {
-      //     c = original_.color_mode().toArgbColor(reader(ptr, offset + w));
+      //     c = reader(ptr, offset + w, original_.color_mode());
       //   }
       // }
       // if (xMax <= orig_extents.xMax()) {
       //   if (yMin >= orig_extents.yMin()) {
-      //     b = original_.color_mode().toArgbColor(reader(ptr, offset + 1));
+      //     b = reader(ptr, offset + 1, original_.color_mode());
       //   }
       //   if (yMax <= orig_extents.yMax()) {
-      //     d = original_.color_mode().toArgbColor(reader(ptr, offset + w +
-      //     1));
+      //     d = reader(ptr, offset + w + 1, original_.color_mode());
       //   }
       // }
       // result[i] =
@@ -378,29 +377,30 @@ class TransformedRaster : public Rasterizable {
       if (yMin >= orig_extents.yMin()) {
         if (xMin < orig_extents.xMin()) {
           // ab_mix = color::Olive;
-          ab_mix = InterpolateColors(
-              color::Transparent,
-              original_.color_mode().toArgbColor(reader(ptr, offset + 1)),
-              interpolation_fraction_x);
+          ab_mix =
+              InterpolateColors(color::Transparent,
+                                reader(ptr, offset + 1, original_.color_mode()),
+                                interpolation_fraction_x);
           // ab_mix = InterpolateColorWithTransparency(
-          //     original_.color_mode().toArgbColor(reader(ptr, offset + 1)),
+          //     reader(ptr, offset + 1, original_.color_mode())),
           //     interpolation_fraction_x);
         } else if (xMax > orig_extents.xMax()) {
           // ab_mix = color::BlueViolet;
-          ab_mix = InterpolateColors(
-              original_.color_mode().toArgbColor(reader(ptr, offset)),
-              color::Transparent, interpolation_fraction_x);
+          ab_mix =
+              InterpolateColors(reader(ptr, offset, original_.color_mode()),
+                                color::Transparent, interpolation_fraction_x);
           // ab_mix = InterpolateColorWithTransparency(
-          //     original_.color_mode().toArgbColor(reader(ptr, offset)),
-          //     256 - interpolation_fraction_x);
+          //     reader(ptr, offset,original_.color_mode())), 256 -
+          //     interpolation_fraction_x);
         } else {
           // ab_mix =
-          //     interpolator(reader(ptr, offset), reader(ptr, offset + 1),
+          //     interpolator(reader(ptr, offset, original_.color_mode()),
+          //     reader(ptr, offset + 1, original_.color_mode()),
           //                  interpolation_fraction_x, original_.color_mode());
-          ab_mix = InterpolateColors(
-              original_.color_mode().toArgbColor(reader(ptr, offset)),
-              original_.color_mode().toArgbColor(reader(ptr, offset + 1)),
-              interpolation_fraction_x);
+          ab_mix =
+              InterpolateColors(reader(ptr, offset, original_.color_mode()),
+                                reader(ptr, offset + 1, original_.color_mode()),
+                                interpolation_fraction_x);
         }
       }
       Color cd_mix = color::Transparent;
@@ -409,27 +409,28 @@ class TransformedRaster : public Rasterizable {
           // cd_mix = color::Red;
           cd_mix = InterpolateColors(
               color::Transparent,
-              original_.color_mode().toArgbColor(reader(ptr, offset + w + 1)),
+              reader(ptr, offset + w + 1, original_.color_mode()),
               interpolation_fraction_x);
           // cd_mix = InterpolateColorWithTransparency(
           //     original_.color_mode().toArgbColor(reader(ptr, offset + w +
-          //     1)), interpolation_fraction_x);
+          //     1, original_.color_mode())), interpolation_fraction_x);
         } else if (xMax > orig_extents.xMax()) {
           // cd_mix = color::Blue;
           // cd_mix = InterpolateColorWithTransparency(
-          //     original_.color_mode().toArgbColor(reader(ptr, offset + w)),
-          //     256 - interpolation_fraction_x);
-          cd_mix = InterpolateColors(
-              original_.color_mode().toArgbColor(reader(ptr, offset + w)),
-              color::Transparent, interpolation_fraction_x);
+          //     original_.color_mode().toArgbColor(reader(ptr, offset + w,
+          //     original_.color_mode())), 256 - interpolation_fraction_x);
+          cd_mix =
+              InterpolateColors(reader(ptr, offset + w, original_.color_mode()),
+                                color::Transparent, interpolation_fraction_x);
         } else {
           // cd_mix =
-          //     interpolator(reader(ptr, offset + w), reader(ptr, offset + w +
-          //     1),
+          //     interpolator(reader(ptr, offset + w, original_.color_mode()),
+          //     reader(ptr, offset + w + 1, original_.color_mode()),
+          //     interpolation_fraction_x, original_.color_mode());
           //                  interpolation_fraction_x, original_.color_mode());
           cd_mix = InterpolateColors(
-              original_.color_mode().toArgbColor(reader(ptr, offset + w)),
-              original_.color_mode().toArgbColor(reader(ptr, offset + w + 1)),
+              reader(ptr, offset + w, original_.color_mode()),
+              reader(ptr, offset + w + 1, original_.color_mode()),
               interpolation_fraction_x);
         }
       }

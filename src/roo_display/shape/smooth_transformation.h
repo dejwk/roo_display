@@ -85,11 +85,6 @@ AffineTransformation ShearVertically(float sy);
 /// Return a vertical shear rooted at `base_x`.
 AffineTransformation ShearVerticallyAbout(float sy, float base_x);
 
-/// Return a projective transformation with the specified homography matrix.
-ProjectiveTransformation Projective(float m11, float m12, float m13, float m21,
-                                   float m22, float m23, float m31, float m32,
-                                   float m33);
-
 /// Return a perspective transformation rooted at the origin.
 ///
 /// Maps (x, y) to (x / d, y / d), where d = 1 + px * x + py * y.
@@ -97,7 +92,7 @@ ProjectiveTransformation Perspective(float px, float py);
 
 /// Return a perspective transformation rooted at `base`.
 ProjectiveTransformation PerspectiveAbout(float px, float py,
-                                         const FpPoint& base);
+                                          const FpPoint& base);
 
 template <typename RasterType, typename TransformationType>
 class TransformedRaster;

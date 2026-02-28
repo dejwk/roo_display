@@ -190,6 +190,15 @@ cc_test(
 )
 
 cc_test(
+    name = "smooth_transformation_test",
+    srcs = [
+        "test/smooth_transformation_test.cpp",
+    ],
+    linkstatic = 1,
+    deps = UNIT_TEST_DEPS,
+)
+
+cc_test(
     name = "streamable_test",
     srcs = [
         "test/streamable_test.cpp",

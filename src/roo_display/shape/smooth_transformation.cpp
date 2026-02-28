@@ -92,14 +92,9 @@ AffineTransformation ShearVerticallyAbout(float sy, float base_x) {
       .then(Translate(base_x, 0.0f));
 }
 
-ProjectiveTransformation Projective(float m11, float m12, float m13, float m21,
-                                    float m22, float m23, float m31, float m32,
-                                    float m33) {
-  return ProjectiveTransformation(m11, m12, m13, m21, m22, m23, m31, m32, m33);
-}
-
 ProjectiveTransformation Perspective(float px, float py) {
-  return Projective(1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, px, py, 1.0f);
+  return ProjectiveTransformation(1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, px, py,
+                                  1.0f);
 }
 
 ProjectiveTransformation PerspectiveAbout(float px, float py,
@@ -143,7 +138,7 @@ AffineTransformation Translation::then(Rotation t) const {
 AffineTransformation Translation::then(AffineTransformation t) const {
   return AffineTransformation(t.a11(), t.a12(), t.a21(), t.a22(),
                               t.a11() * dx_ + t.a12() * dy_ + t.tx(),
-                              t.a21() * dx_ + t.a21() * dy_ + t.ty());
+                              t.a21() * dx_ + t.a22() * dy_ + t.ty());
 }
 
 ProjectiveTransformation Translation::then(ProjectiveTransformation t) const {

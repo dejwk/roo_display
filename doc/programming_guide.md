@@ -106,7 +106,7 @@ The display object encapsulates the driver, and it is the 'root' of your future 
 
 Some displays provide a dedicated pin for backlit (brightness) control. You can connect it to VCC for full brightness. You can also connect it to a GPIO pin to control backlit programmatically (by sending a pulse-wave-modulated signal to the GPIO pin).
 
-Backlit is independent from the display driver. `roo_display` provides some utility classes to help manage backlit. Specifically, for Espressif-based controllers, you can use the \ref roo_display::LedcBacklit class:
+Backlit is independent from the display driver. `roo_display` provides some utility classes to help manage backlit. Specifically, for Espressif-based controllers, you can use the `roo_display::LedcBacklit` class:
 
 ```cpp
 #include "roo_display/backlit/esp32_ledc.h"
@@ -1005,7 +1005,7 @@ Digits are often monotype, even in proportional fonts. Sometimes you can use thi
 
 Be careful, though: even though the _anchor_ extents of all digits may be the same, the regular extents are not. The bounding box of digit '1' is going to be narrower than that of digit '0', even though they have the same advance. For this reason, you may still need to use `Tile` when rendering numeric content.
 
-\anchor drawing-shapes
+<a name="drawing-shapes"></a>
 ### Drawing shapes
 
 #### Basic shapes
@@ -1921,7 +1921,7 @@ Note that the icons usually need to be drawn tiled, because their extents may be
 
 > Note: due to the sheer volume, full compilation of icon files may take a few minutes. (No worries, though: only the icons that you _actually use_ get linked into your binary). If the compilation times bother you, delete icon files that you are not going to use.
 
-\anchor using-off-screen-buffers
+<a name="using-off-screen-buffers"></a>
 ### Using off-screen buffers
 
 The `Offscreen` class allows you to draw to a memory buffer, instead of directly to the screen. It can be particularly useful in a couple of scenarios:
@@ -2136,7 +2136,7 @@ As you can see, clip masks can be useful for drawing complex geometry with minim
 > Note: for text styling, and generally stencil drawing, you may also want to explore
 > a further section on [color filters](#color-filters).
 
-\anchor smooth-transformations
+<a name="smooth-transformations"></a>
 #### Smooth transformations
 
 As we discussed before, `roo_display` supports basic integer-valued affine transformations that can be applied to any drawable.
@@ -2833,7 +2833,7 @@ Checking for clipping at every item adds some overhead, so it is better to optim
 
 ## Part 3: Advanced topics
 
-\anchor blending-modes
+<a name="blending-modes"></a>
 ### Blending modes
 
 By default, when you are drawing to an offscreen, or to a device with a framebuffer, everything you draw is alpha-blended over pre-existing content. In the section about [offscreens](#using-off-screen-buffers), we saw how to override this behavior by setting the blending mode to `BlendingMode::kSource`, causing the new content to simply replace pre-existing content.
@@ -2900,7 +2900,7 @@ Note that this example required an offscreen that supported transparency. We use
 
 > In the future, more blending modes will be added, e.g. using [ImageMagick](https://imagemagick.org/script/compose.php) as a source of inspiration.
 
-\anchor dynamic-composition
+<a name="dynamic-composition"></a>
 ### Dynamic composition
 
 Wouldn't it be great if you could compose drawables using blending modes, as we did in the previous section, but without needing to render the result to a temporary offscreen?
@@ -3177,7 +3177,7 @@ void loop() {
 
 This sketch produces the same output as before, but it takes only 160 ms (down from 270 ms), at the expense of about 6 KB PROGMEM space needed to store the pre-rendered images.
 
-\anchor color-filters
+<a name="color-filters"></a>
 ### Using rasterizable overlays and color filters
 
 Dynamic composition, discussed in the previous section, requires that your inputs are rasterizables or streamables. If you draw content that is neither (e.g. text), you are not completely out of luck - you can still inject some dynamic composition.
@@ -3448,7 +3448,7 @@ Once enabled, the 'write-once' mode cannot be turned off - it is active until th
 
 Implementation-wise, the 'write-once' mode uses a clip-mask-based filter that internally 'masks out' pixels that has already been drawn to. The clip mask is allocated when `setWriteOnce()` is called for the first time. Consequently, the feature has a memory footprint of 1 bit per pixel of the affected drawing context.
 
-\anchor advanced-example-animated-analog-gauge
+<a name="advanced-example-animated-analog-gauge"></a>
 ### Advanced example: animated analog gauge
 
 We now put together some of the techniques discussed so far, including: the write-once mode, clip masks, and smooth primitives, to write a complete analog gauge widget with a smoothly animated, anti-aliased needle:

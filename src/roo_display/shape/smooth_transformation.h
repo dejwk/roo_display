@@ -409,7 +409,8 @@ class TransformedRaster : public Rasterizable {
     uint16_t w = orig_extents.width();
     RawColorInterpolator<typename RasterType::ColorMode> interpolator;
     for (uint32_t i = 0; i < count; ++i) {
-      FpPoint orig = inverse_transformation_.apply(FpPoint{x[i], y[i]});
+      FpPoint orig =
+          inverse_transformation_.apply(FpPoint{(float)x[i], (float)y[i]});
       int16_t xMin = (int16_t)floorf(orig.x);
       int16_t yMin = (int16_t)floorf(orig.y);
       int16_t xMax = (int16_t)ceilf(orig.x);

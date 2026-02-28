@@ -44,6 +44,7 @@
 ![img32](doc/images/img32.png)
 ![img35](doc/images/img35.png)
 ![img65](doc/images/img65.png)
+![img65](doc/images/img66.png)
 ![img42](doc/images/img42.png)
 ![img43](doc/images/img43.png)
 ![img45](doc/images/img45.png)

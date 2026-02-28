@@ -2136,6 +2136,77 @@ As you can see, clip masks can be useful for drawing complex geometry with minim
 > Note: for text styling, and generally stencil drawing, you may also want to explore
 > a further section on [color filters](#color-filters).
 
+\anchor smooth-transformations
+#### Smooth transformations
+
+As we discussed before, `roo_display` supports basic integer-valued affine transformations that can be applied to any drawable.
+
+Additionally, and specifically for rasters (e.g. from ofscreens), you can use much more powerful, 'smooth' transformations. They include rotations by arbitrary angles, scaling by arbitrary floating-point factors, shearing, and even perspective projections.
+
+To use these transformations, you need to first compose the desired transformation object using the API defined in `roo_display/shape/smooth_transformation.h`. Then, you call the template function `TransformRaster`, which returns a rasterizable object.
+
+You already know the rest: you can draw that transformed image directly, or use it as a background or an element of a dynamic composition.
+
+A complete demo, showcasing composable transformations and rainbow text (discussed later in the section on [color filters](#color-filters)), is available as the `dancing_rainbow_text` example. Here are the main parts:
+
+```cpp
+void setup() {
+  // ...
+  display.enableTurbo();  // Speeds-up full-screen updates.
+  // ...
+}
+
+void updateRaster(bool front) {
+  DrawingContext dc(offscreen);
+  dc.fill(color::White);
+  if (front) {
+    dc.draw(RainbowLabel(text));
+  } else {
+    dc.draw(TextLabel(text, font(), color::Gray));
+  }
+}
+
+void loop() {
+  // Rotation about the 'Y' axis (3D).
+  float angle = millis() / 4000.0f;
+  float c = cosf(angle);
+  float s = sinf(angle);
+  float width = offscreen.anchorExtents().width();
+  float camera_distance = std::max(width, 1.0f);
+  float perspective_px = -s / camera_distance;
+  updateRaster(c > 0);
+
+  // Additional wobble around the X axis.
+  float wobble_angle = 0.3f * sinf(millis() / 1000.0f);
+  {
+    DrawingContext dc(display);
+
+    auto d = TransformRaster(
+        offscreen.raster(),
+        // Bring the center of text to the origin.
+        Translate(-offscreen.anchorExtents().width() / 2.0f,
+                  font().metrics().ascent() / 2.0f)
+            // Apply the X 'wobble'.
+            .then(Rotation(wobble_angle))
+            // Apply perspective horizontally.
+            .then(Perspective(perspective_px, 0.0f))
+            // Also now scale horizontally, to simulate 3D rotation. The
+            // perspective transformation alone would make the text trapezoidal,
+            // but it doesn't squeeze it, so we need to apply an additional
+            // horizontal scaling to make it look right.
+            .then(Scale(c, 1.0f))
+            // Move center to the middle of the screen.
+            .then(Translate(display.extents().width() / 2.0f,
+                            display.extents().height() / 2.0f)));
+    // Using tile to make sure that all previous contents is overwritten.
+    dc.draw(MakeTileOf(d, display.extents()));
+  }
+  delay(1);
+}
+```
+
+![img66](images/img66.png)
+
 #### Offscreens with transparency: BlendingMode::kSource
 
 Ocassionally, you may want to use an Offscreen with an alpha channel, that is, using one of the color modes that support transparency, such as ARGB8888, ARGB6666, ARGB4444, Alpha4, etc. This way you can prepare translucent contents in the offscreen buffer, and later alpha-blend it over something else. It poses an interesting challenge: how do you actually draw translucent contents to such an offscreen? Whatever you draw, will, by default, be alpha-blended over the existing content. The issue is similar to painting on glass: the more paint you put on the glass, the more opaque it becomes, no matter how tranlucent the paint is. How do you _replace_ the underlying color with translucency, effectively 'erasing' the glass before you put the new paint on?

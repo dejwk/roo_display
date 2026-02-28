@@ -68,33 +68,33 @@ enum class BlendingMode {
   kDestinationOverOpaque
 };
 
-/// @deprecated Use `BlendingMode::kSource` instead.
+[[deprecated("Use `BlendingMode::kSource` instead.")]]
 constexpr BlendingMode BLENDING_MODE_SOURCE = BlendingMode::kSource;
-/// @deprecated Use `BlendingMode::kSourceOver` instead.
+[[deprecated("Use `BlendingMode::kSourceOver` instead.")]]
 constexpr BlendingMode BLENDING_MODE_SOURCE_OVER = BlendingMode::kSourceOver;
-/// @deprecated Use `BlendingMode::kSourceIn` instead.
+[[deprecated("Use `BlendingMode::kSourceIn` instead.")]]
 constexpr BlendingMode BLENDING_MODE_SOURCE_IN = BlendingMode::kSourceIn;
-/// @deprecated Use `BlendingMode::kSourceAtop` instead.
+[[deprecated("Use `BlendingMode::kSourceAtop` instead.")]]
 constexpr BlendingMode BLENDING_MODE_SOURCE_ATOP = BlendingMode::kSourceAtop;
-/// @deprecated Use `BlendingMode::kDestination` instead.
+[[deprecated("Use `BlendingMode::kDestination` instead.")]]
 constexpr BlendingMode BLENDING_MODE_DESTINATION = BlendingMode::kDestination;
-/// @deprecated Use `BlendingMode::kDestinationOver` instead.
+[[deprecated("Use `BlendingMode::kDestinationOver` instead.")]]
 constexpr BlendingMode BLENDING_MODE_DESTINATION_OVER =
     BlendingMode::kDestinationOver;
-/// @deprecated Use `BlendingMode::kDestinationIn` instead.
+[[deprecated("Use `BlendingMode::kDestinationIn` instead.")]]
 constexpr BlendingMode BLENDING_MODE_DESTINATION_IN =
     BlendingMode::kDestinationIn;
-/// @deprecated Use `BlendingMode::kDestinationAtop` instead.
+[[deprecated("Use `BlendingMode::kDestinationAtop` instead.")]]
 constexpr BlendingMode BLENDING_MODE_DESTINATION_ATOP =
     BlendingMode::kDestinationAtop;
-/// @deprecated Use `BlendingMode::kClear` instead.
+[[deprecated("Use `BlendingMode::kClear` instead.")]]
 constexpr BlendingMode BLENDING_MODE_CLEAR = BlendingMode::kClear;
-/// @deprecated Use `BlendingMode::kSourceOut` instead.
+[[deprecated("Use `BlendingMode::kSourceOut` instead.")]]
 constexpr BlendingMode BLENDING_MODE_SOURCE_OUT = BlendingMode::kSourceOut;
-/// @deprecated Use `BlendingMode::kDestinationOut` instead.
+[[deprecated("Use `BlendingMode::kDestinationOut` instead.")]]
 constexpr BlendingMode BLENDING_MODE_DESTINATION_OUT =
     BlendingMode::kDestinationOut;
-/// @deprecated Use `BlendingMode::kXor` instead.
+[[deprecated("Use `BlendingMode::kXor` instead.")]]
 constexpr BlendingMode BLENDING_MODE_EXCLUSIVE_OR = BlendingMode::kXor;
 
 roo_logging::Stream& operator<<(roo_logging::Stream& os, BlendingMode mode);
@@ -109,11 +109,11 @@ enum class TransparencyMode {
   kFull,
 };
 
-/// @deprecated Use `TransparencyMode::kNone` instead.
+[[deprecated("Use `TransparencyMode::kNone` instead.")]]
 constexpr TransparencyMode TRANSPARENCY_NONE = TransparencyMode::kNone;
-/// @deprecated Use `TransparencyMode::kCrude` instead.
+[[deprecated("Use `TransparencyMode::kCrude` instead.")]]
 constexpr TransparencyMode TRANSPARENCY_BINARY = TransparencyMode::kCrude;
-/// @deprecated Use `TransparencyMode::kFull` instead.
+[[deprecated("Use `TransparencyMode::kFull` instead.")]]
 constexpr TransparencyMode TRANSPARENCY_GRADUAL = TransparencyMode::kFull;
 
 roo_logging::Stream& operator<<(roo_logging::Stream& os, TransparencyMode mode);

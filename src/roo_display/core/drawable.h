@@ -23,9 +23,9 @@ enum class FillMode {
   kVisible = 1,
 };
 
-/// @deprecated Use `FillMode::kExtents` instead.
+[[deprecated("Use `FillMode::kExtents` instead.")]]
 constexpr FillMode FILL_MODE_RECTANGLE = FillMode::kExtents;
-/// @deprecated Use `FillMode::kVisible` instead.
+[[deprecated("Use `FillMode::kVisible` instead.")]]
 constexpr FillMode FILL_MODE_VISIBLE = FillMode::kVisible;
 
 roo_logging::Stream &operator<<(roo_logging::Stream &os, FillMode mode);

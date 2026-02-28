@@ -69,9 +69,9 @@ void TouchGt911::reset() {
     roo::this_thread::sleep_for(roo_time::Millis((reset_low_hold_ms_)));
     if (pinIntr_.isDefined()) {
       if (addr_ == kAddr1) {
-        pinIntr_.setHigh();
-      } else {
         pinIntr_.setLow();
+      } else {
+        pinIntr_.setHigh();
       }
       roo::this_thread::sleep_for(roo_time::Millis(1));
     }

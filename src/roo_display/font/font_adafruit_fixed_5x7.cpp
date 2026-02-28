@@ -125,8 +125,8 @@ FontAdafruitFixed5x7::FontAdafruitFixed5x7() {
   init(
       FontMetrics(ascent, descent, linegap, 0, descent, advance - 1, ascent, 0),
       FontProperties(
-          FontProperties::CHARSET_ASCII, FontProperties::SPACING_MONOSPACE,
-          FontProperties::SMOOTHING_NONE, FontProperties::KERNING_NONE));
+          FontProperties::Charset::kAscii, FontProperties::Spacing::kMonospace,
+          FontProperties::Smoothing::kNone, FontProperties::Kerning::kNone));
 }
 
 void drawGlyph(const Surface& s, char32_t code, Color color, bool whitespace) {

@@ -7,10 +7,17 @@
 #include "roo_display/core/device.h"
 #include "roo_display/core/drawable.h"
 
+#include "roo_logging.h"
+
 namespace roo_display {
 
 /// Glyph layout direction.
-enum FontLayout { FONT_LAYOUT_HORIZONTAL, FONT_LAYOUT_VERTICAL };
+enum class FontLayout { kHorizontal, kVertical };
+
+[[deprecated("Use `FontLayout::kHorizontal` instead.")]]
+constexpr FontLayout FONT_LAYOUT_HORIZONTAL = FontLayout::kHorizontal;
+[[deprecated("Use `FontLayout::kVertical` instead.")]]
+constexpr FontLayout FONT_LAYOUT_VERTICAL = FontLayout::kVertical;
 
 /// Basic font metrics (ascent, descent, bounding box, and line spacing).
 class FontMetrics {
@@ -65,19 +72,39 @@ class FontMetrics {
 class FontProperties {
  public:
   /// Character set supported by the font.
-  enum Charset {
-    CHARSET_ASCII,       // 7-bit
-    CHARSET_UNICODE_BMP  // 16-bit codes, usually UTF-encoded.
+  enum class Charset {
+    kAscii,       // 7-bit
+    kUnicodeBmp  // 16-bit codes, usually UTF-encoded.
   };
 
   /// Spacing behavior for glyph advances.
-  enum Spacing { SPACING_PROPORTIONAL, SPACING_MONOSPACE };
+  enum class Spacing { kProportional, kMonospace };
 
   /// Smoothing/anti-aliasing mode.
-  enum Smoothing { SMOOTHING_NONE, SMOOTHING_GRAYSCALE };
+  enum class Smoothing { kNone, kGrayscale };
 
   /// Kerning information availability.
-  enum Kerning { KERNING_NONE, KERNING_PAIRS };
+  enum class Kerning { kNone, kPairs };
+
+  [[deprecated("Use `FontProperties::Charset::kAscii` instead.")]]
+  static constexpr Charset CHARSET_ASCII = Charset::kAscii;
+  [[deprecated("Use `FontProperties::Charset::kUnicodeBmp` instead.")]]
+  static constexpr Charset CHARSET_UNICODE_BMP = Charset::kUnicodeBmp;
+
+  [[deprecated("Use `FontProperties::Spacing::kProportional` instead.")]]
+  static constexpr Spacing SPACING_PROPORTIONAL = Spacing::kProportional;
+  [[deprecated("Use `FontProperties::Spacing::kMonospace` instead.")]]
+  static constexpr Spacing SPACING_MONOSPACE = Spacing::kMonospace;
+
+  [[deprecated("Use `FontProperties::Smoothing::kNone` instead.")]]
+  static constexpr Smoothing SMOOTHING_NONE = Smoothing::kNone;
+  [[deprecated("Use `FontProperties::Smoothing::kGrayscale` instead.")]]
+  static constexpr Smoothing SMOOTHING_GRAYSCALE = Smoothing::kGrayscale;
+
+  [[deprecated("Use `FontProperties::Kerning::kNone` instead.")]]
+  static constexpr Kerning KERNING_NONE = Kerning::kNone;
+  [[deprecated("Use `FontProperties::Kerning::kPairs` instead.")]]
+  static constexpr Kerning KERNING_PAIRS = Kerning::kPairs;
 
   FontProperties() = default;
   FontProperties(FontProperties &&) = default;
@@ -218,5 +245,11 @@ class Font {
   FontMetrics metrics_;
   FontProperties properties_;
 };
+
+roo_logging::Stream& operator<<(roo_logging::Stream& stream, FontLayout layout);
+roo_logging::Stream& operator<<(roo_logging::Stream& stream, FontProperties::Charset charset);
+roo_logging::Stream& operator<<(roo_logging::Stream& stream, FontProperties::Spacing spacing);
+roo_logging::Stream& operator<<(roo_logging::Stream& stream, FontProperties::Smoothing smoothing);
+roo_logging::Stream& operator<<(roo_logging::Stream& stream, FontProperties::Kerning kerning);
 
 }  // namespace roo_display

@@ -148,7 +148,7 @@ class SmoothFontV2::GlyphMetadataReader {
     }
     return GlyphMetrics(
         glyphXMin, glyphYMin, glyphXMax, glyphYMax,
-        layout == FONT_LAYOUT_HORIZONTAL
+        layout == FontLayout::kHorizontal
             ? x_advance
             : glyphYMax - glyphYMin + 1 + font_.metrics().linegap());
   }
@@ -491,7 +491,7 @@ class SmoothFontV2::GlyphPairIterator {
     } else {
       class GlyphMetadataReader glyph_meta(*font_, glyph_index);
       *mutable_right_metrics() = glyph_meta.readMetrics(
-          FONT_LAYOUT_HORIZONTAL, mutable_right_compressed());
+          FontLayout::kHorizontal, mutable_right_compressed());
       *mutable_right_data_offset() = glyph_meta.data_offset();
       *mutable_right_glyph_index() = glyph_index;
     }

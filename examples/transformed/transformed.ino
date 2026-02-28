@@ -79,7 +79,7 @@ void loop(void) {
   do {
     c = rand();
   } while (!font_NotoSerif_BoldItalic_27().getGlyphMetrics(
-      c, FONT_LAYOUT_HORIZONTAL, &gm));
+      c, FontLayout::kHorizontal, &gm));
   uint8_t utf8[4];
   if (c < 0x80) {
     utf8[0] = c;

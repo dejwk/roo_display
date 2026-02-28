@@ -61,7 +61,7 @@ class SmoothFont::GlyphMetadataReader {
     }
     return GlyphMetrics(
         glyphXMin, glyphYMin, glyphXMax, glyphYMax,
-        layout == FONT_LAYOUT_HORIZONTAL
+        layout == FontLayout::kHorizontal
             ? x_advance
             : glyphYMax - glyphYMin + 1 + font_.metrics().linegap());
   }
@@ -141,15 +141,15 @@ SmoothFont::SmoothFont(const roo::byte* font_data PROGMEM)
   Font::init(
       FontMetrics(ascent, descent, linegap, xMin, yMin, xMax, yMax,
                   max_right_overhang),
-      FontProperties(encoding_bytes_ > 1 ? FontProperties::CHARSET_UNICODE_BMP
-                                         : FontProperties::CHARSET_ASCII,
+      FontProperties(encoding_bytes_ > 1 ? FontProperties::Charset::kUnicodeBmp
+                                         : FontProperties::Charset::kAscii,
                      min_advance == max_advance && kerning_pairs_count_ == 0
-                         ? FontProperties::SPACING_MONOSPACE
-                         : FontProperties::SPACING_PROPORTIONAL,
-                     alpha_bits_ > 1 ? FontProperties::SMOOTHING_GRAYSCALE
-                                     : FontProperties::SMOOTHING_NONE,
-                     kerning_pairs_count_ > 0 ? FontProperties::KERNING_PAIRS
-                                              : FontProperties::KERNING_NONE));
+                         ? FontProperties::Spacing::kMonospace
+                         : FontProperties::Spacing::kProportional,
+                     alpha_bits_ > 1 ? FontProperties::Smoothing::kGrayscale
+                                     : FontProperties::Smoothing::kNone,
+                     kerning_pairs_count_ > 0 ? FontProperties::Kerning::kPairs
+                                              : FontProperties::Kerning::kNone));
 
   // Serial.println(String() + "Loaded font with " + glyph_count_ +
   //                " glyphs, size " + (ascent - descent));
@@ -332,7 +332,7 @@ class GlyphPairIterator {
     } else {
       SmoothFont::GlyphMetadataReader glyph_meta(*font_, glyph);
       *mutable_right_metrics() = glyph_meta.readMetrics(
-          FONT_LAYOUT_HORIZONTAL, mutable_right_compressed());
+          FontLayout::kHorizontal, mutable_right_compressed());
       *mutable_right_data_offset() = glyph_meta.data_offset();
     }
   }

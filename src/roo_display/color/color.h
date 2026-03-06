@@ -2,6 +2,7 @@
 
 #include <inttypes.h>
 
+#include "roo_backport.h"
 #include "roo_backport/byte.h"
 #include "roo_io.h"
 #include "roo_io/memory/fill.h"

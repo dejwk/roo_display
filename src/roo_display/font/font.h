@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <inttypes.h>
 
+#include "roo_backport.h"
 #include "roo_backport/string_view.h"
 #include "roo_display/core/device.h"
 #include "roo_display/core/drawable.h"

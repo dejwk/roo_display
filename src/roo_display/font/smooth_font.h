@@ -3,6 +3,7 @@
 #include <type_traits>
 
 #include "font.h"
+#include "roo_backport.h"
 #include "roo_backport/byte.h"
 #include "roo_display/hal/progmem.h"
 

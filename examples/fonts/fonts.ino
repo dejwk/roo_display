@@ -30,6 +30,7 @@ struct Emulator {
 
 #include <string>
 
+#include "roo_backport.h"
 #include "roo_backport/string_view.h"
 #include "roo_display.h"
 #include "roo_display/font/font.h"

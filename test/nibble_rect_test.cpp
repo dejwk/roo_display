@@ -1,6 +1,7 @@
 
 #include "roo_display/internal/nibble_rect.h"
 
+#include "roo_backport.h"
 #include "roo_backport/byte.h"
 #include "roo_display.h"
 #include "roo_display/color/color.h"

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "roo_backport.h"
 #include "roo_backport/byte.h"
 #include "roo_display/core/buffered_drawing.h"
 #include "roo_display/core/device.h"

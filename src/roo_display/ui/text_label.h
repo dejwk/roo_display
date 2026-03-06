@@ -4,6 +4,7 @@
 
 #include <string>
 
+#include "roo_backport.h"
 #include "roo_backport/string_view.h"
 #include "roo_display/core/drawable.h"
 #include "roo_display/filter/transformation.h"

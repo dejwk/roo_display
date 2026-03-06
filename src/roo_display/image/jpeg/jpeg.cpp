@@ -1,8 +1,9 @@
 #include "roo_display/image/jpeg/jpeg.h"
 
+#include "roo_backport.h"
+#include "roo_backport/byte.h"
 #include "roo_display.h"
 #include "roo_display/core/raster.h"
-#include "roo_backport/byte.h"
 
 namespace roo_display {
 

@@ -5,6 +5,7 @@
 
 #include <cstring>
 
+#include "roo_backport.h"
 #include "roo_backport/byte.h"
 #include "roo_display/color/color.h"
 #include "roo_display/color/pixel_order.h"

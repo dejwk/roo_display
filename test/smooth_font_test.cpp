@@ -105,6 +105,19 @@ TEST(SmoothFontTest, KerningConsistency) {
   EXPECT_TRUE(found_nonzero);
 }
 
+TEST(SmoothFontTest, SpaceGlyphMetrics) {
+  GlyphMetrics space;
+  ASSERT_TRUE(font().getGlyphMetrics(U' ', FontLayout::kHorizontal, &space));
+  EXPECT_EQ(0, space.width());
+  EXPECT_EQ(0, space.height());
+  EXPECT_EQ(0, space.glyphXMin());
+  EXPECT_EQ(-1, space.glyphXMax());
+
+  int expected_space_advance = font().getHorizontalStringMetrics(" ").advance();
+  EXPECT_EQ(expected_space_advance, space.advance());
+  EXPECT_GT(space.advance(), 0);
+}
+
 TEST(SmoothFontTest, SimpleTextNoBackground) {
   FakeScreen<Argb4444> screen(26, 18, color::Black);
   screen.Draw(Label("Aftp"), 2, 14);

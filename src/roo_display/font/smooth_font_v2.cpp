@@ -703,7 +703,17 @@ void SmoothFontV2::drawHorizontalString(const Surface& s, const char* utf8_data,
 bool SmoothFontV2::getGlyphMetrics(char32_t code, FontLayout layout,
                                    GlyphMetrics* result) const {
   int glyph_index = findGlyphIndex(code);
-  if (glyph_index == -1) return false;
+  if (glyph_index == -1) {
+    if (is_space(code)) {
+      *result = GlyphMetrics(0, 0, -1, -1,
+                             layout == FontLayout::kHorizontal
+                                 ? default_space_width_
+                                 : 1 + metrics().linegap());
+      return true;
+    } else {
+      return false;
+    }
+  }
   GlyphMetadataReader reader(*this, glyph_index);
   bool compressed;
   *result = reader.readMetrics(layout, compressed);
@@ -711,15 +721,15 @@ bool SmoothFontV2::getGlyphMetrics(char32_t code, FontLayout layout,
 }
 
 int16_t SmoothFontV2::getKerning(char32_t left, char32_t right) const {
-  if (is_space(left) || is_space(right)) return 0;
-
   int left_glyph_index = findGlyphIndex(left);
   if (left_glyph_index == -1) {
+    if (is_space(left)) return 0;
     left_glyph_index = findGlyphIndex(default_glyph_);
   }
 
   int right_glyph_index = findGlyphIndex(right);
   if (right_glyph_index == -1) {
+    if (is_space(right)) return 0;
     right_glyph_index = findGlyphIndex(default_glyph_);
   }
 

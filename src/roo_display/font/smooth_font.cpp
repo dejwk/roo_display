@@ -138,18 +138,18 @@ SmoothFont::SmoothFont(const roo::byte* font_data PROGMEM)
   glyph_data_begin_ =
       glyph_kerning_begin_ + glyph_kerning_size_ * kerning_pairs_count_;
 
-  Font::init(
-      FontMetrics(ascent, descent, linegap, xMin, yMin, xMax, yMax,
-                  max_right_overhang),
-      FontProperties(encoding_bytes_ > 1 ? FontProperties::Charset::kUnicodeBmp
-                                         : FontProperties::Charset::kAscii,
-                     min_advance == max_advance && kerning_pairs_count_ == 0
-                         ? FontProperties::Spacing::kMonospace
-                         : FontProperties::Spacing::kProportional,
-                     alpha_bits_ > 1 ? FontProperties::Smoothing::kGrayscale
-                                     : FontProperties::Smoothing::kNone,
-                     kerning_pairs_count_ > 0 ? FontProperties::Kerning::kPairs
-                                              : FontProperties::Kerning::kNone));
+  Font::init(FontMetrics(ascent, descent, linegap, xMin, yMin, xMax, yMax,
+                         max_right_overhang),
+             FontProperties(
+                 encoding_bytes_ > 1 ? FontProperties::Charset::kUnicodeBmp
+                                     : FontProperties::Charset::kAscii,
+                 min_advance == max_advance && kerning_pairs_count_ == 0
+                     ? FontProperties::Spacing::kMonospace
+                     : FontProperties::Spacing::kProportional,
+                 alpha_bits_ > 1 ? FontProperties::Smoothing::kGrayscale
+                                 : FontProperties::Smoothing::kNone,
+                 kerning_pairs_count_ > 0 ? FontProperties::Kerning::kPairs
+                                          : FontProperties::Kerning::kNone));
 
   // Serial.println(String() + "Loaded font with " + glyph_count_ +
   //                " glyphs, size " + (ascent - descent));
@@ -539,7 +539,17 @@ void SmoothFont::drawHorizontalString(const Surface& s, const char* utf8_data,
 bool SmoothFont::getGlyphMetrics(char32_t code, FontLayout layout,
                                  GlyphMetrics* result) const {
   const roo::byte* PROGMEM glyph = findGlyph(code);
-  if (glyph == nullptr) return false;
+  if (glyph == nullptr) {
+    if (is_space(code)) {
+      *result = GlyphMetrics(0, 0, -1, -1,
+                             layout == FontLayout::kHorizontal
+                                 ? default_space_width_
+                                 : 1 + metrics().linegap());
+      return true;
+    } else {
+      return false;
+    }
+  }
   GlyphMetadataReader reader(*this, glyph);
   bool compressed;
   *result = reader.readMetrics(layout, compressed);

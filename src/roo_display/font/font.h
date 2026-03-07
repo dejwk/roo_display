@@ -193,6 +193,16 @@ class Font {
   virtual bool getGlyphMetrics(char32_t code, FontLayout layout,
                                GlyphMetrics *result) const = 0;
 
+  /// Return kerning adjustment for a pair of code points.
+  ///
+  /// The returned value is in pixels and should be added to the base advance of
+  /// the left glyph. Fonts without kerning can keep the default implementation.
+  virtual int16_t getKerning(char32_t left, char32_t right) const {
+    (void)left;
+    (void)right;
+    return 0;
+  }
+
   /// Draw a UTF-8 string horizontally using a string view.
   ///
   /// See https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html

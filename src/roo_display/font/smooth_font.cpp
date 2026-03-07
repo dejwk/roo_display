@@ -546,6 +546,10 @@ bool SmoothFont::getGlyphMetrics(char32_t code, FontLayout layout,
   return true;
 }
 
+int16_t SmoothFont::getKerning(char32_t left, char32_t right) const {
+  return kerning(left, right);
+}
+
 template <int encoding_bytes>
 char32_t read_unicode(const roo::byte* PROGMEM address);
 

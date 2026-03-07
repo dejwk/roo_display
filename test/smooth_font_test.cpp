@@ -61,6 +61,50 @@ TEST(SmoothFontTest, HorizontalStringMetrics) {
   EXPECT_EQ(23, metrics.advance());
 }
 
+TEST(SmoothFontTest, KerningConsistency) {
+  EXPECT_EQ(FontProperties::Kerning::kPairs, font().properties().kerning());
+
+  struct Pair {
+    char left;
+    char right;
+  };
+
+  const Pair pairs[] = {
+      {'A', 'V'}, {'A', 'W'}, {'A', 'Y'}, {'T', 'a'},
+      {'T', 'o'}, {'V', 'a'}, {'W', 'a'}, {'Y', 'o'},
+  };
+
+  bool found_nonzero = false;
+  for (const Pair& pair : pairs) {
+    string left(1, pair.left);
+    string right(1, pair.right);
+    string together;
+    together.push_back(pair.left);
+    together.push_back(pair.right);
+
+    int left_advance = font().getHorizontalStringMetrics(left).advance();
+    int right_advance = font().getHorizontalStringMetrics(right).advance();
+    int pair_advance = font().getHorizontalStringMetrics(together).advance();
+
+    int observed_kerning = left_advance + right_advance - pair_advance;
+    int reported_kerning =
+        font().getKerning(static_cast<char32_t>(pair.left),
+                          static_cast<char32_t>(pair.right));
+    EXPECT_EQ(observed_kerning, reported_kerning)
+        << "pair: " << pair.left << pair.right;
+    if (observed_kerning != 0) {
+      found_nonzero = true;
+    }
+  }
+
+  // Ensure whitespace still reports no kerning.
+  EXPECT_EQ(0, font().getKerning(U'A', U' '));
+  EXPECT_EQ(0, font().getKerning(U' ', U'V'));
+
+  // This font should contain at least some non-zero kerning pairs.
+  EXPECT_TRUE(found_nonzero);
+}
+
 TEST(SmoothFontTest, SimpleTextNoBackground) {
   FakeScreen<Argb4444> screen(26, 18, color::Black);
   screen.Draw(Label("Aftp"), 2, 14);

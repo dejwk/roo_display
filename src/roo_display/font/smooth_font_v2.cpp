@@ -710,6 +710,22 @@ bool SmoothFontV2::getGlyphMetrics(char32_t code, FontLayout layout,
   return true;
 }
 
+int16_t SmoothFontV2::getKerning(char32_t left, char32_t right) const {
+  if (is_space(left) || is_space(right)) return 0;
+
+  int left_glyph_index = findGlyphIndex(left);
+  if (left_glyph_index == -1) {
+    left_glyph_index = findGlyphIndex(default_glyph_);
+  }
+
+  int right_glyph_index = findGlyphIndex(right);
+  if (right_glyph_index == -1) {
+    right_glyph_index = findGlyphIndex(default_glyph_);
+  }
+
+  return kerning(left_glyph_index, right_glyph_index);
+}
+
 int SmoothFontV2::findGlyphIndex(char32_t code) const {
   if (code > 0xFFFF) return -1;
   uint16_t ucode = (uint16_t)code;

@@ -29,6 +29,8 @@ class SmoothFontV2 : public Font {
   bool getGlyphMetrics(char32_t code, FontLayout layout,
                        GlyphMetrics* result) const override;
 
+  int16_t getKerning(char32_t left, char32_t right) const override;
+
   GlyphMetrics getHorizontalStringMetrics(const char* utf8_data,
                                           uint32_t size) const override;
 

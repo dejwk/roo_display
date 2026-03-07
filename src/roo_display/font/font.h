@@ -215,6 +215,14 @@ class Font {
   virtual void drawHorizontalString(const Surface &s, const char *utf8_data,
                                     uint32_t size, Color color) const = 0;
 
+  /// Draw a single glyph.
+  ///
+  /// The default implementation supports horizontal layout and delegates to
+  /// `drawHorizontalString`. Font implementations can override this for a
+  /// faster path that avoids UTF-8 encoding.
+  virtual void drawGlyph(const Surface& s, char32_t code, FontLayout layout,
+                         Color color) const;
+
   /// Return metrics of the specified UTF-8 string as if it were a single
   /// glyph.
   GlyphMetrics getHorizontalStringMetrics(roo::string_view text) const {

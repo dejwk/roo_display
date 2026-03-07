@@ -26,6 +26,9 @@ class SmoothFontV2 : public Font {
   void drawHorizontalString(const Surface& s, const char* utf8_data,
                             uint32_t size, Color color) const override;
 
+  void drawGlyph(const Surface& s, char32_t code, FontLayout layout,
+                 Color color) const override;
+
   bool getGlyphMetrics(char32_t code, FontLayout layout,
                        GlyphMetrics* result) const override;
 

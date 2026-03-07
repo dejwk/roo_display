@@ -700,6 +700,61 @@ void SmoothFontV2::drawHorizontalString(const Surface& s, const char* utf8_data,
   } while (has_more);
 }
 
+void SmoothFontV2::drawGlyph(const Surface& s, char32_t code,
+                             FontLayout layout, Color color) const {
+  DCHECK(layout == FontLayout::kHorizontal);
+  int16_t x = s.dx();
+  int16_t y = s.dy();
+  DisplayOutput& output = s.out();
+
+  int glyph_index = findGlyphIndex(code);
+  if (glyph_index == -1) {
+    if (is_space(code)) {
+      if (s.fill_mode() == FillMode::kExtents && default_space_width_ > 0) {
+        output.fillRect(
+            s.blending_mode(),
+            Box(x, y - metrics().glyphYMax(), x + default_space_width_ - 1,
+                y - metrics().glyphYMin()),
+            s.bgcolor());
+      }
+      return;
+    }
+    glyph_index = findGlyphIndex(default_glyph_);
+  }
+  if (glyph_index == -1) return;
+
+  GlyphMetadataReader reader(*this, glyph_index);
+  bool compressed;
+  GlyphMetrics glyph_metrics =
+      reader.readMetrics(FontLayout::kHorizontal, compressed);
+
+  int16_t preadvanced = 0;
+  if (glyph_metrics.lsb() < 0) {
+    preadvanced = glyph_metrics.lsb();
+    x += preadvanced;
+  }
+
+  if (s.fill_mode() == FillMode::kVisible) {
+    drawGlyphModeVisible(output, x - preadvanced, y, glyph_metrics, compressed,
+                         glyph_data_begin_ + reader.data_offset(), s.clip_box(),
+                         color, s.bgcolor(), s.blending_mode());
+    return;
+  }
+
+  int16_t total_rect_width = glyph_metrics.glyphXMax() + 1 - preadvanced;
+  if (glyph_metrics.rsb() > 0) {
+    // For a standalone glyph, include trailing side-bearing in the fill area.
+    total_rect_width += glyph_metrics.rsb();
+  }
+  drawGlyphModeFill(
+      output, x, y, total_rect_width, glyph_metrics, compressed,
+      glyph_data_begin_ + reader.data_offset(), -preadvanced,
+      Box::Intersect(s.clip_box(),
+                     Box(x, y - metrics().glyphYMax(),
+                         x + total_rect_width - 1, y - metrics().glyphYMin())),
+      color, s.bgcolor(), s.blending_mode());
+}
+
 bool SmoothFontV2::getGlyphMetrics(char32_t code, FontLayout layout,
                                    GlyphMetrics* result) const {
   int glyph_index = findGlyphIndex(code);

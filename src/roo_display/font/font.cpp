@@ -1,6 +1,17 @@
 #include "roo_display/font/font.h"
 
+#include "roo_logging.h"
+#include "roo_io/text/unicode.h"
+
 namespace roo_display {
+
+void Font::drawGlyph(const Surface& s, char32_t code, FontLayout layout,
+                     Color color) const {
+  DCHECK(layout == FontLayout::kHorizontal);
+  char encoded[4];
+  int encoded_len = roo_io::WriteUtf8Char(encoded, code);
+  drawHorizontalString(s, encoded, static_cast<uint32_t>(encoded_len), color);
+}
 
 roo_logging::Stream& operator<<(roo_logging::Stream& stream,
                                 FontLayout layout) {

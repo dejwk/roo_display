@@ -9,6 +9,10 @@ class FontAdafruitFixed5x7 : public Font {
  public:
   /// Construct the font.
   FontAdafruitFixed5x7();
+
+    void drawGlyph(const Surface& s, char32_t code, FontLayout layout,
+                                 Color color) const override;
+
   void drawHorizontalString(const Surface &s, const char *utf8_data,
                             uint32_t size, Color color) const override;
 

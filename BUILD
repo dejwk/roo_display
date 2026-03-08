@@ -14,7 +14,6 @@ cc_library(
             "src/**/*.cpp",
             "src/**/*.c",
             "src/**/*.h",
-            "src/**/*.inl",
         ],
         exclude = ["test/**"],
     ),
@@ -30,6 +29,7 @@ cc_library(
     linkstatic = 1,
     visibility = ["//visibility:public"],
     deps = [
+        "//src/roo_display/image/png/lib:roo_display_png",
         "@roo_backport",
         "@roo_collections",
         "@roo_io",

@@ -287,6 +287,34 @@ class Raster : public Rasterizable {
     }
   }
 
+  bool readColorRect(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax,
+                     Color* result) const override {
+    int16_t rx0 = xMin - extents_.xMin();
+    int16_t ry0 = yMin - extents_.yMin();
+    int16_t rx1 = xMax - extents_.xMin();
+    int16_t ry1 = yMax - extents_.yMin();
+
+    size_t row_width_bytes;
+    if constexpr (ColorTraits<ColorMode>::pixels_per_byte == 1) {
+      row_width_bytes =
+          static_cast<size_t>(width_) * ColorTraits<ColorMode>::bytes_per_pixel;
+    } else {
+      row_width_bytes =
+          (static_cast<size_t>(width_) +
+           ColorTraits<ColorMode>::pixels_per_byte - 1) /
+          ColorTraits<ColorMode>::pixels_per_byte;
+    }
+
+    ColorRectIo<ColorMode, byte_order, pixel_order> io;
+    const roo::byte* data = reinterpret_cast<const roo::byte*>(ptr_);
+    if (io.decodeIfUniform(data, row_width_bytes, rx0, ry0, rx1, ry1, result,
+                           color_mode_)) {
+      return true;
+    }
+    io.decode(data, row_width_bytes, rx0, ry0, rx1, ry1, result, color_mode_);
+    return false;
+  }
+
   TransparencyMode getTransparencyMode() const override {
     return transparency();
   }

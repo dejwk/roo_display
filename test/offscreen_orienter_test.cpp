@@ -1,8 +1,7 @@
-#include "roo_display/core/offscreen.h"
-
 #include <array>
 
 #include "gtest/gtest.h"
+#include "roo_display/core/offscreen.h"
 
 namespace roo_display {
 namespace internal {
@@ -28,9 +27,9 @@ void TransformPoint(Orientation orientation, int16_t x_max, int16_t y_max,
   }
 }
 
-void TransformRectPointers(Orientation orientation, int16_t x_max, int16_t y_max,
-                           int16_t*& x0, int16_t*& y0, int16_t*& x1,
-                           int16_t*& y1) {
+void TransformRectPointers(Orientation orientation, int16_t x_max,
+                           int16_t y_max, int16_t*& x0, int16_t*& y0,
+                           int16_t*& x1, int16_t*& y1) {
   if (orientation.isXYswapped()) {
     std::swap(x0, y0);
     std::swap(x1, y1);
@@ -52,8 +51,7 @@ void TransformRectPointers(Orientation orientation, int16_t x_max, int16_t y_max
 }
 
 void TransformRectValues(Orientation orientation, int16_t x_max, int16_t y_max,
-                         int16_t& x0, int16_t& y0, int16_t& x1,
-                         int16_t& y1) {
+                         int16_t& x0, int16_t& y0, int16_t& x1, int16_t& y1) {
   TransformPoint(orientation, x_max, y_max, x0, y0);
   TransformPoint(orientation, x_max, y_max, x1, y1);
   if (x0 > x1) std::swap(x0, x1);
@@ -78,7 +76,7 @@ TEST(OffscreenOrienterTest, OrientPixelsAllOrientations) {
 
     int16_t* x_ptr = x;
     int16_t* y_ptr = y;
-    orienter.OrientPixels(x_ptr, y_ptr, 4);
+    orienter.orientPixels(x_ptr, y_ptr, 4);
 
     for (int i = 0; i < 4; ++i) {
       EXPECT_EQ(x_ptr[i], expected_x[i]);
@@ -98,9 +96,9 @@ TEST(OffscreenOrienterTest, OrientPixelsAliasedXYIsRejected) {
           values[2] = 3;
           int16_t* ptr = values;
           orienter.setOrientation(orientation);
-          orienter.OrientPixels(ptr, ptr, 3);
+          orienter.orientPixels(ptr, ptr, 3);
         },
-        "OrientPixels requires distinct x and y buffers");
+        "orientPixels requires distinct x and y buffers");
   }
 }
 
@@ -110,10 +108,10 @@ TEST(OffscreenOrienterTest, OrientRectAllOrientations) {
     int16_t x0, y0, x1, y1;
   };
   std::array<RectCase, 5> cases = {{{1, 2, 6, 9},
-                                     {4, 4, 4, 4},
-                                     {2, 1, 2, 10},
-                                     {0, 8, 9, 8},
-                                     {0, 0, 10, 10}}};
+                                    {4, 4, 4, 4},
+                                    {2, 1, 2, 10},
+                                    {0, 8, 9, 8},
+                                    {0, 0, 10, 10}}};
   for (Orientation orientation : AllOrientations()) {
     orienter.setOrientation(orientation);
     for (const auto& c : cases) {
@@ -136,10 +134,8 @@ TEST(OffscreenOrienterTest, OrientRectEqualXNotAliasedAllOrientations) {
   struct RectCase {
     int16_t x, y0, y1;
   };
-  std::array<RectCase, 4> cases = {{{0, 0, 10},
-                                     {2, 1, 10},
-                                     {5, 3, 7},
-                                     {10, 0, 10}}};
+  std::array<RectCase, 4> cases = {
+      {{0, 0, 10}, {2, 1, 10}, {5, 3, 7}, {10, 0, 10}}};
 
   for (Orientation orientation : AllOrientations()) {
     orienter.setOrientation(orientation);
@@ -208,7 +204,7 @@ TEST(OffscreenOrienterTest, OrientRectsAllOrientationsNoAlias) {
     int16_t* py0 = &y0;
     int16_t* px1 = &x1;
     int16_t* py1 = &y1;
-    orienter.OrientRects(px0, py0, px1, py1, 1);
+    orienter.orientRects(px0, py0, px1, py1, 1);
 
     EXPECT_EQ(*px0, *qx0);
     EXPECT_EQ(*py0, *qy0);
@@ -235,7 +231,7 @@ TEST(OffscreenOrienterTest, OrientRectsAllOrientationsAliasedXAxisEndpoints) {
     int16_t* py0 = &y0;
     int16_t* px1 = &x;
     int16_t* py1 = &y1;
-    orienter.OrientRects(px0, py0, px1, py1, 1);
+    orienter.orientRects(px0, py0, px1, py1, 1);
 
     EXPECT_EQ(*px0, *qx0);
     EXPECT_EQ(*py0, *qy0);
@@ -262,7 +258,7 @@ TEST(OffscreenOrienterTest, OrientRectsAllOrientationsAliasedYAxisEndpoints) {
     int16_t* py0 = &y;
     int16_t* px1 = &x1;
     int16_t* py1 = &y;
-    orienter.OrientRects(px0, py0, px1, py1, 1);
+    orienter.orientRects(px0, py0, px1, py1, 1);
 
     EXPECT_EQ(*px0, *qx0);
     EXPECT_EQ(*py0, *qy0);
@@ -279,9 +275,9 @@ TEST(OffscreenOrienterTest, OrientRectsAllOrientationsAllFourAliased) {
           int16_t v = 5;
           int16_t* p = &v;
           orienter.setOrientation(orientation);
-          orienter.OrientRects(p, p, p, p, 1);
+          orienter.orientRects(p, p, p, p, 1);
         },
-        "OrientRects disallows cross-axis aliasing");
+        "orientRects disallows cross-axis aliasing");
   }
 }
 
@@ -299,9 +295,9 @@ TEST(OffscreenOrienterTest,
           int16_t* px1 = &x1;
           int16_t* py1 = &y1;
           orienter.setOrientation(orientation);
-          orienter.OrientRects(px0, py0, px1, py1, 1);
+          orienter.orientRects(px0, py0, px1, py1, 1);
         },
-        "OrientRects disallows cross-axis aliasing");
+        "orientRects disallows cross-axis aliasing");
 
     EXPECT_DEATH(
         {
@@ -313,9 +309,9 @@ TEST(OffscreenOrienterTest,
           int16_t* px1 = &y1;
           int16_t* py1 = &y1;
           orienter.setOrientation(orientation);
-          orienter.OrientRects(px0, py0, px1, py1, 1);
+          orienter.orientRects(px0, py0, px1, py1, 1);
         },
-        "OrientRects disallows cross-axis aliasing");
+        "orientRects disallows cross-axis aliasing");
   }
 }
 

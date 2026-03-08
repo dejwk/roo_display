@@ -35,8 +35,8 @@ class Orienter {
 
   void setOrientation(Orientation orientation) { orientation_ = orientation; }
 
-  void OrientPixels(int16_t*& x, int16_t*& y, int16_t count);
-  void OrientRects(int16_t*& x0, int16_t*& y0, int16_t*& x1, int16_t*& y1,
+  void orientPixels(int16_t*& x, int16_t*& y, int16_t count);
+  void orientRects(int16_t*& x0, int16_t*& y0, int16_t*& x1, int16_t*& y1,
                    int16_t count);
 
   void orientRect(int16_t& x0, int16_t& y0, int16_t& x1, int16_t& y1);
@@ -1411,7 +1411,7 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                                                 uint16_t pixel_count) {
   roo::byte* buffer = buffer_;
   int16_t w = raw_width();
-  orienter_.OrientPixels(x, y, pixel_count);
+  orienter_.orientPixels(x, y, pixel_count);
   if (blending_mode == BlendingMode::kSource) {
     typename internal::BlendingWriter<ColorMode, pixel_order, byte_order>::
         template Operator<BlendingMode::kSource>
@@ -1474,7 +1474,7 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                                                uint16_t pixel_count) {
   roo::byte* buffer = buffer_;
   int16_t w = raw_width();
-  orienter_.OrientPixels(x, y, pixel_count);
+  orienter_.orientPixels(x, y, pixel_count);
   if (blending_mode != BlendingMode::kSource) {
     blending_mode = internal::ResolveBlendingModeForFill(
         blending_mode, color_mode_.transparency(), color);
@@ -1515,7 +1515,7 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                                                Color* color, int16_t* x0,
                                                int16_t* y0, int16_t* x1,
                                                int16_t* y1, uint16_t count) {
-  orienter_.OrientRects(x0, y0, x1, y1, count);
+  orienter_.orientRects(x0, y0, x1, y1, count);
   if (blending_mode != BlendingMode::kSource) {
     blending_mode = internal::ResolveBlendingModeForWrite(
         blending_mode, color_mode_.transparency());
@@ -1533,7 +1533,7 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                                               Color color, int16_t* x0,
                                               int16_t* y0, int16_t* x1,
                                               int16_t* y1, uint16_t count) {
-  orienter_.OrientRects(x0, y0, x1, y1, count);
+  orienter_.orientRects(x0, y0, x1, y1, count);
   if (blending_mode != BlendingMode::kSource) {
     blending_mode = internal::ResolveBlendingModeForFill(
         blending_mode, color_mode_.transparency(), color);
@@ -1748,8 +1748,8 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
 
 namespace internal {
 
-inline void Orienter::OrientPixels(int16_t*& x, int16_t*& y, int16_t count) {
-  DCHECK(x != y) << "OrientPixels requires distinct x and y buffers";
+inline void Orienter::orientPixels(int16_t*& x, int16_t*& y, int16_t count) {
+  DCHECK(x != y) << "orientPixels requires distinct x and y buffers";
   if (orientation_ != Orientation::Default()) {
     if (orientation_.isXYswapped()) {
       std::swap(x, y);
@@ -1763,10 +1763,10 @@ inline void Orienter::OrientPixels(int16_t*& x, int16_t*& y, int16_t count) {
   }
 }
 
-inline void Orienter::OrientRects(int16_t*& x0, int16_t*& y0, int16_t*& x1,
+inline void Orienter::orientRects(int16_t*& x0, int16_t*& y0, int16_t*& x1,
                                   int16_t*& y1, int16_t count) {
   DCHECK(x0 != y0 && x1 != y1 && x0 != y1 && x1 != y0)
-      << "OrientRects disallows cross-axis aliasing";
+      << "orientRects disallows cross-axis aliasing";
   if (orientation_ != Orientation::Default()) {
     if (orientation_.isXYswapped()) {
       std::swap(x0, y0);

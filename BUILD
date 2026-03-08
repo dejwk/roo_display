@@ -271,6 +271,15 @@ cc_test(
 )
 
 cc_test(
+    name = "offscreen_orienter_test",
+    srcs = [
+        "test/offscreen_orienter_test.cpp",
+    ],
+    linkstatic = 1,
+    deps = UNIT_TEST_DEPS,
+)
+
+cc_test(
     name = "basic_shapes_test",
     srcs = [
         "test/basic_shapes_test.cpp",

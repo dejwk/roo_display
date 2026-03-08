@@ -39,6 +39,8 @@ class Orienter {
   void OrientRects(int16_t*& x0, int16_t*& y0, int16_t*& x1, int16_t*& y1,
                    int16_t count);
 
+  void orientRect(int16_t& x0, int16_t& y0, int16_t& x1, int16_t& y1);
+
  private:
   inline void revertX(int16_t* x, uint16_t count);
   inline void revertY(int16_t* y, uint16_t count);
@@ -1747,6 +1749,7 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
 namespace internal {
 
 inline void Orienter::OrientPixels(int16_t*& x, int16_t*& y, int16_t count) {
+  DCHECK(x != y) << "OrientPixels requires distinct x and y buffers";
   if (orientation_ != Orientation::Default()) {
     if (orientation_.isXYswapped()) {
       std::swap(x, y);
@@ -1762,6 +1765,8 @@ inline void Orienter::OrientPixels(int16_t*& x, int16_t*& y, int16_t count) {
 
 inline void Orienter::OrientRects(int16_t*& x0, int16_t*& y0, int16_t*& x1,
                                   int16_t*& y1, int16_t count) {
+  DCHECK(x0 != y0 && x1 != y1 && x0 != y1 && x1 != y0)
+      << "OrientRects disallows cross-axis aliasing";
   if (orientation_ != Orientation::Default()) {
     if (orientation_.isXYswapped()) {
       std::swap(x0, y0);
@@ -1778,6 +1783,32 @@ inline void Orienter::OrientRects(int16_t*& x0, int16_t*& y0, int16_t*& x1,
       revertY(y0, count);
       if (y0 != y1) {
         revertY(y1, count);
+        std::swap(y0, y1);
+      }
+    }
+  }
+}
+
+inline void Orienter::orientRect(int16_t& x0, int16_t& y0, int16_t& x1,
+                                 int16_t& y1) {
+  DCHECK(&x0 != &y0 && &x1 != &y1 && &x0 != &y1 && &x1 != &y0)
+      << "OrientRects disallows cross-axis aliasing";
+  if (orientation_ != Orientation::Default()) {
+    if (orientation_.isXYswapped()) {
+      std::swap(x0, y0);
+      std::swap(x1, y1);
+    }
+    if (orientation_.isRightToLeft()) {
+      x0 = xMax_ - x0;
+      if (&x0 != &x1) {
+        x1 = xMax_ - x1;
+        std::swap(x0, x1);
+      }
+    }
+    if (orientation_.isBottomToTop()) {
+      y0 = yMax_ - y0;
+      if (&y0 != &y1) {
+        y1 = yMax_ - y1;
         std::swap(y0, y1);
       }
     }

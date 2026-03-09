@@ -1031,13 +1031,18 @@ DrawableRawStreamable<RawStreamableFilledRect> SolidRect(int16_t x0, int16_t y0,
       RawStreamableFilledRect(Box(x0, y0, x1, y1), color));
 }
 
-template <typename ColorMode>
+template <typename ColorMode,
+          roo_io::ByteOrder byte_order = roo_io::kNativeEndian,
+          ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst>
 class FakeOffscreen;
 
-template <typename ColorMode>
-TestColorStreamable<ColorMode> RasterOf(const FakeOffscreen<ColorMode>&);
+template <typename ColorMode, roo_io::ByteOrder byte_order,
+          ColorPixelOrder pixel_order>
+TestColorStreamable<ColorMode> RasterOf(
+    const FakeOffscreen<ColorMode, byte_order, pixel_order>&);
 
-template <typename ColorMode>
+template <typename ColorMode, roo_io::ByteOrder byte_order,
+          ColorPixelOrder pixel_order>
 class FakeOffscreen : public DisplayDevice {
  public:
   FakeOffscreen(int16_t width, int16_t height,
@@ -1045,6 +1050,7 @@ class FakeOffscreen : public DisplayDevice {
                 ColorMode color_mode = ColorMode())
       : DisplayDevice(width, height),
         color_mode_(std::move(color_mode)),
+        color_format_(color_mode_),
         buffer_(new Color[width * height]),
         extents_(0, 0, width - 1, height - 1) {
     writeRect(BlendingMode::kSource, 0, 0, width - 1, height - 1, background);
@@ -1055,6 +1061,7 @@ class FakeOffscreen : public DisplayDevice {
                 ColorMode color_mode = ColorMode())
       : DisplayDevice(extents.width(), extents.height()),
         color_mode_(std::move(color_mode)),
+        color_format_(color_mode_),
         buffer_(new Color[extents.width() * extents.height()]),
         extents_(extents) {
     writeRect(BlendingMode::kSource, 0, 0, extents.width() - 1,
@@ -1065,6 +1072,7 @@ class FakeOffscreen : public DisplayDevice {
   FakeOffscreen(const FakeOffscreen& other)
       : DisplayDevice(other.raw_width(), other.raw_height()),
         color_mode_(other.color_mode()),
+        color_format_(color_mode_),
         buffer_(new Color[other.raw_width() * other.raw_height()]),
         extents_(other.extents()),
         pixel_draw_count_(other.pixel_draw_count_) {
@@ -1131,14 +1139,9 @@ class FakeOffscreen : public DisplayDevice {
     }
   }
 
-  const ColorFormat& getColorFormat() const override {
-    static const Argb8888 mode;
-    static const internal::ColorFormatImpl<Argb8888, roo_io::kNativeEndian>
-        color_format(mode);
-    return color_format;
-  }
+  const ColorFormat& getColorFormat() const override { return color_format_; }
 
-  const Color* buffer() { return buffer_.get(); }
+  const Color* buffer() const { return buffer_.get(); }
 
   uint64_t pixelDrawCount() const { return pixel_draw_count_; }
 
@@ -1179,10 +1182,8 @@ class FakeOffscreen : public DisplayDevice {
   }
 
  private:
-  friend TestColorStreamable<ColorMode> RasterOf<ColorMode>(
-      const FakeOffscreen<ColorMode>&);
-
   ColorMode color_mode_;
+  internal::ColorFormatImpl<ColorMode, byte_order, pixel_order> color_format_;
   std::unique_ptr<Color[]> buffer_;
   Box extents_;
   Box window_;
@@ -1192,12 +1193,13 @@ class FakeOffscreen : public DisplayDevice {
   uint64_t pixel_draw_count_ = 0;
 };
 
-template <typename ColorMode>
+template <typename ColorMode, roo_io::ByteOrder byte_order,
+          ColorPixelOrder pixel_order>
 TestColorStreamable<ColorMode> RasterOf(
-    const FakeOffscreen<ColorMode>& offscreen) {
+    const FakeOffscreen<ColorMode, byte_order, pixel_order>& offscreen) {
   return TestColorStreamable<ColorMode>(
-      offscreen.raw_width(), offscreen.raw_height(), offscreen.buffer_.get(),
-      offscreen.color_mode_);
+      offscreen.raw_width(), offscreen.raw_height(), offscreen.buffer(),
+      offscreen.color_mode());
 }
 
 template <typename ReferenceDevice>
@@ -1207,7 +1209,9 @@ using ColorModeOfDevice = typename std::remove_reference<
 
 // To be used for the 'reference' devices, using trivial filter
 // implementations.
-template <typename ColorMode, typename Filter>
+template <typename ColorMode, typename Filter,
+          roo_io::ByteOrder byte_order = roo_io::kNativeEndian,
+          ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst>
 class FakeFilteringOffscreen : public DisplayOutput {
  public:
   FakeFilteringOffscreen(int16_t width, int16_t height,
@@ -1276,7 +1280,9 @@ class FakeFilteringOffscreen : public DisplayOutput {
     return offscreen_.getColorFormat();
   }
 
-  const FakeOffscreen<ColorMode>& offscreen() const { return offscreen_; }
+  const FakeOffscreen<ColorMode, byte_order, pixel_order>& offscreen() const {
+    return offscreen_;
+  }
 
   void writeRect(BlendingMode mode, int16_t x0, int16_t y0, int16_t x1,
                  int16_t y1, Color color) {
@@ -1292,7 +1298,7 @@ class FakeFilteringOffscreen : public DisplayOutput {
   }
 
  private:
-  FakeOffscreen<ColorMode> offscreen_;
+  FakeOffscreen<ColorMode, byte_order, pixel_order> offscreen_;
   Filter filter_;
   Box window_;
   BlendingMode blending_mode_;
@@ -1300,13 +1306,17 @@ class FakeFilteringOffscreen : public DisplayOutput {
   int16_t cursor_y_;
 };
 
-template <typename ColorMode, typename Filter>
+template <typename ColorMode, typename Filter, roo_io::ByteOrder byte_order,
+          ColorPixelOrder pixel_order>
 TestColorStreamable<ColorMode> RasterOf(
-    const FakeFilteringOffscreen<ColorMode, Filter>& filtering) {
+    const FakeFilteringOffscreen<ColorMode, Filter, byte_order, pixel_order>&
+        filtering) {
   return RasterOf(filtering.offscreen());
 }
 
-template <typename ColorMode, typename FilterFactory>
+template <typename ColorMode, typename FilterFactory,
+          roo_io::ByteOrder byte_order = roo_io::kNativeEndian,
+          ColorPixelOrder pixel_order = ColorPixelOrder::kMsbFirst>
 class FilteredOutput : public DisplayOutput {
  public:
   FilteredOutput(int16_t width, int16_t height,
@@ -1357,16 +1367,20 @@ class FilteredOutput : public DisplayOutput {
     return filter_->getColorFormat();
   }
 
-  const FakeOffscreen<ColorMode>& offscreen() const { return offscreen_; }
+  const FakeOffscreen<ColorMode, byte_order, pixel_order>& offscreen() const {
+    return offscreen_;
+  }
 
  private:
-  FakeOffscreen<ColorMode> offscreen_;
+  FakeOffscreen<ColorMode, byte_order, pixel_order> offscreen_;
   std::unique_ptr<DisplayOutput> filter_;
 };
 
-template <typename ColorMode, typename FilterFactory>
+template <typename ColorMode, typename FilterFactory,
+          roo_io::ByteOrder byte_order, ColorPixelOrder pixel_order>
 TestColorStreamable<ColorMode> RasterOf(
-    const FilteredOutput<ColorMode, FilterFactory>& filtering) {
+    const FilteredOutput<ColorMode, FilterFactory, byte_order, pixel_order>&
+        filtering) {
   return RasterOf(filtering.offscreen());
 }
 

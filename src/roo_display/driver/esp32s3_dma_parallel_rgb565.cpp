@@ -389,8 +389,7 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::write(Color *color,
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_LAZY>::fill(Color color,
-                                           uint32_t pixel_count) {
+void ParallelRgb565<FLUSH_MODE_LAZY>::fill(Color color, uint32_t pixel_count) {
   buffer_->fill(color, pixel_count);
 }
 

@@ -199,7 +199,8 @@ class OffscreenDevice : public DisplayDevice {
                              static_cast<size_t>(dst_y0) * dst_row_bytes +
                              static_cast<size_t>(dst_x0) * kBytesPerPixel;
 
-        if (row_width_bytes == copy_row_bytes) {
+        if (row_width_bytes == copy_row_bytes &&
+            dst_row_bytes == copy_row_bytes) {
           std::memcpy(dst_row, src_row,
                       copy_row_bytes * static_cast<size_t>(height));
           return;
@@ -228,7 +229,8 @@ class OffscreenDevice : public DisplayDevice {
                                static_cast<size_t>(dst_y0) * dst_row_bytes +
                                static_cast<size_t>(dst_x0 / kPixelsPerByte);
 
-          if (row_width_bytes == copy_row_bytes) {
+          if (row_width_bytes == copy_row_bytes &&
+              dst_row_bytes == copy_row_bytes) {
             std::memcpy(dst_row, src_row,
                         copy_row_bytes * static_cast<size_t>(height));
             return;

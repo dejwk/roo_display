@@ -176,6 +176,21 @@ void ReferenceDisplayDevice::fill(roo_display::Color color,
   blitAdvancedRegion(start_x, start_y, cursor_x_, cursor_y_);
 }
 
+void ReferenceDisplayDevice::drawDirectRect(const roo::byte* data,
+                                            size_t row_width_bytes,
+                                            int16_t src_x0, int16_t src_y0,
+                                            int16_t src_x1, int16_t src_y1,
+                                            int16_t dst_x0, int16_t dst_y0) {
+  if (src_x1 < src_x0 || src_y1 < src_y0) return;
+
+  output_device_->drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1,
+                                 src_y1, dst_x0, dst_y0);
+
+  int16_t width = src_x1 - src_x0 + 1;
+  int16_t height = src_y1 - src_y0 + 1;
+  blitRect(dst_x0, dst_y0, dst_x0 + width - 1, dst_y0 + height - 1);
+}
+
 void ReferenceDisplayDevice::advance(uint32_t pixel_count) {
   if (pixel_count == 0) return;
   if (addr_x1_ - cursor_x_ + 1 > pixel_count) {

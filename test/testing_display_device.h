@@ -1,6 +1,7 @@
 
 #include <memory>
 #include <random>
+#include <vector>
 
 #include "gtest/gtest-param-test.h"
 #include "roo_display/color/color.h"
@@ -72,6 +73,12 @@ class TestDisplayDevice : public DisplayDevice {
   void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
                       int16_t src_x0, int16_t src_y0, int16_t src_x1,
                       int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override {
+    const ColorFormat& test_format = test_.getColorFormat();
+    const ColorFormat& ref_format = refc_.getColorFormat();
+    CHECK_EQ(test_format.mode(), ref_format.mode());
+    CHECK_EQ(test_format.byte_order(), ref_format.byte_order());
+    CHECK_EQ(test_format.pixel_order(), ref_format.pixel_order());
+
     refc_.drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1, src_y1,
                          dst_x0, dst_y0);
     test_.drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1, src_y1,
@@ -345,6 +352,61 @@ void TestWritePixelsSnake(BlendingMode blending_mode, Orientation orientation) {
                        end - start);
   }
   EXPECT_CONSISTENT(screen);
+}
+
+template <typename TestedDevice, typename ReferenceDevice>
+void TestDrawDirectRectStridedRows(BlendingMode blending_mode,
+                                   Orientation orientation) {
+  (void)blending_mode;
+  TestDisplayDevice<TestedDevice, ReferenceDevice> screen(40, 28,
+                                                          Color(0x12345678));
+  screen.setOrientation(orientation);
+
+  using ColorMode = ColorModeOfDevice<ReferenceDevice>;
+  constexpr int16_t kDataW = 23;
+  constexpr int16_t kDataH = 19;
+  constexpr size_t kRowWidthBytes =
+      (ColorMode::bits_per_pixel * static_cast<size_t>(kDataW) + 7) / 8;
+
+  std::vector<roo::byte> data(kRowWidthBytes * kDataH);
+  for (size_t i = 0; i < data.size(); ++i) {
+    data[i] = static_cast<roo::byte>((i * 73 + 19) & 0xFF);
+  }
+
+  screen.drawDirectRect(data.data(), kRowWidthBytes, 3, 4, 10, 8, 5, 6);
+  EXPECT_CONSISTENT(screen);
+}
+
+template <typename TestedDevice, typename ReferenceDevice>
+void TestDrawDirectRectTightRows(BlendingMode blending_mode,
+                                 Orientation orientation) {
+  (void)blending_mode;
+  TestDisplayDevice<TestedDevice, ReferenceDevice> screen(40, 28,
+                                                          Color(0x12345678));
+  screen.setOrientation(orientation);
+
+  using ColorMode = ColorModeOfDevice<ReferenceDevice>;
+  constexpr int16_t kRectW = 9;
+  constexpr int16_t kRectH = 4;
+  constexpr size_t kRowWidthBytes =
+      (ColorMode::bits_per_pixel * static_cast<size_t>(kRectW) + 7) / 8;
+
+  std::vector<roo::byte> data(kRowWidthBytes * kRectH);
+  for (size_t i = 0; i < data.size(); ++i) {
+    data[i] = static_cast<roo::byte>((i * 29 + 7) & 0xFF);
+  }
+
+  screen.drawDirectRect(data.data(), kRowWidthBytes, 0, 0, kRectW - 1,
+                        kRectH - 1, 12, 9);
+  EXPECT_CONSISTENT(screen);
+}
+
+template <typename TestedDevice, typename ReferenceDevice>
+void TestDrawDirectRect(BlendingMode blending_mode, Orientation orientation) {
+  TestDrawDirectRectStridedRows<TestedDevice, ReferenceDevice>(blending_mode,
+                                                               orientation);
+  TestDrawDirectRectTightRows<TestedDevice, ReferenceDevice>(blending_mode,
+                                                             orientation);
 }
 
 template <typename TestedDevice, typename ReferenceDevice>

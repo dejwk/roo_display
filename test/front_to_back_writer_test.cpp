@@ -69,6 +69,8 @@ TEST(Background, SimpleTests) {
                                                           Orientation());
   TestWriteRectWindowSimple<TestDeviceSimple, RefDeviceSimple>(
       BlendingMode::kSource, Orientation());
+  TestDrawDirectRect<TestDeviceSimple, RefDeviceSimple>(BlendingMode::kSource,
+                                                        Orientation());
 }
 
 TEST(Background, StressTests) {

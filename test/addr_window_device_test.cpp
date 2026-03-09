@@ -152,7 +152,8 @@ const TestColorStreamable<ColorMode> RasterOf(
                                         device.data());
 }
 
-typedef TestDevice<Rgb565, roo_io::kBigEndian> Rgb565Device;
+using Rgb565TestDevice = TestDevice<Rgb565, roo_io::kBigEndian>;
+using Rgb565RefDevice = FakeOffscreen<Rgb565, roo_io::kBigEndian>;
 
 class AddrWindowDeviceTest
     : public testing::TestWithParam<std::tuple<BlendingMode, Orientation>> {};
@@ -161,102 +162,107 @@ class AddrWindowDeviceBlendingTest
     : public testing::TestWithParam<std::tuple<BlendingMode, Orientation>> {};
 
 TEST_P(AddrWindowDeviceTest, FillRects) {
-  TestFillRects<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
-                                                     std::get<1>(GetParam()));
+  TestFillRects<Rgb565TestDevice, Rgb565RefDevice>(std::get<0>(GetParam()),
+                                                   std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, FillHLines) {
-  TestFillHLines<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
-                                                      std::get<1>(GetParam()));
+  TestFillHLines<Rgb565TestDevice, Rgb565RefDevice>(std::get<0>(GetParam()),
+                                                    std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, FillVLines) {
-  TestFillVLines<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
-                                                      std::get<1>(GetParam()));
+  TestFillVLines<Rgb565TestDevice, Rgb565RefDevice>(std::get<0>(GetParam()),
+                                                    std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, FillDegeneratePixels) {
-  TestFillDegeneratePixels<Rgb565Device, FakeOffscreen<Rgb565>>(
+  TestFillDegeneratePixels<Rgb565TestDevice, Rgb565RefDevice>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, FillPixels) {
-  TestFillPixels<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
-                                                      std::get<1>(GetParam()));
+  TestFillPixels<Rgb565TestDevice, Rgb565RefDevice>(std::get<0>(GetParam()),
+                                                    std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteRects) {
-  TestWriteRects<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
-                                                      std::get<1>(GetParam()));
+  TestWriteRects<Rgb565TestDevice, Rgb565RefDevice>(std::get<0>(GetParam()),
+                                                    std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteHLines) {
-  TestWriteHLines<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
-                                                       std::get<1>(GetParam()));
+  TestWriteHLines<Rgb565TestDevice, Rgb565RefDevice>(std::get<0>(GetParam()),
+                                                     std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteVLines) {
-  TestWriteVLines<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
-                                                       std::get<1>(GetParam()));
+  TestWriteVLines<Rgb565TestDevice, Rgb565RefDevice>(std::get<0>(GetParam()),
+                                                     std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteDegeneratePixels) {
-  TestWriteDegeneratePixels<Rgb565Device, FakeOffscreen<Rgb565>>(
+  TestWriteDegeneratePixels<Rgb565TestDevice, Rgb565RefDevice>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WritePixels) {
-  TestWritePixels<Rgb565Device, FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
-                                                       std::get<1>(GetParam()));
+  TestWritePixels<Rgb565TestDevice, Rgb565RefDevice>(std::get<0>(GetParam()),
+                                                     std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WritePixelsStress) {
-  TestWritePixelsStress<Rgb565Device, FakeOffscreen<Rgb565>>(
+  TestWritePixelsStress<Rgb565TestDevice, Rgb565RefDevice>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WritePixelsSnake) {
-  TestWritePixelsSnake<Rgb565Device, FakeOffscreen<Rgb565>>(
+  TestWritePixelsSnake<Rgb565TestDevice, Rgb565RefDevice>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteRectWindowSimple) {
-  TestWriteRectWindowSimple<Rgb565Device, FakeOffscreen<Rgb565>>(
+  TestWriteRectWindowSimple<Rgb565TestDevice, Rgb565RefDevice>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteRectWindowStress) {
-  TestWriteRectWindowStress<Rgb565Device, FakeOffscreen<Rgb565>>(
+  TestWriteRectWindowStress<Rgb565TestDevice, Rgb565RefDevice>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteRectWindowGrayscale8) {
   TestWriteRectWindowSimple<TestDevice<Grayscale8, roo_io::kBigEndian>,
-                            FakeOffscreen<Grayscale8>>(std::get<0>(GetParam()),
-                                                       std::get<1>(GetParam()));
+                            FakeOffscreen<Grayscale8, roo_io::kBigEndian>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteRectWindowSimpleLE) {
   TestWriteRectWindowSimple<TestDevice<Rgb565, roo_io::kLittleEndian>,
-                            FakeOffscreen<Rgb565>>(std::get<0>(GetParam()),
-                                                   std::get<1>(GetParam()));
+                            FakeOffscreen<Rgb565, roo_io::kLittleEndian>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteRectWindowSimpleArgb4444LE) {
   TestWriteRectWindowSimple<TestDevice<Argb4444, roo_io::kLittleEndian>,
-                            FakeOffscreen<Argb4444>>(std::get<0>(GetParam()),
-                                                     std::get<1>(GetParam()));
+                            FakeOffscreen<Argb4444, roo_io::kLittleEndian>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceTest, WriteRectWindowSimpleArgb8888LE) {
   TestWriteRectWindowSimple<TestDevice<Argb8888, roo_io::kLittleEndian>,
-                            FakeOffscreen<Argb8888>>(std::get<0>(GetParam()),
-                                                     std::get<1>(GetParam()));
+                            FakeOffscreen<Argb8888, roo_io::kLittleEndian>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
+}
+
+TEST_P(AddrWindowDeviceTest, DrawDirectRect) {
+  TestDrawDirectRect<Rgb565TestDevice, Rgb565RefDevice>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(AddrWindowDeviceBlendingTest, FillPixelsSparse) {
   Color kBg = Rgb565().toArgbColor(Rgb565().fromArgbColor(Color(0xFF102040)));
-  TestDisplayDevice<Rgb565Device, FakeOffscreen<Rgb565>> screen(32, 24, kBg);
+  TestDisplayDevice<Rgb565TestDevice, Rgb565RefDevice> screen(32, 24, kBg);
   screen.setOrientation(std::get<1>(GetParam()));
   screen.test().setBgColorHint(kBg);
   int16_t x[] = {1, 8, 15, 20, 23};
@@ -267,7 +273,7 @@ TEST_P(AddrWindowDeviceBlendingTest, FillPixelsSparse) {
 
 TEST_P(AddrWindowDeviceBlendingTest, WritePixelsSparse) {
   Color kBg = Rgb565().toArgbColor(Rgb565().fromArgbColor(Color(0xFF305020)));
-  TestDisplayDevice<Rgb565Device, FakeOffscreen<Rgb565>> screen(30, 26, kBg);
+  TestDisplayDevice<Rgb565TestDevice, Rgb565RefDevice> screen(30, 26, kBg);
   screen.setOrientation(std::get<1>(GetParam()));
   screen.test().setBgColorHint(kBg);
   int16_t x[] = {3, 7, 11, 19, 25};
@@ -280,7 +286,7 @@ TEST_P(AddrWindowDeviceBlendingTest, WritePixelsSparse) {
 
 TEST_P(AddrWindowDeviceBlendingTest, AddressWindowWriteSpan) {
   Color kBg = Rgb565().toArgbColor(Rgb565().fromArgbColor(Color(0xFF223344)));
-  TestDisplayDevice<Rgb565Device, FakeOffscreen<Rgb565>> screen(20, 18, kBg);
+  TestDisplayDevice<Rgb565TestDevice, Rgb565RefDevice> screen(20, 18, kBg);
   screen.setOrientation(std::get<1>(GetParam()));
   screen.test().setBgColorHint(kBg);
   Color c[] = {Color(0x88224488), Color(0xCCAA3300), Color(0x77AAEE22),
@@ -292,7 +298,7 @@ TEST_P(AddrWindowDeviceBlendingTest, AddressWindowWriteSpan) {
 
 TEST_P(AddrWindowDeviceBlendingTest, AddressWindowFillSpan) {
   Color kBg = Rgb565().toArgbColor(Rgb565().fromArgbColor(Color(0xFF405060)));
-  TestDisplayDevice<Rgb565Device, FakeOffscreen<Rgb565>> screen(22, 20, kBg);
+  TestDisplayDevice<Rgb565TestDevice, Rgb565RefDevice> screen(22, 20, kBg);
   screen.setOrientation(std::get<1>(GetParam()));
   screen.test().setBgColorHint(kBg);
   screen.setAddress(6, 3, 10, 3, std::get<0>(GetParam()));

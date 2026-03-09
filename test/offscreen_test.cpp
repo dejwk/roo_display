@@ -756,80 +756,84 @@ class OffscreenDeviceForTest
   ~OffscreenDeviceForTest() { delete[] Base::buffer(); }
 };
 
+template <typename ColorMode>
+using RefOffscreen =
+    FakeOffscreen<ColorMode, roo_io::kBigEndian, ColorPixelOrder::kMsbFirst>;
+
 TEST_P(OffscreenTest, FillRects) {
-  TestFillRects<OffscreenDeviceForTest<Argb4444>, FakeOffscreen<Argb4444>>(
+  TestFillRects<OffscreenDeviceForTest<Argb4444>, RefOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, FillHLines) {
-  TestFillHLines<OffscreenDeviceForTest<Argb4444>, FakeOffscreen<Argb4444>>(
+  TestFillHLines<OffscreenDeviceForTest<Argb4444>, RefOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, FillVLines) {
-  TestFillVLines<OffscreenDeviceForTest<Argb4444>, FakeOffscreen<Argb4444>>(
+  TestFillVLines<OffscreenDeviceForTest<Argb4444>, RefOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, FillDegeneratePixels) {
   TestFillDegeneratePixels<OffscreenDeviceForTest<Argb4444>,
-                           FakeOffscreen<Argb4444>>(std::get<0>(GetParam()),
-                                                    std::get<1>(GetParam()));
+                           RefOffscreen<Argb4444>>(std::get<0>(GetParam()),
+                                                   std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, FillPixels) {
-  TestFillPixels<OffscreenDeviceForTest<Argb4444>, FakeOffscreen<Argb4444>>(
+  TestFillPixels<OffscreenDeviceForTest<Argb4444>, RefOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteRects) {
-  TestWriteRects<OffscreenDeviceForTest<Argb4444>, FakeOffscreen<Argb4444>>(
+  TestWriteRects<OffscreenDeviceForTest<Argb4444>, RefOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteHLines) {
-  TestWriteHLines<OffscreenDeviceForTest<Argb4444>, FakeOffscreen<Argb4444>>(
+  TestWriteHLines<OffscreenDeviceForTest<Argb4444>, RefOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteVLines) {
-  TestWriteVLines<OffscreenDeviceForTest<Argb4444>, FakeOffscreen<Argb4444>>(
+  TestWriteVLines<OffscreenDeviceForTest<Argb4444>, RefOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteDegeneratePixels) {
   TestWriteDegeneratePixels<OffscreenDeviceForTest<Argb4444>,
-                            FakeOffscreen<Argb4444>>(std::get<0>(GetParam()),
-                                                     std::get<1>(GetParam()));
+                            RefOffscreen<Argb4444>>(std::get<0>(GetParam()),
+                                                    std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WritePixels) {
-  TestWritePixels<OffscreenDeviceForTest<Argb4444>, FakeOffscreen<Argb4444>>(
+  TestWritePixels<OffscreenDeviceForTest<Argb4444>, RefOffscreen<Argb4444>>(
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WritePixelsStress) {
   TestWritePixelsStress<OffscreenDeviceForTest<Argb4444>,
-                        FakeOffscreen<Argb4444>>(std::get<0>(GetParam()),
-                                                 std::get<1>(GetParam()));
+                        RefOffscreen<Argb4444>>(std::get<0>(GetParam()),
+                                                std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WritePixelsSnake) {
   TestWritePixelsSnake<OffscreenDeviceForTest<Argb4444>,
-                       FakeOffscreen<Argb4444>>(std::get<0>(GetParam()),
-                                                std::get<1>(GetParam()));
+                       RefOffscreen<Argb4444>>(std::get<0>(GetParam()),
+                                               std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteRectWindowSimple) {
   TestWriteRectWindowSimple<OffscreenDeviceForTest<Argb4444>,
-                            FakeOffscreen<Argb4444>>(std::get<0>(GetParam()),
-                                                     std::get<1>(GetParam()));
+                            RefOffscreen<Argb4444>>(std::get<0>(GetParam()),
+                                                    std::get<1>(GetParam()));
 }
 
 TEST_P(OffscreenTest, WriteRectWindowStress) {
   TestWriteRectWindowStress<OffscreenDeviceForTest<Argb4444>,
-                            FakeOffscreen<Argb4444>>(std::get<0>(GetParam()),
-                                                     std::get<1>(GetParam()));
+                            RefOffscreen<Argb4444>>(std::get<0>(GetParam()),
+                                                    std::get<1>(GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1011,6 +1015,11 @@ TEST_F(OffscreenTest, OffscreenForTranslucentDrawable) {
                                           "******5***"
                                           "*****8E***"
                                           "**********"));
+}
+
+TEST_P(OffscreenTest, DrawDirectRect) {
+  TestDrawDirectRect<OffscreenDeviceForTest<Rgb565>, RefOffscreen<Rgb565>>(
+      std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
 }  // namespace roo_display

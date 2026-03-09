@@ -57,6 +57,10 @@ class ReferenceDisplayDevice : public DisplayDevice {
 
   const ColorFormat& getColorFormat() const override;
 
+  void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
+                      int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                      int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override;
+
   void orientationUpdated() override;
 
  private:

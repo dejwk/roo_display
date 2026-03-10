@@ -25,6 +25,13 @@ namespace roo_display::products::makerfabs {
 
 class Esp32s3ParallelIpsCapacitive : public ComboDevice {
  public:
+  using Display =
+      roo_display::esp32s3_dma::ParallelRgb565<esp32s3_dma::FLUSH_MODE_LAZY>;
+
+  using ColorMode = Display::ColorMode;
+  static constexpr ColorPixelOrder pixel_order = Display::pixel_order;
+  static constexpr ByteOrder byte_order = Display::byte_order;
+
   /// Supported panel resolutions.
   enum Resolution { k800x480, k1024x600 };
   /// Create a device for the given resolution and orientation.
@@ -35,7 +42,7 @@ class Esp32s3ParallelIpsCapacitive : public ComboDevice {
   /// Initialize I2C transport for touch.
   void initTransport() { i2c_.init(17, 18); }
 
-  DisplayDevice& display() override { return display_; }
+  Display& display() override { return display_; }
 
   TouchDevice* touch() override { return &touch_; }
 
@@ -45,8 +52,7 @@ class Esp32s3ParallelIpsCapacitive : public ComboDevice {
  private:
   Resolution resolution_;
   I2cMasterBusHandle i2c_;
-  roo_display::esp32s3_dma::ParallelRgb565<esp32s3_dma::FLUSH_MODE_LAZY>
-      display_;
+  Display display_;
   roo_display::TouchGt911 touch_;
 };
 

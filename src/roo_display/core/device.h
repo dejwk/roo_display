@@ -2,6 +2,8 @@
 
 #include <inttypes.h>
 
+#include <functional>
+
 #include "roo_display/color/blending.h"
 #include "roo_display/color/color.h"
 #include "roo_display/color/pixel_order.h"
@@ -184,6 +186,16 @@ class DisplayOutput {
   virtual void drawDirectRect(const roo::byte *data, size_t row_width_bytes,
                               int16_t src_x0, int16_t src_y0, int16_t src_x1,
                               int16_t src_y1, int16_t dst_x0, int16_t dst_y0);
+
+  /// Async version of drawDirectRect() with completion callback.
+  ///
+  /// The default implementation calls drawDirectRect() synchronously and then
+  /// invokes the callback.
+  virtual void drawDirectRectAsync(const roo::byte *data,
+                                   size_t row_width_bytes, int16_t src_x0,
+                                   int16_t src_y0, int16_t src_x1,
+                                   int16_t src_y1, int16_t dst_x0,
+                                   int16_t dst_y0, std::function<void()> cb);
 };
 
 /// Base class for display device drivers.

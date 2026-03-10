@@ -3,10 +3,12 @@
 /// Support for drawing to in-memory buffers, using various color modes.
 
 #include <cstring>
+#include <functional>
 #include <utility>
 
 #include "roo_display/color/color.h"
 #include "roo_display/core/raster.h"
+#include "roo_display/hal/async_blit.h"
 #include "roo_display/internal/color_format.h"
 #include "roo_io/memory/fill.h"
 #include "roo_io/memory/store.h"
@@ -342,6 +344,64 @@ class OffscreenDevice : public DisplayDevice {
       SubByteWriter writer(data, row_width_bytes, src_x0, src_y0, width);
       writeToWindow(writer, pixel_count);
     }
+  }
+
+  void drawDirectRectAsync(const roo::byte* data, size_t row_width_bytes,
+                           int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                           int16_t src_y1, int16_t dst_x0, int16_t dst_y0,
+                           std::function<void()> cb) override {
+    if (src_x1 < src_x0 || src_y1 < src_y0) {
+      if (cb) cb();
+      return;
+    }
+
+    int16_t width = src_x1 - src_x0 + 1;
+    int16_t height = src_y1 - src_y0 + 1;
+
+    if (orientation() == Orientation::Default()) {
+      if constexpr (ColorTraits<ColorMode>::pixels_per_byte == 1) {
+        constexpr size_t kBytesPerPixel =
+            ColorTraits<ColorMode>::bytes_per_pixel;
+        size_t copy_row_bytes = static_cast<size_t>(width) * kBytesPerPixel;
+        size_t dst_row_bytes =
+            static_cast<size_t>(raw_width()) * kBytesPerPixel;
+
+        const roo::byte* src_row =
+            data + static_cast<size_t>(src_y0) * row_width_bytes +
+            static_cast<size_t>(src_x0) * kBytesPerPixel;
+        roo::byte* dst_row = buffer_ +
+                             static_cast<size_t>(dst_y0) * dst_row_bytes +
+                             static_cast<size_t>(dst_x0) * kBytesPerPixel;
+        async_blit(src_row, row_width_bytes, dst_row, dst_row_bytes,
+                   copy_row_bytes, static_cast<size_t>(height), std::move(cb));
+        return;
+      } else {
+        constexpr int kPixelsPerByte = ColorTraits<ColorMode>::pixels_per_byte;
+        if (kPixelsPerByte > 1 && (raw_width() % kPixelsPerByte) == 0 &&
+            (src_x0 % kPixelsPerByte) == 0 && (dst_x0 % kPixelsPerByte) == 0 &&
+            (width % kPixelsPerByte) == 0) {
+          size_t copy_row_bytes = static_cast<size_t>(width) / kPixelsPerByte;
+          size_t dst_row_bytes =
+              static_cast<size_t>(raw_width()) / kPixelsPerByte;
+
+          const roo::byte* src_row =
+              data + static_cast<size_t>(src_y0) * row_width_bytes +
+              static_cast<size_t>(src_x0 / kPixelsPerByte);
+          roo::byte* dst_row = buffer_ +
+                               static_cast<size_t>(dst_y0) * dst_row_bytes +
+                               static_cast<size_t>(dst_x0 / kPixelsPerByte);
+
+          async_blit(src_row, row_width_bytes, dst_row, dst_row_bytes,
+                     copy_row_bytes, static_cast<size_t>(height),
+                     std::move(cb));
+          return;
+        }
+      }
+    }
+
+    drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1, src_y1,
+                   dst_x0, dst_y0);
+    if (cb) cb();
   }
 
   /// Access color mode.

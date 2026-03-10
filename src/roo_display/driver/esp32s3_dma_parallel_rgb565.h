@@ -309,6 +309,11 @@ class ParallelRgb565 : public DisplayDevice {
                       int16_t src_x0, int16_t src_y0, int16_t src_x1,
                       int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override;
 
+  void drawDirectRectAsync(const roo::byte *data, size_t row_width_bytes,
+                           int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                           int16_t src_y1, int16_t dst_x0, int16_t dst_y0,
+                           std::function<void()> cb) override;
+
   const ColorFormat &getColorFormat() const override {
     static const ::roo_display::internal::ColorFormatImpl<
         Rgb565, roo_io::kLittleEndian, ColorPixelOrder::kMsbFirst>

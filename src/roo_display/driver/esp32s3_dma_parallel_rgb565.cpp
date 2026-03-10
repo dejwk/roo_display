@@ -9,6 +9,7 @@
 #include "roo_backport.h"
 #include "roo_backport/byte.h"
 #include "roo_display/driver/esp32s3_dma_parallel_rgb565.h"
+#include "roo_display/hal/async_blit.h"
 
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 1, 0)
 #define LEGACY_RGBPANEL
@@ -25,10 +26,8 @@ namespace roo_display {
 namespace esp32s3_dma {
 
 roo::byte *AllocateBuffer(const Config &config) {
-  esp_lcd_rgb_panel_config_t *cfg =
-      (esp_lcd_rgb_panel_config_t *)heap_caps_calloc(
-          1, sizeof(esp_lcd_rgb_panel_config_t),
-          MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+  esp_lcd_rgb_panel_config_t *cfg = (esp_lcd_rgb_panel_config_t *)calloc(
+      1, sizeof(esp_lcd_rgb_panel_config_t));
 
   cfg->clk_src = LCD_CLK_SRC_PLL160M;
 
@@ -76,6 +75,7 @@ roo::byte *AllocateBuffer(const Config &config) {
 
 #ifndef LEGACY_RGBPANEL
   cfg->bounce_buffer_size_px = 10 * config.width;
+  cfg->dma_burst_size = 32;
 #endif
 
   if (config.bswap) {
@@ -138,6 +138,7 @@ roo::byte *AllocateBuffer(const Config &config) {
 
 template <>
 void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::init() {
+  async_blit_init();
   roo::byte *buffer = AllocateBuffer(cfg_);
   buffer_.reset(new Dev(cfg_.width, cfg_.height, buffer,
                         ::roo_display::internal::Rgb565Dma()));
@@ -208,6 +209,19 @@ void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::drawDirectRect(
   }
 }
 
+template <>
+void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::drawDirectRectAsync(
+    const roo::byte *data, size_t row_width_bytes, int16_t src_x0,
+    int16_t src_y0, int16_t src_x1, int16_t src_y1, int16_t dst_x0,
+    int16_t dst_y0, std::function<void()> cb) {
+  if (buffer_ == nullptr || src_x1 < src_x0 || src_y1 < src_y0) {
+    if (cb) cb();
+    return;
+  }
+  buffer_->drawDirectRectAsync(data, row_width_bytes, src_x0, src_y0, src_x1,
+                               src_y1, dst_x0, dst_y0, std::move(cb));
+}
+
 namespace {
 
 struct FlushRange {
@@ -242,6 +256,7 @@ inline FlushRange ResolveFlushRangeForRects(const Config &cfg,
 
 template <>
 void ParallelRgb565<FLUSH_MODE_BUFFERED>::init() {
+  async_blit_init();
   roo::byte *buffer = AllocateBuffer(cfg_);
   buffer_.reset(new Dev(cfg_.width, cfg_.height, buffer, Rgb565()));
   buffer_->setOrientation(orientation());
@@ -369,7 +384,37 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::drawDirectRect(
 }
 
 template <>
+void ParallelRgb565<FLUSH_MODE_BUFFERED>::drawDirectRectAsync(
+    const roo::byte *data, size_t row_width_bytes, int16_t src_x0,
+    int16_t src_y0, int16_t src_x1, int16_t src_y1, int16_t dst_x0,
+    int16_t dst_y0, std::function<void()> cb) {
+  if (buffer_ == nullptr || src_x1 < src_x0 || src_y1 < src_y0) {
+    if (cb) cb();
+    return;
+  }
+
+  buffer_->drawDirectRectAsync(
+      data, row_width_bytes, src_x0, src_y0, src_x1, src_y1, dst_x0, dst_y0,
+      [this, dst_y0, src_y0, src_y1, cb = std::move(cb)]() mutable {
+        if (orientation() == Orientation::Default()) {
+          constexpr uint32_t kBytesPerPixel = 2;
+          int16_t height = src_y1 - src_y0 + 1;
+          uint32_t offset =
+              static_cast<uint32_t>(dst_y0) * cfg_.width * kBytesPerPixel;
+          uint32_t length =
+              static_cast<uint32_t>(height) * cfg_.width * kBytesPerPixel;
+          Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + offset, length);
+        } else {
+          Cache_WriteBack_Addr((uint32_t)buffer_->buffer(),
+                               cfg_.width * cfg_.height * 2);
+        }
+        if (cb) cb();
+      });
+}
+
+template <>
 void ParallelRgb565<FLUSH_MODE_LAZY>::init() {
+  async_blit_init();
   roo::byte *buffer = AllocateBuffer(cfg_);
   buffer_.reset(new Dev(cfg_.width, cfg_.height, buffer, Rgb565()));
   buffer_->setOrientation(orientation());
@@ -432,6 +477,19 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::drawDirectRect(
   if (buffer_ == nullptr || src_x1 < src_x0 || src_y1 < src_y0) return;
   buffer_->drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1, src_y1,
                           dst_x0, dst_y0);
+}
+
+template <>
+void ParallelRgb565<FLUSH_MODE_LAZY>::drawDirectRectAsync(
+    const roo::byte *data, size_t row_width_bytes, int16_t src_x0,
+    int16_t src_y0, int16_t src_x1, int16_t src_y1, int16_t dst_x0,
+    int16_t dst_y0, std::function<void()> cb) {
+  if (buffer_ == nullptr || src_x1 < src_x0 || src_y1 < src_y0) {
+    if (cb) cb();
+    return;
+  }
+  buffer_->drawDirectRectAsync(data, row_width_bytes, src_x0, src_y0, src_x1,
+                               src_y1, dst_x0, dst_y0, std::move(cb));
 }
 
 // #if FLUSH_MODE == FLUSH_MODE_HARDCODED

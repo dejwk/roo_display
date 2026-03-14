@@ -124,6 +124,9 @@ class St77xxTarget {
       last_y0_ = y0;
       last_y1_ = y1;
     }
+  }
+
+  void startRamWrite() __attribute__((always_inline)) {
     transport_.sync();
     writeCommand(RAMWR);
   }

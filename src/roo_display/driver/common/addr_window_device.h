@@ -36,6 +36,7 @@ namespace roo_display {
 //   void end();
 //   void setOrientation(Orientation);
 //   void setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
+//   void startRamWrite();
 //   void sync();
 //   void ramWrite(const roo::byte* data, size_t pixel_count);
 //   void ramFill(const roo::byte* data, size_t pixel_count);
@@ -102,6 +103,7 @@ class AddrWindowDevice : public DisplayDevice {
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
                   BlendingMode mode) override {
     target_.setAddrWindow(x0, y0, x1, y1);
+    target_.startRamWrite();
     blending_mode_ = mode;
   }
 
@@ -136,6 +138,7 @@ class AddrWindowDevice : public DisplayDevice {
     raw_color_type raw_color;
     while (count-- > 0) {
       target_.setAddrWindow(*x0, *y0, *x1, *y1);
+      target_.startRamWrite();
       uint32_t pixel_count = (*x1 - *x0 + 1) * (*y1 - *y0 + 1);
       x0++;
       y0++;
@@ -155,6 +158,7 @@ class AddrWindowDevice : public DisplayDevice {
     processColor(blending_mode, color, raw_color);
     while (count-- > 0) {
       target_.setAddrWindow(*x0, *y0, *x1, *y1);
+      target_.startRamWrite();
       uint32_t pixel_count = (*x1 - *x0 + 1) * (*y1 - *y0 + 1);
       x0++;
       y0++;
@@ -193,7 +197,7 @@ class AddrWindowDevice : public DisplayDevice {
               break;
             }
           }
-          // No need to call sync after setAddrWindow().
+          target_.startRamWrite();
           AddrWindowDevice::write(colors + offset, count);
         });
   }
@@ -226,7 +230,7 @@ class AddrWindowDevice : public DisplayDevice {
               break;
             }
           }
-          // No need to call sync after setAddrWindow().
+          target_.startRamWrite();
           target_.ramFill(raw_color_ptr, count);
         });
   }
@@ -259,13 +263,13 @@ class AddrWindowDevice : public DisplayDevice {
     int16_t height = src_y1 - src_y0 + 1;
     target_.setAddrWindow(dst_x0, dst_y0, dst_x0 + width - 1,
                           dst_y0 + height - 1);
-
     const size_t width_bytes = static_cast<size_t>(width) * kBytesPerPixel;
     const roo::byte* row = data +
                            static_cast<size_t>(src_y0) * row_width_bytes +
                            static_cast<size_t>(src_x0) * kBytesPerPixel;
+    target_.startRamWrite();
+
     if (row_width_bytes == width_bytes) {
-      // No need to call sync just after setAddrWindow().
       target_.ramWrite(row, static_cast<size_t>(width) * height);
       return;
     }

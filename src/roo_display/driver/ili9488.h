@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-
 #include "roo_display/driver/common/addr_window_device.h"
 #include "roo_display/transport/spi.h"
 #include "roo_io/data/byte_order.h"
@@ -219,6 +218,9 @@ class Ili9488Target {
       last_y0_ = y0;
       last_y1_ = y1;
     }
+  }
+
+  void startRamWrite() __attribute__((always_inline)) {
     transport_.sync();
     writeCommand(RAMWR);
   }

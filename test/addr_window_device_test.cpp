@@ -60,6 +60,10 @@ class TestTarget {
     yMax_ = y1;
     xCursor_ = xMin_;
     yCursor_ = yMin_;
+    synced_ = false;
+  }
+
+  void startRamWrite() {
     inRamWrite_ = true;
     synced_ = true;
   }

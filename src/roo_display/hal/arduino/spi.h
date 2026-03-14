@@ -12,6 +12,8 @@
 #include "roo_io/data/byte_order.h"
 #include "roo_io/memory/fill.h"
 
+#include <functional>
+
 namespace roo_display {
 
 template <typename SpiSettings>
@@ -115,6 +117,33 @@ class ArduinoSpiDevice {
     roo_io::PatternFill<3>(buf, repetitions, data);
     spi_.writeBytes(reinterpret_cast<uint8_t*>(buf), repetitions * 3);
   }
+
+  void async_blit(const roo::byte* data, size_t row_stride_bytes,
+                  size_t row_bytes, size_t row_count,
+                  std::function<void()> cb) {
+    if (data == nullptr || row_bytes == 0 || row_count == 0) {
+      if (cb) cb();
+      return;
+    }
+
+    if (row_stride_bytes == row_bytes) {
+      writeBytes_async(data, static_cast<uint32_t>(row_bytes * row_count));
+      if (cb) cb();
+      return;
+    }
+
+    const roo::byte* row = data;
+    for (size_t i = 0; i < row_count; ++i) {
+      // Note that this is actually a synchronous call.
+      writeBytes_async(row, static_cast<uint32_t>(row_bytes));
+      row += row_stride_bytes;
+    }
+    if (cb) cb();
+  }
+
+  bool asyncBlitFenceIsIdle() const { return true; }
+
+  void asyncBlitFenceWait() {}
 
   roo::byte transfer(roo::byte data) {
     return static_cast<roo::byte>(spi_.transfer(static_cast<uint8_t>(data)));

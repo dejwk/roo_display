@@ -7,6 +7,8 @@
 #include "roo_display/hal/spi_settings.h"
 #include "roo_display/internal/byte_order.h"
 
+#include <functional>
+
 namespace roo_display {
 
 template <int pinCS, typename SpiDevice, typename Gpio>
@@ -105,6 +107,17 @@ class SpiTransport {
   void fill24_async(const roo::byte* data, uint32_t repetitions) {
     device_.fill24_async(data, repetitions);
   }
+
+  void async_blit(const roo::byte* data, size_t row_stride_bytes,
+                  size_t row_bytes, size_t row_count,
+                  std::function<void()> cb) {
+    device_.async_blit(data, row_stride_bytes, row_bytes, row_count,
+                       std::move(cb));
+  }
+
+  bool asyncBlitFenceIsIdle() const { return device_.asyncBlitFenceIsIdle(); }
+
+  void asyncBlitFenceWait() { device_.asyncBlitFenceWait(); }
 
   roo::byte transfer(roo::byte data) __attribute__((always_inline)) {
     return device_.transfer(data);

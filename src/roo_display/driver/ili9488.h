@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include "roo_display/driver/common/addr_window_device.h"
 #include "roo_display/transport/spi.h"
 #include "roo_io/data/byte_order.h"
@@ -235,6 +236,14 @@ class Ili9488Target {
   void ramFill(const roo::byte* data, size_t pixel_count)
       __attribute__((always_inline)) {
     transport_.fill24_async(data, pixel_count);
+  }
+
+  void ramWriteAsyncBlit(const roo::byte* data, size_t row_stride_bytes,
+                         size_t row_bytes, size_t row_count,
+                         std::function<void()> cb)
+      __attribute__((always_inline)) {
+    transport_.async_blit(data, row_stride_bytes, row_bytes, row_count,
+                          std::move(cb));
   }
 
  private:

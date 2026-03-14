@@ -4,6 +4,8 @@
 #include "roo_threads.h"
 #include "roo_threads/thread.h"
 
+#include <functional>
+
 namespace roo_display {
 namespace st77xx {
 
@@ -143,6 +145,14 @@ class St77xxTarget {
   void ramFill(const roo::byte* data, size_t pixel_count)
       __attribute__((always_inline)) {
     transport_.fill16_async(data, pixel_count);
+  }
+
+  void ramWriteAsyncBlit(const roo::byte* data, size_t row_stride_bytes,
+                         size_t row_bytes, size_t row_count,
+                         std::function<void()> cb)
+      __attribute__((always_inline)) {
+    transport_.async_blit(data, row_stride_bytes, row_bytes, row_count,
+                          std::move(cb));
   }
 
   void writeCommand(uint8_t c) __attribute__((always_inline)) {

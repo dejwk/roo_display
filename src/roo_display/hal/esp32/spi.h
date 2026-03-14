@@ -10,6 +10,8 @@
 
 #include <cstring>
 
+#include <functional>
+
 #include "roo_backport.h"
 #include "roo_backport/byte.h"
 #include "roo_display/hal/spi_settings.h"
@@ -493,6 +495,34 @@ class Esp32SpiDevice {
       SpiTxWait(spi_port);
     }
   }
+
+  void async_blit(const roo::byte* data, size_t row_stride_bytes,
+                  size_t row_bytes, size_t row_count,
+                  std::function<void()> cb) {
+    if (data == nullptr || row_bytes == 0 || row_count == 0) {
+      if (cb) cb();
+      return;
+    }
+
+    if (row_stride_bytes == row_bytes) {
+      writeBytes_async(data, static_cast<uint32_t>(row_bytes * row_count));
+      sync();
+      if (cb) cb();
+      return;
+    }
+
+    const roo::byte* row = data;
+    for (size_t i = 0; i < row_count; ++i) {
+      writeBytes_async(row, static_cast<uint32_t>(row_bytes));
+      sync();
+      row += row_stride_bytes;
+    }
+    if (cb) cb();
+  }
+
+  bool asyncBlitFenceIsIdle() const { return true; }
+
+  void asyncBlitFenceWait() {}
 
   roo::byte transfer(roo::byte data) __attribute__((always_inline)) {
     WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 7);

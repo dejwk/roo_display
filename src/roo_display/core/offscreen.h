@@ -73,7 +73,7 @@ class AddressWindow {
   const uint32_t offset() const { return offset_; }
   Orientation orientation() const { return orientation_; }
   int16_t advance_x() const { return advance_x_; }
-  int16_t advance_y() const { return advance_y_; }
+  int32_t advance_y() const { return advance_y_; }
 
   void advance();
   void advance(uint32_t count);
@@ -88,7 +88,8 @@ class AddressWindow {
   Orientation orientation_;
   uint32_t offset_;
   uint16_t x0_, x1_, y0_, y1_;
-  int16_t advance_x_, advance_y_;
+  int16_t advance_x_;
+  int32_t advance_y_;
   uint16_t cursor_x_, cursor_y_;
 };
 
@@ -144,7 +145,9 @@ class OffscreenDevice : public DisplayDevice {
         color_mode_(color_mode),
         color_format_(color_mode_),
         buffer_(buffer),
-        orienter_(width, height, Orientation::Default()) {}
+        orienter_(width, height, Orientation::Default()) {
+    CHECK_NOTNULL(buffer);
+  }
 
   OffscreenDevice(OffscreenDevice&& other) noexcept
       : DisplayDevice(other.orientation(), other.raw_width(),

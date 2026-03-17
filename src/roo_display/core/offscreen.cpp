@@ -1,6 +1,5 @@
 // Support for drawing to in-memory buffers, using various color modes.
 
-
 #include "roo_display/core/offscreen.h"
 
 #include "roo_display/color/color.h"

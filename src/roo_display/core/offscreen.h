@@ -9,6 +9,7 @@
 #include "roo_display/color/color.h"
 #include "roo_display/core/raster.h"
 #include "roo_display/hal/async_blit.h"
+#include "roo_display/hal/blit.h"
 #include "roo_display/internal/color_format.h"
 #include "roo_io/memory/fill.h"
 #include "roo_io/memory/store.h"
@@ -201,18 +202,8 @@ class OffscreenDevice : public DisplayDevice {
                              static_cast<size_t>(dst_y0) * dst_row_bytes +
                              static_cast<size_t>(dst_x0) * kBytesPerPixel;
 
-        if (row_width_bytes == copy_row_bytes &&
-            dst_row_bytes == copy_row_bytes) {
-          std::memcpy(dst_row, src_row,
-                      copy_row_bytes * static_cast<size_t>(height));
-          return;
-        }
-
-        for (int16_t y = 0; y < height; ++y) {
-          std::memcpy(dst_row, src_row, copy_row_bytes);
-          src_row += row_width_bytes;
-          dst_row += dst_row_bytes;
-        }
+        blit(src_row, row_width_bytes, dst_row, dst_row_bytes, copy_row_bytes,
+             static_cast<size_t>(height));
         return;
       } else {
         constexpr int kPixelsPerByte = ColorTraits<ColorMode>::pixels_per_byte;
@@ -231,18 +222,8 @@ class OffscreenDevice : public DisplayDevice {
                                static_cast<size_t>(dst_y0) * dst_row_bytes +
                                static_cast<size_t>(dst_x0 / kPixelsPerByte);
 
-          if (row_width_bytes == copy_row_bytes &&
-              dst_row_bytes == copy_row_bytes) {
-            std::memcpy(dst_row, src_row,
-                        copy_row_bytes * static_cast<size_t>(height));
-            return;
-          }
-
-          for (int16_t y = 0; y < height; ++y) {
-            std::memcpy(dst_row, src_row, copy_row_bytes);
-            src_row += row_width_bytes;
-            dst_row += dst_row_bytes;
-          }
+          blit(src_row, row_width_bytes, dst_row, dst_row_bytes, copy_row_bytes,
+               static_cast<size_t>(height));
           return;
         }
       }

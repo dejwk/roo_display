@@ -9,7 +9,6 @@
 #endif
 
 #include <cstring>
-
 #include <functional>
 
 #include "roo_backport.h"
@@ -245,23 +244,23 @@ class Esp32SpiDevice {
   }
 
   void writeBytes_async(const roo::byte* data, uint32_t len) {
-    // uintptr_t misalign = reinterpret_cast<uintptr_t>(data) & 0x3u;
-    // if (misalign != 0) {
-    //   uint32_t prefix = 4 - static_cast<uint32_t>(misalign);
-    //   if (prefix > len) prefix = len;
-    //   uint32_t word = 0;
-    //   __builtin_memcpy(&word, data, prefix);
-    //   WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), (prefix << 3) - 1);
-    //   WRITE_PERI_REG(SPI_W0_REG(spi_port), word);
-    //   SpiTxStart(spi_port);
-    //   len -= prefix;
-    //   if (len == 0) {
-    //     need_sync_ = true;
-    //     return;
-    //   }
-    //   data += prefix;
-    //   SpiTxWait(spi_port);
-    // }
+    uintptr_t misalign = reinterpret_cast<uintptr_t>(data) & 0x3u;
+    if (misalign != 0) {
+      uint32_t prefix = 4 - static_cast<uint32_t>(misalign);
+      if (prefix > len) prefix = len;
+      uint32_t word = 0;
+      __builtin_memcpy(&word, data, prefix);
+      WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), (prefix << 3) - 1);
+      WRITE_PERI_REG(SPI_W0_REG(spi_port), word);
+      SpiTxStart(spi_port);
+      len -= prefix;
+      if (len == 0) {
+        need_sync_ = true;
+        return;
+      }
+      data += prefix;
+      SpiTxWait(spi_port);
+    }
     const uint32_t* d32 = reinterpret_cast<const uint32_t*>(data);
     if (len >= 64) {
       WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 511);
@@ -599,7 +598,8 @@ using Fspi = Esp32Spi<2>;
 }  // namespace roo_display
 
 #else
-// The SPI hardware is not emulated by roo_testing; we need to use a higher-level driver abstraction.
+// The SPI hardware is not emulated by roo_testing; we need to use a
+// higher-level driver abstraction.
 
 #include "roo_display/hal/arduino/spi.h"
 

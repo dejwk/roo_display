@@ -599,6 +599,7 @@ using Fspi = Esp32Spi<2>;
 }  // namespace roo_display
 
 #else
+// The SPI hardware is not emulated by roo_testing; we need to use a higher-level driver abstraction.
 
 #include "roo_display/hal/arduino/spi.h"
 

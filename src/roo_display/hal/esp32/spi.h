@@ -13,57 +13,15 @@
 
 #include "roo_backport.h"
 #include "roo_backport/byte.h"
+#include "roo_display/hal/esp32/spi_reg.h"
 #include "roo_display/hal/spi_settings.h"
 #include "roo_io/data/byte_order.h"
 #include "soc/spi_reg.h"
-
-#if CONFIG_IDF_TARGET_ESP32
-#define ROO_DISPLAY_ESP32_SPI_DEFAULT_PORT 3
-#else
-#define ROO_DISPLAY_ESP32_SPI_DEFAULT_PORT 2
-#ifndef SPI_MOSI_DLEN_REG
-#define SPI_MOSI_DLEN_REG(x) SPI_MS_DLEN_REG(x)
-#endif
-#ifndef SPI_MISO_DLEN_REG
-#define SPI_MISO_DLEN_REG(x) SPI_MS_DLEN_REG(x)
-#endif
-#endif
-
-#if !defined(CONFIG_IDF_TARGET_ESP32) && !defined(CONFIG_IDF_TARGET_ESP32S2)
-#define ROO_DISPLAY_SPI_CMD_UPDATE_REQUIRED 1
-#else
-#define ROO_DISPLAY_SPI_CMD_UPDATE_REQUIRED 0
-#endif
 
 #ifndef ROO_TESTING
 
 namespace roo_display {
 namespace esp32 {
-
-inline void SpiTxWait(uint8_t spi_port) __attribute__((always_inline));
-inline void SpiTxStart(uint8_t spi_port) __attribute__((always_inline));
-
-inline void SpiTxWait(uint8_t spi_port) {
-  while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR) {
-  }
-}
-
-inline void SpiTxStart(uint8_t spi_port) {
-#if ROO_DISPLAY_SPI_CMD_UPDATE_REQUIRED
-  SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_UPDATE);
-  while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_UPDATE) {
-  }
-#endif
-
-  // SET_PERI_REG_MASK(SPI_CMD_REG(spi_port), SPI_USR);
-  // The 'correct' way to set the SPI_USR would be to set just the single bit,
-  // as in the commented-out code above. But the remaining bits of this register
-  // are unused (marked 'reserved'; see
-  // https://www.espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf
-  // page 131). Unconditionally setting the entire register brings significant
-  // performance improvements.
-  WRITE_PERI_REG(SPI_CMD_REG(spi_port), SPI_USR);
-}
 
 template <uint8_t spi_port, typename SpiSettings>
 class Esp32SpiDevice;
@@ -150,14 +108,11 @@ class Esp32SpiDevice {
   void beginWriteOnlyTransaction() {
     spi_.beginTransaction(SPISettings(
         SpiSettings::clock, SpiSettings::bit_order, SpiSettings::data_mode));
-    // Enable write-only mode.
-    WRITE_PERI_REG(SPI_USER_REG(spi_port), SPI_USR_MOSI);
+    SpiSetWriteOnlyMode(spi_port);
   }
 
   void endTransaction() {
-    // Re-enable read-write mode.
-    WRITE_PERI_REG(SPI_USER_REG(spi_port),
-                   SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN);
+    SpiSetReadWriteMode(spi_port);
     spi_.endTransaction();
   }
 #else
@@ -188,14 +143,11 @@ class Esp32SpiDevice {
 
   void beginWriteOnlyTransaction() {
     spi_device_acquire_bus(device_, portMAX_DELAY);
-    // Enable write-only mode.
-    WRITE_PERI_REG(SPI_USER_REG(spi_port), SPI_USR_MOSI);
+    SpiSetWriteOnlyMode(spi_port);
   }
 
   void endTransaction() {
-    // Re-enable read-write mode.
-    WRITE_PERI_REG(SPI_USER_REG(spi_port),
-                   SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN);
+    SpiSetReadWriteMode(spi_port);
     spi_device_release_bus(device_);
   }
 #endif
@@ -207,38 +159,36 @@ class Esp32SpiDevice {
   }
 
   void write(uint8_t data) __attribute__((always_inline)) {
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 7);
-    WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
+    SpiSetOutBufferSize(spi_port, 1);
+    SpiWrite4(spi_port, static_cast<uint32_t>(data));
     SpiTxStart(spi_port);
     SpiTxWait(spi_port);
   }
 
   void write16(uint16_t data) __attribute__((always_inline)) {
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 15);
-    WRITE_PERI_REG(SPI_W0_REG(spi_port), roo_io::htobe(data));
+    SpiSetOutBufferSize(spi_port, 2);
+    SpiWrite4(spi_port, roo_io::htobe(data));
     SpiTxStart(spi_port);
     SpiTxWait(spi_port);
   }
 
   void write16x2(uint16_t a, uint16_t b) __attribute((always_inline)) {
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
-    WRITE_PERI_REG(SPI_W0_REG(spi_port),
-                   roo_io::htobe(a) | (roo_io::htobe(b) << 16));
+    SpiSetOutBufferSize(spi_port, 4);
+    SpiWrite4(spi_port, roo_io::htobe(a) | (roo_io::htobe(b) << 16));
     SpiTxStart(spi_port);
     SpiTxWait(spi_port);
   }
 
   void write16x2_async(uint16_t a, uint16_t b) __attribute((always_inline)) {
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
-    WRITE_PERI_REG(SPI_W0_REG(spi_port),
-                   roo_io::htobe(a) | (roo_io::htobe(b) << 16));
+    SpiSetOutBufferSize(spi_port, 4);
+    SpiWrite4(spi_port, roo_io::htobe(a) | (roo_io::htobe(b) << 16));
     SpiTxStart(spi_port);
     need_sync_ = true;
   }
 
   void write32(uint32_t data) __attribute__((always_inline)) {
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
-    WRITE_PERI_REG(SPI_W0_REG(spi_port), roo_io::htobe(data));
+    SpiSetOutBufferSize(spi_port, 4);
+    SpiWrite4(spi_port, roo_io::htobe(data));
     SpiTxStart(spi_port);
     SpiTxWait(spi_port);
   }
@@ -250,8 +200,8 @@ class Esp32SpiDevice {
       if (prefix > len) prefix = len;
       uint32_t word = 0;
       __builtin_memcpy(&word, data, prefix);
-      WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), (prefix << 3) - 1);
-      WRITE_PERI_REG(SPI_W0_REG(spi_port), word);
+      SpiSetOutBufferSize(spi_port, prefix);
+      SpiWrite4(spi_port, word);
       SpiTxStart(spi_port);
       len -= prefix;
       if (len == 0) {
@@ -261,71 +211,24 @@ class Esp32SpiDevice {
       data += prefix;
       SpiTxWait(spi_port);
     }
-    const uint32_t* d32 = reinterpret_cast<const uint32_t*>(data);
+    // const uint32_t* d32 = reinterpret_cast<const uint32_t*>(data);
     if (len >= 64) {
-      WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 511);
+      SpiSetOutBufferSize(spi_port, 64);
       while (true) {
-        WRITE_PERI_REG(SPI_W0_REG(spi_port), d32[0]);
-        WRITE_PERI_REG(SPI_W1_REG(spi_port), d32[1]);
-        WRITE_PERI_REG(SPI_W2_REG(spi_port), d32[2]);
-        WRITE_PERI_REG(SPI_W3_REG(spi_port), d32[3]);
-        WRITE_PERI_REG(SPI_W4_REG(spi_port), d32[4]);
-        WRITE_PERI_REG(SPI_W5_REG(spi_port), d32[5]);
-        WRITE_PERI_REG(SPI_W6_REG(spi_port), d32[6]);
-        WRITE_PERI_REG(SPI_W7_REG(spi_port), d32[7]);
-        WRITE_PERI_REG(SPI_W8_REG(spi_port), d32[8]);
-        WRITE_PERI_REG(SPI_W9_REG(spi_port), d32[9]);
-        WRITE_PERI_REG(SPI_W10_REG(spi_port), d32[10]);
-        WRITE_PERI_REG(SPI_W11_REG(spi_port), d32[11]);
-        WRITE_PERI_REG(SPI_W12_REG(spi_port), d32[12]);
-        WRITE_PERI_REG(SPI_W13_REG(spi_port), d32[13]);
-        WRITE_PERI_REG(SPI_W14_REG(spi_port), d32[14]);
-        WRITE_PERI_REG(SPI_W15_REG(spi_port), d32[15]);
+        SpiWrite64Aligned(spi_port, data);
         SpiTxStart(spi_port);
         len -= 64;
         if (len == 0) {
           need_sync_ = true;
           return;
         }
-        d32 += 16;
+        data += 64;
         SpiTxWait(spi_port);
         if (len < 64) break;
       }
     }
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), (len << 3) - 1);
-    do {
-      WRITE_PERI_REG(SPI_W0_REG(spi_port), d32[0]);
-      if (len <= 4) break;
-      WRITE_PERI_REG(SPI_W1_REG(spi_port), d32[1]);
-      if (len <= 8) break;
-      WRITE_PERI_REG(SPI_W2_REG(spi_port), d32[2]);
-      if (len <= 12) break;
-      WRITE_PERI_REG(SPI_W3_REG(spi_port), d32[3]);
-      if (len <= 16) break;
-      WRITE_PERI_REG(SPI_W4_REG(spi_port), d32[4]);
-      if (len <= 20) break;
-      WRITE_PERI_REG(SPI_W5_REG(spi_port), d32[5]);
-      if (len <= 24) break;
-      WRITE_PERI_REG(SPI_W6_REG(spi_port), d32[6]);
-      if (len <= 28) break;
-      WRITE_PERI_REG(SPI_W7_REG(spi_port), d32[7]);
-      if (len <= 32) break;
-      WRITE_PERI_REG(SPI_W8_REG(spi_port), d32[8]);
-      if (len <= 36) break;
-      WRITE_PERI_REG(SPI_W9_REG(spi_port), d32[9]);
-      if (len <= 40) break;
-      WRITE_PERI_REG(SPI_W10_REG(spi_port), d32[10]);
-      if (len <= 44) break;
-      WRITE_PERI_REG(SPI_W11_REG(spi_port), d32[11]);
-      if (len <= 48) break;
-      WRITE_PERI_REG(SPI_W12_REG(spi_port), d32[12]);
-      if (len <= 52) break;
-      WRITE_PERI_REG(SPI_W13_REG(spi_port), d32[13]);
-      if (len <= 56) break;
-      WRITE_PERI_REG(SPI_W14_REG(spi_port), d32[14]);
-      if (len <= 60) break;
-      WRITE_PERI_REG(SPI_W15_REG(spi_port), d32[15]);
-    } while (false);
+    SpiSetOutBufferSize(spi_port, len);
+    SpiWriteUpTo64Aligned(spi_port, data, len);
     SpiTxStart(spi_port);
     need_sync_ = true;
   }
@@ -339,70 +242,23 @@ class Esp32SpiDevice {
     uint32_t d32 = (d16 << 16) | d16;
     uint32_t len = repetitions * 2;
     if (len < 64) {
-      WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), (len << 3) - 1);
-      do {
-        WRITE_PERI_REG(SPI_W0_REG(spi_port), d32);
-        if (len <= 4) break;
-        WRITE_PERI_REG(SPI_W1_REG(spi_port), d32);
-        if (len <= 8) break;
-        WRITE_PERI_REG(SPI_W2_REG(spi_port), d32);
-        if (len <= 12) break;
-        WRITE_PERI_REG(SPI_W3_REG(spi_port), d32);
-        if (len <= 16) break;
-        WRITE_PERI_REG(SPI_W4_REG(spi_port), d32);
-        if (len <= 20) break;
-        WRITE_PERI_REG(SPI_W5_REG(spi_port), d32);
-        if (len <= 24) break;
-        WRITE_PERI_REG(SPI_W6_REG(spi_port), d32);
-        if (len <= 28) break;
-        WRITE_PERI_REG(SPI_W7_REG(spi_port), d32);
-        if (len <= 32) break;
-        WRITE_PERI_REG(SPI_W8_REG(spi_port), d32);
-        if (len <= 36) break;
-        WRITE_PERI_REG(SPI_W9_REG(spi_port), d32);
-        if (len <= 40) break;
-        WRITE_PERI_REG(SPI_W10_REG(spi_port), d32);
-        if (len <= 44) break;
-        WRITE_PERI_REG(SPI_W11_REG(spi_port), d32);
-        if (len <= 48) break;
-        WRITE_PERI_REG(SPI_W12_REG(spi_port), d32);
-        if (len <= 52) break;
-        WRITE_PERI_REG(SPI_W13_REG(spi_port), d32);
-        if (len <= 56) break;
-        WRITE_PERI_REG(SPI_W14_REG(spi_port), d32);
-        if (len <= 60) break;
-        WRITE_PERI_REG(SPI_W15_REG(spi_port), d32);
-      } while (false);
+      SpiSetOutBufferSize(spi_port, len);
+      SpiFillUpTo64(spi_port, d32, len);
       SpiTxStart(spi_port);
       need_sync_ = true;
       return;
     }
 
-    WRITE_PERI_REG(SPI_W0_REG(spi_port), d32);
-    WRITE_PERI_REG(SPI_W1_REG(spi_port), d32);
-    WRITE_PERI_REG(SPI_W2_REG(spi_port), d32);
-    WRITE_PERI_REG(SPI_W3_REG(spi_port), d32);
-    WRITE_PERI_REG(SPI_W4_REG(spi_port), d32);
-    WRITE_PERI_REG(SPI_W5_REG(spi_port), d32);
-    WRITE_PERI_REG(SPI_W6_REG(spi_port), d32);
-    WRITE_PERI_REG(SPI_W7_REG(spi_port), d32);
-    WRITE_PERI_REG(SPI_W8_REG(spi_port), d32);
-    WRITE_PERI_REG(SPI_W9_REG(spi_port), d32);
-    WRITE_PERI_REG(SPI_W10_REG(spi_port), d32);
-    WRITE_PERI_REG(SPI_W11_REG(spi_port), d32);
-    WRITE_PERI_REG(SPI_W12_REG(spi_port), d32);
-    WRITE_PERI_REG(SPI_W13_REG(spi_port), d32);
-    WRITE_PERI_REG(SPI_W14_REG(spi_port), d32);
-    WRITE_PERI_REG(SPI_W15_REG(spi_port), d32);
+    SpiFill64(spi_port, d32);
     uint32_t rem = len & 63;
     if (rem != 0) {
-      WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), (rem << 3) - 1);
+      SpiSetOutBufferSize(spi_port, rem);
       SpiTxStart(spi_port);
       SpiTxWait(spi_port);
       len -= rem;
     }
 
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 511);
+    SpiSetOutBufferSize(spi_port, 64);
     while (true) {
       SpiTxStart(spi_port);
       len -= 64;
@@ -424,66 +280,22 @@ class Esp32SpiDevice {
     uint32_t d0 = d1 << 8 | r;
     uint32_t len = repetitions * 3;
     if (len < 60) {
-      WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), (len << 3) - 1);
-      do {
-        WRITE_PERI_REG(SPI_W0_REG(spi_port), d0);
-        if (len <= 4) break;
-        WRITE_PERI_REG(SPI_W1_REG(spi_port), d1);
-        if (len <= 8) break;
-        WRITE_PERI_REG(SPI_W2_REG(spi_port), d2);
-        if (len <= 12) break;
-        WRITE_PERI_REG(SPI_W3_REG(spi_port), d0);
-        if (len <= 16) break;
-        WRITE_PERI_REG(SPI_W4_REG(spi_port), d1);
-        if (len <= 20) break;
-        WRITE_PERI_REG(SPI_W5_REG(spi_port), d2);
-        if (len <= 24) break;
-        WRITE_PERI_REG(SPI_W6_REG(spi_port), d0);
-        if (len <= 28) break;
-        WRITE_PERI_REG(SPI_W7_REG(spi_port), d1);
-        if (len <= 32) break;
-        WRITE_PERI_REG(SPI_W8_REG(spi_port), d2);
-        if (len <= 36) break;
-        WRITE_PERI_REG(SPI_W9_REG(spi_port), d0);
-        if (len <= 40) break;
-        WRITE_PERI_REG(SPI_W10_REG(spi_port), d1);
-        if (len <= 44) break;
-        WRITE_PERI_REG(SPI_W11_REG(spi_port), d2);
-        if (len <= 48) break;
-        WRITE_PERI_REG(SPI_W12_REG(spi_port), d0);
-        if (len <= 52) break;
-        WRITE_PERI_REG(SPI_W13_REG(spi_port), d1);
-        if (len <= 56) break;
-        WRITE_PERI_REG(SPI_W14_REG(spi_port), d2);
-      } while (false);
+      SpiSetOutBufferSize(spi_port, len);
+      SpiFillUpTo60(spi_port, d0, d1, d2, len);
       SpiTxStart(spi_port);
       need_sync_ = true;
       return;
     }
 
-    WRITE_PERI_REG(SPI_W0_REG(spi_port), d0);
-    WRITE_PERI_REG(SPI_W1_REG(spi_port), d1);
-    WRITE_PERI_REG(SPI_W2_REG(spi_port), d2);
-    WRITE_PERI_REG(SPI_W3_REG(spi_port), d0);
-    WRITE_PERI_REG(SPI_W4_REG(spi_port), d1);
-    WRITE_PERI_REG(SPI_W5_REG(spi_port), d2);
-    WRITE_PERI_REG(SPI_W6_REG(spi_port), d0);
-    WRITE_PERI_REG(SPI_W7_REG(spi_port), d1);
-    WRITE_PERI_REG(SPI_W8_REG(spi_port), d2);
-    WRITE_PERI_REG(SPI_W9_REG(spi_port), d0);
-    WRITE_PERI_REG(SPI_W10_REG(spi_port), d1);
-    WRITE_PERI_REG(SPI_W11_REG(spi_port), d2);
-    WRITE_PERI_REG(SPI_W12_REG(spi_port), d0);
-    WRITE_PERI_REG(SPI_W13_REG(spi_port), d1);
-    WRITE_PERI_REG(SPI_W14_REG(spi_port), d2);
+    SpiFill60(spi_port, d0, d1, d2);
     uint32_t rem = len % 60;
     if (rem != 0) {
-      WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), (rem << 3) - 1);
+      SpiSetOutBufferSize(spi_port, rem);
       SpiTxStart(spi_port);
       SpiTxWait(spi_port);
       len -= rem;
     }
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 479);
+    SpiSetOutBufferSize(spi_port, 60);
     while (true) {
       SpiTxStart(spi_port);
       len -= 60;
@@ -524,27 +336,21 @@ class Esp32SpiDevice {
   void asyncBlitFenceWait() {}
 
   roo::byte transfer(roo::byte data) __attribute__((always_inline)) {
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 7);
-#if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32
-    WRITE_PERI_REG(SPI_MISO_DLEN_REG(spi_port), 7);
-#endif
-    WRITE_PERI_REG(SPI_W0_REG(spi_port), static_cast<uint8_t>(data));
+    SpiSetTxBufferSize(spi_port, 1);
+    SpiWrite4(spi_port, static_cast<uint32_t>(data));
     SpiTxStart(spi_port);
     SpiTxWait(spi_port);
-    return static_cast<roo::byte>(READ_PERI_REG(SPI_W0_REG(spi_port)) & 0xFF);
+    return static_cast<roo::byte>(SpiRead4(spi_port) & 0xFF);
   }
 
   uint16_t transfer16(uint16_t data) __attribute__((always_inline)) {
     // Apply byte-swapping for MSBFIRST (wr_bit_order = 0)
     data = roo_io::htobe(data);
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 15);
-#if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32
-    WRITE_PERI_REG(SPI_MISO_DLEN_REG(spi_port), 15);
-#endif
-    WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
+    SpiSetTxBufferSize(spi_port, 2);
+    SpiWrite4(spi_port, data);
     SpiTxStart(spi_port);
     SpiTxWait(spi_port);
-    uint16_t result = READ_PERI_REG(SPI_W0_REG(spi_port)) & 0xFFFF;
+    uint16_t result = SpiRead4(spi_port) & 0xFFFF;
     // Apply byte-swapping for MSBFIRST (rd_bit_order = 0)
     return roo_io::betoh(result);
   }
@@ -552,14 +358,11 @@ class Esp32SpiDevice {
   uint32_t transfer32(uint32_t data) __attribute__((always_inline)) {
     // Apply byte-swapping for MSBFIRST (wr_bit_order = 0)
     data = roo_io::htobe(data);
-    WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), 31);
-#if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32
-    WRITE_PERI_REG(SPI_MISO_DLEN_REG(spi_port), 31);
-#endif
-    WRITE_PERI_REG(SPI_W0_REG(spi_port), data);
+    SpiSetTxBufferSize(spi_port, 4);
+    SpiWrite4(spi_port, data);
     SpiTxStart(spi_port);
     SpiTxWait(spi_port);
-    uint32_t result = READ_PERI_REG(SPI_W0_REG(spi_port));
+    uint32_t result = SpiRead4(spi_port);
     // Apply byte-swapping for MSBFIRST (rd_bit_order = 0)
     return roo_io::betoh(result);
   }

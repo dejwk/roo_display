@@ -1,13 +1,13 @@
 #pragma once
 
+#include <functional>
+
 #include "roo_backport.h"
 #include "roo_backport/byte.h"
 #include "roo_display/hal/gpio.h"
 #include "roo_display/hal/spi.h"
 #include "roo_display/hal/spi_settings.h"
 #include "roo_display/internal/byte_order.h"
-
-#include <functional>
 
 namespace roo_display {
 
@@ -84,16 +84,8 @@ class SpiTransport {
     device_.write16(data);
   }
 
-  void write16x2(uint16_t a, uint16_t b) __attribute((always_inline)) {
-    device_.write16x2(a, b);
-  }
-
   void write16x2_async(uint16_t a, uint16_t b) __attribute((always_inline)) {
     device_.write16x2_async(a, b);
-  }
-
-  void write32(uint32_t data) __attribute__((always_inline)) {
-    device_.write32(data);
   }
 
   void writeBytes_async(const roo::byte* data, uint32_t len) {
@@ -115,20 +107,12 @@ class SpiTransport {
                        std::move(cb));
   }
 
-  bool asyncBlitFenceIsIdle() const { return device_.asyncBlitFenceIsIdle(); }
-
-  void asyncBlitFenceWait() { device_.asyncBlitFenceWait(); }
-
   roo::byte transfer(roo::byte data) __attribute__((always_inline)) {
     return device_.transfer(data);
   }
 
   uint16_t transfer16(uint16_t data) __attribute__((always_inline)) {
     return device_.transfer16(data);
-  }
-
-  uint32_t transfer32(uint32_t data) __attribute__((always_inline)) {
-    return device_.transfer32(data);
   }
 
  private:

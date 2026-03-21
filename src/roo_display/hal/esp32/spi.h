@@ -172,25 +172,11 @@ class Esp32SpiDevice {
     SpiTxWait(spi_port);
   }
 
-  void write16x2(uint16_t a, uint16_t b) __attribute((always_inline)) {
-    SpiSetOutBufferSize(spi_port, 4);
-    SpiWrite4(spi_port, roo_io::htobe(a) | (roo_io::htobe(b) << 16));
-    SpiTxStart(spi_port);
-    SpiTxWait(spi_port);
-  }
-
   void write16x2_async(uint16_t a, uint16_t b) __attribute((always_inline)) {
     SpiSetOutBufferSize(spi_port, 4);
     SpiWrite4(spi_port, roo_io::htobe(a) | (roo_io::htobe(b) << 16));
     SpiTxStart(spi_port);
     need_sync_ = true;
-  }
-
-  void write32(uint32_t data) __attribute__((always_inline)) {
-    SpiSetOutBufferSize(spi_port, 4);
-    SpiWrite4(spi_port, roo_io::htobe(data));
-    SpiTxStart(spi_port);
-    SpiTxWait(spi_port);
   }
 
   void writeBytes_async(const roo::byte* data, uint32_t len) {
@@ -331,10 +317,6 @@ class Esp32SpiDevice {
     if (cb) cb();
   }
 
-  bool asyncBlitFenceIsIdle() const { return true; }
-
-  void asyncBlitFenceWait() {}
-
   roo::byte transfer(roo::byte data) __attribute__((always_inline)) {
     SpiSetTxBufferSize(spi_port, 1);
     SpiWrite4(spi_port, static_cast<uint32_t>(data));
@@ -351,18 +333,6 @@ class Esp32SpiDevice {
     SpiTxStart(spi_port);
     SpiTxWait(spi_port);
     uint16_t result = SpiRead4(spi_port) & 0xFFFF;
-    // Apply byte-swapping for MSBFIRST (rd_bit_order = 0)
-    return roo_io::betoh(result);
-  }
-
-  uint32_t transfer32(uint32_t data) __attribute__((always_inline)) {
-    // Apply byte-swapping for MSBFIRST (wr_bit_order = 0)
-    data = roo_io::htobe(data);
-    SpiSetTxBufferSize(spi_port, 4);
-    SpiWrite4(spi_port, data);
-    SpiTxStart(spi_port);
-    SpiTxWait(spi_port);
-    uint32_t result = SpiRead4(spi_port);
     // Apply byte-swapping for MSBFIRST (rd_bit_order = 0)
     return roo_io::betoh(result);
   }

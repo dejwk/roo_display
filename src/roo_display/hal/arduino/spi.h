@@ -6,13 +6,13 @@
 
 #include <SPI.h>
 
+#include <functional>
+
 #include "roo_backport.h"
 #include "roo_backport/byte.h"
 #include "roo_display/internal/byte_order.h"
 #include "roo_io/data/byte_order.h"
 #include "roo_io/memory/fill.h"
-
-#include <functional>
 
 namespace roo_display {
 
@@ -69,17 +69,10 @@ class ArduinoSpiDevice {
 
   void write16(uint16_t data) { spi_.write16(data); }
 
-  void write16x2(uint16_t a, uint16_t b) {
-    spi_.write16(a);
-    spi_.write16(b);
-  }
-
   void write16x2_async(uint16_t a, uint16_t b) {
     spi_.write16(a);
     spi_.write16(b);
   }
-
-  void write32(uint32_t data) { spi_.write32(data); }
 
   // For whatever reasons, SPI.h doesn't have a const version of writeBytes, but
   // the data doesn't get mutated, so we can safely cast away constness here.
@@ -141,15 +134,10 @@ class ArduinoSpiDevice {
     if (cb) cb();
   }
 
-  bool asyncBlitFenceIsIdle() const { return true; }
-
-  void asyncBlitFenceWait() {}
-
   roo::byte transfer(roo::byte data) {
     return static_cast<roo::byte>(spi_.transfer(static_cast<uint8_t>(data)));
   }
   uint16_t transfer16(uint16_t data) { return spi_.transfer16(data); }
-  uint32_t transfer32(uint32_t data) { return spi_.transfer32(data); }
 
  private:
   decltype(SPI)& spi_;

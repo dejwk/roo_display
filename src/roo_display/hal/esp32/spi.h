@@ -11,11 +11,13 @@
 #include <cstring>
 #include <functional>
 
+#include "esp_private/spi_common_internal.h"
 #include "roo_backport.h"
 #include "roo_backport/byte.h"
 #include "roo_display/hal/esp32/spi_reg.h"
 #include "roo_display/hal/spi_settings.h"
 #include "roo_io/data/byte_order.h"
+#include "roo_logging.h"
 #include "soc/spi_reg.h"
 
 #ifndef ROO_TESTING
@@ -89,16 +91,85 @@ class Esp32Spi {
 #endif
 };
 
+struct DmaState {
+  int spi_port;
+  size_t remaining;
+  bool done;
+  portMUX_TYPE mux_;
+  TaskHandle_t waiter_task_;
+
+  void markComplete() {
+    portENTER_CRITICAL_ISR(&mux_);
+    done = true;
+    TaskHandle_t waiter = waiter_task_;
+    waiter_task_ = nullptr;
+    portEXIT_CRITICAL_ISR(&mux_);
+    if (waiter != nullptr) {
+      BaseType_t high_wakeup = pdFALSE;
+      vTaskNotifyGiveFromISR(waiter, &high_wakeup);
+      portYIELD_FROM_ISR(high_wakeup);
+    }
+  }
+
+  void awaitCompletion() {
+    TaskHandle_t me = xTaskGetCurrentTaskHandle();
+    while (true) {
+      portENTER_CRITICAL(&mux_);
+      if (done) {
+        portEXIT_CRITICAL(&mux_);
+        return;
+      }
+      CHECK(waiter_task_ == nullptr || waiter_task_ == me);
+      waiter_task_ = me;
+      portEXIT_CRITICAL(&mux_);
+      ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    }
+  }
+};
+
+void IRAM_ATTR TransferCompleteISR(void* arg) {
+  DmaState* state = static_cast<DmaState*>(arg);
+  if (!SpiDmaTransferDoneIntPending(state->spi_port)) {
+    // Shared IRQ line: handler can be invoked due to an unrelated source.
+    return;
+  }
+  SpiDmaTransferDoneIntClear(state->spi_port);
+  if (state->remaining <= 64) {
+    SpiDmaTransferDoneIntDisable(state->spi_port);
+    state->markComplete();
+    return;
+  }
+  state->remaining -= 64;
+  if (state->remaining >= 64) {
+    SpiTxStart(state->spi_port);
+  } else {
+    SpiSetOutBufferSize(state->spi_port, state->remaining);
+    SpiTxStart(state->spi_port);
+  }
+}
+
 // Note: hardcoding the spi_port, making register accesses compile-time
 // constants, does bring tangible performance improvements; ~2% in 'Lines' test
 // in the Adafruit benchmark.
 template <uint8_t spi_port, typename SpiSettings>
 class Esp32SpiDevice {
  public:
+  friend void IRAM_ATTR TransferCompleteISR(void* arg);
   Esp32SpiDevice(Esp32Spi<spi_port>& spi) : spi_(spi.spi_) {}
 
 #if defined(ARDUINO)
-  void init() {}
+  void init() {
+    dma_state_.spi_port = spi_port;
+    dma_state_.remaining = 0;
+    dma_state_.done = true;
+    dma_state_.mux_ = portMUX_INITIALIZER_UNLOCKED;
+    dma_state_.waiter_task_ = nullptr;
+    esp_err_t intr_err =
+        esp_intr_alloc(spicommon_irqsource_for_host(
+                           static_cast<spi_host_device_t>(spi_port - 1)),
+                       ESP_INTR_FLAG_SHARED | ESP_INTR_FLAG_IRAM,
+                       TransferCompleteISR, &dma_state_, &intr_handle_);
+  }
 
   void beginReadWriteTransaction() {
     spi_.beginTransaction(SPISettings(
@@ -153,9 +224,12 @@ class Esp32SpiDevice {
 #endif
 
   void sync() __attribute__((always_inline)) {
-    // if (need_sync_)
     SpiTxWait(spi_port);
     need_sync_ = false;
+    if (dma_pending_) {
+      dma_state_.awaitCompletion();
+      dma_pending_ = false;
+    }
   }
 
   void write(uint8_t data) __attribute__((always_inline)) {
@@ -244,16 +318,25 @@ class Esp32SpiDevice {
       len -= rem;
     }
 
+    dma_pending_ = true;
+    need_sync_ = true;
+    dma_state_.done = false;
+    dma_state_.remaining = len;
+    SpiDmaTransferDoneIntClear(spi_port);
+    SpiDmaTransferDoneIntEnable(spi_port);
     SpiSetOutBufferSize(spi_port, 64);
-    while (true) {
-      SpiTxStart(spi_port);
-      len -= 64;
-      if (len == 0) {
-        need_sync_ = true;
-        return;
-      }
-      SpiTxWait(spi_port);
-    }
+    SpiTxStart(spi_port);
+    // while (true) {
+    //   SpiTxStart(spi_port);
+    //   len -= 64;
+    //   if (len == 0) {
+    //     need_sync_ = true;
+    //     dma_pending_ = false;
+    //     SpiDmaTransferDoneIntDisable(spi_port);
+    //     return;
+    //   }
+    //   SpiTxWait(spi_port);
+    // }
   }
 
   void fill24_async(const roo::byte* data, uint32_t repetitions) {
@@ -345,6 +428,9 @@ class Esp32SpiDevice {
   spi_device_handle_t device_;
 #endif
   bool need_sync_ = false;
+  bool dma_pending_ = false;
+  DmaState dma_state_;
+  intr_handle_t intr_handle_;
 };
 
 // Original ESP32: SPI0 (none), FSPI -> SPI1, HSPI -> SPI2, VSPI -> SPI3.

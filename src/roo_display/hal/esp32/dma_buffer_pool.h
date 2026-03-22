@@ -47,6 +47,8 @@ class DmaBufferPool {
   // previously returned by acquire() and not yet released.
   void release(Buffer buffer);
 
+  size_t capacity() const { return kDmaBufferCount; }
+
  private:
   void lockState();
   void unlockState();

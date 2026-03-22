@@ -24,6 +24,36 @@
 #define ROO_DISPLAY_SPI_CMD_UPDATE_REQUIRED 0
 #endif
 
+#ifndef SPI_DMA_TX_ENA
+#ifdef SPI_DMA_TX_EN
+#define SPI_DMA_TX_ENA SPI_DMA_TX_EN
+#endif
+#endif
+
+#ifndef SPI_TRANS_DONE_INT_ENA
+#ifdef SPI_OUT_EOF_INT_ENA
+#define SPI_TRANS_DONE_INT_ENA SPI_OUT_EOF_INT_ENA
+#elif defined(SPI_OUT_DONE_INT_ENA)
+#define SPI_TRANS_DONE_INT_ENA SPI_OUT_DONE_INT_ENA
+#endif
+#endif
+
+#ifndef SPI_TRANS_DONE_INT_CLR
+#ifdef SPI_OUT_EOF_INT_CLR
+#define SPI_TRANS_DONE_INT_CLR SPI_OUT_EOF_INT_CLR
+#elif defined(SPI_OUT_DONE_INT_CLR)
+#define SPI_TRANS_DONE_INT_CLR SPI_OUT_DONE_INT_CLR
+#endif
+#endif
+
+#ifndef SPI_TRANS_DONE_INT_ST
+#ifdef SPI_OUT_EOF_INT_ST
+#define SPI_TRANS_DONE_INT_ST SPI_OUT_EOF_INT_ST
+#elif defined(SPI_OUT_DONE_INT_ST)
+#define SPI_TRANS_DONE_INT_ST SPI_OUT_DONE_INT_ST
+#endif
+#endif
+
 #ifndef ROO_TESTING
 
 namespace roo_display {
@@ -42,6 +72,30 @@ inline void SpiTxStart(uint8_t spi_port) __attribute__((always_inline));
 
 // Waits for the current SPI operation, if any, to complete.
 inline void SpiTxWait(uint8_t spi_port) __attribute__((always_inline));
+
+// Returns true when the SPI DMA transfer-done interrupt is pending.
+inline bool SpiDmaTransferDoneIntPending(uint8_t spi_port)
+  __attribute__((always_inline));
+
+// Clears the SPI DMA transfer-done interrupt.
+inline void SpiDmaTransferDoneIntClear(uint8_t spi_port)
+  __attribute__((always_inline));
+
+// Enables the SPI DMA transfer-done interrupt.
+inline void SpiDmaTransferDoneIntEnable(uint8_t spi_port)
+  __attribute__((always_inline));
+
+// Disables the SPI DMA transfer-done interrupt.
+inline void SpiDmaTransferDoneIntDisable(uint8_t spi_port)
+  __attribute__((always_inline));
+
+// Enables SPI DMA TX.
+inline void SpiDmaTxEnable(uint8_t spi_port)
+  __attribute__((always_inline));
+
+// Disables SPI DMA TX.
+inline void SpiDmaTxDisable(uint8_t spi_port)
+  __attribute__((always_inline));
 
 // Sets the number of bytes in the output buffer for the next SPI operation.
 inline void SpiSetOutBufferSize(uint8_t spi_port, int len)
@@ -93,6 +147,31 @@ inline void SpiFillUpTo60(uint8_t spi_port, uint32_t d0, uint32_t d1,
 inline void SpiTxWait(uint8_t spi_port) {
   while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR) {
   }
+}
+
+inline bool SpiDmaTransferDoneIntPending(uint8_t spi_port) {
+  return (READ_PERI_REG(SPI_DMA_INT_ST_REG(spi_port)) &
+          SPI_TRANS_DONE_INT_ST) != 0;
+}
+
+inline void SpiDmaTransferDoneIntClear(uint8_t spi_port) {
+  SET_PERI_REG_MASK(SPI_DMA_INT_CLR_REG(spi_port), SPI_TRANS_DONE_INT_CLR);
+}
+
+inline void SpiDmaTransferDoneIntEnable(uint8_t spi_port) {
+  SET_PERI_REG_MASK(SPI_DMA_INT_ENA_REG(spi_port), SPI_TRANS_DONE_INT_ENA);
+}
+
+inline void SpiDmaTransferDoneIntDisable(uint8_t spi_port) {
+  CLEAR_PERI_REG_MASK(SPI_DMA_INT_ENA_REG(spi_port), SPI_TRANS_DONE_INT_ENA);
+}
+
+inline void SpiDmaTxEnable(uint8_t spi_port) {
+  SET_PERI_REG_MASK(SPI_DMA_CONF_REG(spi_port), SPI_DMA_TX_ENA);
+}
+
+inline void SpiDmaTxDisable(uint8_t spi_port) {
+  CLEAR_PERI_REG_MASK(SPI_DMA_CONF_REG(spi_port), SPI_DMA_TX_ENA);
 }
 
 inline void SpiTxStart(uint8_t spi_port) {

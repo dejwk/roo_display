@@ -2,7 +2,17 @@
 
 #include <memory>
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "hal/spi_types.h"
 #include "roo_display/hal/esp32/dma_buffer_pool.h"
+
+#if __has_include("esp_private/spi_common_internal.h")
+#include "esp_private/spi_common_internal.h"
+#define ROO_DISPLAY_HAS_SPI_INTERNAL_DMA 1
+#else
+#define ROO_DISPLAY_HAS_SPI_INTERNAL_DMA 0
+#endif
 
 namespace roo_display {
 namespace esp32 {
@@ -48,7 +58,7 @@ class RingBuf {
  private:
   size_t write_pos() const {
     size_t pos = head_ + used_;
-    if (pos > capacity_) pos -= capacity_;
+    if (pos >= capacity_) pos -= capacity_;
     return pos;
   }
 
@@ -65,7 +75,7 @@ class DmaController {
     size_t out_len;
   };
 
-  DmaController(DmaBufferPool& dma_buffer_pool);
+  DmaController(spi_host_device_t host_id, DmaBufferPool& dma_buffer_pool);
 
   // Initializes the DMA controller. This method must be called before any other
   // method. The caller must ensure that the dma_buffer_pool remains valid for
@@ -99,7 +109,7 @@ class DmaController {
 
  private:
   // The DMA ISR callback.
-  friend void IRAM_ATTR DmaTransferCompleteISR(const void*);
+  friend void IRAM_ATTR DmaTransferCompleteISR(void*);
 
   // Called from the SPI ISR when a DMA operation completes. This method marks
   // the current operation as complete, returns the buffer to the pool, and
@@ -108,7 +118,50 @@ class DmaController {
   // from application code.
   void transferCompleteISR();
 
+#if ROO_DISPLAY_HAS_SPI_INTERNAL_DMA
+  // Starts a DMA operation. Must be called while holding mux_ (task or ISR
+  // critical section variant).
+  bool startOperationCritical(Operation op);
+#endif
+
+  // SPI host this controller is bound to.
+  spi_host_device_t host_id_;
+
+#if ROO_DISPLAY_HAS_SPI_INTERNAL_DMA
+  // Active DMA context used for transfers; may be borrowed from SPI bus or
+  // point to owned_dma_ctx_.
+  const spi_dma_ctx_t* dma_ctx_;
+
+  // DMA context allocated by this controller (if bus-level context is absent,
+  // e.g. in case of Arduino SPI). Freed in end(); null when dma_ctx_ is
+  // borrowed.
+  spi_dma_ctx_t* owned_dma_ctx_;
+
+  // Handle returned by esp_intr_alloc for the SPI host interrupt.
+  // Guarded by mux_.
+  intr_handle_t dma_intr_handle_;
+
+  // True while a DMA transfer is currently active on the peripheral.
+  // Guarded by mux_.
+  bool transfer_in_progress_;
+
+  // Task currently blocked in awaitCompleted(), if any.
+  // Guarded by mux_.
+  TaskHandle_t waiter_task_;
+
+  // Operation currently being transferred by DMA.
+  // Guarded by mux_.
+  Operation current_op_;
+
+  // Protects ISR/task shared state above.
+  portMUX_TYPE mux_;
+#endif
+
+  // Buffer pool backing operation payload storage.
   DmaBufferPool& dma_buffer_pool_;
+
+  // FIFO of submitted operations waiting to start.
+  // Guarded by mux_.
   RingBuf<Operation> pending_ops_;
 };
 

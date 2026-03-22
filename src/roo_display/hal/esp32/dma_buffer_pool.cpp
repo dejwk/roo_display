@@ -97,8 +97,7 @@ DmaBufferPool::Buffer DmaBufferPool::acquire() {
   size_t index = acquireFreeSlot();
   CHECK_LT(index, kDmaBufferCount);
 
-  return Buffer{.data = buffer_data_ + index * kDmaBufferCapacity,
-                .size = kDmaBufferCapacity};
+  return Buffer{.data = buffer_data_ + index * kDmaBufferCapacity};
 }
 
 void DmaBufferPool::release(Buffer buffer) {

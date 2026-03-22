@@ -28,7 +28,6 @@ class DmaBufferPool {
  public:
   struct Buffer {
     roo::byte* data;
-    size_t size;
   };
 
   DmaBufferPool();

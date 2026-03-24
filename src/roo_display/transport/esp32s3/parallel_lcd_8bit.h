@@ -149,7 +149,7 @@ class ParallelLcd8Bit {
     LCD_CAM.lcd_user.val = LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE;
   }
 
-  void sync() {}
+  void flush() {}
 
   void end() {
     while (LCD_CAM.lcd_user.val & LCD_CAM_LCD_START) {
@@ -165,10 +165,6 @@ class ParallelLcd8Bit {
 
   void writeBytes(const roo::byte* data, uint32_t len) {
     while (len-- > 0) write(static_cast<uint8_t>(*data++));
-  }
-
-  void writeBytes_async(const roo::byte* data, uint32_t len) {
-    writeBytes(data, len);
   }
 
   void write(uint8_t data) {
@@ -191,8 +187,6 @@ class ParallelLcd8Bit {
     write(b & 0xFF);
   }
 
-  void write16x2_async(uint16_t a, uint16_t b) { write16x2(a, b); }
-
   void write32(uint32_t data) {
     write((data >> 24) & 0xFF);
     write((data >> 16) & 0xFF);
@@ -201,12 +195,6 @@ class ParallelLcd8Bit {
   }
 
   void fill16(const roo::byte* data, uint32_t repetitions) {
-    while (repetitions-- > 0) {
-      writeBytes(data, 2);
-    }
-  }
-
-  void fill16_async(const roo::byte* data, uint32_t repetitions) {
     while (repetitions-- > 0) {
       writeBytes(data, 2);
     }

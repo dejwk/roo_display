@@ -63,25 +63,25 @@ class ArduinoSpiDevice {
 
   void endTransaction() { spi_.endTransaction(); }
 
-  void sync() {}
+  void flush() {}
 
   void write(uint8_t data) { spi_.write(data); }
 
   void write16(uint16_t data) { spi_.write16(data); }
 
-  void write16x2_async(uint16_t a, uint16_t b) {
+  void write16x2(uint16_t a, uint16_t b) {
     spi_.write16(a);
     spi_.write16(b);
   }
 
   // For whatever reasons, SPI.h doesn't have a const version of writeBytes, but
   // the data doesn't get mutated, so we can safely cast away constness here.
-  void writeBytes_async(const roo::byte* data, uint32_t len) {
+  void writeBytes(const roo::byte* data, uint32_t len) {
     auto* raw = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(data));
     spi_.writeBytes(raw, len);
   }
 
-  void fill16_async(const roo::byte* data, uint32_t repetitions) {
+  void fill16(const roo::byte* data, uint32_t repetitions) {
     roo::byte buf[64];
     if (repetitions >= 32) {
       roo_io::PatternFill<2>(buf, 32, data);
@@ -96,7 +96,7 @@ class ArduinoSpiDevice {
     spi_.writeBytes(reinterpret_cast<uint8_t*>(buf), repetitions * 2);
   }
 
-  void fill24_async(const roo::byte* data, uint32_t repetitions) {
+  void fill24(const roo::byte* data, uint32_t repetitions) {
     roo::byte buf[96];
     if (repetitions >= 32) {
       roo_io::PatternFill<3>(buf, 32, data);
@@ -120,7 +120,7 @@ class ArduinoSpiDevice {
     }
 
     if (row_stride_bytes == row_bytes) {
-      writeBytes_async(data, static_cast<uint32_t>(row_bytes * row_count));
+      writeBytes(data, static_cast<uint32_t>(row_bytes * row_count));
       if (cb) cb();
       return;
     }
@@ -128,7 +128,7 @@ class ArduinoSpiDevice {
     const roo::byte* row = data;
     for (size_t i = 0; i < row_count; ++i) {
       // Note that this is actually a synchronous call.
-      writeBytes_async(row, static_cast<uint32_t>(row_bytes));
+      writeBytes(row, static_cast<uint32_t>(row_bytes));
       row += row_stride_bytes;
     }
     if (cb) cb();

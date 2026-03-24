@@ -94,7 +94,6 @@ class Ili9486Target {
   }
 
   void end() {
-    transport_.sync();
     transport_.end();
     transport_.endTransaction();
   }
@@ -146,7 +145,6 @@ class Ili9486Target {
   void setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
       __attribute__((always_inline)) {
     if (last_x0_ != x0 || last_x1_ != x1) {
-      transport_.sync();
       writeCommand(CASET);
         roo::byte xBin[] = {
           roo::byte{0}, static_cast<roo::byte>(x0 >> 8),
@@ -154,12 +152,11 @@ class Ili9486Target {
           roo::byte{0}, static_cast<roo::byte>(x1 >> 8),
           roo::byte{0}, static_cast<roo::byte>(x1 >> 0),
         };
-        transport_.writeBytes_async(xBin, 8);
+        transport_.writeBytes(xBin, 8);
       last_x0_ = x0;
       last_x1_ = x1;
     }
     if (last_y0_ != y0 || last_y1_ != y1) {
-      transport_.sync();
       writeCommand(PASET);
         roo::byte yBin[] = {
           roo::byte{0}, static_cast<roo::byte>(y0 >> 8),
@@ -167,29 +164,24 @@ class Ili9486Target {
           roo::byte{0}, static_cast<roo::byte>(y1 >> 8),
           roo::byte{0}, static_cast<roo::byte>(y1 >> 0),
         };
-        transport_.writeBytes_async(yBin, 8);
+        transport_.writeBytes(yBin, 8);
       last_y0_ = y0;
       last_y1_ = y1;
     }
   }
 
-  void startRamWrite() __attribute__((always_inline)) {
-    transport_.sync();
-    writeCommand(RAMWR);
-  }
+  void startRamWrite() __attribute__((always_inline)) { writeCommand(RAMWR); }
 
-  void sync() __attribute__((always_inline)) {
-    transport_.sync();
-  }
+  void flush() __attribute__((always_inline)) { transport_.flush(); }
 
   void ramWrite(const roo::byte* data, size_t pixel_count)
       __attribute__((always_inline)) {
-    transport_.writeBytes_async(data, pixel_count * 2);
+    transport_.writeBytes(data, pixel_count * 2);
   }
 
   void ramFill(const roo::byte* data, size_t pixel_count)
       __attribute__((always_inline)) {
-    transport_.fill16_async(data, pixel_count);
+    transport_.fill16(data, pixel_count);
   }
 
   void ramWriteAsyncBlit(const roo::byte* data, size_t row_stride_bytes,

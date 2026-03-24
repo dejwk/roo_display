@@ -82,7 +82,6 @@ class St77xxTarget {
   }
 
   void end() {
-    transport_.sync();
     transport_.end();
     transport_.endTransaction();
   }
@@ -113,38 +112,31 @@ class St77xxTarget {
   void setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
       __attribute__((always_inline)) {
     if (last_x0_ != x0 || last_x1_ != x1) {
-      transport_.sync();
       writeCommand(CASET);
-      transport_.write16x2_async((x0 + x_offset_), (x1 + x_offset_));
+      transport_.write16x2((x0 + x_offset_), (x1 + x_offset_));
       last_x0_ = x0;
       last_x1_ = x1;
     }
     if (last_y0_ != y0 || last_y1_ != y1) {
-      transport_.sync();
       writeCommand(RASET);
-      transport_.write16x2_async((y0 + y_offset_), (y1 + y_offset_));
+      transport_.write16x2((y0 + y_offset_), (y1 + y_offset_));
       last_y0_ = y0;
       last_y1_ = y1;
     }
   }
 
-  void startRamWrite() __attribute__((always_inline)) {
-    transport_.sync();
-    writeCommand(RAMWR);
-  }
+  void startRamWrite() __attribute__((always_inline)) { writeCommand(RAMWR); }
 
-  void sync() __attribute__((always_inline)) {
-    transport_.sync();
-  }
+  void flush() __attribute__((always_inline)) { transport_.flush(); }
 
   void ramWrite(const roo::byte* data, size_t pixel_count)
       __attribute__((always_inline)) {
-    transport_.writeBytes_async(data, pixel_count * 2);
+    transport_.writeBytes(data, pixel_count * 2);
   }
 
   void ramFill(const roo::byte* data, size_t pixel_count)
       __attribute__((always_inline)) {
-    transport_.fill16_async(data, pixel_count);
+    transport_.fill16(data, pixel_count);
   }
 
   void ramWriteAsyncBlit(const roo::byte* data, size_t row_stride_bytes,

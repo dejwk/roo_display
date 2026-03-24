@@ -91,33 +91,50 @@ class Esp32Spi {
 #endif
 };
 
-struct DmaState {
-  int spi_port;
-  size_t remaining;
-  bool done;
-  portMUX_TYPE mux_;
-  TaskHandle_t waiter_task_;
+class AsyncOperation {
+ public:
+  AsyncOperation(int spi_port)
+      : spi_port_(spi_port),
+        done_(true),
+        stop_(false),
+        mux_(portMUX_INITIALIZER_UNLOCKED),
+        waiter_task_(nullptr) {}
 
-  void markComplete() {
-    portENTER_CRITICAL_ISR(&mux_);
-    done = true;
-    TaskHandle_t waiter = waiter_task_;
-    waiter_task_ = nullptr;
-    portEXIT_CRITICAL_ISR(&mux_);
-    if (waiter != nullptr) {
-      BaseType_t high_wakeup = pdFALSE;
-      vTaskNotifyGiveFromISR(waiter, &high_wakeup);
-      portYIELD_FROM_ISR(high_wakeup);
+  __attribute__((always_inline)) void initFill(size_t len) {
+    done_ = false;
+    type_ = kFill;
+    fill_.remaining = len;
+    stop_ = false;
+  }
+
+  __attribute__((always_inline)) IRAM_ATTR void handleInterrupt() {
+    // if (!SpiDmaTransferDoneIntPending(state->spi_port)) {
+    //   // Shared IRQ line: handler can be invoked due to an unrelated source.
+    //   return;
+    // }
+    SpiDmaTransferDoneIntClear(spi_port_);
+    if (checkCompleteISR()) {
+      return;
     }
+    // state->remaining -= 64;
+    // if (state->remaining >= 64) {
+    SpiTxStart(spi_port_);
+    // } else {
+    //   SpiSetOutBufferSize(state->spi_port, state->remaining);
+    //   SpiTxStart(state->spi_port);
+    // }
   }
 
   void awaitCompletion() {
     TaskHandle_t me = xTaskGetCurrentTaskHandle();
     while (true) {
       portENTER_CRITICAL(&mux_);
-      if (done) {
+      stop_ = true;
+      if (done_) {
         waiter_task_ = nullptr;
+        // size_t postprocess = fill_.remaining;
         portEXIT_CRITICAL(&mux_);
+        finishFill();
         return;
       }
       CHECK(waiter_task_ == nullptr || waiter_task_ == me);
@@ -126,27 +143,64 @@ struct DmaState {
       ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     }
   }
+
+ private:
+  enum Type { kFill, kBlit };
+
+  struct Fill {
+    size_t remaining;
+  };
+
+  struct Blit {};
+
+  IRAM_ATTR bool checkCompleteISR() {
+    if (type_ == kFill) {
+      portENTER_CRITICAL_ISR(&mux_);
+      if (!stop_ && fill_.remaining > 64) {
+        fill_.remaining -= 64;
+        portEXIT_CRITICAL_ISR(&mux_);
+        return false;
+      }
+      if (!stop_) fill_.remaining = 0;
+      SpiDmaTransferDoneIntDisable(spi_port_);
+      done_ = true;
+      TaskHandle_t waiter = waiter_task_;
+      waiter_task_ = nullptr;
+      portEXIT_CRITICAL_ISR(&mux_);
+      if (waiter != nullptr) {
+        BaseType_t high_wakeup = pdFALSE;
+        vTaskNotifyGiveFromISR(waiter, &high_wakeup);
+        portYIELD_FROM_ISR(high_wakeup);
+      }
+      return true;
+    }
+    return true;
+  }
+
+  void finishFill() {
+    size_t count = fill_.remaining;
+    while (count > 0) {
+      SpiTxStart(spi_port_);
+      count -= 64;
+      SpiTxWait(spi_port_);
+    }
+  }
+
+  int spi_port_;
+  Type type_;
+  union {
+    Fill fill_;
+    Blit blit_;
+  };
+  bool done_;
+  bool stop_;
+  portMUX_TYPE mux_;
+  TaskHandle_t waiter_task_;
 };
 
 void IRAM_ATTR TransferCompleteISR(void* arg) {
-  DmaState* state = static_cast<DmaState*>(arg);
-  if (!SpiDmaTransferDoneIntPending(state->spi_port)) {
-    // Shared IRQ line: handler can be invoked due to an unrelated source.
-    return;
-  }
-  SpiDmaTransferDoneIntClear(state->spi_port);
-  if (state->remaining <= 64) {
-    SpiDmaTransferDoneIntDisable(state->spi_port);
-    state->markComplete();
-    return;
-  }
-  state->remaining -= 64;
-  if (state->remaining >= 64) {
-    SpiTxStart(state->spi_port);
-  } else {
-    SpiSetOutBufferSize(state->spi_port, state->remaining);
-    SpiTxStart(state->spi_port);
-  }
+  AsyncOperation* op = static_cast<AsyncOperation*>(arg);
+  op->handleInterrupt();
 }
 
 // Note: hardcoding the spi_port, making register accesses compile-time
@@ -155,21 +209,17 @@ void IRAM_ATTR TransferCompleteISR(void* arg) {
 template <uint8_t spi_port, typename SpiSettings>
 class Esp32SpiDevice {
  public:
-  friend void IRAM_ATTR TransferCompleteISR(void* arg);
-  Esp32SpiDevice(Esp32Spi<spi_port>& spi) : spi_(spi.spi_) {}
+  // friend void IRAM_ATTR TransferCompleteISR(void* arg);
+  Esp32SpiDevice(Esp32Spi<spi_port>& spi)
+      : spi_(spi.spi_), async_op_(spi_port) {}
 
 #if defined(ARDUINO)
   void init() {
-    dma_state_.spi_port = spi_port;
-    dma_state_.remaining = 0;
-    dma_state_.done = true;
-    dma_state_.mux_ = portMUX_INITIALIZER_UNLOCKED;
-    dma_state_.waiter_task_ = nullptr;
     esp_err_t intr_err =
         esp_intr_alloc(spicommon_irqsource_for_host(
                            static_cast<spi_host_device_t>(spi_port - 1)),
                        /* ESP_INTR_FLAG_SHARED | */ ESP_INTR_FLAG_IRAM,
-                       TransferCompleteISR, &dma_state_, &intr_handle_);
+                       TransferCompleteISR, &async_op_, &intr_handle_);
   }
 
   void beginReadWriteTransaction() {
@@ -227,12 +277,12 @@ class Esp32SpiDevice {
   void flush() __attribute__((always_inline)) {
     if (!need_sync_) return;
     need_sync_ = false;
-    if (!dma_pending_) {
+    if (!async_op_pending_) {
       SpiTxWait(spi_port);
       return;
     }
-    dma_state_.awaitCompletion();
-    dma_pending_ = false;
+    async_op_.awaitCompletion();
+    async_op_pending_ = false;
   }
 
   void write(uint8_t data) __attribute__((always_inline)) {
@@ -327,10 +377,9 @@ class Esp32SpiDevice {
       SpiTxWait(spi_port);
     }
 
-    dma_pending_ = true;
+    async_op_pending_ = true;
     need_sync_ = true;
-    dma_state_.done = false;
-    dma_state_.remaining = len;
+    async_op_.initFill(len);
     SpiDmaTransferDoneIntClear(spi_port);
     SpiDmaTransferDoneIntEnable(spi_port);
     SpiSetOutBufferSize(spi_port, 64);
@@ -437,8 +486,8 @@ class Esp32SpiDevice {
   spi_device_handle_t device_;
 #endif
   bool need_sync_ = false;
-  bool dma_pending_ = false;
-  DmaState dma_state_;
+  bool async_op_pending_ = false;
+  AsyncOperation async_op_;
   intr_handle_t intr_handle_;
 };
 

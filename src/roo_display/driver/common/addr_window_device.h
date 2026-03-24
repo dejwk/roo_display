@@ -1,5 +1,7 @@
 #pragma once
 
+#include <type_traits>
+
 #include "compactor.h"
 #include "roo_display/color/blending.h"
 #include "roo_display/color/traits.h"
@@ -8,8 +10,6 @@
 #include "roo_display/internal/color_format.h"
 #include "roo_display/internal/color_io.h"
 #include "roo_io/data/byte_order.h"
-
-#include <type_traits>
 
 namespace roo_display {
 
@@ -39,7 +39,7 @@ namespace roo_display {
 //   void setOrientation(Orientation);
 //   void setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
 //   void startRamWrite();
-//   void sync();
+//   void flush();
 //   void ramWrite(const roo::byte* data, size_t pixel_count);
 //   void ramFill(const roo::byte* data, size_t pixel_count);
 //};
@@ -115,13 +115,11 @@ class AddrWindowDevice : public DisplayDevice {
     uint16_t chunks = pixel_count / 64;
     if (remainder > 0) {
       processColorSequence(blending_mode_, color, buffer, remainder);
-      target_.sync();
       target_.ramWrite(buffer, remainder);
       color += remainder;
     }
     while (chunks-- > 0) {
       processColorSequence(blending_mode_, color, buffer, 64);
-      target_.sync();
       target_.ramWrite(buffer, 64);
       color += 64;
     }
@@ -130,7 +128,6 @@ class AddrWindowDevice : public DisplayDevice {
   void fill(Color color, uint32_t pixel_count) override {
     raw_color_type raw_color;
     processColor(blending_mode_, color, raw_color);
-    target_.sync();
     target_.ramFill(raw_color, pixel_count);
   }
 
@@ -148,7 +145,6 @@ class AddrWindowDevice : public DisplayDevice {
       y1++;
       Color mycolor = *color++;
       processColor(blending_mode, mycolor, raw_color);
-      // No need to call sync after setAddrWindow().
       target_.ramFill(raw_color, pixel_count);
     }
   }
@@ -166,7 +162,6 @@ class AddrWindowDevice : public DisplayDevice {
       y0++;
       x1++;
       y1++;
-      // No need to call sync after setAddrWindow().
       target_.ramFill(raw_color, pixel_count);
     }
   }
@@ -277,7 +272,6 @@ class AddrWindowDevice : public DisplayDevice {
     }
 
     for (int16_t y = 0; y < height; ++y) {
-      target_.sync();
       target_.ramWrite(row, width);
       row += row_width_bytes;
     }

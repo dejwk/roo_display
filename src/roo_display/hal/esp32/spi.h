@@ -152,34 +152,39 @@ class Esp32SpiDevice {
   }
 #endif
 
-  void sync() __attribute__((always_inline)) {
-    // if (need_sync_)
-    SpiTxWait(spi_port);
-    need_sync_ = false;
+  void flush() __attribute__((always_inline)) {
+    if (need_sync_) {
+      need_sync_ = false;
+      SpiTxWait(spi_port);
+    }
   }
 
   void write(uint8_t data) __attribute__((always_inline)) {
+    flush();
     SpiSetOutBufferSize(spi_port, 1);
     SpiWrite4(spi_port, static_cast<uint32_t>(data));
     SpiTxStart(spi_port);
-    SpiTxWait(spi_port);
+    need_sync_ = true;
   }
 
   void write16(uint16_t data) __attribute__((always_inline)) {
+    flush();
     SpiSetOutBufferSize(spi_port, 2);
     SpiWrite4(spi_port, roo_io::htobe(data));
     SpiTxStart(spi_port);
-    SpiTxWait(spi_port);
+    need_sync_ = true;
   }
 
-  void write16x2_async(uint16_t a, uint16_t b) __attribute((always_inline)) {
+  void write16x2(uint16_t a, uint16_t b) __attribute((always_inline)) {
+    flush();
     SpiSetOutBufferSize(spi_port, 4);
     SpiWrite4(spi_port, roo_io::htobe(a) | (roo_io::htobe(b) << 16));
     SpiTxStart(spi_port);
     need_sync_ = true;
   }
 
-  void writeBytes_async(const roo::byte* data, uint32_t len) {
+  void writeBytes(const roo::byte* data, uint32_t len) {
+    flush();
     uintptr_t misalign = reinterpret_cast<uintptr_t>(data) & 0x3u;
     if (misalign != 0) {
       uint32_t prefix = 4 - static_cast<uint32_t>(misalign);
@@ -219,7 +224,7 @@ class Esp32SpiDevice {
     need_sync_ = true;
   }
 
-  void fill16_async(const roo::byte* data, uint32_t repetitions) {
+  void fill16(const roo::byte* data, uint32_t repetitions) {
     // Note: ESP32 is little-endian, so we're byte-swapping to
     // get the bytes sorted correctly in the output register.
     uint16_t hi = static_cast<uint16_t>(data[1]);
@@ -228,6 +233,7 @@ class Esp32SpiDevice {
     uint32_t d32 = (d16 << 16) | d16;
     uint32_t len = repetitions * 2;
     if (len < 64) {
+      flush();
       SpiSetOutBufferSize(spi_port, len);
       SpiFillUpTo64(spi_port, d32, len);
       SpiTxStart(spi_port);
@@ -235,13 +241,14 @@ class Esp32SpiDevice {
       return;
     }
 
-    SpiFill64(spi_port, d32);
     uint32_t rem = len & 63;
+    flush();
+    SpiFill64(spi_port, d32);
     if (rem != 0) {
       SpiSetOutBufferSize(spi_port, rem);
       SpiTxStart(spi_port);
-      SpiTxWait(spi_port);
       len -= rem;
+      SpiTxWait(spi_port);
     }
 
     SpiSetOutBufferSize(spi_port, 64);
@@ -256,7 +263,7 @@ class Esp32SpiDevice {
     }
   }
 
-  void fill24_async(const roo::byte* data, uint32_t repetitions) {
+  void fill24(const roo::byte* data, uint32_t repetitions) {
     uint32_t r = static_cast<uint8_t>(data[0]);
     uint32_t g = static_cast<uint8_t>(data[1]);
     uint32_t b = static_cast<uint8_t>(data[2]);
@@ -266,6 +273,7 @@ class Esp32SpiDevice {
     uint32_t d0 = d1 << 8 | r;
     uint32_t len = repetitions * 3;
     if (len < 60) {
+      flush();
       SpiSetOutBufferSize(spi_port, len);
       SpiFillUpTo60(spi_port, d0, d1, d2, len);
       SpiTxStart(spi_port);
@@ -273,13 +281,14 @@ class Esp32SpiDevice {
       return;
     }
 
-    SpiFill60(spi_port, d0, d1, d2);
     uint32_t rem = len % 60;
+    flush();
+    SpiFill60(spi_port, d0, d1, d2);
     if (rem != 0) {
       SpiSetOutBufferSize(spi_port, rem);
       SpiTxStart(spi_port);
-      SpiTxWait(spi_port);
       len -= rem;
+      SpiTxWait(spi_port);
     }
     SpiSetOutBufferSize(spi_port, 60);
     while (true) {
@@ -302,18 +311,18 @@ class Esp32SpiDevice {
     }
 
     if (row_stride_bytes == row_bytes) {
-      writeBytes_async(data, static_cast<uint32_t>(row_bytes * row_count));
-      sync();
+      writeBytes(data, static_cast<uint32_t>(row_bytes * row_count));
+      flush();
       if (cb) cb();
       return;
     }
 
     const roo::byte* row = data;
     for (size_t i = 0; i < row_count; ++i) {
-      writeBytes_async(row, static_cast<uint32_t>(row_bytes));
-      sync();
+      writeBytes(row, static_cast<uint32_t>(row_bytes));
       row += row_stride_bytes;
     }
+    flush();
     if (cb) cb();
   }
 

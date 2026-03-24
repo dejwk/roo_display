@@ -144,8 +144,7 @@ class Ssd1327Target {
   void writeCommand(const uint8_t* c, uint32_t size)
       __attribute__((always_inline)) {
     transport_.cmdBegin();
-    transport_.writeBytes_async((const roo::byte*)c, size);
-    transport_.sync();
+    transport_.writeBytes((const roo::byte*)c, size);
     transport_.cmdEnd();
   }
 

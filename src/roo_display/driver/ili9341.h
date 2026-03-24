@@ -1,12 +1,12 @@
 #pragma once
 
+#include <functional>
+
 #include "roo_display/color/color_modes.h"
 #include "roo_display/driver/common/addr_window_device.h"
 #include "roo_display/transport/spi.h"
 #include "roo_threads.h"
 #include "roo_threads/thread.h"
-
-#include <functional>
 
 namespace roo_display {
 
@@ -106,7 +106,6 @@ class Ili9341Target {
   }
 
   void end() {
-    transport_.sync();
     transport_.end();
     transport_.endTransaction();
   }
@@ -160,7 +159,6 @@ class Ili9341Target {
   }
 
   void setOrientation(Orientation orientation) {
-    transport_.sync();
     uint8_t d = BGR | (orientation.isXYswapped() ? MV : 0) |
                 (orientation.isTopToBottom() ? 0 : MY) |
                 (orientation.isRightToLeft() ? 0 : MX);
@@ -171,40 +169,31 @@ class Ili9341Target {
   void setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
       __attribute__((always_inline)) {
     if (last_x0_ != x0 || last_x1_ != x1) {
-      transport_.sync();
       writeCommand(CASET);
-      transport_.write16x2_async(x0, x1);
+      transport_.write16x2(x0, x1);
       last_x0_ = x0;
       last_x1_ = x1;
     }
     if (last_y0_ != y0 || last_y1_ != y1) {
-      transport_.sync();
       writeCommand(PASET);
-      transport_.write16x2_async(y0, y1);
+      transport_.write16x2(y0, y1);
       last_y0_ = y0;
       last_y1_ = y1;
     }
   }
 
-  void startRamWrite() __attribute__((always_inline)) {
-    transport_.sync();
-    writeCommand(RAMWR);
-  }
+  void startRamWrite() __attribute__((always_inline)) { writeCommand(RAMWR); }
 
-  void sync() __attribute__((always_inline)) { transport_.sync(); }
+  void flush() __attribute__((always_inline)) { transport_.flush(); }
 
-  // The caller must call sync() between consecutive ramWrite() / ramFill()
-  // calls.
   void ramWrite(const roo::byte* data, size_t pixel_count)
       __attribute__((always_inline)) {
-    transport_.writeBytes_async(data, pixel_count * 2);
+    transport_.writeBytes(data, pixel_count * 2);
   }
 
-  // The caller must call sync() between consecutive ramWrite() / ramFill()
-  // calls.
   void ramFill(const roo::byte* data, size_t pixel_count)
       __attribute__((always_inline)) {
-    transport_.fill16_async(data, pixel_count);
+    transport_.fill16(data, pixel_count);
   }
 
   void ramWriteAsyncBlit(const roo::byte* data, size_t row_stride_bytes,

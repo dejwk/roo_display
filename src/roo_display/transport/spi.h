@@ -58,13 +58,22 @@ class SpiTransport {
     }
   }
 
-  void begin() { cs_l(); }
+  void begin() __attribute__((always_inline)) { cs_l(); }
 
-  void end() { cs_h(); }
+  void end() __attribute__((always_inline)) {
+    device_.flush();
+    cs_h();
+  }
 
-  void cmdBegin() { dc_c(); }
+  void cmdBegin() __attribute__((always_inline)) {
+    device_.flush();
+    dc_c();
+  }
 
-  void cmdEnd() { dc_d(); }
+  void cmdEnd() __attribute__((always_inline)) {
+    device_.flush();
+    dc_d();
+  }
 
   void init() { device_.init(); }
 
@@ -74,7 +83,7 @@ class SpiTransport {
 
   void endTransaction() { device_.endTransaction(); }
 
-  void sync() __attribute__((always_inline)) { device_.sync(); }
+  void flush() __attribute__((always_inline)) { device_.flush(); }
 
   void write(uint8_t data) __attribute__((always_inline)) {
     device_.write(data);
@@ -84,20 +93,20 @@ class SpiTransport {
     device_.write16(data);
   }
 
-  void write16x2_async(uint16_t a, uint16_t b) __attribute((always_inline)) {
-    device_.write16x2_async(a, b);
+  void write16x2(uint16_t a, uint16_t b) __attribute__((always_inline)) {
+    device_.write16x2(a, b);
   }
 
-  void writeBytes_async(const roo::byte* data, uint32_t len) {
-    device_.writeBytes_async(data, len);
+  void writeBytes(const roo::byte* data, uint32_t len) {
+    device_.writeBytes(data, len);
   }
 
-  void fill16_async(const roo::byte* data, uint32_t repetitions) {
-    device_.fill16_async(data, repetitions);
+  void fill16(const roo::byte* data, uint32_t repetitions) {
+    device_.fill16(data, repetitions);
   }
 
-  void fill24_async(const roo::byte* data, uint32_t repetitions) {
-    device_.fill24_async(data, repetitions);
+  void fill24(const roo::byte* data, uint32_t repetitions) {
+    device_.fill24(data, repetitions);
   }
 
   void async_blit(const roo::byte* data, size_t row_stride_bytes,

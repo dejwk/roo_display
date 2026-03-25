@@ -1,7 +1,5 @@
 #pragma once
 
-#include <functional>
-
 #include "roo_backport.h"
 #include "roo_backport/byte.h"
 #include "roo_display/hal/gpio.h"
@@ -110,10 +108,8 @@ class SpiTransport {
   }
 
   void async_blit(const roo::byte* data, size_t row_stride_bytes,
-                  size_t row_bytes, size_t row_count,
-                  std::function<void()> cb) {
-    device_.async_blit(data, row_stride_bytes, row_bytes, row_count,
-                       std::move(cb));
+                  size_t row_bytes, size_t row_count) {
+    device_.async_blit(data, row_stride_bytes, row_bytes, row_count);
   }
 
   roo::byte transfer(roo::byte data) __attribute__((always_inline)) {

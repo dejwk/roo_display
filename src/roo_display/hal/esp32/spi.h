@@ -9,7 +9,6 @@
 #endif
 
 #include <cstring>
-#include <functional>
 
 #include "esp_private/spi_common_internal.h"
 #include "roo_backport.h"
@@ -435,17 +434,14 @@ class Esp32SpiDevice {
   }
 
   void async_blit(const roo::byte* data, size_t row_stride_bytes,
-                  size_t row_bytes, size_t row_count,
-                  std::function<void()> cb) {
+                  size_t row_bytes, size_t row_count) {
     if (data == nullptr || row_bytes == 0 || row_count == 0) {
-      if (cb) cb();
       return;
     }
 
     if (row_stride_bytes == row_bytes) {
       writeBytes(data, static_cast<uint32_t>(row_bytes * row_count));
       flush();
-      if (cb) cb();
       return;
     }
 
@@ -455,7 +451,6 @@ class Esp32SpiDevice {
       row += row_stride_bytes;
     }
     flush();
-    if (cb) cb();
   }
 
   roo::byte transfer(roo::byte data) __attribute__((always_inline)) {

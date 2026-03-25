@@ -8,8 +8,6 @@
 #include "roo_threads.h"
 #include "roo_threads/thread.h"
 
-#include <functional>
-
 namespace roo_display {
 
 namespace ili9486 {
@@ -185,11 +183,9 @@ class Ili9486Target {
   }
 
   void ramWriteAsyncBlit(const roo::byte* data, size_t row_stride_bytes,
-                         size_t row_bytes, size_t row_count,
-                         std::function<void()> cb)
+                         size_t row_bytes, size_t row_count)
       __attribute__((always_inline)) {
-    transport_.async_blit(data, row_stride_bytes, row_bytes, row_count,
-                          std::move(cb));
+    transport_.async_blit(data, row_stride_bytes, row_bytes, row_count);
   }
 
  private:

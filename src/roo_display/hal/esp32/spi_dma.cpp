@@ -144,8 +144,8 @@ void DmaController::end() {
 
 bool DmaController::submit(Operation op) {
   CHECK_NOTNULL(op.out_data);
-  CHECK_GT(op.out_len, 0);
-  CHECK_EQ((op.out_len & 0x3u), 0);
+  CHECK_GT(op.out_len, 0u);
+  CHECK_EQ((op.out_len & 0x3u), 0u);
 
 #if ROO_DISPLAY_HAS_SPI_INTERNAL_DMA
   if (dma_ctx_ == nullptr || dma_intr_handle_ == nullptr) return false;

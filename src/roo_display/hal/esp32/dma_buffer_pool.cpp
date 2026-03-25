@@ -1,3 +1,5 @@
+#if (defined ESP_PLATFORM && !defined ROO_TESTING)
+
 #include "roo_display/hal/esp32/dma_buffer_pool.h"
 
 #include <cstddef>
@@ -128,3 +130,5 @@ void DmaBufferPool::release(Buffer buffer) {
 
 }  // namespace esp32
 }  // namespace roo_display
+
+#endif  // (defined ESP_PLATFORM && !defined ROO_TESTING)

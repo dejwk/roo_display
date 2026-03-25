@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <functional>
+
 #include "roo_display/driver/common/addr_window_device.h"
 #include "roo_display/transport/spi.h"
 #include "roo_io/data/byte_order.h"
@@ -233,11 +233,9 @@ class Ili9488Target {
   }
 
   void ramWriteAsyncBlit(const roo::byte* data, size_t row_stride_bytes,
-                         size_t row_bytes, size_t row_count,
-                         std::function<void()> cb)
+                         size_t row_bytes, size_t row_count)
       __attribute__((always_inline)) {
-    transport_.async_blit(data, row_stride_bytes, row_bytes, row_count,
-                          std::move(cb));
+    transport_.async_blit(data, row_stride_bytes, row_bytes, row_count);
   }
 
  private:

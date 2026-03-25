@@ -65,11 +65,9 @@ void DisplayOutput::drawDirectRectAsync(const roo::byte *data,
                                         size_t row_width_bytes, int16_t src_x0,
                                         int16_t src_y0, int16_t src_x1,
                                         int16_t src_y1, int16_t dst_x0,
-                                        int16_t dst_y0,
-                                        std::function<void()> cb) {
+                                        int16_t dst_y0) {
   drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1, src_y1, dst_x0,
                  dst_y0);
-  if (cb) cb();
 }
 
 }  // namespace roo_display

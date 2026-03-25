@@ -14,6 +14,8 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_memory_utils.h"
+#include "freertos/task.h"
+#include "roo_logging.h"
 
 namespace roo_display {
 namespace {
@@ -40,9 +42,33 @@ struct AsyncBlitState {
   size_t dst_stride = 0;
   size_t row_bytes = 0;
   size_t remaining_rows = 0;
-  std::function<void()> done;
-  bool busy = false;
+  TaskHandle_t caller_task = nullptr;
   AsyncBlitStats stats;
+
+  // Completes the current operation from ISR context.
+  //
+  // Ownership model: caller_task is non-null iff an operation is in flight.
+  // The ISR captures caller_task, clears it, and then notifies the captured
+  // task. With this ordering, async_blit_await() is safe from lost wakeups:
+  // - If await sees caller_task == nullptr, completion already happened.
+  // - If await blocks, the notification is pending or will be sent by ISR.
+  // This also relies on pointer-sized loads/stores being atomic on ESP32 for
+  // caller_task handoff between task and ISR contexts.
+  //
+  // Note: because task notifications are counting, a completion token can be
+  // left pending if await exits via the fast path. We explicitly drain any
+  // stale token before starting a new operation in async_blit().
+  void IRAM_ATTR notifyDoneFromISR() {
+    TaskHandle_t caller = caller_task;
+    caller_task = nullptr;
+    if (caller != nullptr) {
+      BaseType_t high_wakeup = pdFALSE;
+      vTaskNotifyGiveFromISR(caller, &high_wakeup);
+      if (high_wakeup == pdTRUE) {
+        portYIELD_FROM_ISR();
+      }
+    }
+  }
 };
 
 AsyncBlitState& state() {
@@ -59,7 +85,7 @@ void maybe_log_stats(AsyncBlitState& st) {
            st.stats.fallback_alignment, st.stats.fallback_esp_err);
 }
 
-void copy_remaining_rows_sync(AsyncBlitState& st) {
+void IRAM_ATTR copy_remaining_rows_sync(AsyncBlitState& st) {
   while (st.remaining_rows > 0) {
     std::memcpy(st.dst, st.src, st.row_bytes);
     st.dst += st.dst_stride;
@@ -143,14 +169,13 @@ inline bool are_strides_aligned(size_t src_stride, size_t dst_stride,
          (dst_stride % required_align) == 0;
 }
 
-bool on_copy_done(async_memcpy_handle_t, async_memcpy_event_t*, void* cb_args) {
+bool IRAM_ATTR on_copy_done(async_memcpy_handle_t, async_memcpy_event_t*,
+                            void* cb_args) {
   auto* st = static_cast<AsyncBlitState*>(cb_args);
   if (st == nullptr) return false;
 
   if (st->remaining_rows == 0) {
-    auto done = std::move(st->done);
-    st->busy = false;
-    if (done) done();
+    st->notifyDoneFromISR();
     return false;
   }
 
@@ -159,9 +184,7 @@ bool on_copy_done(async_memcpy_handle_t, async_memcpy_event_t*, void* cb_args) {
   --st->remaining_rows;
 
   if (st->remaining_rows == 0) {
-    auto done = std::move(st->done);
-    st->busy = false;
-    if (done) done();
+    st->notifyDoneFromISR();
     return false;
   }
 
@@ -170,9 +193,7 @@ bool on_copy_done(async_memcpy_handle_t, async_memcpy_event_t*, void* cb_args) {
                        st->row_bytes, on_copy_done, st);
   if (err != ESP_OK) {
     copy_remaining_rows_sync(*st);
-    auto done = std::move(st->done);
-    st->busy = false;
-    if (done) done();
+    st->notifyDoneFromISR();
   }
   return false;
 }
@@ -193,28 +214,45 @@ void async_blit_init() {
 
 void async_blit_deinit() {
   AsyncBlitState& st = state();
-  if (st.handle != nullptr && !st.busy) {
+  if (st.handle != nullptr && st.caller_task == nullptr) {
     esp_async_memcpy_uninstall(st.handle);
     st.handle = nullptr;
   }
 }
 
+void async_blit_await() {
+  AsyncBlitState& st = state();
+  if (st.caller_task == nullptr) return;
+
+  TaskHandle_t me = xTaskGetCurrentTaskHandle();
+  CHECK(st.caller_task == me)
+      << "async_blit_await() must be called by the same task as async_blit()";
+
+  while (st.caller_task != nullptr) {
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+  }
+}
+
 void async_blit(const roo::byte* src_ptr, size_t src_stride, roo::byte* dst_ptr,
-                size_t dst_stride, size_t width, size_t height,
-                std::function<void()> cb) {
+                size_t dst_stride, size_t width, size_t height) {
   if (src_ptr == nullptr || dst_ptr == nullptr || width == 0 || height == 0) {
-    if (cb) cb();
     return;
   }
 
   AsyncBlitState& st = state();
+  CHECK(st.caller_task == nullptr)
+      << "previous async_blit() still in progress; call async_blit_await()";
+
+  // Drain any stale completion token left from a previous operation.
+  // This keeps notification state aligned 1:1 with newly started transfers.
+  (void)ulTaskNotifyTake(pdTRUE, 0);
+
   ++st.stats.total_requests;
   maybe_log_stats(st);
   const bool contiguous = (src_stride == width && dst_stride == width);
-  if (st.handle == nullptr || st.busy) {
+  if (st.handle == nullptr) {
     ++st.stats.fallback_no_handle_or_busy;
     copy_sync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
-    if (cb) cb();
     return;
   }
 
@@ -224,7 +262,6 @@ void async_blit(const roo::byte* src_ptr, size_t src_stride, roo::byte* dst_ptr,
       log_dma_reject("contig", src_ptr, dst_ptr, width * height, src_stride,
                      dst_stride, height);
       copy_sync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
-      if (cb) cb();
       return;
     }
   } else {
@@ -234,7 +271,6 @@ void async_blit(const roo::byte* src_ptr, size_t src_stride, roo::byte* dst_ptr,
       log_dma_reject("row", src_ptr, dst_ptr, width, src_stride, dst_stride,
                      height);
       copy_sync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
-      if (cb) cb();
       return;
     }
   }
@@ -245,8 +281,7 @@ void async_blit(const roo::byte* src_ptr, size_t src_stride, roo::byte* dst_ptr,
   st.dst_stride = dst_stride;
   st.row_bytes = width;
   st.remaining_rows = height;
-  st.done = std::move(cb);
-  st.busy = true;
+  st.caller_task = xTaskGetCurrentTaskHandle();
 
   esp_err_t err;
   if (contiguous) {
@@ -262,10 +297,8 @@ void async_blit(const roo::byte* src_ptr, size_t src_stride, roo::byte* dst_ptr,
 
   if (err != ESP_OK) {
     ++st.stats.fallback_esp_err;
-    st.busy = false;
+    st.caller_task = nullptr;
     copy_sync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
-    auto done = std::move(st.done);
-    if (done) done();
   }
 }
 
@@ -279,11 +312,11 @@ void async_blit_init() {}
 
 void async_blit_deinit() {}
 
+void async_blit_await() {}
+
 void async_blit(const roo::byte* src_ptr, size_t src_stride, roo::byte* dst_ptr,
-                size_t dst_stride, size_t width, size_t height,
-                std::function<void()> cb) {
+                size_t dst_stride, size_t width, size_t height) {
   if (src_ptr == nullptr || dst_ptr == nullptr || width == 0 || height == 0) {
-    if (cb) cb();
     return;
   }
 
@@ -298,8 +331,6 @@ void async_blit(const roo::byte* src_ptr, size_t src_stride, roo::byte* dst_ptr,
       dst_row += dst_stride;
     }
   }
-
-  if (cb) cb();
 }
 
 }  // namespace roo_display

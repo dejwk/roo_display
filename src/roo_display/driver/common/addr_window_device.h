@@ -279,12 +279,13 @@ class AddrWindowDevice : public DisplayDevice {
 
   void drawDirectRectAsync(const roo::byte* data, size_t row_width_bytes,
                            int16_t src_x0, int16_t src_y0, int16_t src_x1,
-                           int16_t src_y1, int16_t dst_x0, int16_t dst_y0,
-                           std::function<void()> cb) override {
+                           int16_t src_y1, int16_t dst_x0,
+                           int16_t dst_y0) override {
     drawDirectRectAsyncImpl(data, row_width_bytes, src_x0, src_y0, src_x1,
-                            src_y1, dst_x0, dst_y0, std::move(cb),
-                            has_async_blit<Target>{});
+                            src_y1, dst_x0, dst_y0, has_async_blit<Target>{});
   }
+
+  void flush() override { target_.flush(); }
 
   void orientationUpdated() override {
     if (!initialized_) {
@@ -300,8 +301,7 @@ class AddrWindowDevice : public DisplayDevice {
 
  private:
   // Compile-time capability probe: true when Target exposes
-  // ramWriteAsyncBlit(const roo::byte*, size_t, size_t, size_t,
-  //                   std::function<void()>).
+  // ramWriteAsyncBlit(const roo::byte*, size_t, size_t, size_t).
   // Used to select async drawDirectRectAsync implementation without runtime
   // branching.
   template <typename U, typename = void>
@@ -311,17 +311,15 @@ class AddrWindowDevice : public DisplayDevice {
   struct has_async_blit<
       U, std::void_t<decltype(std::declval<U&>().ramWriteAsyncBlit(
              std::declval<const roo::byte*>(), std::declval<size_t>(),
-             std::declval<size_t>(), std::declval<size_t>(),
-             std::declval<std::function<void()>>()))>> : std::true_type {};
+        std::declval<size_t>(), std::declval<size_t>()))>>
+      : std::true_type {};
 
   // Async path selected when has_async_blit<Target>::value == true.
   void drawDirectRectAsyncImpl(const roo::byte* data, size_t row_width_bytes,
                                int16_t src_x0, int16_t src_y0, int16_t src_x1,
                                int16_t src_y1, int16_t dst_x0, int16_t dst_y0,
-                               std::function<void()> cb,
                                std::true_type /*has_async*/) {
     if (src_x1 < src_x0 || src_y1 < src_y0) {
-      if (cb) cb();
       return;
     }
 
@@ -329,7 +327,6 @@ class AddrWindowDevice : public DisplayDevice {
                   1) {
       drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1, src_y1,
                      dst_x0, dst_y0);
-      if (cb) cb();
       return;
     }
 
@@ -344,19 +341,16 @@ class AddrWindowDevice : public DisplayDevice {
                            static_cast<size_t>(src_y0) * row_width_bytes +
                            static_cast<size_t>(src_x0) * kBytesPerPixel;
     target_.ramWriteAsyncBlit(row, row_width_bytes, width_bytes,
-                              static_cast<size_t>(height), std::move(cb));
+                              static_cast<size_t>(height));
   }
 
   // Synchronous fallback selected when Target has no async blit API.
-  // The callback is still invoked for API consistency.
   void drawDirectRectAsyncImpl(const roo::byte* data, size_t row_width_bytes,
                                int16_t src_x0, int16_t src_y0, int16_t src_x1,
                                int16_t src_y1, int16_t dst_x0, int16_t dst_y0,
-                               std::function<void()> cb,
                                std::false_type /*has_async*/) {
     drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1, src_y1,
                    dst_x0, dst_y0);
-    if (cb) cb();
   }
 
   void processColor(BlendingMode blending_mode, Color src, roo::byte* dest)

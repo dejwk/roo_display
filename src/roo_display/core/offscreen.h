@@ -3,7 +3,6 @@
 /// Support for drawing to in-memory buffers, using various color modes.
 
 #include <cstring>
-#include <functional>
 #include <utility>
 
 #include "roo_display/color/color.h"
@@ -181,9 +180,12 @@ class OffscreenDevice : public DisplayDevice {
   void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override;
 
+  void end() override { awaitAsyncBlit(); }
+
   void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
                       int16_t src_x0, int16_t src_y0, int16_t src_x1,
                       int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override {
+    awaitAsyncBlit();
     if (src_x1 < src_x0 || src_y1 < src_y0) return;
     int16_t width = src_x1 - src_x0 + 1;
     int16_t height = src_y1 - src_y0 + 1;
@@ -332,10 +334,10 @@ class OffscreenDevice : public DisplayDevice {
 
   void drawDirectRectAsync(const roo::byte* data, size_t row_width_bytes,
                            int16_t src_x0, int16_t src_y0, int16_t src_x1,
-                           int16_t src_y1, int16_t dst_x0, int16_t dst_y0,
-                           std::function<void()> cb) override {
+                           int16_t src_y1, int16_t dst_x0,
+                           int16_t dst_y0) override {
+    awaitAsyncBlit();
     if (src_x1 < src_x0 || src_y1 < src_y0) {
-      if (cb) cb();
       return;
     }
 
@@ -357,7 +359,7 @@ class OffscreenDevice : public DisplayDevice {
                              static_cast<size_t>(dst_y0) * dst_row_bytes +
                              static_cast<size_t>(dst_x0) * kBytesPerPixel;
         async_blit(src_row, row_width_bytes, dst_row, dst_row_bytes,
-                   copy_row_bytes, static_cast<size_t>(height), std::move(cb));
+                   copy_row_bytes, static_cast<size_t>(height));
         return;
       } else {
         constexpr int kPixelsPerByte = ColorTraits<ColorMode>::pixels_per_byte;
@@ -376,8 +378,7 @@ class OffscreenDevice : public DisplayDevice {
                                static_cast<size_t>(dst_x0 / kPixelsPerByte);
 
           async_blit(src_row, row_width_bytes, dst_row, dst_row_bytes,
-                     copy_row_bytes, static_cast<size_t>(height),
-                     std::move(cb));
+                     copy_row_bytes, static_cast<size_t>(height));
           return;
         }
       }
@@ -385,8 +386,9 @@ class OffscreenDevice : public DisplayDevice {
 
     drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1, src_y1,
                    dst_x0, dst_y0);
-    if (cb) cb();
   }
+
+  void flush() override { awaitAsyncBlit(); }
 
   /// Access color mode.
   ColorMode& color_mode() { return color_mode_; }
@@ -448,6 +450,8 @@ class OffscreenDevice : public DisplayDevice {
       window_.advance();
     }
   }
+
+  inline void awaitAsyncBlit() { async_blit_await(); }
 
   void fillRectsAbsolute(BlendingMode mode, Color color, int16_t* x0,
                          int16_t* y0, int16_t* x1, int16_t* y1, uint16_t count);
@@ -1367,6 +1371,7 @@ template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           int8_t pixels_per_byte, typename storage_type>
 void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                      storage_type>::orientationUpdated() {
+  awaitAsyncBlit();
   orienter_.setOrientation(orientation());
 }
 
@@ -1376,6 +1381,7 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                      storage_type>::setAddress(uint16_t x0, uint16_t y0,
                                                uint16_t x1, uint16_t y1,
                                                BlendingMode blending_mode) {
+  awaitAsyncBlit();
   window_.setAddress(x0, y0, x1, y1, raw_width(), raw_height(),
                      orienter_.orientation());
   if (blending_mode != BlendingMode::kSource) {
@@ -1455,6 +1461,7 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                                                 Color* color, int16_t* x,
                                                 int16_t* y,
                                                 uint16_t pixel_count) {
+  awaitAsyncBlit();
   roo::byte* buffer = buffer_;
   int16_t w = raw_width();
   orienter_.orientPixels(x, y, pixel_count);
@@ -1518,6 +1525,7 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                                                Color color, int16_t* x,
                                                int16_t* y,
                                                uint16_t pixel_count) {
+  awaitAsyncBlit();
   roo::byte* buffer = buffer_;
   int16_t w = raw_width();
   orienter_.orientPixels(x, y, pixel_count);
@@ -1561,6 +1569,7 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                                                Color* color, int16_t* x0,
                                                int16_t* y0, int16_t* x1,
                                                int16_t* y1, uint16_t count) {
+  awaitAsyncBlit();
   orienter_.orientRects(x0, y0, x1, y1, count);
   if (blending_mode != BlendingMode::kSource) {
     blending_mode = internal::ResolveBlendingModeForWrite(
@@ -1579,6 +1588,7 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                                               Color color, int16_t* x0,
                                               int16_t* y0, int16_t* x1,
                                               int16_t* y1, uint16_t count) {
+  awaitAsyncBlit();
   orienter_.orientRects(x0, y0, x1, y1, count);
   if (blending_mode != BlendingMode::kSource) {
     blending_mode = internal::ResolveBlendingModeForFill(

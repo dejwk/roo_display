@@ -311,8 +311,8 @@ class ParallelRgb565 : public DisplayDevice {
 
   void drawDirectRectAsync(const roo::byte *data, size_t row_width_bytes,
                            int16_t src_x0, int16_t src_y0, int16_t src_x1,
-                           int16_t src_y1, int16_t dst_x0, int16_t dst_y0,
-                           std::function<void()> cb) override;
+                           int16_t src_y1, int16_t dst_x0,
+                           int16_t dst_y0) override;
 
   const ColorFormat &getColorFormat() const override {
     static const ::roo_display::internal::ColorFormatImpl<
@@ -332,13 +332,20 @@ class ParallelRgb565 : public DisplayDevice {
     }
   }
 
-  inline void flush() const {
+  void flush() override {
+    if (buffer_ != nullptr) {
+      buffer_->flush();
+    }
+    flushCache();
+  }
+
+ private:
+  inline void flushCache() {
     uint32_t begin = (uint32_t)buffer_->buffer();
     uint32_t size = cfg_.width * cfg_.height * 2;
     Cache_WriteBack_Addr(begin, size);
   }
 
- private:
   using Dev =
       OffscreenDevice<typename internal::Traits<flush_mode>::ColorMode,
                       ColorPixelOrder::kMsbFirst, roo_io::kLittleEndian>;

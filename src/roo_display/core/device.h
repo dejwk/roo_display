@@ -2,8 +2,6 @@
 
 #include <inttypes.h>
 
-#include <functional>
-
 #include "roo_display/color/blending.h"
 #include "roo_display/color/color.h"
 #include "roo_display/color/pixel_order.h"
@@ -32,6 +30,13 @@ class DisplayOutput {
   /// Normally called by the `DrawingContext` destructor, and does not need to
   /// be called explicitly.
   virtual void end() {}
+
+  /// Wait until pending asynchronous drawing operations complete.
+  ///
+  /// Implementations that perform deferred writes should override this method
+  /// and block until it is safe to reuse source buffers passed to async
+  /// drawing APIs.
+  virtual void flush() {}
 
   /// Convenience overload for `setAddress()` using a `Box`.
   ///
@@ -63,6 +68,10 @@ class DisplayOutput {
 
   /// Write `pixel_count` copies of the same color into the current address
   /// window.
+  ///
+  /// The same preconditions as `write()` apply: the address must be set via
+  /// `setAddress()` and not invalidated by any of the `write*` / `fill*`
+  /// methods. Otherwise, the behavior is undefined.
   ///
   /// Default implementation falls back to chunked `write()`. Drivers and
   /// filters can override this for a more efficient single-color path.
@@ -187,15 +196,18 @@ class DisplayOutput {
                               int16_t src_x0, int16_t src_y0, int16_t src_x1,
                               int16_t src_y1, int16_t dst_x0, int16_t dst_y0);
 
-  /// Async version of drawDirectRect() with completion callback.
+  /// Asynchronous variant of drawDirectRect().
   ///
-  /// The default implementation calls drawDirectRect() synchronously and then
-  /// invokes the callback.
+  /// This method may continue executing after it returns. The caller must keep
+  /// `data` valid until any subsequent drawing method call or until `flush()`
+  /// is called.
+  ///
+  /// The default implementation calls drawDirectRect() synchronously.
   virtual void drawDirectRectAsync(const roo::byte *data,
                                    size_t row_width_bytes, int16_t src_x0,
                                    int16_t src_y0, int16_t src_x1,
                                    int16_t src_y1, int16_t dst_x0,
-                                   int16_t dst_y0, std::function<void()> cb);
+                                   int16_t dst_y0);
 };
 
 /// Base class for display device drivers.

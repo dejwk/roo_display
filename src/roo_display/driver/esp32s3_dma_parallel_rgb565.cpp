@@ -146,7 +146,11 @@ void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::init() {
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::end() {}
+void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::end() {
+  if (buffer_ != nullptr) {
+    buffer_->end();
+  }
+}
 
 template <>
 void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::write(Color *color,
@@ -213,13 +217,10 @@ template <>
 void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::drawDirectRectAsync(
     const roo::byte *data, size_t row_width_bytes, int16_t src_x0,
     int16_t src_y0, int16_t src_x1, int16_t src_y1, int16_t dst_x0,
-    int16_t dst_y0, std::function<void()> cb) {
-  if (buffer_ == nullptr || src_x1 < src_x0 || src_y1 < src_y0) {
-    if (cb) cb();
-    return;
-  }
+    int16_t dst_y0) {
+  if (buffer_ == nullptr || src_x1 < src_x0 || src_y1 < src_y0) return;
   buffer_->drawDirectRectAsync(data, row_width_bytes, src_x0, src_y0, src_x1,
-                               src_y1, dst_x0, dst_y0, std::move(cb));
+                               src_y1, dst_x0, dst_y0);
 }
 
 namespace {
@@ -263,7 +264,11 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::init() {
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_BUFFERED>::end() {}
+void ParallelRgb565<FLUSH_MODE_BUFFERED>::end() {
+  if (buffer_ != nullptr) {
+    buffer_->end();
+  }
+}
 
 template <>
 void ParallelRgb565<FLUSH_MODE_BUFFERED>::write(Color *color,
@@ -283,7 +288,7 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::write(Color *color,
   //                  .length = (y1 - y0 + 1) * cfg_.width * 2};
   // Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + range.offset,
   //                      range.length);
-  flush();
+  flushCache();
   // Cache_WriteBack_Addr((uint32_t)(buffer_->buffer()),
   //                      cfg_.width * cfg_.height * 2);
 }
@@ -292,7 +297,7 @@ template <>
 void ParallelRgb565<FLUSH_MODE_BUFFERED>::fill(Color color,
                                                uint32_t pixel_count) {
   buffer_->fill(color, pixel_count);
-  flush();
+  flushCache();
 }
 
 template <>
@@ -306,7 +311,7 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::writePixels(BlendingMode mode,
   buffer_->writePixels(mode, color, x, y, pixel_count);
   // Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + range.offset,
   //                      range.length);
-  flush();
+  flushCache();
   // Cache_WriteBack_Addr((uint32_t)(buffer_->buffer()),
   //                      cfg_.width * cfg_.height * 2);
 }
@@ -322,7 +327,7 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillPixels(BlendingMode mode,
   buffer_->fillPixels(mode, color, x, y, pixel_count);
   // Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + range.offset,
   //                      range.length);
-  flush();
+  flushCache();
   // Cache_WriteBack_Addr((uint32_t)(buffer_->buffer()),
   //                      cfg_.width * cfg_.height * 2);
 }
@@ -339,7 +344,7 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::writeRects(BlendingMode mode,
   buffer_->writeRects(mode, color, x0, y0, x1, y1, count);
   // Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + range.offset,
   //                      range.length);
-  flush();
+  flushCache();
   // Cache_WriteBack_Addr((uint32_t)(buffer_->buffer()),
   //                      cfg_.width * cfg_.height * 2);
 }
@@ -356,7 +361,7 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillRects(BlendingMode mode,
   buffer_->fillRects(mode, color, x0, y0, x1, y1, count);
   // Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + range.offset,
   //                      range.length);
-  flush();
+  flushCache();
   // Cache_WriteBack_Addr((uint32_t)(buffer_->buffer()),
   //                      cfg_.width * cfg_.height * 2);
 }
@@ -387,29 +392,10 @@ template <>
 void ParallelRgb565<FLUSH_MODE_BUFFERED>::drawDirectRectAsync(
     const roo::byte *data, size_t row_width_bytes, int16_t src_x0,
     int16_t src_y0, int16_t src_x1, int16_t src_y1, int16_t dst_x0,
-    int16_t dst_y0, std::function<void()> cb) {
-  if (buffer_ == nullptr || src_x1 < src_x0 || src_y1 < src_y0) {
-    if (cb) cb();
-    return;
-  }
-
-  buffer_->drawDirectRectAsync(
-      data, row_width_bytes, src_x0, src_y0, src_x1, src_y1, dst_x0, dst_y0,
-      [this, dst_y0, src_y0, src_y1, cb = std::move(cb)]() mutable {
-        if (orientation() == Orientation::Default()) {
-          constexpr uint32_t kBytesPerPixel = 2;
-          int16_t height = src_y1 - src_y0 + 1;
-          uint32_t offset =
-              static_cast<uint32_t>(dst_y0) * cfg_.width * kBytesPerPixel;
-          uint32_t length =
-              static_cast<uint32_t>(height) * cfg_.width * kBytesPerPixel;
-          Cache_WriteBack_Addr((uint32_t)buffer_->buffer() + offset, length);
-        } else {
-          Cache_WriteBack_Addr((uint32_t)buffer_->buffer(),
-                               cfg_.width * cfg_.height * 2);
-        }
-        if (cb) cb();
-      });
+    int16_t dst_y0) {
+  if (buffer_ == nullptr || src_x1 < src_x0 || src_y1 < src_y0) return;
+  buffer_->drawDirectRectAsync(data, row_width_bytes, src_x0, src_y0, src_x1,
+                               src_y1, dst_x0, dst_y0);
 }
 
 template <>
@@ -423,7 +409,8 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::init() {
 template <>
 void ParallelRgb565<FLUSH_MODE_LAZY>::end() {
   if (buffer_ != nullptr) {
-    flush();
+    buffer_->end();
+    flushCache();
   }
 }
 
@@ -483,13 +470,10 @@ template <>
 void ParallelRgb565<FLUSH_MODE_LAZY>::drawDirectRectAsync(
     const roo::byte *data, size_t row_width_bytes, int16_t src_x0,
     int16_t src_y0, int16_t src_x1, int16_t src_y1, int16_t dst_x0,
-    int16_t dst_y0, std::function<void()> cb) {
-  if (buffer_ == nullptr || src_x1 < src_x0 || src_y1 < src_y0) {
-    if (cb) cb();
-    return;
-  }
+    int16_t dst_y0) {
+  if (buffer_ == nullptr || src_x1 < src_x0 || src_y1 < src_y0) return;
   buffer_->drawDirectRectAsync(data, row_width_bytes, src_x0, src_y0, src_x1,
-                               src_y1, dst_x0, dst_y0, std::move(cb));
+                               src_y1, dst_x0, dst_y0);
 }
 
 // #if FLUSH_MODE == FLUSH_MODE_HARDCODED

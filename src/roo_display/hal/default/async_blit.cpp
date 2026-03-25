@@ -12,11 +12,11 @@ void async_blit_init() {}
 
 void async_blit_deinit() {}
 
+void async_blit_await() {}
+
 void async_blit(const roo::byte* src_ptr, size_t src_stride, roo::byte* dst_ptr,
-                size_t dst_stride, size_t width, size_t height,
-                std::function<void()> cb) {
+                size_t dst_stride, size_t width, size_t height) {
   if (src_ptr == nullptr || dst_ptr == nullptr || width == 0 || height == 0) {
-    if (cb) cb();
     return;
   }
 
@@ -31,8 +31,6 @@ void async_blit(const roo::byte* src_ptr, size_t src_stride, roo::byte* dst_ptr,
       dst_row += dst_stride;
     }
   }
-
-  if (cb) cb();
 }
 
 }  // namespace roo_display

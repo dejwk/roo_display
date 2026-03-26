@@ -14,6 +14,7 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_memory_utils.h"
+#include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "roo_logging.h"
 
@@ -22,14 +23,20 @@ namespace {
 
 constexpr size_t kDmaAlign = 16;
 constexpr size_t kExtDmaAlign = 32;
+constexpr size_t kMinRowDmaBytes = 128;
 constexpr uint32_t kStatsLogInterval = 120;
 constexpr const char* kTag = "async_blit";
 
 struct AsyncBlitStats {
   uint32_t total_requests = 0;
   uint32_t dma_contiguous = 0;
+  uint32_t dma_contiguous_split = 0;
   uint32_t dma_rowwise = 0;
+  uint32_t dma_rowwise_split = 0;
   uint32_t fallback_no_handle_or_busy = 0;
+  uint32_t fallback_small_contig_no_middle = 0;
+  uint32_t fallback_small_row_below_min_dma = 0;
+  uint32_t fallback_small_row_no_middle = 0;
   uint32_t fallback_alignment = 0;
   uint32_t fallback_esp_err = 0;
 };
@@ -79,10 +86,16 @@ AsyncBlitState& state() {
 void maybe_log_stats(AsyncBlitState& st) {
   if (st.stats.total_requests % kStatsLogInterval != 0) return;
   ESP_LOGI(kTag,
-           "req=%u dma_contig=%u dma_rows=%u fb_busy=%u fb_align=%u fb_err=%u",
+           "req=%u dma_contig=%u dma_contig_split=%u dma_rows=%u "
+           "dma_rows_split=%u fb_busy=%u fb_small_contig_nomid=%u "
+           "fb_small_row_min=%u fb_small_row_nomid=%u fb_align=%u fb_err=%u",
            st.stats.total_requests, st.stats.dma_contiguous,
-           st.stats.dma_rowwise, st.stats.fallback_no_handle_or_busy,
-           st.stats.fallback_alignment, st.stats.fallback_esp_err);
+           st.stats.dma_contiguous_split, st.stats.dma_rowwise,
+           st.stats.dma_rowwise_split, st.stats.fallback_no_handle_or_busy,
+           st.stats.fallback_small_contig_no_middle,
+           st.stats.fallback_small_row_below_min_dma,
+           st.stats.fallback_small_row_no_middle, st.stats.fallback_alignment,
+           st.stats.fallback_esp_err);
 }
 
 void IRAM_ATTR copy_remaining_rows_sync(AsyncBlitState& st) {
@@ -169,6 +182,30 @@ inline bool are_strides_aligned(size_t src_stride, size_t dst_stride,
          (dst_stride % required_align) == 0;
 }
 
+inline bool can_dma_rowwise_transfer(const roo::byte* src, roo::byte* dst,
+                                     size_t row_bytes, size_t src_stride,
+                                     size_t dst_stride) {
+  return can_dma_transfer(src, dst, row_bytes) &&
+         are_strides_aligned(src_stride, dst_stride, src, dst);
+}
+
+inline size_t ptr_mod(const void* ptr, size_t align) {
+  return reinterpret_cast<uintptr_t>(ptr) % align;
+}
+
+bool split_for_aligned_middle(const roo::byte* src_ptr, roo::byte* dst_ptr,
+                              size_t bytes, size_t align, size_t& left,
+                              size_t& middle, size_t& right) {
+  if (bytes == 0 || align == 0) return false;
+  if (ptr_mod(src_ptr, align) != ptr_mod(dst_ptr, align)) return false;
+
+  left = (align - ptr_mod(src_ptr, align)) % align;
+  if (left > bytes) return false;
+  right = (bytes - left) % align;
+  middle = bytes - left - right;
+  return middle > 0;
+}
+
 bool IRAM_ATTR on_copy_done(async_memcpy_handle_t, async_memcpy_event_t*,
                             void* cb_args) {
   auto* st = static_cast<AsyncBlitState*>(cb_args);
@@ -198,6 +235,32 @@ bool IRAM_ATTR on_copy_done(async_memcpy_handle_t, async_memcpy_event_t*,
   return false;
 }
 
+bool start_async_copy(AsyncBlitState& st, const roo::byte* src, roo::byte* dst,
+                      size_t src_stride, size_t dst_stride, size_t row_bytes,
+                      size_t remaining_rows, const roo::byte* fallback_src,
+                      size_t fallback_src_stride, roo::byte* fallback_dst,
+                      size_t fallback_dst_stride, size_t fallback_width,
+                      size_t fallback_height) {
+  st.src = src;
+  st.dst = dst;
+  st.src_stride = src_stride;
+  st.dst_stride = dst_stride;
+  st.row_bytes = row_bytes;
+  st.remaining_rows = remaining_rows;
+  st.caller_task = xTaskGetCurrentTaskHandle();
+
+  esp_err_t err =
+      esp_async_memcpy(st.handle, st.dst, const_cast<roo::byte*>(st.src),
+                       st.row_bytes, on_copy_done, &st);
+  if (err == ESP_OK) return true;
+
+  ++st.stats.fallback_esp_err;
+  st.caller_task = nullptr;
+  copy_sync(fallback_src, fallback_src_stride, fallback_dst,
+            fallback_dst_stride, fallback_width, fallback_height);
+  return false;
+}
+
 }  // namespace
 
 void async_blit_init() {
@@ -222,15 +285,15 @@ void async_blit_deinit() {
 
 void async_blit_await() {
   AsyncBlitState& st = state();
-  if (st.caller_task == nullptr) return;
+  TaskHandle_t caller = st.caller_task;
+  if (caller == nullptr) return;
 
-  TaskHandle_t me = xTaskGetCurrentTaskHandle();
-  CHECK(st.caller_task == me)
+  CHECK_EQ(caller, xTaskGetCurrentTaskHandle())
       << "async_blit_await() must be called by the same task as async_blit()";
 
-  while (st.caller_task != nullptr) {
+  do {
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-  }
+  } while (st.caller_task != nullptr);
 }
 
 void async_blit(const roo::byte* src_ptr, size_t src_stride, roo::byte* dst_ptr,
@@ -257,16 +320,89 @@ void async_blit(const roo::byte* src_ptr, size_t src_stride, roo::byte* dst_ptr,
   }
 
   if (contiguous) {
-    if (!can_dma_transfer(src_ptr, dst_ptr, width * height)) {
+    const size_t total_bytes = width * height;
+    if (!can_dma_transfer(src_ptr, dst_ptr, total_bytes)) {
+      size_t left = 0;
+      size_t middle = 0;
+      size_t right = 0;
+      const bool same_ext_mod =
+          ptr_mod(src_ptr, kExtDmaAlign) == ptr_mod(dst_ptr, kExtDmaAlign);
+      const bool can_split = split_for_aligned_middle(
+          src_ptr, dst_ptr, total_bytes, kExtDmaAlign, left, middle, right);
+      const roo::byte* src_mid = src_ptr + left;
+      roo::byte* dst_mid = dst_ptr + left;
+      if (can_split && can_dma_transfer(src_mid, dst_mid, middle)) {
+        if (left > 0) {
+          std::memcpy(dst_ptr, src_ptr, left);
+        }
+        if (right > 0) {
+          std::memcpy(dst_ptr + left + middle, src_ptr + left + middle, right);
+        }
+
+        ++st.stats.dma_contiguous_split;
+        start_async_copy(st, src_mid, dst_mid, 0, 0, middle, 0, src_ptr,
+                         src_stride, dst_ptr, dst_stride, width, height);
+        return;
+      }
+
+      // For small total sizes there may be no aligned middle chunk to DMA even
+      // though src/dst share the same ext-DMA modulo. This is expected.
+      if (same_ext_mod && !can_split) {
+        ++st.stats.fallback_small_contig_no_middle;
+        copy_sync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
+        return;
+      }
+
       ++st.stats.fallback_alignment;
-      log_dma_reject("contig", src_ptr, dst_ptr, width * height, src_stride,
+      log_dma_reject("contig", src_ptr, dst_ptr, total_bytes, src_stride,
                      dst_stride, height);
       copy_sync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
       return;
     }
   } else {
-    if (!can_dma_transfer(src_ptr, dst_ptr, width) ||
-        !are_strides_aligned(src_stride, dst_stride, src_ptr, dst_ptr)) {
+    if (width < kMinRowDmaBytes) {
+      ++st.stats.fallback_small_row_below_min_dma;
+      copy_sync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
+      return;
+    }
+
+    const bool rowwise_direct_dma_ok = can_dma_rowwise_transfer(
+        src_ptr, dst_ptr, width, src_stride, dst_stride);
+    if (!rowwise_direct_dma_ok) {
+      size_t left = 0;
+      size_t middle = 0;
+      size_t right = 0;
+      const bool same_ext_mod =
+          ptr_mod(src_ptr, kExtDmaAlign) == ptr_mod(dst_ptr, kExtDmaAlign);
+      const bool can_split = split_for_aligned_middle(
+          src_ptr, dst_ptr, width, kExtDmaAlign, left, middle, right);
+      const roo::byte* src_mid = src_ptr + left;
+      roo::byte* dst_mid = dst_ptr + left;
+      if (can_split && can_dma_rowwise_transfer(src_mid, dst_mid, middle,
+                                                src_stride, dst_stride)) {
+        if (left > 0) {
+          copy_sync(src_ptr, src_stride, dst_ptr, dst_stride, left, height);
+        }
+        if (right > 0) {
+          copy_sync(src_ptr + left + middle, src_stride,
+                    dst_ptr + left + middle, dst_stride, right, height);
+        }
+
+        ++st.stats.dma_rowwise_split;
+        start_async_copy(st, src_mid, dst_mid, src_stride, dst_stride, middle,
+                         height, src_ptr, src_stride, dst_ptr, dst_stride,
+                         width, height);
+        return;
+      }
+
+      // For small widths there may be no aligned middle chunk to DMA even
+      // though src/dst share the same ext-DMA modulo. This is expected.
+      if (same_ext_mod && !can_split) {
+        ++st.stats.fallback_small_row_no_middle;
+        copy_sync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
+        return;
+      }
+
       ++st.stats.fallback_alignment;
       log_dma_reject("row", src_ptr, dst_ptr, width, src_stride, dst_stride,
                      height);
@@ -274,31 +410,15 @@ void async_blit(const roo::byte* src_ptr, size_t src_stride, roo::byte* dst_ptr,
       return;
     }
   }
-
-  st.src = src_ptr;
-  st.dst = dst_ptr;
-  st.src_stride = src_stride;
-  st.dst_stride = dst_stride;
-  st.row_bytes = width;
-  st.remaining_rows = height;
-  st.caller_task = xTaskGetCurrentTaskHandle();
-
-  esp_err_t err;
   if (contiguous) {
     ++st.stats.dma_contiguous;
-    st.remaining_rows = 0;
-    err = esp_async_memcpy(st.handle, st.dst, const_cast<roo::byte*>(st.src),
-                           width * height, on_copy_done, &st);
+    start_async_copy(st, src_ptr, dst_ptr, 0, 0, width * height, 0, src_ptr,
+                     src_stride, dst_ptr, dst_stride, width, height);
   } else {
     ++st.stats.dma_rowwise;
-    err = esp_async_memcpy(st.handle, st.dst, const_cast<roo::byte*>(st.src),
-                           st.row_bytes, on_copy_done, &st);
-  }
-
-  if (err != ESP_OK) {
-    ++st.stats.fallback_esp_err;
-    st.caller_task = nullptr;
-    copy_sync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
+    start_async_copy(st, src_ptr, dst_ptr, src_stride, dst_stride, width,
+                     height, src_ptr, src_stride, dst_ptr, dst_stride, width,
+                     height);
   }
 }
 

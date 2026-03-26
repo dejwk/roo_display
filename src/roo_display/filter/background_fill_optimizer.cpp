@@ -197,8 +197,9 @@ void BackgroundFillOptimizer::resetMaskAndUsage(uint8_t mask_value) {
       Box(0, 0, background_mask_->width() - 1, background_mask_->height() - 1),
       mask_value);
   for (int i = 0; i < 16; ++i) palette_usage_count_[i] = 0;
-  const uint16_t cell_count = static_cast<uint16_t>(background_mask_->width() *
-                                                    background_mask_->height());
+  const uint16_t cell_count =
+      static_cast<uint16_t>(static_cast<uint16_t>(background_mask_->width()) *
+                            static_cast<uint16_t>(background_mask_->height()));
   palette_usage_count_[mask_value] = cell_count;
   palette_full_hint_ = false;
 }
@@ -799,6 +800,15 @@ void BackgroundFillOptimizer::drawDirectRect(const roo::byte* data,
                                              int16_t src_x0, int16_t src_y0,
                                              int16_t src_x1, int16_t src_y1,
                                              int16_t dst_x0, int16_t dst_y0) {
+  drawDirectRectAsync(data, row_width_bytes, src_x0, src_y0, src_x1, src_y1,
+                      dst_x0, dst_y0);
+  output_.flush();
+}
+
+void BackgroundFillOptimizer::drawDirectRectAsync(
+    const roo::byte* data, size_t row_width_bytes, int16_t src_x0,
+    int16_t src_y0, int16_t src_x1, int16_t src_y1, int16_t dst_x0,
+    int16_t dst_y0) {
   flushDeferredUniformRun();
   if (src_x1 < src_x0 || src_y1 < src_y0) return;
   const int16_t dst_x1 = dst_x0 + (src_x1 - src_x0);
@@ -889,14 +899,16 @@ void BackgroundFillOptimizer::drawDirectRect(const roo::byte* data,
         const int16_t src_streak_x1 = src_x0 + (draw_x1 - dst_x0);
         const int16_t src_streak_y1 = src_y0 + (draw_y1 - dst_y0);
 
-        output_.drawDirectRect(data, row_width_bytes, src_streak_x0,
-                               src_streak_y0, src_streak_x1, src_streak_y1,
-                               draw_x0, draw_y0);
+        output_.drawDirectRectAsync(data, row_width_bytes, src_streak_x0,
+                                    src_streak_y0, src_streak_x1, src_streak_y1,
+                                    draw_x0, draw_y0);
         streak_active = false;
       }
     }
   }
 }
+
+void BackgroundFillOptimizer::flush() { output_.flush(); }
 
 template <typename Filler>
 void BackgroundFillOptimizer::fillRectBg(int16_t x0, int16_t y0, int16_t x1,

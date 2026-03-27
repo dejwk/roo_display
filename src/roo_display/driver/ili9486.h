@@ -144,25 +144,25 @@ class Ili9486Target {
       __attribute__((always_inline)) {
     if (last_x0_ != x0 || last_x1_ != x1) {
       writeCommand(CASET);
-        roo::byte xBin[] = {
+      roo::byte xBin[] = {
           roo::byte{0}, static_cast<roo::byte>(x0 >> 8),
           roo::byte{0}, static_cast<roo::byte>(x0 >> 0),
           roo::byte{0}, static_cast<roo::byte>(x1 >> 8),
           roo::byte{0}, static_cast<roo::byte>(x1 >> 0),
-        };
-        transport_.writeBytes(xBin, 8);
+      };
+      transport_.writeBytes(xBin, 8);
       last_x0_ = x0;
       last_x1_ = x1;
     }
     if (last_y0_ != y0 || last_y1_ != y1) {
       writeCommand(PASET);
-        roo::byte yBin[] = {
+      roo::byte yBin[] = {
           roo::byte{0}, static_cast<roo::byte>(y0 >> 8),
           roo::byte{0}, static_cast<roo::byte>(y0 >> 0),
           roo::byte{0}, static_cast<roo::byte>(y1 >> 8),
           roo::byte{0}, static_cast<roo::byte>(y1 >> 0),
-        };
-        transport_.writeBytes(yBin, 8);
+      };
+      transport_.writeBytes(yBin, 8);
       last_y0_ = y0;
       last_y1_ = y1;
     }
@@ -185,7 +185,7 @@ class Ili9486Target {
   void ramWriteAsyncBlit(const roo::byte* data, size_t row_stride_bytes,
                          size_t row_bytes, size_t row_count)
       __attribute__((always_inline)) {
-    transport_.async_blit(data, row_stride_bytes, row_bytes, row_count);
+    transport_.asyncBlit(data, row_stride_bytes, row_bytes, row_count);
   }
 
  private:

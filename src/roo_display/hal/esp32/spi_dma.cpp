@@ -1,3 +1,5 @@
+#if defined(ESP_PLATFORM) && !defined(ROO_TESTING)
+
 #include "roo_display/hal/esp32/spi_dma.h"
 
 #include "esp_attr.h"
@@ -273,3 +275,5 @@ bool DmaController::startOperationCritical(Operation op) {
 
 }  // namespace esp32
 }  // namespace roo_display
+
+#endif  // defined(ESP_PLATFORM) && !defined(ROO_TESTING)

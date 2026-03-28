@@ -8,7 +8,7 @@
 namespace roo_display {
 namespace esp32 {
 
-void IRAM_ATTR InterruptHandler(void* arg) {
+void ROO_DISPLAY_SPI_ASYNC_ISR_ATTR InterruptHandler(void* arg) {
   IrqDispatcher* dispatcher = static_cast<IrqDispatcher*>(arg);
   dispatcher->dispatch();
 }
@@ -71,7 +71,7 @@ void IrqDispatcher::unbind(const Binding* binding) {
   portEXIT_CRITICAL(&mux_);
 }
 
-inline void IrqDispatcher::dispatch() {
+inline void ROO_DISPLAY_SPI_ASYNC_ISR_ATTR IrqDispatcher::dispatch() {
 #if ROO_DISPLAY_ESP32_SPI_SHARED_IRQ
   if (!SpiNonDmaTransferDoneIntPending(spi_port_)) {
     // Shared IRQ line: ignore unrelated interrupt sources.

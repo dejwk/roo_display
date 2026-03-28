@@ -12,6 +12,12 @@
 #define ROO_DISPLAY_ESP32_SPI_IRQ_IN_IRAM 1
 #endif
 
+#if ROO_DISPLAY_ESP32_SPI_IRQ_IN_IRAM
+#define ROO_DISPLAY_SPI_ASYNC_ISR_ATTR IRAM_ATTR
+#else
+#define ROO_DISPLAY_SPI_ASYNC_ISR_ATTR
+#endif
+
 namespace roo_display {
 namespace esp32 {
 
@@ -30,7 +36,7 @@ class IrqDispatcher {
   void unbind(const Binding* binding);
 
  private:
-  friend void IRAM_ATTR InterruptHandler(void* arg);
+  friend void ROO_DISPLAY_SPI_ASYNC_ISR_ATTR InterruptHandler(void* arg);
   friend IrqDispatcher* GetIrqDispatcher(int spi_port);
 
   IrqDispatcher();
@@ -39,7 +45,7 @@ class IrqDispatcher {
   bool ok() const { return intr_handle_ != nullptr; }
   int spi_port() const { return spi_port_; }
 
-  IRAM_ATTR void dispatch();
+  ROO_DISPLAY_SPI_ASYNC_ISR_ATTR void dispatch();
 
   int spi_port_;
   bool init_attempted_;

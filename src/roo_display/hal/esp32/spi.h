@@ -10,12 +10,14 @@
 
 #include <cstring>
 
-#include "esp_private/spi_common_internal.h"
 #if defined(ESP_PLATFORM)
 #include "esp_memory_utils.h"
 #endif
 #include "roo_backport.h"
 #include "roo_backport/byte.h"
+#include "roo_display/hal/esp32/memory.h"
+#include "roo_display/hal/esp32/spi_async.h"
+#include "roo_display/hal/esp32/spi_irq.h"
 #include "roo_display/hal/esp32/spi_reg.h"
 #include "roo_display/hal/spi_settings.h"
 #include "roo_io/data/byte_order.h"
@@ -93,199 +95,6 @@ class Esp32Spi {
 #endif
 };
 
-class AsyncOperation {
- public:
-  AsyncOperation(int spi_port)
-      : spi_port_(spi_port),
-        done_(true),
-        stop_(false),
-        mux_(portMUX_INITIALIZER_UNLOCKED),
-        waiter_task_(nullptr) {}
-
-  __attribute__((always_inline)) void initFill(size_t len) {
-    done_ = false;
-    type_ = kFill;
-    fill_.remaining = len;
-    stop_ = false;
-  }
-
-  __attribute__((always_inline)) void initBlit(const roo::byte* data,
-                                               size_t row_stride_bytes,
-                                               size_t row_bytes,
-                                               size_t row_count) {
-    done_ = false;
-    type_ = kBlit;
-    blit_.next_row = data;
-    blit_.row_stride_bytes = row_stride_bytes;
-    blit_.row_bytes = row_bytes;
-    blit_.remaining_rows = row_count;
-    blit_.row_offset = 0;
-    blit_.chunk_size = 0;
-    prepareNextBlitChunk();
-    stop_ = false;
-  }
-
-  __attribute__((always_inline)) IRAM_ATTR void handleInterrupt() {
-    if (!SpiDmaTransferDoneIntPending(spi_port_)) {
-      // Shared IRQ line: ignore unrelated interrupt sources.
-      return;
-    }
-    SpiDmaTransferDoneIntClear(spi_port_);
-    if (checkCompleteISR()) {
-      return;
-    }
-    // state->remaining -= 64;
-    // if (state->remaining >= 64) {
-    SpiTxStart(spi_port_);
-    // } else {
-    //   SpiSetOutBufferSize(state->spi_port, state->remaining);
-    //   SpiTxStart(state->spi_port);
-    // }
-  }
-
-  void awaitCompletion() {
-    TaskHandle_t me = xTaskGetCurrentTaskHandle();
-    while (true) {
-      portENTER_CRITICAL(&mux_);
-      stop_ = true;
-      if (done_) {
-        waiter_task_ = nullptr;
-        portEXIT_CRITICAL(&mux_);
-        finishRemaining();
-        return;
-      }
-      CHECK(waiter_task_ == nullptr || waiter_task_ == me);
-      waiter_task_ = me;
-      portEXIT_CRITICAL(&mux_);
-      ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-    }
-  }
-
- private:
-  enum Type { kFill, kBlit };
-
-  struct Fill {
-    size_t remaining;
-  };
-
-  struct Blit {
-    const roo::byte* next_row;
-    size_t row_stride_bytes;
-    size_t row_bytes;
-    size_t remaining_rows;
-    size_t row_offset;
-    size_t chunk_size;
-    alignas(4) roo::byte chunk[64];
-  };
-
-  bool hasMoreBlitData() const {
-    return blit_.remaining_rows > 0 && blit_.next_row != nullptr;
-  }
-
-  // Builds and loads up to 64 bytes from possibly strided source rows.
-  bool prepareNextBlitChunk() {
-    if (!hasMoreBlitData()) {
-      blit_.chunk_size = 0;
-      return false;
-    }
-
-    size_t out = 0;
-    while (out < 64 && blit_.remaining_rows > 0) {
-      size_t in_row = blit_.row_bytes - blit_.row_offset;
-      size_t take = std::min<size_t>(64 - out, in_row);
-      std::memcpy(&blit_.chunk[out], blit_.next_row + blit_.row_offset, take);
-      out += take;
-      blit_.row_offset += take;
-      if (blit_.row_offset == blit_.row_bytes) {
-        blit_.row_offset = 0;
-        blit_.next_row += blit_.row_stride_bytes;
-        --blit_.remaining_rows;
-      }
-    }
-
-    blit_.chunk_size = out;
-    if (out == 0) return false;
-    SpiSetOutBufferSize(spi_port_, static_cast<int>(out));
-    SpiWriteUpTo64Aligned(spi_port_, blit_.chunk, static_cast<int>(out));
-    return true;
-  }
-
-  IRAM_ATTR bool markDoneAndNotifyWaiterISR() {
-    SpiDmaTransferDoneIntDisable(spi_port_);
-    done_ = true;
-    TaskHandle_t waiter = waiter_task_;
-    waiter_task_ = nullptr;
-    portEXIT_CRITICAL_ISR(&mux_);
-    if (waiter != nullptr) {
-      BaseType_t high_wakeup = pdFALSE;
-      vTaskNotifyGiveFromISR(waiter, &high_wakeup);
-      portYIELD_FROM_ISR(high_wakeup);
-    }
-    return true;
-  }
-
-  IRAM_ATTR bool checkCompleteISR() {
-    if (type_ == kFill) {
-      portENTER_CRITICAL_ISR(&mux_);
-      if (!stop_ && fill_.remaining > 64) {
-        fill_.remaining -= 64;
-        portEXIT_CRITICAL_ISR(&mux_);
-        return false;
-      }
-      if (!stop_) fill_.remaining = 0;
-      return markDoneAndNotifyWaiterISR();
-    }
-
-    if (type_ == kBlit) {
-      portENTER_CRITICAL_ISR(&mux_);
-      // Do not touch source row memory in ISR context because it may live in
-      // PSRAM/cache-backed memory. Finish remaining chunks from task context.
-      return markDoneAndNotifyWaiterISR();
-    }
-    return true;
-  }
-
-  void finishFill() {
-    size_t count = fill_.remaining;
-    while (count > 0) {
-      SpiTxStart(spi_port_);
-      count -= 64;
-      SpiTxWait(spi_port_);
-    }
-  }
-
-  void finishBlit() {
-    while (prepareNextBlitChunk()) {
-      SpiTxStart(spi_port_);
-      SpiTxWait(spi_port_);
-    }
-  }
-
-  void finishRemaining() {
-    if (type_ == kFill) {
-      finishFill();
-    } else if (type_ == kBlit) {
-      finishBlit();
-    }
-  }
-
-  int spi_port_;
-  Type type_;
-  union {
-    Fill fill_;
-    Blit blit_;
-  };
-  bool done_;
-  bool stop_;
-  portMUX_TYPE mux_;
-  TaskHandle_t waiter_task_;
-};
-
-void IRAM_ATTR TransferCompleteISR(void* arg) {
-  AsyncOperation* op = static_cast<AsyncOperation*>(arg);
-  op->handleInterrupt();
-}
-
 // Note: hardcoding the spi_port, making register accesses compile-time
 // constants, does bring tangible performance improvements; ~2% in 'Lines' test
 // in the Adafruit benchmark.
@@ -294,16 +103,33 @@ class Esp32SpiDevice {
  public:
   // friend void IRAM_ATTR TransferCompleteISR(void* arg);
   Esp32SpiDevice(Esp32Spi<spi_port>& spi)
-      : spi_(spi.spi_), async_op_(spi_port) {}
+      : spi_(spi.spi_),
+        async_op_(),
+        irq_binding_{AsyncOperation<spi_port>::TransferCompleteISR,
+                     &async_op_} {}
+
+  Esp32SpiDevice(const Esp32SpiDevice&) = delete;
+  Esp32SpiDevice& operator=(const Esp32SpiDevice&) = delete;
 
 #if defined(ARDUINO)
-  void init() {
-    esp_err_t intr_err =
-        esp_intr_alloc(spicommon_irqsource_for_host(
-                           static_cast<spi_host_device_t>(spi_port - 1)),
-                       /* ESP_INTR_FLAG_SHARED | */ ESP_INTR_FLAG_IRAM,
-                       TransferCompleteISR, &async_op_, &intr_handle_);
-  }
+  Esp32SpiDevice(Esp32SpiDevice&& other) noexcept
+      : spi_(other.spi_),
+        async_op_(),
+        irq_binding_{AsyncOperation<spi_port>::TransferCompleteISR,
+                     &async_op_} {}
+#else
+  Esp32SpiDevice(Esp32SpiDevice&& other) noexcept
+      : spi_(other.spi_),
+        device_(other.device_),
+        async_op_(),
+        irq_binding_{AsyncOperation<spi_port>::TransferCompleteISR,
+                     &async_op_} {}
+#endif
+
+  Esp32SpiDevice& operator=(Esp32SpiDevice&&) = delete;
+
+#if defined(ARDUINO)
+  void init() {}
 
   void beginReadWriteTransaction() {
     spi_.beginTransaction(SPISettings(
@@ -317,7 +143,9 @@ class Esp32SpiDevice {
   }
 
   void endTransaction() {
+    flush();
     SpiSetReadWriteMode(spi_port);
+    unbindInterrupt();
     spi_.endTransaction();
   }
 #else
@@ -352,7 +180,9 @@ class Esp32SpiDevice {
   }
 
   void endTransaction() {
+    flush();
     SpiSetReadWriteMode(spi_port);
+    unbindInterrupt();
     spi_device_release_bus(device_);
   }
 #endif
@@ -460,22 +290,27 @@ class Esp32SpiDevice {
       SpiTxWait(spi_port);
     }
 
-    async_op_pending_ = true;
-    need_sync_ = true;
-    async_op_.initFill(len);
-    SpiDmaTransferDoneIntClear(spi_port);
-    SpiDmaTransferDoneIntEnable(spi_port);
-    SpiSetOutBufferSize(spi_port, 64);
-    SpiTxStart(spi_port);
-    // while (true) {
-    //   SpiTxStart(spi_port);
-    //   len -= 64;
-    //   if (len == 0) {
-    //     need_sync_ = true;
-    //     return;
-    //   }
-    //   SpiTxWait(spi_port);
-    // }
+    if (bindInterrupt()) {
+      async_op_pending_ = true;
+      need_sync_ = true;
+      async_op_.initFill(len);
+      SpiNonDmaTransferDoneIntClear(spi_port);
+      SpiNonDmaTransferDoneIntEnable(spi_port);
+      SpiSetOutBufferSize(spi_port, 64);
+      SpiTxStart(spi_port);
+      return;
+    }
+
+    // Sync fallback.
+    while (true) {
+      SpiTxStart(spi_port);
+      len -= 64;
+      if (len == 0) {
+        need_sync_ = true;
+        return;
+      }
+      SpiTxWait(spi_port);
+    }
   }
 
   void fill24(const roo::byte* data, uint32_t repetitions) {
@@ -517,47 +352,48 @@ class Esp32SpiDevice {
     }
   }
 
+  // The source buffer must remain valid and unchanged until completion
+  // (flush()/endTransaction()/next synchronous operation), same contract as
+  // DisplayDevice::drawDirectRectAsync.
   void asyncBlit(const roo::byte* data, size_t row_stride_bytes,
                  size_t row_bytes, size_t row_count) {
-    if (data == nullptr || row_bytes == 0 || row_count == 0) {
-      return;
+    if (row_stride_bytes == row_bytes) {
+      row_bytes = row_bytes * row_count;
+      row_stride_bytes = row_bytes;
+      row_count = 1;
     }
 
     ++async_blit_stats_.requests;
-    bool source_internal = isInternalBlitSource(data, row_stride_bytes,
-                                                row_bytes, row_count);
+    bool source_internal = IsInternalMemory(data);
     if (source_internal) {
       ++async_blit_stats_.internal_source;
     } else {
       ++async_blit_stats_.non_internal_source;
     }
 
-    // Keep transfer synchronous until the conservative async path is proven
-    // stable on-device. We still collect eligibility telemetry.
-    bool async_eligible = source_internal && (row_stride_bytes == row_bytes);
-    if (async_eligible) {
-      ++async_blit_stats_.eligible_internal_contiguous;
-    }
-
-    ++async_blit_stats_.sync_fallbacks;
-    if (!source_internal) {
+    bool async_eligible = source_internal && (row_bytes * row_count >= 64);
+    if (!async_eligible) {
       ++async_blit_stats_.fallback_non_internal;
-    } else if (row_stride_bytes != row_bytes) {
-      ++async_blit_stats_.fallback_non_contiguous;
-    }
-
-    if (row_stride_bytes == row_bytes) {
-      writeBytes(data, static_cast<uint32_t>(row_bytes * row_count));
-      flush();
+      syncBlitFallback(data, row_stride_bytes, row_bytes, row_count);
       return;
     }
 
-    const roo::byte* row = data;
-    for (size_t i = 0; i < row_count; ++i) {
-      writeBytes(row, static_cast<uint32_t>(row_bytes));
-      row += row_stride_bytes;
+    ++async_blit_stats_.eligible_internal;
+    if (!bindInterrupt()) {
+      syncBlitFallback(data, row_stride_bytes, row_bytes, row_count);
+      return;
     }
     flush();
+    async_op_.initBlit(data, row_stride_bytes, row_bytes, row_count);
+    ++async_blit_stats_.async_started;
+    async_op_pending_ = true;
+    need_sync_ = true;
+    SpiNonDmaTransferDoneIntClear(spi_port);
+    SpiNonDmaTransferDoneIntEnable(spi_port);
+    SpiSetOutBufferSize(spi_port, 64);
+    SpiTxStart(spi_port);
+    return;
+    ++async_blit_stats_.fallback_async_init_failed;
   }
 
   roo::byte transfer(roo::byte data) __attribute__((always_inline)) {
@@ -585,30 +421,40 @@ class Esp32SpiDevice {
     uint32_t requests = 0;
     uint32_t internal_source = 0;
     uint32_t non_internal_source = 0;
-    uint32_t eligible_internal_contiguous = 0;
+    uint32_t eligible_internal = 0;
+    uint32_t async_started = 0;
+    uint32_t fallback_irq_unavailable = 0;
+    uint32_t fallback_async_init_failed = 0;
     uint32_t fallback_non_internal = 0;
-    uint32_t fallback_non_contiguous = 0;
     uint32_t sync_fallbacks = 0;
   };
 
-  bool isInternalBlitSource(const roo::byte* data, size_t row_stride_bytes,
-                            size_t row_bytes, size_t row_count) const {
-#if defined(ESP_PLATFORM)
-    if (row_stride_bytes < row_bytes) return false;
+  bool bindInterrupt() {
+    if (irq_dispatcher_ == nullptr) {
+      if (irq_alloc_attempted_) return false;
+      irq_alloc_attempted_ = true;
+      irq_dispatcher_ = GetIrqDispatcher(spi_port);
+      if (irq_dispatcher_ == nullptr) return false;
+    }
+    return irq_dispatcher_->bind(&irq_binding_);
+  }
+
+  void unbindInterrupt() {
+    if (irq_dispatcher_ == nullptr) return;
+    irq_dispatcher_->unbind(&irq_binding_);
+    irq_dispatcher_ = nullptr;
+    irq_alloc_attempted_ = false;
+  }
+
+  void syncBlitFallback(const roo::byte* data, size_t row_stride_bytes,
+                        size_t row_bytes, size_t row_count) {
+    ++async_blit_stats_.sync_fallbacks;
     const roo::byte* row = data;
     for (size_t i = 0; i < row_count; ++i) {
-      if (!esp_ptr_internal(row)) return false;
-      if (!esp_ptr_internal(row + row_bytes - 1)) return false;
+      flush();
+      writeBytes(row, static_cast<uint32_t>(row_bytes));
       row += row_stride_bytes;
     }
-    return true;
-#else
-    (void)data;
-    (void)row_stride_bytes;
-    (void)row_bytes;
-    (void)row_count;
-    return false;
-#endif
   }
 
 #if defined(ARDUINO)
@@ -620,8 +466,10 @@ class Esp32SpiDevice {
   AsyncBlitStats async_blit_stats_;
   bool need_sync_ = false;
   bool async_op_pending_ = false;
-  AsyncOperation async_op_;
-  intr_handle_t intr_handle_;
+  AsyncOperation<spi_port> async_op_;
+  IrqDispatcher::Binding irq_binding_;
+  IrqDispatcher* irq_dispatcher_ = nullptr;
+  bool irq_alloc_attempted_ = false;
 };
 
 // Original ESP32: SPI0 (none), FSPI -> SPI1, HSPI -> SPI2, VSPI -> SPI3.
@@ -646,6 +494,8 @@ using Fspi = Esp32Spi<2>;
 
 }  // namespace esp32
 }  // namespace roo_display
+
+#undef ROO_DISPLAY_SPI_ASYNC_ISR_ATTR
 
 #else
 // The SPI hardware is not emulated by roo_testing; we need to use a

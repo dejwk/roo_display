@@ -44,8 +44,7 @@ void AsyncOperation<spi_port>::TransferCompleteISR(void* arg) {
   op->handleInterrupt();
 }
 
-template <int spi_port>
-AsyncOperation<spi_port>::AsyncOperation()
+AsyncOperationBase::AsyncOperationBase()
     : type_(kFill),
       done_(true),
       stop_(false),
@@ -53,37 +52,43 @@ AsyncOperation<spi_port>::AsyncOperation()
       waiter_task_(nullptr) {}
 
 template <int spi_port>
-void AsyncOperation<spi_port>::initFill(size_t len) {
+AsyncOperation<spi_port>::AsyncOperation() : AsyncOperationBase() {}
+
+void AsyncOperationBase::initFill(size_t len) {
   done_ = false;
   type_ = kFill;
-  fill_.remaining = len;
   stop_ = false;
+  fill_.init(len);
+}
+
+void AsyncOperationBase::initBlit(const roo::byte* data,
+                                  size_t row_stride_bytes, size_t row_bytes,
+                                  size_t row_count) {
+  done_ = false;
+  type_ = kBlit;
+  stop_ = false;
+  blit_.init(data, row_stride_bytes, row_bytes, row_count);
 }
 
 template <int spi_port>
 void AsyncOperation<spi_port>::initBlit(const roo::byte* data,
                                         size_t row_stride_bytes,
                                         size_t row_bytes, size_t row_count) {
-  done_ = false;
-  type_ = kBlit;
-  blit_.next_row = data;
-  blit_.row_stride_bytes = row_stride_bytes;
-  blit_.row_bytes = row_bytes;
-  blit_.remaining_rows = row_count;
-  blit_.row_offset = 0;
-  blit_.chunk_size = 0;
+  AsyncOperationBase::initBlit(data, row_stride_bytes, row_bytes, row_count);
   prepareNextBlitChunk();
-  stop_ = false;
 }
 
 template <int spi_port>
 void AsyncOperation<spi_port>::handleInterrupt() {
-  if (checkCompleteISR()) return;
+  if (checkCompleteISR()) {
+    SpiNonDmaTransferDoneIntDisableISR<spi_port>();
+    markDoneAndNotifyWaiterISR();
+    return;
+  }
   SpiTxStartISR<spi_port>();
 }
 
-template <int spi_port>
-void AsyncOperation<spi_port>::awaitCompletion() {
+void AsyncOperationBase::awaitCompletion() {
   TaskHandle_t me = xTaskGetCurrentTaskHandle();
   while (true) {
     portENTER_CRITICAL(&mux_);
@@ -91,7 +96,6 @@ void AsyncOperation<spi_port>::awaitCompletion() {
     if (done_) {
       waiter_task_ = nullptr;
       portEXIT_CRITICAL(&mux_);
-      finishRemaining();
       return;
     }
     CHECK(waiter_task_ == nullptr || waiter_task_ == me);
@@ -102,73 +106,69 @@ void AsyncOperation<spi_port>::awaitCompletion() {
 }
 
 template <int spi_port>
-bool AsyncOperation<spi_port>::loadAlignedBlitSlice(const roo::byte* src) {
-  SpiWrite64AlignedISR<spi_port>(src);
-  blit_.chunk_size = 64;
-  blit_.row_offset += 64;
-  if (blit_.row_offset == blit_.row_bytes) {
-    blit_.row_offset = 0;
-    blit_.next_row += blit_.row_stride_bytes;
-    --blit_.remaining_rows;
-  }
-  return true;
+void AsyncOperation<spi_port>::awaitCompletion() {
+  AsyncOperationBase::awaitCompletion();
+  finishRemaining();
 }
 
-template <int spi_port>
-size_t AsyncOperation<spi_port>::buildChunkedBlitSlice(roo::byte* chunk) {
-  size_t out = 0;
-  while (out < 64 && blit_.remaining_rows > 0) {
-    size_t row_remaining = blit_.row_bytes - blit_.row_offset;
-    size_t take = (64 - out < row_remaining) ? (64 - out) : row_remaining;
-    memcpy_isr(&chunk[out], blit_.next_row + blit_.row_offset, take);
-    out += take;
-    blit_.row_offset += take;
-    if (blit_.row_offset == blit_.row_bytes) {
-      blit_.row_offset = 0;
-      blit_.next_row += blit_.row_stride_bytes;
-      --blit_.remaining_rows;
+const roo::byte* AsyncOperationBase::Blit::nextChunk(roo::byte* scratch,
+                                                     size_t& len) {
+  if (remaining_rows == 0 || next_row == nullptr) {
+    chunk_size = 0;
+    len = 0;
+    return nullptr;
+  }
+  size_t in_row = row_bytes - row_offset;
+  const roo::byte* src = next_row + row_offset;
+  if (in_row >= 64 && (reinterpret_cast<uintptr_t>(src) & 0x3u) == 0) {
+    // Aligned.
+    len = 64;
+    chunk_size = 64;
+    row_offset += 64;
+    if (row_offset == row_bytes) {
+      row_offset = 0;
+      next_row += row_stride_bytes;
+      --remaining_rows;
+    }
+    return src;
+  }
+
+  // Chunked.
+  len = 0;
+  while (len < 64 && remaining_rows > 0) {
+    size_t row_remaining = row_bytes - row_offset;
+    size_t take = (64 - len < row_remaining) ? (64 - len) : row_remaining;
+    memcpy_isr(&scratch[len], next_row + row_offset, take);
+    len += take;
+    row_offset += take;
+    if (row_offset == row_bytes) {
+      row_offset = 0;
+      next_row += row_stride_bytes;
+      --remaining_rows;
     }
   }
-  return out;
-}
-
-template <int spi_port>
-void AsyncOperation<spi_port>::writeChunkedBlitSlice(const roo::byte* chunk,
-                                                     size_t len) {
-  if (len < 64) {
-    SpiSetOutBufferSizeISR<spi_port>(len);
-  }
-  SpiWriteUpTo64AlignedISR<spi_port>(chunk, len);
-  blit_.chunk_size = len;
-}
-
-template <int spi_port>
-bool AsyncOperation<spi_port>::loadChunkedBlitSlice() {
-  alignas(4) roo::byte chunk[64];
-  size_t out = buildChunkedBlitSlice(chunk);
-  if (out == 0) return false;
-  writeChunkedBlitSlice(chunk, out);
-  return true;
+  chunk_size = len;
+  if (len == 0) return nullptr;
+  return scratch;
 }
 
 template <int spi_port>
 bool AsyncOperation<spi_port>::prepareNextBlitChunk() {
-  if (blit_.remaining_rows == 0 || blit_.next_row == nullptr) {
-    blit_.chunk_size = 0;
-    return false;
+  alignas(4) roo::byte scratch[64];
+  size_t len;
+  const roo::byte* chunk = blit_.nextChunk(scratch, len);
+  if (len == 0) return false;
+  if (len < 64) {
+    SpiSetOutBufferSizeISR<spi_port>(len);
+    SpiWriteUpTo64AlignedISR<spi_port>(chunk, len);
+  } else {
+    SpiWrite64AlignedISR<spi_port>(chunk);
   }
-
-  size_t in_row = blit_.row_bytes - blit_.row_offset;
-  const roo::byte* src = blit_.next_row + blit_.row_offset;
-  if (in_row >= 64 && (reinterpret_cast<uintptr_t>(src) & 0x3u) == 0) {
-    return loadAlignedBlitSlice(src);
-  }
-  return loadChunkedBlitSlice();
+  return true;
 }
 
 template <int spi_port>
 void AsyncOperation<spi_port>::markDoneAndNotifyWaiterISR() {
-  SpiNonDmaTransferDoneIntDisableISR<spi_port>();
   done_ = true;
   TaskHandle_t waiter = waiter_task_;
   waiter_task_ = nullptr;
@@ -182,40 +182,32 @@ void AsyncOperation<spi_port>::markDoneAndNotifyWaiterISR() {
 
 template <int spi_port>
 bool AsyncOperation<spi_port>::checkCompleteISR() {
+  portENTER_CRITICAL_ISR(&mux_);
+  if (stop_) {
+    return true;
+  }
   if (type_ == kFill) {
-    portENTER_CRITICAL_ISR(&mux_);
-    if (!stop_ && fill_.remaining > 64) {
-      fill_.remaining -= 64;
+    if (fill_.nextChunk()) {
       portEXIT_CRITICAL_ISR(&mux_);
       return false;
     }
-    if (!stop_) fill_.remaining = 0;
-    markDoneAndNotifyWaiterISR();
     return true;
   }
-
   if (type_ == kBlit) {
-    portENTER_CRITICAL_ISR(&mux_);
-    if (stop_) {
-      markDoneAndNotifyWaiterISR();
-      return true;
-    }
     if (prepareNextBlitChunk()) {
       portEXIT_CRITICAL_ISR(&mux_);
       return false;
     }
-    markDoneAndNotifyWaiterISR();
     return true;
   }
-  return true;
+  portEXIT_CRITICAL_ISR(&mux_);
+  return false;
 }
 
 template <int spi_port>
 void AsyncOperation<spi_port>::finishFill() {
-  size_t count = fill_.remaining;
-  while (count > 0) {
+  while (fill_.nextChunk()) {
     SpiTxStart(spi_port);
-    count -= 64;
     SpiTxWait(spi_port);
   }
 }

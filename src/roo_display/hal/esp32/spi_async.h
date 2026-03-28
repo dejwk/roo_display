@@ -19,29 +19,34 @@
 namespace roo_display {
 namespace esp32 {
 
-template <int spi_port>
-class AsyncOperation {
+class AsyncOperationBase {
+ protected:
+  AsyncOperationBase();
+
  public:
-  static void ROO_DISPLAY_SPI_ASYNC_ISR_ATTR __attribute__((noinline))
-  TransferCompleteISR(void* arg);
-
-  AsyncOperation();
-
   void initFill(size_t len);
 
   void initBlit(const roo::byte* data, size_t row_stride_bytes,
                 size_t row_bytes, size_t row_count);
 
-  void ROO_DISPLAY_SPI_ASYNC_ISR_ATTR __attribute__((noinline))
-  handleInterrupt();
-
   void awaitCompletion();
 
- private:
+ protected:
   enum Type { kFill, kBlit };
 
   struct Fill {
     size_t remaining;
+
+    void init(size_t len) { remaining = len; }
+
+    bool ROO_DISPLAY_SPI_ASYNC_ISR_ATTR nextChunk() {
+      if (remaining > 64) {
+        remaining -= 64;
+        return false;
+      }
+      remaining = 0;
+      return true;
+    }
   };
 
   struct Blit {
@@ -51,9 +56,50 @@ class AsyncOperation {
     size_t remaining_rows;
     size_t row_offset;
     size_t chunk_size;
+
+    void init(const roo::byte* data, size_t row_stride_bytes, size_t row_bytes,
+              size_t row_count) {
+      this->next_row = data;
+      this->row_stride_bytes = row_stride_bytes;
+      this->row_bytes = row_bytes;
+      this->remaining_rows = row_count;
+      this->row_offset = 0;
+      this->chunk_size = 0;
+    }
+
+    const roo::byte* ROO_DISPLAY_SPI_ASYNC_ISR_ATTR nextChunk(roo::byte* scrach,
+                                                              size_t& len);
   };
 
-  bool ROO_DISPLAY_SPI_ASYNC_ISR_ATTR loadAlignedBlitSlice(const roo::byte* src)
+  Type type_;
+  union {
+    Fill fill_;
+    Blit blit_;
+  };
+  bool done_;
+  bool stop_;
+  portMUX_TYPE mux_;
+  TaskHandle_t waiter_task_;
+};
+
+template <int spi_port>
+class AsyncOperation : public AsyncOperationBase {
+ public:
+  AsyncOperation();
+
+  static void ROO_DISPLAY_SPI_ASYNC_ISR_ATTR __attribute__((noinline))
+  TransferCompleteISR(void* arg);
+
+  void ROO_DISPLAY_SPI_ASYNC_ISR_ATTR __attribute__((noinline))
+  handleInterrupt();
+
+  void initBlit(const roo::byte* data, size_t row_stride_bytes,
+                size_t row_bytes, size_t row_count);
+
+  void awaitCompletion();
+
+ private:
+  void ROO_DISPLAY_SPI_ASYNC_ISR_ATTR loadAlignedBlitSlice(const roo::byte* src)
       __attribute__((noinline));
 
   size_t ROO_DISPLAY_SPI_ASYNC_ISR_ATTR buildChunkedBlitSlice(roo::byte* chunk)
@@ -83,16 +129,6 @@ class AsyncOperation {
   void finishBlit();
 
   void finishRemaining();
-
-  Type type_;
-  union {
-    Fill fill_;
-    Blit blit_;
-  };
-  bool done_;
-  bool stop_;
-  portMUX_TYPE mux_;
-  TaskHandle_t waiter_task_;
 };
 
 extern template class AsyncOperation<2>;

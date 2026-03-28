@@ -24,7 +24,7 @@ ROO_DISPLAY_SPI_ASYNC_ISR_ATTR void memcpy_isr(void* dest, const void* src,
                                                size_t n);
 
 inline bool IsInternalMemory(const void* data) {
-    return esp_ptr_internal(data);
+  return esp_ptr_internal(data);
 }
 
 }  // namespace esp32

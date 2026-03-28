@@ -1,6 +1,6 @@
-#include "roo_display/hal/esp32/spi_async.h"
+#if (defined ESP_PLATFORM) && !defined(ROO_TESTING)
 
-#ifndef ROO_TESTING
+#include "roo_display/hal/esp32/spi_async.h"
 
 namespace roo_display {
 namespace esp32 {
@@ -235,4 +235,4 @@ template class AsyncOperation<3>;
 }  // namespace esp32
 }  // namespace roo_display
 
-#endif  // ROO_TESTING
+#endif  // defined(ESP_PLATFORM) && !defined(ROO_TESTING)

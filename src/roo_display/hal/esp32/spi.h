@@ -8,11 +8,10 @@
 #include "esp_err.h"
 #endif
 
+#ifndef ROO_TESTING
+
 #include <cstring>
 
-#if defined(ESP_PLATFORM)
-#include "esp_memory_utils.h"
-#endif
 #include "roo_backport.h"
 #include "roo_backport/byte.h"
 #include "roo_display/hal/esp32/memory.h"
@@ -23,8 +22,6 @@
 #include "roo_io/data/byte_order.h"
 #include "roo_logging.h"
 #include "soc/spi_reg.h"
-
-#ifndef ROO_TESTING
 
 namespace roo_display {
 namespace esp32 {

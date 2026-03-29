@@ -6,6 +6,7 @@
 #include "freertos/task.h"
 #include "hal/spi_types.h"
 #include "roo_display/hal/esp32/dma_buffer_pool.h"
+#include "roo_display/hal/esp32/spi_irq.h"
 
 #if __has_include("esp_private/spi_common_internal.h")
 #include "esp_private/spi_common_internal.h"
@@ -75,17 +76,9 @@ class DmaController {
     size_t out_len;
   };
 
-  DmaController(spi_host_device_t host_id, DmaBufferPool& dma_buffer_pool);
+  bool bindInterrupt();
 
-  // Initializes the DMA controller. This method must be called before any other
-  // method. The caller must ensure that the dma_buffer_pool remains valid for
-  // the entire duration of use of the DmaController.
-  void begin();
-
-  // Deinitializes the DMA controller. After this method returns, the caller
-  // must not call any other method. The caller must ensure that there are no
-  // pending DMA operations before calling this method.
-  void end();
+  void unbindInterrupt();
 
   // Submits a DMA operation. The caller must ensure that the data buffer
   // remains valid until the operation completes. The caller must ensure that
@@ -108,8 +101,22 @@ class DmaController {
   void awaitCompleted();
 
  private:
+  friend DmaController* GetDmaControllerForHost(int spi_port);
+
   // The DMA ISR callback.
   friend void IRAM_ATTR DmaTransferCompleteISR(void*);
+
+  DmaController(spi_host_device_t host_id, DmaBufferPool& dma_buffer_pool);
+
+  // Initializes the DMA controller. This method must be called before any other
+  // method. The caller must ensure that the dma_buffer_pool remains valid for
+  // the entire duration of use of the DmaController.
+  void begin();
+
+  // Deinitializes the DMA controller. After this method returns, the caller
+  // must not call any other method. The caller must ensure that there are no
+  // pending DMA operations before calling this method.
+  void end();
 
   // Called from the SPI ISR when a DMA operation completes. This method marks
   // the current operation as complete, returns the buffer to the pool, and
@@ -137,9 +144,13 @@ class DmaController {
   // borrowed.
   spi_dma_ctx_t* owned_dma_ctx_;
 
-  // Handle returned by esp_intr_alloc for the SPI host interrupt.
-  // Guarded by mux_.
-  intr_handle_t dma_intr_handle_;
+  IrqDispatcher* irq_dispatcher_;
+
+  IrqDispatcher::Binding irq_binding_;
+
+  // // Handle returned by esp_intr_alloc for the SPI host interrupt.
+  // // Guarded by mux_.
+  // intr_handle_t dma_intr_handle_;
 
   // True while a DMA transfer is currently active on the peripheral.
   // Guarded by mux_.
@@ -164,6 +175,8 @@ class DmaController {
   // Guarded by mux_.
   RingBuf<Operation> pending_ops_;
 };
+
+DmaController* GetDmaControllerForHost(int spi_port);
 
 }  // namespace esp32
 }  // namespace roo_display

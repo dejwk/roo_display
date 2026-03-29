@@ -17,6 +17,7 @@
 #include "roo_display/hal/esp32/memory.h"
 #include "roo_display/hal/esp32/spi_async.h"
 #include "roo_display/hal/esp32/spi_config.h"
+#include "roo_display/hal/esp32/spi_dma.h"
 #include "roo_display/hal/esp32/spi_irq.h"
 #include "roo_display/hal/esp32/spi_reg.h"
 #include "roo_display/hal/spi_settings.h"
@@ -148,6 +149,9 @@ class Esp32SpiDevice {
     };
     ESP_ERROR_CHECK(spi_bus_add_device(spi_, &config_, &device_));
 #endif
+    if (spi_async_mode_ == 3) {
+      dma_controller_ = GetDmaControllerForHost(spi_port);
+    }
   }
 
   void beginReadWriteTransaction() {
@@ -416,7 +420,7 @@ class Esp32SpiDevice {
   inline static int GetSpiAsyncMode() {
     int mode = GET_ROO_FLAG(roo_display_esp32_spi_async);
     if (mode <= 0) return 0;
-    if (mode >= 2) return 2;
+    if (mode >= 3) return 3;
     return 1;
   }
 
@@ -476,6 +480,7 @@ class Esp32SpiDevice {
   // Caching this here does improve performance of tight loops slightly (e.g.
   // filled triangles benchmark: ~6% impact without it).
   int spi_async_mode_;
+  DmaController* dma_controller_ = nullptr;
 };
 
 // Original ESP32: SPI0 (none), FSPI -> SPI1, HSPI -> SPI2, VSPI -> SPI3.

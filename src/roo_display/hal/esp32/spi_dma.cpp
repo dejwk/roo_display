@@ -28,15 +28,6 @@ inline uint8_t hostToSpiPort(spi_host_device_t host_id) {
 void IRAM_ATTR DmaTransferCompleteISR(void* arg) {
 #if ROO_DISPLAY_HAS_SPI_INTERNAL_DMA
   auto* controller = static_cast<DmaController*>(arg);
-  if (controller == nullptr) return;
-
-  uint8_t spi_port = hostToSpiPort(controller->host_id_);
-  if (!SpiDmaTransferDoneIntPending(spi_port)) {
-    // The ISR must have been invoked due to another event.
-    return;
-  }
-
-  SpiDmaTransferDoneIntClear(spi_port);
   controller->transferCompleteISR();
 #else
   (void)arg;
@@ -49,7 +40,8 @@ DmaController::DmaController(spi_host_device_t host_id,
 #if ROO_DISPLAY_HAS_SPI_INTERNAL_DMA
       dma_ctx_(nullptr),
       owned_dma_ctx_(nullptr),
-      dma_intr_handle_(nullptr),
+      irq_dispatcher_(nullptr),
+      irq_binding_{DmaTransferCompleteISR, this},
       transfer_in_progress_(false),
       waiter_task_(nullptr),
       current_op_({nullptr, 0}),
@@ -61,7 +53,7 @@ DmaController::DmaController(spi_host_device_t host_id,
 
 void DmaController::begin() {
 #if ROO_DISPLAY_HAS_SPI_INTERNAL_DMA
-  if (dma_ctx_ != nullptr && dma_intr_handle_ != nullptr) return;
+  if (dma_ctx_ != nullptr && irq_dispatcher_ != nullptr) return;
 
   transfer_in_progress_ = false;
   waiter_task_ = nullptr;
@@ -93,11 +85,8 @@ void DmaController::begin() {
     dma_ctx_ = tmp_ctx;
   }
 
-  esp_err_t intr_err =
-      esp_intr_alloc(spicommon_irqsource_for_host(host_id_),
-                     ESP_INTR_FLAG_SHARED | ESP_INTR_FLAG_IRAM,
-                     DmaTransferCompleteISR, this, &dma_intr_handle_);
-  if (intr_err != ESP_OK || dma_intr_handle_ == nullptr) {
+  irq_dispatcher_ = GetIrqDispatcher(hostToSpiPort(host_id_));
+  if (irq_dispatcher_ == nullptr) {
     if (owned_dma_ctx_ != nullptr) {
       spicommon_dma_chan_free(owned_dma_ctx_);
       owned_dma_ctx_ = nullptr;
@@ -124,11 +113,7 @@ void DmaController::end() {
   SpiDmaTxDisable(spi_port);
   SpiDmaTransferDoneIntClear(spi_port);
 
-  if (dma_intr_handle_ != nullptr) {
-    esp_intr_free(dma_intr_handle_);
-    dma_intr_handle_ = nullptr;
-  }
-
+  irq_dispatcher_ = nullptr;
   if (owned_dma_ctx_ != nullptr) {
     spicommon_dma_chan_free(owned_dma_ctx_);
     owned_dma_ctx_ = nullptr;
@@ -144,13 +129,21 @@ void DmaController::end() {
 #endif
 }
 
+bool DmaController::bindInterrupt() {
+  return irq_dispatcher_->bind(&irq_binding_);
+}
+
+void DmaController::unbindInterrupt() {
+  irq_dispatcher_->unbind(&irq_binding_);
+}
+
 bool DmaController::submit(Operation op) {
   CHECK_NOTNULL(op.out_data);
   CHECK_GT(op.out_len, 0u);
   CHECK_EQ((op.out_len & 0x3u), 0u);
 
 #if ROO_DISPLAY_HAS_SPI_INTERNAL_DMA
-  if (dma_ctx_ == nullptr || dma_intr_handle_ == nullptr) return false;
+  if (dma_ctx_ == nullptr || irq_dispatcher_ == nullptr) return false;
 
   bool ok;
 
@@ -171,7 +164,7 @@ bool DmaController::submit(Operation op) {
 
 void DmaController::awaitCompleted() {
 #if ROO_DISPLAY_HAS_SPI_INTERNAL_DMA
-  if (dma_ctx_ == nullptr || dma_intr_handle_ == nullptr) return;
+  if (dma_ctx_ == nullptr || irq_dispatcher_ == nullptr) return;
 
   TaskHandle_t self = xTaskGetCurrentTaskHandle();
   while (true) {
@@ -272,6 +265,38 @@ bool DmaController::startOperationCritical(Operation op) {
   return true;
 }
 #endif
+
+namespace {
+
+struct InitializedDmaBufferPool {
+  DmaBufferPool pool_;
+
+  InitializedDmaBufferPool() : pool_() { pool_.begin(); }
+
+  DmaBufferPool& get() { return pool_; }
+};
+
+DmaBufferPool& GetDmaBufferPool() {
+  static InitializedDmaBufferPool initialized_pool;
+  return initialized_pool.get();
+}
+
+}  // namespace
+
+DmaController* GetDmaControllerForHost(int spi_port) {
+  constexpr int kControllerCount = 4;
+  if (spi_port <= 0 || spi_port >= kControllerCount) {
+    return nullptr;
+  }
+  static DmaController* controllers[kControllerCount];
+  if (controllers[spi_port] == nullptr) {
+    // controllers[0] is unused since SPI ports are 1-indexed.
+    controllers[spi_port] = new DmaController(
+        static_cast<spi_host_device_t>(spi_port - 1), GetDmaBufferPool());
+    controllers[spi_port]->begin();
+  }
+  return controllers[spi_port];
+}
 
 }  // namespace esp32
 }  // namespace roo_display

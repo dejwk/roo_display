@@ -107,9 +107,9 @@ class SpiTransport {
     device_.fill24(data, repetitions);
   }
 
-  void async_blit(const roo::byte* data, size_t row_stride_bytes,
-                  size_t row_bytes, size_t row_count) {
-    device_.async_blit(data, row_stride_bytes, row_bytes, row_count);
+  void asyncBlit(const roo::byte* data, size_t row_stride_bytes,
+                 size_t row_bytes, size_t row_count) {
+    device_.asyncBlit(data, row_stride_bytes, row_bytes, row_count);
   }
 
   roo::byte transfer(roo::byte data) __attribute__((always_inline)) {

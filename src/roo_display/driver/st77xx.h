@@ -140,7 +140,7 @@ class St77xxTarget {
   void ramWriteAsyncBlit(const roo::byte* data, size_t row_stride_bytes,
                          size_t row_bytes, size_t row_count)
       __attribute__((always_inline)) {
-    transport_.async_blit(data, row_stride_bytes, row_bytes, row_count);
+    transport_.asyncBlit(data, row_stride_bytes, row_bytes, row_count);
   }
 
   void writeCommand(uint8_t c) __attribute__((always_inline)) {

@@ -126,30 +126,9 @@ class Esp32SpiDevice {
 
   Esp32SpiDevice& operator=(Esp32SpiDevice&&) = delete;
 
-#if defined(ARDUINO)
-  void init() {}
-
-  void beginReadWriteTransaction() {
-    spi_async_mode_ = GetSpiAsyncMode();
-    spi_.beginTransaction(SPISettings(
-        SpiSettings::clock, SpiSettings::bit_order, SpiSettings::data_mode));
-  }
-
-  void beginWriteOnlyTransaction() {
-    spi_async_mode_ = GetSpiAsyncMode();
-    spi_.beginTransaction(SPISettings(
-        SpiSettings::clock, SpiSettings::bit_order, SpiSettings::data_mode));
-    SpiSetWriteOnlyMode(spi_port);
-  }
-
-  void endTransaction() {
-    flush();
-    SpiSetReadWriteMode(spi_port);
-    unbindInterrupt();
-    spi_.endTransaction();
-  }
-#else
   void init() {
+    spi_async_mode_ = GetSpiAsyncMode();
+#if !defined(ARDUINO)
     spi_device_interface_config_t config_ = {
         .command_bits = 0,
         .address_bits = 0,
@@ -168,16 +147,25 @@ class Esp32SpiDevice {
         .queue_size = 1,
     };
     ESP_ERROR_CHECK(spi_bus_add_device(spi_, &config_, &device_));
+#endif
   }
 
   void beginReadWriteTransaction() {
-    spi_async_mode_ = GetSpiAsyncMode();
+#if defined(ARDUINO)
+    spi_.beginTransaction(SPISettings(
+        SpiSettings::clock, SpiSettings::bit_order, SpiSettings::data_mode));
+#else
     spi_device_acquire_bus(device_, portMAX_DELAY);
+#endif
   }
 
   void beginWriteOnlyTransaction() {
-    spi_async_mode_ = GetSpiAsyncMode();
+#if defined(ARDUINO)
+    spi_.beginTransaction(SPISettings(
+        SpiSettings::clock, SpiSettings::bit_order, SpiSettings::data_mode));
+#else
     spi_device_acquire_bus(device_, portMAX_DELAY);
+#endif
     SpiSetWriteOnlyMode(spi_port);
   }
 
@@ -185,9 +173,12 @@ class Esp32SpiDevice {
     flush();
     SpiSetReadWriteMode(spi_port);
     unbindInterrupt();
+#if defined(ARDUINO)
+    spi_.endTransaction();
+#else
     spi_device_release_bus(device_);
-  }
 #endif
+  }
 
   void flush() __attribute__((always_inline)) {
     if (!need_sync_) return;

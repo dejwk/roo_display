@@ -336,7 +336,6 @@ class OffscreenDevice : public DisplayDevice {
                            int16_t src_x0, int16_t src_y0, int16_t src_x1,
                            int16_t src_y1, int16_t dst_x0,
                            int16_t dst_y0) override {
-    awaitAsyncBlit();
     if (src_x1 < src_x0 || src_y1 < src_y0) {
       return;
     }

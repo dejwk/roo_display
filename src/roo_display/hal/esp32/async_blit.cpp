@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <memory>
+#include <utility>
 
 #include "roo_display/hal/esp32/async_blit.h"
 
@@ -14,6 +16,7 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_memory_utils.h"
+#include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "roo_logging.h"
 
@@ -22,48 +25,97 @@ namespace {
 
 constexpr size_t kDmaAlign = 16;
 constexpr size_t kExtDmaAlign = 32;
+constexpr size_t kMinRowDmaBytes = 128;
+constexpr size_t kQueuedBlits = 32;
 constexpr uint32_t kStatsLogInterval = 120;
 constexpr const char* kTag = "async_blit";
 
-struct AsyncBlitStats {
-  uint32_t total_requests = 0;
-  uint32_t dma_contiguous = 0;
-  uint32_t dma_rowwise = 0;
-  uint32_t fallback_no_handle_or_busy = 0;
-  uint32_t fallback_alignment = 0;
-  uint32_t fallback_esp_err = 0;
-};
-
-struct AsyncBlitState {
-  async_memcpy_handle_t handle = nullptr;
+struct DmaBlitOp {
   const roo::byte* src = nullptr;
   roo::byte* dst = nullptr;
   size_t src_stride = 0;
   size_t dst_stride = 0;
   size_t row_bytes = 0;
   size_t remaining_rows = 0;
-  TaskHandle_t caller_task = nullptr;
+};
+
+class DmaBlitQueue {
+ public:
+  DmaBlitQueue() : buf_(std::make_unique<DmaBlitOp[]>(kQueuedBlits)) {}
+
+  DmaBlitQueue(const DmaBlitQueue&) = delete;
+  DmaBlitQueue& operator=(const DmaBlitQueue&) = delete;
+
+  bool empty() const { return used_ == 0; }
+  bool full() const { return used_ == kQueuedBlits; }
+
+  bool push(DmaBlitOp op) {
+    if (full()) return false;
+    size_t pos = head_ + used_;
+    if (pos >= kQueuedBlits) pos -= kQueuedBlits;
+    buf_[pos] = std::move(op);
+    ++used_;
+    return true;
+  }
+
+  bool pop(DmaBlitOp& op) {
+    if (empty()) return false;
+    op = std::move(buf_[head_]);
+    ++head_;
+    if (head_ == kQueuedBlits) head_ = 0;
+    --used_;
+    return true;
+  }
+
+  size_t size() const { return used_; }
+
+ private:
+  std::unique_ptr<DmaBlitOp[]> buf_;
+  size_t head_ = 0;
+  size_t used_ = 0;
+};
+
+struct AsyncBlitStats {
+  uint32_t total_requests = 0;
+  uint32_t queue_len_max = 0;
+  uint32_t queue_full_blocks = 0;
+  uint32_t dma_contiguous = 0;
+  uint32_t dma_contiguous_split = 0;
+  uint32_t dma_rowwise = 0;
+  uint32_t dma_rowwise_split = 0;
+  uint32_t fallback_no_handle_or_busy = 0;
+  uint32_t fallback_small_contig_no_middle = 0;
+  uint32_t fallback_small_row_below_min_dma = 0;
+  uint32_t fallback_small_row_no_middle = 0;
+  uint32_t fallback_alignment = 0;
+  uint32_t fallback_esp_err = 0;
+};
+
+struct AsyncBlitState {
+  async_memcpy_handle_t handle = nullptr;
+  portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
+
+  const roo::byte* src = nullptr;
+  roo::byte* dst = nullptr;
+  size_t src_stride = 0;
+  size_t dst_stride = 0;
+  size_t row_bytes = 0;
+  size_t remaining_rows = 0;
+  bool dma_active = false;
+  DmaBlitQueue queue;
+  TaskHandle_t owner_task = nullptr;
   AsyncBlitStats stats;
 
   // Completes the current operation from ISR context.
   //
-  // Ownership model: caller_task is non-null iff an operation is in flight.
-  // The ISR captures caller_task, clears it, and then notifies the captured
-  // task. With this ordering, async_blit_await() is safe from lost wakeups:
-  // - If await sees caller_task == nullptr, completion already happened.
-  // - If await blocks, the notification is pending or will be sent by ISR.
-  // This also relies on pointer-sized loads/stores being atomic on ESP32 for
-  // caller_task handoff between task and ISR contexts.
-  //
-  // Note: because task notifications are counting, a completion token can be
-  // left pending if await exits via the fast path. We explicitly drain any
-  // stale token before starting a new operation in async_blit().
-  void IRAM_ATTR notifyDoneFromISR() {
-    TaskHandle_t caller = caller_task;
-    caller_task = nullptr;
-    if (caller != nullptr) {
+  // Notification model: completion of each queued DMA blit notifies owner_task.
+  // async_blit() uses this signal to wait for queue space. async_blit_await()
+  // waits until both queue and in-flight operation are fully drained.
+  void IRAM_ATTR notifyOwnerFromISR() {
+    TaskHandle_t owner = owner_task;
+    if (owner != nullptr) {
       BaseType_t high_wakeup = pdFALSE;
-      vTaskNotifyGiveFromISR(caller, &high_wakeup);
+      vTaskNotifyGiveFromISR(owner, &high_wakeup);
       if (high_wakeup == pdTRUE) {
         portYIELD_FROM_ISR();
       }
@@ -71,21 +123,29 @@ struct AsyncBlitState {
   }
 };
 
-AsyncBlitState& state() {
+AsyncBlitState& State() {
   static AsyncBlitState s;
   return s;
 }
 
-void maybe_log_stats(AsyncBlitState& st) {
+void MaybeLogStats(AsyncBlitState& st) {
   if (st.stats.total_requests % kStatsLogInterval != 0) return;
   ESP_LOGI(kTag,
-           "req=%u dma_contig=%u dma_rows=%u fb_busy=%u fb_align=%u fb_err=%u",
-           st.stats.total_requests, st.stats.dma_contiguous,
-           st.stats.dma_rowwise, st.stats.fallback_no_handle_or_busy,
-           st.stats.fallback_alignment, st.stats.fallback_esp_err);
+           "req=%u qmax=%u qfull_wait=%u dma_contig=%u dma_contig_split=%u "
+           "dma_rows=%u "
+           "dma_rows_split=%u fb_busy=%u fb_small_contig_nomid=%u "
+           "fb_small_row_min=%u fb_small_row_nomid=%u fb_align=%u fb_err=%u",
+           st.stats.total_requests, st.stats.queue_len_max,
+           st.stats.queue_full_blocks, st.stats.dma_contiguous,
+           st.stats.dma_contiguous_split, st.stats.dma_rowwise,
+           st.stats.dma_rowwise_split, st.stats.fallback_no_handle_or_busy,
+           st.stats.fallback_small_contig_no_middle,
+           st.stats.fallback_small_row_below_min_dma,
+           st.stats.fallback_small_row_no_middle, st.stats.fallback_alignment,
+           st.stats.fallback_esp_err);
 }
 
-void IRAM_ATTR copy_remaining_rows_sync(AsyncBlitState& st) {
+void IRAM_ATTR CopyRemainingRowsSync(AsyncBlitState& st) {
   while (st.remaining_rows > 0) {
     std::memcpy(st.dst, st.src, st.row_bytes);
     st.dst += st.dst_stride;
@@ -94,8 +154,25 @@ void IRAM_ATTR copy_remaining_rows_sync(AsyncBlitState& st) {
   }
 }
 
-void copy_sync(const roo::byte* src_ptr, size_t src_stride, roo::byte* dst_ptr,
-               size_t dst_stride, size_t width, size_t height) {
+void IRAM_ATTR CopyOpSync(const DmaBlitOp& op) {
+  if (op.remaining_rows == 0) {
+    std::memcpy(op.dst, op.src, op.row_bytes);
+    return;
+  }
+
+  const roo::byte* src = op.src;
+  roo::byte* dst = op.dst;
+  size_t rows = op.remaining_rows;
+  while (rows > 0) {
+    std::memcpy(dst, src, op.row_bytes);
+    src += op.src_stride;
+    dst += op.dst_stride;
+    --rows;
+  }
+}
+
+void CopySync(const roo::byte* src_ptr, size_t src_stride, roo::byte* dst_ptr,
+              size_t dst_stride, size_t width, size_t height) {
   if (src_stride == width && dst_stride == width) {
     std::memcpy(dst_ptr, src_ptr, width * height);
     return;
@@ -110,35 +187,35 @@ void copy_sync(const roo::byte* src_ptr, size_t src_stride, roo::byte* dst_ptr,
   }
 }
 
-inline bool is_aligned(const void* ptr, size_t align) {
+inline bool IsAligned(const void* ptr, size_t align) {
   return (reinterpret_cast<uintptr_t>(ptr) % align) == 0;
 }
 
-inline size_t dma_align_for_ptr(const void* ptr) {
+inline size_t DmaAlignForPtr(const void* ptr) {
   return esp_ptr_external_ram(ptr) ? kExtDmaAlign : kDmaAlign;
 }
 
-inline bool can_dma_transfer(const void* src, const void* dst, size_t n) {
+inline bool CanDmaTransfer(const void* src, const void* dst, size_t n) {
   const bool src_dma_capable =
       esp_ptr_dma_capable(src) || esp_ptr_dma_ext_capable(src);
   const bool dst_dma_capable =
       esp_ptr_dma_capable(dst) || esp_ptr_dma_ext_capable(dst);
   const size_t required_align =
-      std::max(dma_align_for_ptr(src), dma_align_for_ptr(dst));
-  return n > 0 && is_aligned(src, required_align) &&
-         is_aligned(dst, required_align) && (n % required_align) == 0 &&
+      std::max(DmaAlignForPtr(src), DmaAlignForPtr(dst));
+  return n > 0 && IsAligned(src, required_align) &&
+         IsAligned(dst, required_align) && (n % required_align) == 0 &&
          src_dma_capable && dst_dma_capable;
 }
 
-void log_dma_reject(const char* mode, const void* src, const void* dst,
-                    size_t bytes, size_t src_stride, size_t dst_stride,
-                    size_t height) {
+void LogDmaReject(const char* mode, const void* src, const void* dst,
+                  size_t bytes, size_t src_stride, size_t dst_stride,
+                  size_t height) {
   const bool src_dma_capable =
       esp_ptr_dma_capable(src) || esp_ptr_dma_ext_capable(src);
   const bool dst_dma_capable =
       esp_ptr_dma_capable(dst) || esp_ptr_dma_ext_capable(dst);
   const size_t required_align =
-      std::max(dma_align_for_ptr(src), dma_align_for_ptr(dst));
+      std::max(DmaAlignForPtr(src), DmaAlignForPtr(dst));
   ESP_LOGW(
       kTag,
       "reject %s src=%p dst=%p bytes=%u h=%u req_align=%u src_mod16=%u "
@@ -161,22 +238,133 @@ void log_dma_reject(const char* mode, const void* src, const void* dst,
       static_cast<unsigned>(dst_dma_capable));
 }
 
-inline bool are_strides_aligned(size_t src_stride, size_t dst_stride,
-                                const void* src, const void* dst) {
+inline bool AreStridesAligned(size_t src_stride, size_t dst_stride,
+                              const void* src, const void* dst) {
   const size_t required_align =
-      std::max(dma_align_for_ptr(src), dma_align_for_ptr(dst));
+      std::max(DmaAlignForPtr(src), DmaAlignForPtr(dst));
   return (src_stride % required_align) == 0 &&
          (dst_stride % required_align) == 0;
 }
 
-bool IRAM_ATTR on_copy_done(async_memcpy_handle_t, async_memcpy_event_t*,
-                            void* cb_args) {
+inline bool CanDmaRowwiseTransfer(const roo::byte* src, roo::byte* dst,
+                                  size_t row_bytes, size_t src_stride,
+                                  size_t dst_stride) {
+  return CanDmaTransfer(src, dst, row_bytes) &&
+         AreStridesAligned(src_stride, dst_stride, src, dst);
+}
+
+inline size_t PtrMod(const void* ptr, size_t align) {
+  return reinterpret_cast<uintptr_t>(ptr) % align;
+}
+
+bool SplitForAlignedMiddle(const roo::byte* src_ptr, roo::byte* dst_ptr,
+                           size_t bytes, size_t align, size_t& left,
+                           size_t& middle, size_t& right) {
+  if (bytes == 0 || align == 0) return false;
+  if (PtrMod(src_ptr, align) != PtrMod(dst_ptr, align)) return false;
+
+  left = (align - PtrMod(src_ptr, align)) % align;
+  if (left > bytes) return false;
+  right = (bytes - left) % align;
+  middle = bytes - left - right;
+  return middle > 0;
+}
+
+bool IRAM_ATTR OnCopyDone(async_memcpy_handle_t, async_memcpy_event_t*,
+                          void* cb_args);
+
+void SetActiveFromOp(AsyncBlitState& st, const DmaBlitOp& op) {
+  st.src = op.src;
+  st.dst = op.dst;
+  st.src_stride = op.src_stride;
+  st.dst_stride = op.dst_stride;
+  st.row_bytes = op.row_bytes;
+  st.remaining_rows = op.remaining_rows;
+  st.dma_active = true;
+}
+
+bool StartActiveDma(AsyncBlitState& st) {
+  return esp_async_memcpy(st.handle, st.dst, const_cast<roo::byte*>(st.src),
+                          st.row_bytes, OnCopyDone, &st) == ESP_OK;
+}
+
+bool IRAM_ATTR CompleteCurrentAndContinueFromIsr(AsyncBlitState& st) {
+  // Hand completion to the owner task first, then keep draining queued ops
+  // from ISR context so the DMA engine stays busy without task intervention.
+  st.notifyOwnerFromISR();
+  while (true) {
+    DmaBlitOp next;
+    taskENTER_CRITICAL_ISR(&st.mux);
+    bool has_next = st.queue.pop(next);
+    if (!has_next) {
+      st.dma_active = false;
+      taskEXIT_CRITICAL_ISR(&st.mux);
+      return false;
+    }
+    SetActiveFromOp(st, next);
+    taskEXIT_CRITICAL_ISR(&st.mux);
+
+    if (StartActiveDma(st)) return false;
+
+    ++st.stats.fallback_esp_err;
+    CopyOpSync(next);
+    st.notifyOwnerFromISR();
+  }
+}
+
+void MaybeStartNextFromTask(AsyncBlitState& st) {
+  while (true) {
+    DmaBlitOp next;
+    taskENTER_CRITICAL(&st.mux);
+    // Task-side kick: only steal work when DMA is idle; otherwise ISR will
+    // continue from the active operation callback.
+    if (st.dma_active || !st.queue.pop(next)) {
+      taskEXIT_CRITICAL(&st.mux);
+      return;
+    }
+    SetActiveFromOp(st, next);
+    taskEXIT_CRITICAL(&st.mux);
+
+    if (StartActiveDma(st)) return;
+
+    ++st.stats.fallback_esp_err;
+    CopyOpSync(next);
+    taskENTER_CRITICAL(&st.mux);
+    st.dma_active = false;
+    taskEXIT_CRITICAL(&st.mux);
+  }
+}
+
+void EnqueueDmaOp(AsyncBlitState& st, const DmaBlitOp& op) {
+  while (true) {
+    bool should_kick = false;
+    taskENTER_CRITICAL(&st.mux);
+    if (st.queue.push(op)) {
+      if (st.queue.size() > st.stats.queue_len_max) {
+        st.stats.queue_len_max = st.queue.size();
+      }
+      should_kick = !st.dma_active;
+      taskEXIT_CRITICAL(&st.mux);
+      if (should_kick) {
+        MaybeStartNextFromTask(st);
+      }
+      return;
+    }
+    taskEXIT_CRITICAL(&st.mux);
+    // Fixed-size queue backpressure: block producer until ISR/task completion
+    // notification indicates that at least one slot may have become available.
+    ++st.stats.queue_full_blocks;
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+  }
+}
+
+bool IRAM_ATTR OnCopyDone(async_memcpy_handle_t, async_memcpy_event_t*,
+                          void* cb_args) {
   auto* st = static_cast<AsyncBlitState*>(cb_args);
   if (st == nullptr) return false;
 
   if (st->remaining_rows == 0) {
-    st->notifyDoneFromISR();
-    return false;
+    return CompleteCurrentAndContinueFromIsr(*st);
   }
 
   st->src += st->src_stride;
@@ -184,16 +372,17 @@ bool IRAM_ATTR on_copy_done(async_memcpy_handle_t, async_memcpy_event_t*,
   --st->remaining_rows;
 
   if (st->remaining_rows == 0) {
-    st->notifyDoneFromISR();
-    return false;
+    return CompleteCurrentAndContinueFromIsr(*st);
   }
 
   esp_err_t err =
       esp_async_memcpy(st->handle, st->dst, const_cast<roo::byte*>(st->src),
-                       st->row_bytes, on_copy_done, st);
+                       st->row_bytes, OnCopyDone, st);
   if (err != ESP_OK) {
-    copy_remaining_rows_sync(*st);
-    st->notifyDoneFromISR();
+    // If row chaining fails mid-op, finish the current op synchronously and
+    // then transfer control to the common ISR completion path.
+    CopyRemainingRowsSync(*st);
+    return CompleteCurrentAndContinueFromIsr(*st);
   }
   return false;
 }
@@ -201,7 +390,7 @@ bool IRAM_ATTR on_copy_done(async_memcpy_handle_t, async_memcpy_event_t*,
 }  // namespace
 
 void async_blit_init() {
-  AsyncBlitState& st = state();
+  AsyncBlitState& st = State();
   if (st.handle != nullptr) return;
 
   async_memcpy_config_t cfg = ASYNC_MEMCPY_DEFAULT_CONFIG();
@@ -213,22 +402,31 @@ void async_blit_init() {
 }
 
 void async_blit_deinit() {
-  AsyncBlitState& st = state();
-  if (st.handle != nullptr && st.caller_task == nullptr) {
+  AsyncBlitState& st = State();
+  bool can_deinit = false;
+  taskENTER_CRITICAL(&st.mux);
+  can_deinit = !st.dma_active && st.queue.empty();
+  taskEXIT_CRITICAL(&st.mux);
+  if (st.handle != nullptr && can_deinit) {
     esp_async_memcpy_uninstall(st.handle);
     st.handle = nullptr;
+    st.owner_task = nullptr;
   }
 }
 
 void async_blit_await() {
-  AsyncBlitState& st = state();
-  if (st.caller_task == nullptr) return;
-
-  TaskHandle_t me = xTaskGetCurrentTaskHandle();
-  CHECK(st.caller_task == me)
+  AsyncBlitState& st = State();
+  TaskHandle_t caller = xTaskGetCurrentTaskHandle();
+  if (st.owner_task == nullptr) return;
+  CHECK_EQ(st.owner_task, caller)
       << "async_blit_await() must be called by the same task as async_blit()";
 
-  while (st.caller_task != nullptr) {
+  while (true) {
+    bool idle = false;
+    taskENTER_CRITICAL(&st.mux);
+    idle = !st.dma_active && st.queue.empty();
+    taskEXIT_CRITICAL(&st.mux);
+    if (idle) return;
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
   }
 }
@@ -239,66 +437,120 @@ void async_blit(const roo::byte* src_ptr, size_t src_stride, roo::byte* dst_ptr,
     return;
   }
 
-  AsyncBlitState& st = state();
-  CHECK(st.caller_task == nullptr)
-      << "previous async_blit() still in progress; call async_blit_await()";
-
-  // Drain any stale completion token left from a previous operation.
-  // This keeps notification state aligned 1:1 with newly started transfers.
-  (void)ulTaskNotifyTake(pdTRUE, 0);
+  AsyncBlitState& st = State();
+  TaskHandle_t caller = xTaskGetCurrentTaskHandle();
+  if (st.owner_task == nullptr) {
+    st.owner_task = caller;
+  } else {
+    CHECK_EQ(st.owner_task, caller)
+        << "async_blit() must be called by the same task as async_blit_await()";
+  }
 
   ++st.stats.total_requests;
-  maybe_log_stats(st);
+  MaybeLogStats(st);
   const bool contiguous = (src_stride == width && dst_stride == width);
   if (st.handle == nullptr) {
     ++st.stats.fallback_no_handle_or_busy;
-    copy_sync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
+    CopySync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
     return;
   }
 
   if (contiguous) {
-    if (!can_dma_transfer(src_ptr, dst_ptr, width * height)) {
+    const size_t total_bytes = width * height;
+    if (!CanDmaTransfer(src_ptr, dst_ptr, total_bytes)) {
+      size_t left = 0;
+      size_t middle = 0;
+      size_t right = 0;
+      const bool same_ext_mod =
+          PtrMod(src_ptr, kExtDmaAlign) == PtrMod(dst_ptr, kExtDmaAlign);
+      const bool can_split = SplitForAlignedMiddle(
+          src_ptr, dst_ptr, total_bytes, kExtDmaAlign, left, middle, right);
+      const roo::byte* src_mid = src_ptr + left;
+      roo::byte* dst_mid = dst_ptr + left;
+      if (can_split && CanDmaTransfer(src_mid, dst_mid, middle)) {
+        if (left > 0) {
+          std::memcpy(dst_ptr, src_ptr, left);
+        }
+        if (right > 0) {
+          std::memcpy(dst_ptr + left + middle, src_ptr + left + middle, right);
+        }
+
+        ++st.stats.dma_contiguous_split;
+        EnqueueDmaOp(st, DmaBlitOp{src_mid, dst_mid, 0, 0, middle, 0});
+        return;
+      }
+
+      // For small total sizes there may be no aligned middle chunk to DMA even
+      // though src/dst share the same ext-DMA modulo. This is expected.
+      if (same_ext_mod && !can_split) {
+        ++st.stats.fallback_small_contig_no_middle;
+        CopySync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
+        return;
+      }
+
       ++st.stats.fallback_alignment;
-      log_dma_reject("contig", src_ptr, dst_ptr, width * height, src_stride,
-                     dst_stride, height);
-      copy_sync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
+      LogDmaReject("contig", src_ptr, dst_ptr, total_bytes, src_stride,
+                   dst_stride, height);
+      CopySync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
       return;
     }
   } else {
-    if (!can_dma_transfer(src_ptr, dst_ptr, width) ||
-        !are_strides_aligned(src_stride, dst_stride, src_ptr, dst_ptr)) {
+    if (width < kMinRowDmaBytes) {
+      ++st.stats.fallback_small_row_below_min_dma;
+      CopySync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
+      return;
+    }
+
+    const bool rowwise_direct_dma_ok =
+        CanDmaRowwiseTransfer(src_ptr, dst_ptr, width, src_stride, dst_stride);
+    if (!rowwise_direct_dma_ok) {
+      size_t left = 0;
+      size_t middle = 0;
+      size_t right = 0;
+      const bool same_ext_mod =
+          PtrMod(src_ptr, kExtDmaAlign) == PtrMod(dst_ptr, kExtDmaAlign);
+      const bool can_split = SplitForAlignedMiddle(
+          src_ptr, dst_ptr, width, kExtDmaAlign, left, middle, right);
+      const roo::byte* src_mid = src_ptr + left;
+      roo::byte* dst_mid = dst_ptr + left;
+      if (can_split && CanDmaRowwiseTransfer(src_mid, dst_mid, middle,
+                                             src_stride, dst_stride)) {
+        if (left > 0) {
+          CopySync(src_ptr, src_stride, dst_ptr, dst_stride, left, height);
+        }
+        if (right > 0) {
+          CopySync(src_ptr + left + middle, src_stride, dst_ptr + left + middle,
+                   dst_stride, right, height);
+        }
+
+        ++st.stats.dma_rowwise_split;
+        EnqueueDmaOp(st, DmaBlitOp{src_mid, dst_mid, src_stride, dst_stride,
+                                   middle, height});
+        return;
+      }
+
+      // For small widths there may be no aligned middle chunk to DMA even
+      // though src/dst share the same ext-DMA modulo. This is expected.
+      if (same_ext_mod && !can_split) {
+        ++st.stats.fallback_small_row_no_middle;
+        CopySync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
+        return;
+      }
+
       ++st.stats.fallback_alignment;
-      log_dma_reject("row", src_ptr, dst_ptr, width, src_stride, dst_stride,
-                     height);
-      copy_sync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
+      LogDmaReject("row", src_ptr, dst_ptr, width, src_stride, dst_stride,
+                   height);
+      CopySync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
       return;
     }
   }
-
-  st.src = src_ptr;
-  st.dst = dst_ptr;
-  st.src_stride = src_stride;
-  st.dst_stride = dst_stride;
-  st.row_bytes = width;
-  st.remaining_rows = height;
-  st.caller_task = xTaskGetCurrentTaskHandle();
-
-  esp_err_t err;
   if (contiguous) {
     ++st.stats.dma_contiguous;
-    st.remaining_rows = 0;
-    err = esp_async_memcpy(st.handle, st.dst, const_cast<roo::byte*>(st.src),
-                           width * height, on_copy_done, &st);
+    EnqueueDmaOp(st, DmaBlitOp{src_ptr, dst_ptr, 0, 0, width * height, 0});
   } else {
     ++st.stats.dma_rowwise;
-    err = esp_async_memcpy(st.handle, st.dst, const_cast<roo::byte*>(st.src),
-                           st.row_bytes, on_copy_done, &st);
-  }
-
-  if (err != ESP_OK) {
-    ++st.stats.fallback_esp_err;
-    st.caller_task = nullptr;
-    copy_sync(src_ptr, src_stride, dst_ptr, dst_stride, width, height);
+    EnqueueDmaOp(
+        st, DmaBlitOp{src_ptr, dst_ptr, src_stride, dst_stride, width, height});
   }
 }
 

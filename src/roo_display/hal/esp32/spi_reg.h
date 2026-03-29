@@ -6,6 +6,14 @@
 #include "roo_io/data/byte_order.h"
 #include "soc/spi_reg.h"
 
+#pragma PUSH_MACRO("ASSERT_IF_DPORT_REG")
+
+// Used by WRITE_PERI_REG and READ_PERI_REG, and causes trouble on ESP32 with
+// IRAM_ATTR, leading to 'dangerous relocation: l32r: literal placed after use'
+// errors.
+#undef ASSERT_IF_DPORT_REG
+#define ASSERT_IF_DPORT_REG(a, b)
+
 #if CONFIG_IDF_TARGET_ESP32
 #define ROO_DISPLAY_ESP32_SPI_DEFAULT_PORT 3
 #else
@@ -73,29 +81,46 @@ inline void SpiTxStart(uint8_t spi_port) __attribute__((always_inline));
 // Waits for the current SPI operation, if any, to complete.
 inline void SpiTxWait(uint8_t spi_port) __attribute__((always_inline));
 
+// Returns true while SPI user transaction is in progress.
+inline bool SpiTxBusy(uint8_t spi_port) __attribute__((always_inline));
+
+// Returns true when the SPI non-DMA transfer-done interrupt is pending.
+inline bool SpiNonDmaTransferDoneIntPending(uint8_t spi_port)
+    __attribute__((always_inline));
+
+// Clears the SPI non-DMA transfer-done interrupt.
+inline void SpiNonDmaTransferDoneIntClear(uint8_t spi_port)
+    __attribute__((always_inline));
+
+// Enables the SPI non-DMA transfer-done interrupt.
+inline void SpiNonDmaTransferDoneIntEnable(uint8_t spi_port)
+    __attribute__((always_inline));
+
+// Disables the SPI non-DMA transfer-done interrupt.
+inline void SpiNonDmaTransferDoneIntDisable(uint8_t spi_port)
+    __attribute__((always_inline));
+
+// Enables SPI DMA TX.
+inline void SpiDmaTxEnable(uint8_t spi_port) __attribute__((always_inline));
+
+// Disables SPI DMA TX.
+inline void SpiDmaTxDisable(uint8_t spi_port) __attribute__((always_inline));
+
 // Returns true when the SPI DMA transfer-done interrupt is pending.
 inline bool SpiDmaTransferDoneIntPending(uint8_t spi_port)
-  __attribute__((always_inline));
+    __attribute__((always_inline));
 
 // Clears the SPI DMA transfer-done interrupt.
 inline void SpiDmaTransferDoneIntClear(uint8_t spi_port)
-  __attribute__((always_inline));
+    __attribute__((always_inline));
 
 // Enables the SPI DMA transfer-done interrupt.
 inline void SpiDmaTransferDoneIntEnable(uint8_t spi_port)
-  __attribute__((always_inline));
+    __attribute__((always_inline));
 
 // Disables the SPI DMA transfer-done interrupt.
 inline void SpiDmaTransferDoneIntDisable(uint8_t spi_port)
-  __attribute__((always_inline));
-
-// Enables SPI DMA TX.
-inline void SpiDmaTxEnable(uint8_t spi_port)
-  __attribute__((always_inline));
-
-// Disables SPI DMA TX.
-inline void SpiDmaTxDisable(uint8_t spi_port)
-  __attribute__((always_inline));
+    __attribute__((always_inline));
 
 // Sets the number of bytes in the output buffer for the next SPI operation.
 inline void SpiSetOutBufferSize(uint8_t spi_port, int len)
@@ -109,6 +134,11 @@ inline void SpiSetTxBufferSize(uint8_t spi_port, int len)
 // Writes 4 bytes to the output registers from the provided uint32 value
 // (assumed byte-swapped to big-endian).
 inline void SpiWrite4(uint8_t spi_port, uint32_t d32)
+    __attribute__((always_inline));
+
+// Writes 4 bytes to the output registers, at the specified d32 offset, from the
+// provided uint32 value (assumed byte-swapped to big-endian).
+inline void SpiWrite4AtOffset(uint8_t spi_port, uint32_t d32, int offset)
     __attribute__((always_inline));
 
 // Reads 4 bytes from the output registers.
@@ -149,6 +179,53 @@ inline void SpiTxWait(uint8_t spi_port) {
   }
 }
 
+inline bool SpiTxBusy(uint8_t spi_port) {
+  return (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR) != 0;
+}
+
+inline bool SpiNonDmaTransferDoneIntPending(uint8_t spi_port) {
+#if CONFIG_IDF_TARGET_ESP32
+  // Classic ESP32 non-DMA master transactions signal completion in SPI_SLAVE
+  // as SPI_TRANS_DONE, not in SPI_DMA_INT_* registers.
+  return (READ_PERI_REG(SPI_SLAVE_REG(spi_port)) & SPI_TRANS_DONE) != 0;
+#else
+  return (READ_PERI_REG(SPI_DMA_INT_ST_REG(spi_port)) &
+          SPI_TRANS_DONE_INT_ST) != 0;
+#endif
+}
+
+inline void SpiNonDmaTransferDoneIntClear(uint8_t spi_port) {
+#if CONFIG_IDF_TARGET_ESP32
+  CLEAR_PERI_REG_MASK(SPI_SLAVE_REG(spi_port), SPI_TRANS_DONE);
+#else
+  SET_PERI_REG_MASK(SPI_DMA_INT_CLR_REG(spi_port), SPI_TRANS_DONE_INT_CLR);
+#endif
+}
+
+inline void SpiNonDmaTransferDoneIntEnable(uint8_t spi_port) {
+#if CONFIG_IDF_TARGET_ESP32
+  SET_PERI_REG_MASK(SPI_SLAVE_REG(spi_port), (SPI_TRANS_DONE << 5));
+#else
+  SET_PERI_REG_MASK(SPI_DMA_INT_ENA_REG(spi_port), SPI_TRANS_DONE_INT_ENA);
+#endif
+}
+
+inline void SpiNonDmaTransferDoneIntDisable(uint8_t spi_port) {
+#if CONFIG_IDF_TARGET_ESP32
+  CLEAR_PERI_REG_MASK(SPI_SLAVE_REG(spi_port), (SPI_TRANS_DONE << 5));
+#else
+  CLEAR_PERI_REG_MASK(SPI_DMA_INT_ENA_REG(spi_port), SPI_TRANS_DONE_INT_ENA);
+#endif
+}
+
+inline void SpiDmaTxEnable(uint8_t spi_port) {
+  SET_PERI_REG_MASK(SPI_DMA_CONF_REG(spi_port), SPI_DMA_TX_ENA);
+}
+
+inline void SpiDmaTxDisable(uint8_t spi_port) {
+  CLEAR_PERI_REG_MASK(SPI_DMA_CONF_REG(spi_port), SPI_DMA_TX_ENA);
+}
+
 inline bool SpiDmaTransferDoneIntPending(uint8_t spi_port) {
   return (READ_PERI_REG(SPI_DMA_INT_ST_REG(spi_port)) &
           SPI_TRANS_DONE_INT_ST) != 0;
@@ -164,14 +241,6 @@ inline void SpiDmaTransferDoneIntEnable(uint8_t spi_port) {
 
 inline void SpiDmaTransferDoneIntDisable(uint8_t spi_port) {
   CLEAR_PERI_REG_MASK(SPI_DMA_INT_ENA_REG(spi_port), SPI_TRANS_DONE_INT_ENA);
-}
-
-inline void SpiDmaTxEnable(uint8_t spi_port) {
-  SET_PERI_REG_MASK(SPI_DMA_CONF_REG(spi_port), SPI_DMA_TX_ENA);
-}
-
-inline void SpiDmaTxDisable(uint8_t spi_port) {
-  CLEAR_PERI_REG_MASK(SPI_DMA_CONF_REG(spi_port), SPI_DMA_TX_ENA);
 }
 
 inline void SpiTxStart(uint8_t spi_port) {
@@ -233,6 +302,10 @@ inline void SpiWrite64Aligned(uint8_t spi_port, const roo::byte* data) {
 
 inline void SpiWrite4(uint8_t spi_port, uint32_t d32) {
   WRITE_PERI_REG(SPI_W0_REG(spi_port), d32);
+}
+
+inline void SpiWrite4AtOffset(uint8_t spi_port, uint32_t d32, int offset) {
+  WRITE_PERI_REG(SPI_W0_REG(spi_port) + (offset << 2), d32);
 }
 
 inline uint32_t SpiRead4(uint8_t spi_port) {
@@ -387,5 +460,7 @@ inline void SpiFillUpTo60(uint8_t spi_port, uint32_t d0, uint32_t d1,
 
 }  // namespace esp32
 }  // namespace roo_display
+
+#pragma POP_MACRO("ASSERT_IF_DPORT_REG")
 
 #endif  // ROO_TESTING

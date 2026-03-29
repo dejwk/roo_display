@@ -289,6 +289,7 @@ class Esp32SpiDevice {
       len -= rem;
       SpiTxWait(spi_port);
     }
+    SpiSetOutBufferSize(spi_port, 64);
 
     if (GetSpiAsyncMode() != 0 && bindInterrupt()) {
       async_op_pending_ = true;
@@ -296,7 +297,6 @@ class Esp32SpiDevice {
       async_op_.initFill(len);
       SpiNonDmaTransferDoneIntClear(spi_port);
       SpiNonDmaTransferDoneIntEnable(spi_port);
-      SpiSetOutBufferSize(spi_port, 64);
       SpiTxStart(spi_port);
       return;
     }

@@ -11,6 +11,7 @@
 #include "roo_display/color/pixel_order.h"
 #include "roo_display/color/traits.h"
 #include "roo_io/data/byte_order.h"
+#include "roo_io/memory/compare.h"
 
 namespace roo_display {
 template <typename ColorMode, roo_io::ByteOrder byte_order,
@@ -423,15 +424,12 @@ struct ColorRectIo<
 
     const roo::byte* first = data + y0 * row_width_bytes + x0 * bytes_per_pixel;
     const roo::byte* row = first;
-    for (int16_t y = y0; y <= y1; ++y) {
-      const roo::byte* pixel = row;
-      for (int16_t x = 0; x < width; ++x) {
-        if (std::memcmp(pixel, first, bytes_per_pixel) != 0) return false;
-        pixel += bytes_per_pixel;
+    for (int i = y1 - y0; i >= 0; --i) {
+      if (!roo_io::PatternCompareAligned<bytes_per_pixel>(row, width, first)) {
+        return false;
       }
       row += row_width_bytes;
     }
-
     ColorIo<ColorMode, byte_order> io;
     *output = io.load(first, mode);
     return true;

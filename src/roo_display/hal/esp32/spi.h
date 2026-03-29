@@ -130,11 +130,13 @@ class Esp32SpiDevice {
   void init() {}
 
   void beginReadWriteTransaction() {
+    spi_async_mode_ = GetSpiAsyncMode();
     spi_.beginTransaction(SPISettings(
         SpiSettings::clock, SpiSettings::bit_order, SpiSettings::data_mode));
   }
 
   void beginWriteOnlyTransaction() {
+    spi_async_mode_ = GetSpiAsyncMode();
     spi_.beginTransaction(SPISettings(
         SpiSettings::clock, SpiSettings::bit_order, SpiSettings::data_mode));
     SpiSetWriteOnlyMode(spi_port);
@@ -169,10 +171,12 @@ class Esp32SpiDevice {
   }
 
   void beginReadWriteTransaction() {
+    spi_async_mode_ = GetSpiAsyncMode();
     spi_device_acquire_bus(device_, portMAX_DELAY);
   }
 
   void beginWriteOnlyTransaction() {
+    spi_async_mode_ = GetSpiAsyncMode();
     spi_device_acquire_bus(device_, portMAX_DELAY);
     SpiSetWriteOnlyMode(spi_port);
   }
@@ -194,7 +198,7 @@ class Esp32SpiDevice {
     }
     // Mode 2 keeps completion fully ISR-driven. Other modes eagerly finish in
     // task context when a waiter blocks.
-    async_op_.awaitCompletion(GetSpiAsyncMode() != 2);
+    async_op_.awaitCompletion(spi_async_mode_ != 2);
     async_op_pending_ = false;
   }
 
@@ -291,7 +295,7 @@ class Esp32SpiDevice {
     }
     SpiSetOutBufferSize(spi_port, 64);
 
-    if (GetSpiAsyncMode() != 0 && bindInterrupt()) {
+    if (spi_async_mode_ != 0 && bindInterrupt()) {
       async_op_pending_ = true;
       need_sync_ = true;
       async_op_.initFill(len);
@@ -371,7 +375,7 @@ class Esp32SpiDevice {
       ++async_blit_stats_.non_internal_source;
     }
 
-    bool async_eligible = GetSpiAsyncMode() != 0 && source_internal &&
+    bool async_eligible = spi_async_mode_ != 0 && source_internal &&
                           (row_bytes * row_count >= 64);
     if (!async_eligible) {
       ++async_blit_stats_.fallback_non_internal;
@@ -418,7 +422,7 @@ class Esp32SpiDevice {
   }
 
  private:
-  static int GetSpiAsyncMode() {
+  inline static int GetSpiAsyncMode() {
     int mode = GET_ROO_FLAG(roo_display_esp32_spi_async);
     if (mode <= 0) return 0;
     if (mode >= 2) return 2;
@@ -478,6 +482,9 @@ class Esp32SpiDevice {
   IrqDispatcher::Binding irq_binding_;
   IrqDispatcher* irq_dispatcher_ = nullptr;
   bool irq_alloc_attempted_ = false;
+  // Caching this here does improve performance of tight loops slightly (e.g.
+  // filled triangles benchmark: ~6% impact without it).
+  int spi_async_mode_;
 };
 
 // Original ESP32: SPI0 (none), FSPI -> SPI1, HSPI -> SPI2, VSPI -> SPI3.

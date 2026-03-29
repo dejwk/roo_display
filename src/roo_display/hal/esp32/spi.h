@@ -16,6 +16,7 @@
 #include "roo_backport/byte.h"
 #include "roo_display/hal/esp32/memory.h"
 #include "roo_display/hal/esp32/spi_async.h"
+#include "roo_display/hal/esp32/spi_config.h"
 #include "roo_display/hal/esp32/spi_irq.h"
 #include "roo_display/hal/esp32/spi_reg.h"
 #include "roo_display/hal/spi_settings.h"
@@ -191,7 +192,9 @@ class Esp32SpiDevice {
       SpiTxWait(spi_port);
       return;
     }
-    async_op_.awaitCompletion();
+    // Mode 2 keeps completion fully ISR-driven. Other modes eagerly finish in
+    // task context when a waiter blocks.
+    async_op_.awaitCompletion(GetSpiAsyncMode() != 2);
     async_op_pending_ = false;
   }
 
@@ -287,7 +290,7 @@ class Esp32SpiDevice {
       SpiTxWait(spi_port);
     }
 
-    if (bindInterrupt()) {
+    if (GetSpiAsyncMode() != 0 && bindInterrupt()) {
       async_op_pending_ = true;
       need_sync_ = true;
       async_op_.initFill(len);
@@ -368,7 +371,8 @@ class Esp32SpiDevice {
       ++async_blit_stats_.non_internal_source;
     }
 
-    bool async_eligible = source_internal && (row_bytes * row_count >= 64);
+    bool async_eligible = GetSpiAsyncMode() != 0 && source_internal &&
+                          (row_bytes * row_count >= 64);
     if (!async_eligible) {
       ++async_blit_stats_.fallback_non_internal;
       syncBlitFallback(data, row_stride_bytes, row_bytes, row_count);
@@ -414,6 +418,13 @@ class Esp32SpiDevice {
   }
 
  private:
+  static int GetSpiAsyncMode() {
+    int mode = GET_ROO_FLAG(roo_display_esp32_spi_async);
+    if (mode <= 0) return 0;
+    if (mode >= 2) return 2;
+    return 1;
+  }
+
   struct AsyncBlitStats {
     uint32_t requests = 0;
     uint32_t internal_source = 0;

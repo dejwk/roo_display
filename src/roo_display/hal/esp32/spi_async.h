@@ -29,7 +29,7 @@ class AsyncOperationBase {
   void initBlit(const roo::byte* data, size_t row_stride_bytes,
                 size_t row_bytes, size_t row_count);
 
-  void awaitCompletion();
+  void awaitCompletion(bool eager_completion);
 
  protected:
   enum Type { kFill, kBlit };
@@ -96,7 +96,7 @@ class AsyncOperation : public AsyncOperationBase {
   void initBlit(const roo::byte* data, size_t row_stride_bytes,
                 size_t row_bytes, size_t row_count);
 
-  void awaitCompletion();
+  void awaitCompletion(bool eager_completion);
 
  private:
   void ROO_DISPLAY_SPI_ASYNC_ISR_ATTR loadAlignedBlitSlice(const roo::byte* src)

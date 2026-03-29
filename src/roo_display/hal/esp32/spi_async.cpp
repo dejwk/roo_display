@@ -88,11 +88,13 @@ void AsyncOperation<spi_port>::handleInterrupt() {
   SpiTxStartISR<spi_port>();
 }
 
-void AsyncOperationBase::awaitCompletion() {
+void AsyncOperationBase::awaitCompletion(bool eager_completion) {
   TaskHandle_t me = xTaskGetCurrentTaskHandle();
   while (true) {
     portENTER_CRITICAL(&mux_);
-    stop_ = true;
+    if (eager_completion) {
+      stop_ = true;
+    }
     if (done_) {
       waiter_task_ = nullptr;
       portEXIT_CRITICAL(&mux_);
@@ -106,9 +108,11 @@ void AsyncOperationBase::awaitCompletion() {
 }
 
 template <int spi_port>
-void AsyncOperation<spi_port>::awaitCompletion() {
-  AsyncOperationBase::awaitCompletion();
-  finishRemaining();
+void AsyncOperation<spi_port>::awaitCompletion(bool eager_completion) {
+  AsyncOperationBase::awaitCompletion(eager_completion);
+  if (eager_completion) {
+    finishRemaining();
+  }
 }
 
 const roo::byte* AsyncOperationBase::Blit::nextChunk(roo::byte* scratch,

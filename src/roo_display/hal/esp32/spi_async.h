@@ -40,11 +40,11 @@ class AsyncOperationBase {
     void init(size_t len) { remaining = len; }
 
     bool ROO_DISPLAY_SPI_ASYNC_ISR_ATTR nextChunk() {
-      if (remaining > 64) {
-        remaining -= 64;
+      if (remaining <= 64) {
+        remaining = 0;
         return false;
       }
-      remaining = 0;
+      remaining -= 64;
       return true;
     }
   };

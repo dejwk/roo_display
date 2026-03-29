@@ -311,7 +311,7 @@ class AddrWindowDevice : public DisplayDevice {
   struct has_async_blit<
       U, std::void_t<decltype(std::declval<U&>().ramWriteAsyncBlit(
              std::declval<const roo::byte*>(), std::declval<size_t>(),
-        std::declval<size_t>(), std::declval<size_t>()))>>
+             std::declval<size_t>(), std::declval<size_t>()))>>
       : std::true_type {};
 
   // Async path selected when has_async_blit<Target>::value == true.

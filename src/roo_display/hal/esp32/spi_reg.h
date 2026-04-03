@@ -84,42 +84,35 @@ inline void SpiTxWait(uint8_t spi_port) __attribute__((always_inline));
 // Returns true while SPI user transaction is in progress.
 inline bool SpiTxBusy(uint8_t spi_port) __attribute__((always_inline));
 
-// Returns true when the SPI non-DMA transfer-done interrupt is pending.
-inline bool SpiNonDmaTransferDoneIntPending(uint8_t spi_port)
-    __attribute__((always_inline));
-
-// Clears the SPI non-DMA transfer-done interrupt.
-inline void SpiNonDmaTransferDoneIntClear(uint8_t spi_port)
-    __attribute__((always_inline));
-
-// Enables the SPI non-DMA transfer-done interrupt.
-inline void SpiNonDmaTransferDoneIntEnable(uint8_t spi_port)
-    __attribute__((always_inline));
-
-// Disables the SPI non-DMA transfer-done interrupt.
-inline void SpiNonDmaTransferDoneIntDisable(uint8_t spi_port)
-    __attribute__((always_inline));
-
 // Enables SPI DMA TX.
 inline void SpiDmaTxEnable(uint8_t spi_port) __attribute__((always_inline));
 
 // Disables SPI DMA TX.
 inline void SpiDmaTxDisable(uint8_t spi_port) __attribute__((always_inline));
 
+// Returns true when SPI DMA TX path is currently enabled.
+inline bool SpiDmaTxEnabled(uint8_t spi_port) __attribute__((always_inline));
+
+// Returns true when SPI DMA TX engine is active.
+inline bool SpiDmaTxActive(uint8_t spi_port) __attribute__((always_inline));
+
+// Resets SPI DMA AHB master and FIFO state.
+inline void SpiDmaFifoReset(uint8_t spi_port) __attribute__((always_inline));
+
 // Returns true when the SPI DMA transfer-done interrupt is pending.
-inline bool SpiDmaTransferDoneIntPending(uint8_t spi_port)
+inline bool SpiTransferDoneIntPending(uint8_t spi_port)
     __attribute__((always_inline));
 
 // Clears the SPI DMA transfer-done interrupt.
-inline void SpiDmaTransferDoneIntClear(uint8_t spi_port)
+inline void SpiTransferDoneIntClear(uint8_t spi_port)
     __attribute__((always_inline));
 
 // Enables the SPI DMA transfer-done interrupt.
-inline void SpiDmaTransferDoneIntEnable(uint8_t spi_port)
+inline void SpiTransferDoneIntEnable(uint8_t spi_port)
     __attribute__((always_inline));
 
 // Disables the SPI DMA transfer-done interrupt.
-inline void SpiDmaTransferDoneIntDisable(uint8_t spi_port)
+inline void SpiTransferDoneIntDisable(uint8_t spi_port)
     __attribute__((always_inline));
 
 // Sets the number of bytes in the output buffer for the next SPI operation.
@@ -157,6 +150,10 @@ inline void SpiWriteUpTo64Aligned(uint8_t spi_port, const roo::byte* data,
 inline void SpiFill64(uint8_t spi_port, uint32_t d32)
     __attribute__((always_inline));
 
+// Clears SPI output data registers W0..W15.
+inline void SpiClearDataRegisters(uint8_t spi_port)
+    __attribute__((always_inline));
+
 // Fills output registers with 1-64 bytes, provided in the 32-bit aligned
 // buffer.
 inline void SpiFillUpTo64(uint8_t spi_port, uint32_t d32, int len)
@@ -183,10 +180,10 @@ inline bool SpiTxBusy(uint8_t spi_port) {
   return (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR) != 0;
 }
 
-inline bool SpiNonDmaTransferDoneIntPending(uint8_t spi_port) {
+inline bool SpiTransferDoneIntPending(uint8_t spi_port) {
 #if CONFIG_IDF_TARGET_ESP32
-  // Classic ESP32 non-DMA master transactions signal completion in SPI_SLAVE
-  // as SPI_TRANS_DONE, not in SPI_DMA_INT_* registers.
+  // Classic ESP32 reports master transfer completion in SPI_SLAVE as
+  // SPI_TRANS_DONE.
   return (READ_PERI_REG(SPI_SLAVE_REG(spi_port)) & SPI_TRANS_DONE) != 0;
 #else
   return (READ_PERI_REG(SPI_DMA_INT_ST_REG(spi_port)) &
@@ -194,7 +191,7 @@ inline bool SpiNonDmaTransferDoneIntPending(uint8_t spi_port) {
 #endif
 }
 
-inline void SpiNonDmaTransferDoneIntClear(uint8_t spi_port) {
+inline void SpiTransferDoneIntClear(uint8_t spi_port) {
 #if CONFIG_IDF_TARGET_ESP32
   CLEAR_PERI_REG_MASK(SPI_SLAVE_REG(spi_port), SPI_TRANS_DONE);
 #else
@@ -202,7 +199,7 @@ inline void SpiNonDmaTransferDoneIntClear(uint8_t spi_port) {
 #endif
 }
 
-inline void SpiNonDmaTransferDoneIntEnable(uint8_t spi_port) {
+inline void SpiTransferDoneIntEnable(uint8_t spi_port) {
 #if CONFIG_IDF_TARGET_ESP32
   SET_PERI_REG_MASK(SPI_SLAVE_REG(spi_port), (SPI_TRANS_DONE << 5));
 #else
@@ -210,7 +207,7 @@ inline void SpiNonDmaTransferDoneIntEnable(uint8_t spi_port) {
 #endif
 }
 
-inline void SpiNonDmaTransferDoneIntDisable(uint8_t spi_port) {
+inline void SpiTransferDoneIntDisable(uint8_t spi_port) {
 #if CONFIG_IDF_TARGET_ESP32
   CLEAR_PERI_REG_MASK(SPI_SLAVE_REG(spi_port), (SPI_TRANS_DONE << 5));
 #else
@@ -226,21 +223,8 @@ inline void SpiDmaTxDisable(uint8_t spi_port) {
   CLEAR_PERI_REG_MASK(SPI_DMA_CONF_REG(spi_port), SPI_DMA_TX_ENA);
 }
 
-inline bool SpiDmaTransferDoneIntPending(uint8_t spi_port) {
-  return (READ_PERI_REG(SPI_DMA_INT_ST_REG(spi_port)) &
-          SPI_TRANS_DONE_INT_ST) != 0;
-}
-
-inline void SpiDmaTransferDoneIntClear(uint8_t spi_port) {
-  SET_PERI_REG_MASK(SPI_DMA_INT_CLR_REG(spi_port), SPI_TRANS_DONE_INT_CLR);
-}
-
-inline void SpiDmaTransferDoneIntEnable(uint8_t spi_port) {
-  SET_PERI_REG_MASK(SPI_DMA_INT_ENA_REG(spi_port), SPI_TRANS_DONE_INT_ENA);
-}
-
-inline void SpiDmaTransferDoneIntDisable(uint8_t spi_port) {
-  CLEAR_PERI_REG_MASK(SPI_DMA_INT_ENA_REG(spi_port), SPI_TRANS_DONE_INT_ENA);
+inline bool SpiDmaTxEnabled(uint8_t spi_port) {
+  return (READ_PERI_REG(SPI_DMA_CONF_REG(spi_port)) & SPI_DMA_TX_ENA) != 0;
 }
 
 inline void SpiTxStart(uint8_t spi_port) {

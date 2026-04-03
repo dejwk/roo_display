@@ -32,8 +32,8 @@ SpiSetOutBufferSizeISR(int dlen) {
 
 template <int spi_port>
 void ROO_DISPLAY_SPI_ASYNC_ISR_ATTR __attribute__((noinline))
-SpiNonDmaTransferDoneIntDisableISR() {
-  SpiNonDmaTransferDoneIntDisable(spi_port);
+SpiTransferDoneIntDisableISR() {
+  SpiTransferDoneIntDisable(spi_port);
 }
 
 }  // namespace
@@ -81,7 +81,7 @@ void AsyncOperation<spi_port>::initBlit(const roo::byte* data,
 template <int spi_port>
 void AsyncOperation<spi_port>::handleInterrupt() {
   if (checkCompleteISR()) {
-    SpiNonDmaTransferDoneIntDisableISR<spi_port>();
+    SpiTransferDoneIntDisableISR<spi_port>();
     markDoneAndNotifyWaiterISR();
     return;
   }
@@ -95,7 +95,7 @@ void AsyncOperationBase::awaitCompletion(bool eager_completion) {
     if (eager_completion) {
       stop_ = true;
     }
-    if (done_) {
+    if (done_ || eager_completion) {
       waiter_task_ = nullptr;
       portEXIT_CRITICAL(&mux_);
       return;

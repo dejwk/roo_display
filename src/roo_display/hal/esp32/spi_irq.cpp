@@ -71,14 +71,14 @@ void IrqDispatcher::unbind(const Binding* binding) {
   portEXIT_CRITICAL(&mux_);
 }
 
-inline void ROO_DISPLAY_SPI_ASYNC_ISR_ATTR IrqDispatcher::dispatch() {
+inline void IrqDispatcher::dispatch() {
 #if ROO_DISPLAY_ESP32_SPI_SHARED_IRQ
   if (!SpiNonDmaTransferDoneIntPending(spi_port_)) {
     // Shared IRQ line: ignore unrelated interrupt sources.
     return;
   }
 #endif
-  SpiNonDmaTransferDoneIntClear(spi_port_);
+  SpiTransferDoneIntClear(spi_port_);
   const volatile Binding* binding = binding_;
   if (binding != nullptr) {
     binding->handler(binding->arg);

@@ -74,15 +74,24 @@ class DmaController {
   struct Operation {
     const roo::byte* out_data;
     size_t out_len;
+    size_t repetitions;
   };
+
+  // Acquires a DMA-capable buffer from the pool. May block if all buffers are
+  // in use by in-flight operations.
+  DmaBufferPool::Buffer acquireBuffer();
+
+  // Releases a previously acquired buffer back to the pool.
+  void releaseBuffer(DmaBufferPool::Buffer buffer);
+
+  size_t bufferCapacity() const { return dma_buffer_pool_.buffer_size(); }
 
   bool bindInterrupt();
 
   void unbindInterrupt();
 
   // Submits a DMA operation. The caller must ensure that the data buffer
-  // remains valid until the operation completes. The caller must ensure that
-  // the out_len is aligned to 32 bits.
+  // remains valid until the operation completes.
   //
   // If there is no pending DMA operation, the submitted operation gets started
   // immediately. Otherwise, the submitted operation gets enqueued and will
@@ -163,6 +172,10 @@ class DmaController {
   // Operation currently being transferred by DMA.
   // Guarded by mux_.
   Operation current_op_;
+
+  // Number of remaining transmissions for current_op_.
+  // Guarded by mux_.
+  size_t current_op_repetitions_left_;
 
   // Protects ISR/task shared state above.
   portMUX_TYPE mux_;

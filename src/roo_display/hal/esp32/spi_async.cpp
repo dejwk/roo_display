@@ -80,6 +80,10 @@ void AsyncOperation<spi_port>::initBlit(const roo::byte* data,
 
 template <int spi_port>
 void AsyncOperation<spi_port>::handleInterrupt() {
+  if (!SpiNonDmaTransferDoneIntPending(spi_port)) {
+    return;
+  }
+  SpiNonDmaTransferDoneIntClear(spi_port);
   if (checkCompleteISR()) {
     SpiNonDmaTransferDoneIntDisableISR<spi_port>();
     markDoneAndNotifyWaiterISR();
@@ -95,7 +99,7 @@ void AsyncOperationBase::awaitCompletion(bool eager_completion) {
     if (eager_completion) {
       stop_ = true;
     }
-    if (done_) {
+    if (done_ || eager_completion) {
       waiter_task_ = nullptr;
       portEXIT_CRITICAL(&mux_);
       return;
@@ -110,6 +114,7 @@ void AsyncOperationBase::awaitCompletion(bool eager_completion) {
 template <int spi_port>
 void AsyncOperation<spi_port>::awaitCompletion(bool eager_completion) {
   AsyncOperationBase::awaitCompletion(eager_completion);
+  SpiTxWait(spi_port);
   if (eager_completion) {
     finishRemaining();
   }

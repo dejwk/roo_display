@@ -334,6 +334,22 @@ class BufferedHLineFiller {
   int16_t x1_buffer_[kPixelWritingBufferSize];
 };
 
+class UnbufferedHLineFiller {
+ public:
+  UnbufferedHLineFiller(DisplayOutput& device, Color color,
+                        BlendingMode blending_mode)
+      : device_(device), blending_mode_(blending_mode), color_(color) {}
+
+  void fillHLine(int16_t x0, int16_t y0, int16_t x1) {
+    device_.fillRect(blending_mode_, x0, y0, x1, y0, color_);
+  }
+
+ private:
+  DisplayOutput& device_;
+  BlendingMode blending_mode_;
+  Color color_;
+};
+
 class ClippingBufferedHLineFiller {
  public:
   ClippingBufferedHLineFiller(DisplayOutput& device, Color color, Box clip_box,
@@ -359,6 +375,32 @@ class ClippingBufferedHLineFiller {
 
  private:
   BufferedHLineFiller filler_;
+  Box clip_box_;
+};
+
+class ClippingUnbufferedHLineFiller {
+ public:
+  ClippingUnbufferedHLineFiller(DisplayOutput& device, Color color,
+                                Box clip_box, BlendingMode blending_mode)
+      : filler_(device, color, blending_mode), clip_box_(std::move(clip_box)) {}
+
+  void fillHLine(int16_t x0, int16_t y0, int16_t x1) {
+    if (x0 > clip_box_.xMax() || x1 < clip_box_.xMin() ||
+        y0 > clip_box_.yMax() || y0 < clip_box_.yMin() || x1 < x0) {
+      return;
+    }
+
+    if (x0 < clip_box_.xMin()) x0 = clip_box_.xMin();
+    if (x1 > clip_box_.xMax()) x1 = clip_box_.xMax();
+    filler_.fillHLine(x0, y0, x1);
+  }
+
+  const Box& clip_box() const { return clip_box_; }
+
+  // void set_clip_box(Box clip_box) { clip_box_ = std::move(clip_box); }
+
+ private:
+  UnbufferedHLineFiller filler_;
   Box clip_box_;
 };
 

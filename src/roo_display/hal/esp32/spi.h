@@ -22,6 +22,7 @@
 #include "roo_display/hal/esp32/spi_reg.h"
 #include "roo_display/hal/spi_settings.h"
 #include "roo_io/data/byte_order.h"
+#include "roo_io/memory/fill.h"
 #include "roo_logging.h"
 #include "soc/spi_reg.h"
 
@@ -171,11 +172,18 @@ class Esp32SpiDevice {
     spi_device_acquire_bus(device_, portMAX_DELAY);
 #endif
     SpiSetWriteOnlyMode(spi_port);
+    if (spi_async_mode_ == 3) {
+      CHECK(ensureDmaReady());
+    }
   }
 
   void endTransaction() {
     flush();
     SpiSetReadWriteMode(spi_port);
+    if (dma_irq_bound_ && dma_controller_ != nullptr) {
+      dma_controller_->unbindInterrupt();
+      dma_irq_bound_ = false;
+    }
     unbindInterrupt();
 #if defined(ARDUINO)
     spi_.endTransaction();
@@ -191,13 +199,66 @@ class Esp32SpiDevice {
       SpiTxWait(spi_port);
       return;
     }
+
+    if (spi_async_mode_ == 3 && dma_controller_ != nullptr) {
+      if (dma_work_buffer_.data != nullptr && dma_work_buffer_used_ > 0) {
+        dma_controller_->awaitCompleted();
+        SpiTxWait(spi_port);
+        writeBytesSyncFallback(dma_work_buffer_.data, dma_work_buffer_used_);
+        // dma_controller_->releaseBuffer(dma_work_buffer_);
+        // dma_work_buffer_ = {nullptr};
+        dma_work_buffer_used_ = 0;
+        SpiTxWait(spi_port);
+        // if (dma_work_buffer_used_ >= 64) {
+        //   const size_t aligned =
+        //       dma_work_buffer_used_ & ~static_cast<size_t>(3);
+        //   const size_t remainder = dma_work_buffer_used_ - aligned;
+        //   alignas(4) roo::byte tail[3];
+        //   if (remainder > 0) {
+        //     __builtin_memcpy(tail, dma_work_buffer_.data + aligned,
+        //     remainder);
+        //   }
+        //   dma_work_buffer_used_ = aligned;
+        //   submitWorkingDmaBuffer();
+        //   dma_controller_->awaitCompleted();
+        //   if (remainder > 0) {
+        //     syncWriteBytesNoFlush(tail, remainder);
+        //     need_sync_ = false;
+        //     SpiTxWait(spi_port);
+        //   }
+        // } else {
+        //   // Too small for opportunistic DMA publish in flush; transmit sync.
+        //   alignas(4) roo::byte scratch[64];
+        //   const size_t len = dma_work_buffer_used_;
+        //   __builtin_memcpy(scratch, dma_work_buffer_.data, len);
+        //   dma_controller_->releaseBuffer(dma_work_buffer_);
+        //   dma_work_buffer_ = {nullptr};
+        //   dma_work_buffer_used_ = 0;
+        //   dma_controller_->awaitCompleted();
+        //   syncWriteBytesNoFlush(scratch, len);
+        //   need_sync_ = false;
+        //   SpiTxWait(spi_port);
+        // }
+      } else {
+        dma_controller_->awaitCompleted();
+      }
+      async_op_pending_ = false;
+      // Mode-3 can mix DMA and direct sync transfers (small-transfer bypass).
+      // Ensure any in-flight sync transfer has also completed.
+      return;
+    }
     // Mode 2 keeps completion fully ISR-driven. Other modes eagerly finish in
     // task context when a waiter blocks.
     async_op_.awaitCompletion(spi_async_mode_ != 2);
     async_op_pending_ = false;
+    need_sync_ = false;
   }
 
   void write(uint8_t data) __attribute__((always_inline)) {
+    // if (spi_async_mode_ == 3) {
+    //   roo::byte b = static_cast<roo::byte>(data);
+    //   if (appendDmaBytes(&b, 1)) return;
+    // }
     flush();
     SpiSetOutBufferSize(spi_port, 1);
     SpiWrite4(spi_port, static_cast<uint32_t>(data));
@@ -206,6 +267,13 @@ class Esp32SpiDevice {
   }
 
   void write16(uint16_t data) __attribute__((always_inline)) {
+    // if (spi_async_mode_ == 3) {
+    //   uint16_t be = roo_io::htobe(data);
+    //   if (appendDmaBytes(reinterpret_cast<const roo::byte*>(&be), 2)) {
+    //     submitWorkingDmaBufferIfLineIdle();
+    //     return;
+    //   }
+    // }
     flush();
     SpiSetOutBufferSize(spi_port, 2);
     SpiWrite4(spi_port, roo_io::htobe(data));
@@ -214,6 +282,12 @@ class Esp32SpiDevice {
   }
 
   void write16x2(uint16_t a, uint16_t b) __attribute((always_inline)) {
+    // if (spi_async_mode_ == 3) {
+    //   uint16_t payload[2] = {roo_io::htobe(a), roo_io::htobe(b)};
+    //   if (appendDmaBytes(reinterpret_cast<const roo::byte*>(payload), 4)) {
+    //     return;
+    //   }
+    // }
     flush();
     SpiSetOutBufferSize(spi_port, 4);
     SpiWrite4(spi_port, roo_io::htobe(a) | (roo_io::htobe(b) << 16));
@@ -222,6 +296,9 @@ class Esp32SpiDevice {
   }
 
   void writeBytes(const roo::byte* data, uint32_t len) {
+    if (spi_async_mode_ == 3 && appendDmaBytes(data, len)) {
+      return;
+    }
     flush();
     uintptr_t misalign = reinterpret_cast<uintptr_t>(data) & 0x3u;
     if (misalign != 0) {
@@ -262,7 +339,69 @@ class Esp32SpiDevice {
     need_sync_ = true;
   }
 
+  void writeBytesSyncFallback(const roo::byte* data, uint32_t len) {
+    // flush();
+    uintptr_t misalign = reinterpret_cast<uintptr_t>(data) & 0x3u;
+    if (misalign != 0) {
+      uint32_t prefix = 4 - static_cast<uint32_t>(misalign);
+      if (prefix > len) prefix = len;
+      uint32_t word = 0;
+      __builtin_memcpy(&word, data, prefix);
+      SpiSetOutBufferSize(spi_port, prefix);
+      SpiWrite4(spi_port, word);
+      SpiTxStart(spi_port);
+      len -= prefix;
+      if (len == 0) {
+        need_sync_ = true;
+        return;
+      }
+      data += prefix;
+      SpiTxWait(spi_port);
+    }
+    if (len >= 64) {
+      SpiSetOutBufferSize(spi_port, 64);
+      while (true) {
+        SpiWrite64Aligned(spi_port, data);
+        SpiTxStart(spi_port);
+        len -= 64;
+        if (len == 0) {
+          need_sync_ = true;
+          return;
+        }
+        data += 64;
+        SpiTxWait(spi_port);
+        if (len < 64) break;
+      }
+    }
+    SpiSetOutBufferSize(spi_port, len);
+    SpiWriteUpTo64Aligned(spi_port, data, len);
+    SpiTxStart(spi_port);
+    need_sync_ = true;
+  }
+
   void fill16(const roo::byte* data, uint32_t repetitions) {
+    if (spi_async_mode_ == 3) {
+      if (!need_sync_) {
+        uint32_t lrep = repetitions < 32 ? repetitions : 32;
+        uint16_t hi = static_cast<uint16_t>(data[1]);
+        uint16_t lo = static_cast<uint16_t>(data[0]);
+        uint16_t d16 = (hi << 8) | lo;
+        uint32_t d32 = (d16 << 16) | d16;
+        uint32_t len = lrep * 2;
+        SpiSetOutBufferSize(spi_port, len);
+        SpiFillUpTo64(spi_port, d32, len);
+        SpiTxStart(spi_port);
+        need_sync_ = true;
+        repetitions -= lrep;
+        if (repetitions == 0) {
+          return;
+        }
+      }
+      if (appendDmaRepeated(data, 2, repetitions)) {
+        submitWorkingDmaBufferIfLineIdle();
+        return;
+      }
+    }
     // Note: ESP32 is little-endian, so we're byte-swapping to
     // get the bytes sorted correctly in the output register.
     uint16_t hi = static_cast<uint16_t>(data[1]);
@@ -313,6 +452,10 @@ class Esp32SpiDevice {
   }
 
   void fill24(const roo::byte* data, uint32_t repetitions) {
+    if (spi_async_mode_ == 3 && appendDmaRepeated(data, 3, repetitions)) {
+      submitWorkingDmaBufferIfLineIdle();
+      return;
+    }
     uint32_t r = static_cast<uint8_t>(data[0]);
     uint32_t g = static_cast<uint8_t>(data[1]);
     uint32_t b = static_cast<uint8_t>(data[2]);
@@ -360,6 +503,27 @@ class Esp32SpiDevice {
       row_bytes = row_bytes * row_count;
       row_stride_bytes = row_bytes;
       row_count = 1;
+    }
+
+    if (spi_async_mode_ == 3) {
+      // CHECK(ensureDmaReady());
+      if (!need_sync_ && row_bytes * row_count <= 64) {
+        syncBlitFallback(data, row_stride_bytes, row_bytes, row_count);
+        return;
+      }
+      if (row_stride_bytes == row_bytes) {
+        CHECK(appendDmaBytes(data, row_bytes * row_count));
+        submitWorkingDmaBufferIfLineIdle();
+        return;
+      } else {
+        const roo::byte* row = data;
+        for (size_t i = 0; i < row_count; ++i) {
+          CHECK(appendDmaBytes(row, row_bytes));
+          row += row_stride_bytes;
+        }
+        submitWorkingDmaBufferIfLineIdle();
+      }
+      return;
     }
 
     ++async_blit_stats_.requests;
@@ -421,7 +585,263 @@ class Esp32SpiDevice {
     int mode = GET_ROO_FLAG(roo_display_esp32_spi_async);
     if (mode <= 0) return 0;
     if (mode >= 3) return 3;
-    return 1;
+    return mode;
+  }
+
+  bool ensureDmaReady() {
+    if (spi_async_mode_ != 3 || dma_controller_ == nullptr) return false;
+    if (dma_irq_bound_) return true;
+    if (!dma_controller_->bindInterrupt()) return false;
+    dma_irq_bound_ = true;
+    return true;
+  }
+
+  void submitWorkingDmaBuffer(size_t repetitions = 1) {
+    SpiTxWait(spi_port);
+    if (dma_work_buffer_.data == nullptr || dma_work_buffer_used_ == 0) {
+      return;
+    }
+    CHECK_NOTNULL(dma_controller_);
+    bool ok = dma_controller_->submit(DmaController::Operation{
+        dma_work_buffer_.data, dma_work_buffer_used_, repetitions});
+    CHECK(ok);
+    async_op_pending_ = true;
+    dma_work_buffer_ = {nullptr};
+    dma_work_buffer_used_ = 0;
+    need_sync_ = true;
+  }
+
+  void rotatePattern2(const roo::byte* pattern, size_t phase,
+                      roo::byte* rotated) __attribute__((always_inline)) {
+    if ((phase & 1) == 0) {
+      rotated[0] = pattern[0];
+      rotated[1] = pattern[1];
+    } else {
+      rotated[0] = pattern[1];
+      rotated[1] = pattern[0];
+    }
+  }
+
+  void rotatePattern3(const roo::byte* pattern, size_t phase,
+                      roo::byte* rotated) __attribute__((always_inline)) {
+    switch (phase % 3) {
+      case 0:
+        rotated[0] = pattern[0];
+        rotated[1] = pattern[1];
+        rotated[2] = pattern[2];
+        break;
+      case 1:
+        rotated[0] = pattern[1];
+        rotated[1] = pattern[2];
+        rotated[2] = pattern[0];
+        break;
+      default:
+        rotated[0] = pattern[2];
+        rotated[1] = pattern[0];
+        rotated[2] = pattern[1];
+        break;
+    }
+  }
+
+  size_t fillPatternBytes(roo::byte* dst, size_t len, const roo::byte* pattern,
+                          size_t pattern_bytes, size_t phase)
+      __attribute__((always_inline)) {
+    if (len == 0) return phase;
+    alignas(4) roo::byte rotated[3];
+    if (pattern_bytes == 2) {
+      rotatePattern2(pattern, phase, rotated);
+      size_t full = len / 2;
+      if (full > 0) {
+        roo_io::PatternFill<2>(dst, full, rotated);
+        dst += full * 2;
+      }
+      if ((len & 1) != 0) {
+        *dst = rotated[0];
+      }
+      return (phase + len) & 1;
+    } else {
+      rotatePattern3(pattern, phase, rotated);
+      size_t full = len / 3;
+      if (full > 0) {
+        roo_io::PatternFill<3>(dst, full, rotated);
+        dst += full * 3;
+      }
+      size_t rem = len - full * 3;
+      if (rem != 0) {
+        __builtin_memcpy(dst, rotated, rem);
+      }
+      return (phase + len) % 3;
+    }
+  }
+
+  void submitWorkingDmaBufferIfLineIdle() {
+    if (spi_async_mode_ != 3 || dma_controller_ == nullptr) return;
+    if (dma_work_buffer_.data == nullptr || dma_work_buffer_used_ == 0) return;
+    bool line_idle = !SpiTxBusy(spi_port);
+    if (!line_idle) return;
+    if (dma_work_buffer_used_ < 64) {
+      // alignas(4) roo::byte scratch[64];
+      const size_t len = dma_work_buffer_used_;
+      syncWriteBytesNoFlush(dma_work_buffer_.data, len);
+      // const size_t len = dma_work_buffer_used_;
+      // __builtin_memcpy(scratch, dma_work_buffer_.data, len);
+      // dma_controller_->releaseBuffer(dma_work_buffer_);
+      // dma_work_buffer_ = {nullptr};
+      dma_work_buffer_used_ = 0;
+      async_op_pending_ = false;
+      return;
+    }
+    // if (dma_work_buffer_used_ <= 256) return;
+
+    const size_t aligned = dma_work_buffer_used_ & ~static_cast<size_t>(3);
+    // if (aligned < 64) return;
+    const size_t remainder = dma_work_buffer_used_ - aligned;
+    alignas(4) roo::byte tail[3];
+    if (remainder > 0) {
+      __builtin_memcpy(tail, dma_work_buffer_.data + aligned, remainder);
+    }
+    dma_work_buffer_used_ = aligned;
+    submitWorkingDmaBuffer();
+    if (remainder > 0) {
+      dma_work_buffer_ = dma_controller_->acquireBuffer();
+      CHECK_NOTNULL(dma_work_buffer_.data);
+      __builtin_memcpy(dma_work_buffer_.data, tail, remainder);
+      dma_work_buffer_used_ = remainder;
+      async_op_pending_ = true;
+      need_sync_ = true;
+    }
+  }
+
+  void syncWriteBytesNoFlush(const roo::byte* data, size_t len) {
+    SpiSetOutBufferSize(spi_port, len);
+    SpiWriteUpTo64Aligned(spi_port, data, len);
+    SpiTxStart(spi_port);
+    need_sync_ = true;
+  }
+
+  bool appendDmaBytes(const roo::byte* data, size_t len) {
+    if (len == 0) return true;
+    size_t capacity = dma_controller_->bufferCapacity();
+    while (len != 0) {
+      if (dma_work_buffer_.data == nullptr) {
+        dma_work_buffer_ = dma_controller_->acquireBuffer();
+        CHECK_NOTNULL(dma_work_buffer_.data);
+        dma_work_buffer_used_ = 0;
+      }
+      size_t available = capacity - dma_work_buffer_used_;
+      size_t chunk = (len < available) ? len : available;
+      __builtin_memcpy(dma_work_buffer_.data + dma_work_buffer_used_, data,
+                       chunk);
+      dma_work_buffer_used_ += chunk;
+      async_op_pending_ = true;
+      data += chunk;
+      len -= chunk;
+      if (dma_work_buffer_used_ == capacity) {
+        submitWorkingDmaBuffer();
+      }
+    }
+    need_sync_ = true;
+    return true;
+  }
+
+  bool appendDmaRepeated(const roo::byte* pattern, size_t pattern_bytes,
+                         size_t repetitions) {
+    if (repetitions == 0) return true;
+    if (pattern_bytes != 2 && pattern_bytes != 3) return false;
+    // if (!ensureDmaReady()) return false;
+    if (repetitions * pattern_bytes <= 64) {
+      if (dma_work_buffer_used_ == 0 && !SpiTxBusy(spi_port)) return false;
+    }
+
+    size_t capacity = dma_controller_->bufferCapacity();
+    size_t remaining_bytes = repetitions * pattern_bytes;
+
+    if (dma_work_buffer_.data == nullptr) {
+      dma_work_buffer_ = dma_controller_->acquireBuffer();
+      dma_work_buffer_used_ = 0;
+    }
+    // // If everything fits in the current buffer, write and return.
+    // if (dma_work_buffer_.data != nullptr) {
+    size_t available = capacity - dma_work_buffer_used_;
+    if (remaining_bytes <= available) {
+      roo::byte* dst = dma_work_buffer_.data + dma_work_buffer_used_;
+      if (pattern_bytes == 2) {
+        roo_io::PatternFill<2>(dst, repetitions, pattern);
+      } else {
+        roo_io::PatternFill<3>(dst, repetitions, pattern);
+      }
+      dma_work_buffer_used_ += remaining_bytes;
+      async_op_pending_ = true;
+      need_sync_ = true;
+      return true;
+    }
+    // }
+
+    // Fill pattern phase must be local to this fill call and must not depend
+    // on whatever bytes may already be staged from previous operations.
+    size_t phase = 0;
+
+    // If there is data in the current buffer, fill it to the end and
+    // publish.
+    if (dma_work_buffer_.data != nullptr && dma_work_buffer_used_ > 0) {
+      size_t available = capacity - dma_work_buffer_used_;
+      phase = fillPatternBytes(dma_work_buffer_.data + dma_work_buffer_used_,
+                               available, pattern, pattern_bytes, phase);
+      dma_work_buffer_used_ = capacity;
+      async_op_pending_ = true;
+      remaining_bytes -= available;
+      submitWorkingDmaBuffer();
+    }
+    if (dma_work_buffer_.data == nullptr) {
+      dma_work_buffer_ = dma_controller_->acquireBuffer();
+    }
+
+    if (pattern_bytes == 2) {
+      // Middle repeated-chunk fast path for 2-byte patterns.
+      // Use a 4-byte aligned chunk size instead of full capacity.
+      const size_t chunk2 = capacity - (capacity % 4);
+      if (chunk2 >= 64 && remaining_bytes >= 2 * chunk2) {
+        phase = fillPatternBytes(dma_work_buffer_.data, chunk2, pattern,
+                                 pattern_bytes, phase);
+        dma_work_buffer_used_ = chunk2;
+        size_t op_repetitions = remaining_bytes / chunk2;
+        submitWorkingDmaBuffer(op_repetitions);
+        remaining_bytes -= op_repetitions * chunk2;
+      }
+    } else if (pattern_bytes == 3) {
+      // Middle repeated-chunk fast path for 3-byte patterns.
+      // Use a 12-byte aligned chunk size so chunk is aligned to 4 and keeps
+      // pattern phase invariant across repeated submits.
+      const size_t chunk3 = capacity - (capacity % 12);
+      if (chunk3 >= 64 && remaining_bytes >= 2 * chunk3) {
+        phase = fillPatternBytes(dma_work_buffer_.data, chunk3, pattern,
+                                 pattern_bytes, phase);
+        dma_work_buffer_used_ = chunk3;
+        size_t op_repetitions = remaining_bytes / chunk3;
+        submitWorkingDmaBuffer(op_repetitions);
+        remaining_bytes -= op_repetitions * chunk3;
+      }
+    }
+
+    // Fill and submit the remainder.
+    if (remaining_bytes > 0) {
+      if (dma_work_buffer_.data == nullptr) {
+        dma_work_buffer_ = dma_controller_->acquireBuffer();
+        dma_work_buffer_used_ = 0;
+      }
+      size_t available = capacity - dma_work_buffer_used_;
+      roo::byte* dst = dma_work_buffer_.data + dma_work_buffer_used_;
+      phase =
+          fillPatternBytes(dst, remaining_bytes, pattern, pattern_bytes, phase);
+      dma_work_buffer_used_ += remaining_bytes;
+      async_op_pending_ = true;
+      // if (dma_work_buffer_used_ == capacity) {
+      //   submitWorkingDmaBuffer();
+      // }
+    }
+
+    need_sync_ = true;
+    return true;
   }
 
   struct AsyncBlitStats {
@@ -459,7 +879,7 @@ class Esp32SpiDevice {
     const roo::byte* row = data;
     for (size_t i = 0; i < row_count; ++i) {
       flush();
-      writeBytes(row, static_cast<uint32_t>(row_bytes));
+      writeBytesSyncFallback(row, static_cast<uint32_t>(row_bytes));
       row += row_stride_bytes;
     }
   }
@@ -481,6 +901,9 @@ class Esp32SpiDevice {
   // filled triangles benchmark: ~6% impact without it).
   int spi_async_mode_;
   DmaController* dma_controller_ = nullptr;
+  bool dma_irq_bound_ = false;
+  DmaBufferPool::Buffer dma_work_buffer_ = {nullptr};
+  size_t dma_work_buffer_used_ = 0;
 };
 
 // Original ESP32: SPI0 (none), FSPI -> SPI1, HSPI -> SPI2, VSPI -> SPI3.

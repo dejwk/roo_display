@@ -44,7 +44,8 @@ DmaController::DmaController(spi_host_device_t host_id,
       irq_binding_{DmaTransferCompleteISR, this},
       transfer_in_progress_(false),
       waiter_task_(nullptr),
-      current_op_({nullptr, 0}),
+      current_op_({nullptr, 0, 0}),
+      current_op_repetitions_left_(0),
       mux_(portMUX_INITIALIZER_UNLOCKED),
 #endif
       dma_buffer_pool_(dma_buffer_pool),
@@ -57,7 +58,8 @@ void DmaController::begin() {
 
   transfer_in_progress_ = false;
   waiter_task_ = nullptr;
-  current_op_ = {nullptr, 0};
+  current_op_ = {nullptr, 0, 0};
+  current_op_repetitions_left_ = 0;
   pending_ops_.clear();
 
   // Try to acquire the DMA context from the SPI bus.
@@ -122,7 +124,8 @@ void DmaController::end() {
   dma_ctx_ = nullptr;
   transfer_in_progress_ = false;
   waiter_task_ = nullptr;
-  current_op_ = {nullptr, 0};
+  current_op_ = {nullptr, 0, 0};
+  current_op_repetitions_left_ = 0;
   pending_ops_.clear();
 #else
   pending_ops_.clear();
@@ -130,16 +133,39 @@ void DmaController::end() {
 }
 
 bool DmaController::bindInterrupt() {
+  if (irq_dispatcher_ == nullptr) return false;
   return irq_dispatcher_->bind(&irq_binding_);
 }
 
 void DmaController::unbindInterrupt() {
+  if (irq_dispatcher_ == nullptr) return;
   irq_dispatcher_->unbind(&irq_binding_);
+}
+
+DmaBufferPool::Buffer DmaController::acquireBuffer() {
+#if ROO_DISPLAY_HAS_SPI_INTERNAL_DMA
+  // if (dma_ctx_ == nullptr || irq_dispatcher_ == nullptr) {
+  //   return DmaBufferPool::Buffer{nullptr};
+  // }
+  return dma_buffer_pool_.acquire();
+#else
+  return DmaBufferPool::Buffer{nullptr};
+#endif
+}
+
+void DmaController::releaseBuffer(DmaBufferPool::Buffer buffer) {
+  // if (buffer.data == nullptr) return;
+#if ROO_DISPLAY_HAS_SPI_INTERNAL_DMA
+  dma_buffer_pool_.release(buffer);
+#else
+  (void)buffer;
+#endif
 }
 
 bool DmaController::submit(Operation op) {
   CHECK_NOTNULL(op.out_data);
   CHECK_GT(op.out_len, 0u);
+  CHECK_GT(op.repetitions, 0u);
   CHECK_EQ((op.out_len & 0x3u), 0u);
 
 #if ROO_DISPLAY_HAS_SPI_INTERNAL_DMA
@@ -177,17 +203,18 @@ void DmaController::awaitCompleted() {
       portEXIT_CRITICAL(&mux_);
       return;
     }
-    waiter_task_ = self;
+    // waiter_task_ = self;
     portEXIT_CRITICAL(&mux_);
-    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    SpiTxWait(hostToSpiPort(host_id_));
+    // ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
   }
 #endif
 }
 
 void DmaController::transferCompleteISR() {
 #if ROO_DISPLAY_HAS_SPI_INTERNAL_DMA
-  Operation completed = {nullptr, 0};
-  Operation next = {nullptr, 0};
+  Operation completed = {nullptr, 0, 0};
+  Operation next = {nullptr, 0, 0};
   bool has_next = false;
   bool notify_waiter = false;
   TaskHandle_t waiter = nullptr;
@@ -200,8 +227,18 @@ void DmaController::transferCompleteISR() {
     return;
   }
 
+  if (current_op_repetitions_left_ > 1) {
+    current_op_repetitions_left_--;
+    Operation repeat_op = current_op_;
+    repeat_op.repetitions = current_op_repetitions_left_;
+    startOperationCritical(repeat_op);
+    portEXIT_CRITICAL_ISR(&mux_);
+    return;
+  }
+
   completed = current_op_;
-  current_op_ = {nullptr, 0};
+  current_op_ = {nullptr, 0, 0};
+  current_op_repetitions_left_ = 0;
 
   has_next = pending_ops_.read(next);
   if (has_next) {
@@ -238,15 +275,10 @@ bool DmaController::startOperationCritical(Operation op) {
   CHECK_NOTNULL(dma_ctx_);
   CHECK_NOTNULL(op.out_data);
   CHECK_GT(op.out_len, 0);
+  CHECK_GT(op.repetitions, 0);
 
   spicommon_dma_desc_setup_link(dma_ctx_->dmadesc_tx, op.out_data,
                                 static_cast<int>(op.out_len), false);
-
-  uint8_t spi_port = hostToSpiPort(host_id_);
-  SpiSetOutBufferSize(spi_port, op.out_len);
-  SpiDmaTransferDoneIntClear(spi_port);
-  SpiDmaTransferDoneIntEnable(spi_port);
-  SpiDmaTxEnable(spi_port);
 
 #if SOC_GDMA_SUPPORTED
   gdma_reset(dma_ctx_->tx_dma_chan);
@@ -259,8 +291,15 @@ bool DmaController::startOperationCritical(Operation op) {
                 const_cast<spi_dma_desc_t*>(dma_ctx_->dmadesc_tx));
 #endif
 
+  uint8_t spi_port = hostToSpiPort(host_id_);
+  SpiSetOutBufferSize(spi_port, op.out_len);
+  SpiDmaTransferDoneIntClear(spi_port);
+  SpiDmaTransferDoneIntEnable(spi_port);
+  SpiDmaTxEnable(spi_port);
+
   SpiTxStart(spi_port);
   current_op_ = op;
+  current_op_repetitions_left_ = op.repetitions;
   transfer_in_progress_ = true;
   return true;
 }

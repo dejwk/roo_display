@@ -14,11 +14,12 @@ class SpiReadWriteTransaction {
  public:
   SpiReadWriteTransaction(SpiDevice& device) : device_(device) {
     device_.beginReadWriteTransaction();
+    device_.flush();
     Gpio::template setLow<pinCS>();
   }
   ~SpiReadWriteTransaction() {
-    Gpio::template setHigh<pinCS>();
     device_.endTransaction();
+    Gpio::template setHigh<pinCS>();
   }
 
  private:
@@ -56,7 +57,11 @@ class SpiTransport {
     }
   }
 
-  void begin() __attribute__((always_inline)) { cs_l(); }
+  void begin() __attribute__((always_inline)) {
+    device_.flush();
+    cs_l();
+  }
+  
 
   void end() __attribute__((always_inline)) {
     device_.flush();

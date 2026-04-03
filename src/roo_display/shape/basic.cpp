@@ -506,11 +506,11 @@ void FilledTriangle::drawInteriorTo(const Surface &s) const {
   int16_t x2 = x2_ + s.dx();
   int16_t y2 = y2_ + s.dy();
   if (s.clip_box().contains(box)) {
-    BufferedHLineFiller drawer(s.out(), color, s.blending_mode());
+    UnbufferedHLineFiller drawer(s.out(), color, s.blending_mode());
     fillTriangle(&drawer, x0, y0, x1, y1, x2, y2);
   } else {
-    ClippingBufferedHLineFiller drawer(s.out(), color, s.clip_box(),
-                                       s.blending_mode());
+    ClippingUnbufferedHLineFiller drawer(s.out(), color, s.clip_box(),
+                                         s.blending_mode());
     fillTriangle(&drawer, x0, y0, x1, y1, x2, y2);
   }
 }

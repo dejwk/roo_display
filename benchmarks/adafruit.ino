@@ -408,6 +408,12 @@ class ScreenPrinter {
   Color color_;
 };
 
+void clr() {
+  DrawingContext dc(display);
+  dc.fill(color::Black);
+  yield();
+}
+
 unsigned long testText() {
   DrawingContext dc(display);
   dc.fill(color::Black);
@@ -446,104 +452,113 @@ unsigned long testLines(Color color) {
   unsigned long start, t;
   int x1, y1, x2, y2, w = display.width(), h = display.height();
 
-  DrawingContext dc(display);
-  dc.fill(color::Black);
-  yield();
+  t = 0;
+  clr();
 
   x1 = y1 = 0;
   y2 = h - 1;
   start = micros();
-  for (x2 = 0; x2 < w; x2 += 6) dc.draw(Line(x1, y1, x2, y2, color));
-  x2 = w - 1;
-  for (y2 = 0; y2 < h; y2 += 6) dc.draw(Line(x1, y1, x2, y2, color));
-  t = micros() - start;  // fillScreen doesn't count against timing
-
-  yield();
-  dc.fill(color::Black);
-  yield();
+  {
+    DrawingContext dc(display);
+    for (x2 = 0; x2 < w; x2 += 6) dc.draw(Line(x1, y1, x2, y2, color));
+    x2 = w - 1;
+    for (y2 = 0; y2 < h; y2 += 6) dc.draw(Line(x1, y1, x2, y2, color));
+  }
+  t += micros() - start;  // fillScreen doesn't count against timing
+  
+  clr();
 
   x1 = w - 1;
   y1 = 0;
   y2 = h - 1;
   start = micros();
-  for (x2 = 0; x2 < w; x2 += 6) dc.draw(Line(x1, y1, x2, y2, color));
-  x2 = 0;
-  for (y2 = 0; y2 < h; y2 += 6) dc.draw(Line(x1, y1, x2, y2, color));
+  {
+    DrawingContext dc(display);
+    for (x2 = 0; x2 < w; x2 += 6) dc.draw(Line(x1, y1, x2, y2, color));
+    x2 = 0;
+    for (y2 = 0; y2 < h; y2 += 6) dc.draw(Line(x1, y1, x2, y2, color));
+  }
   t += micros() - start;
 
-  yield();
-  dc.fill(color::Black);
-  yield();
+  clr();
 
   x1 = 0;
   y1 = h - 1;
   y2 = 0;
   start = micros();
-  for (x2 = 0; x2 < w; x2 += 6) dc.draw(Line(x1, y1, x2, y2, color));
-  x2 = w - 1;
-  for (y2 = 0; y2 < h; y2 += 6) dc.draw(Line(x1, y1, x2, y2, color));
+  {
+    DrawingContext dc(display);
+    for (x2 = 0; x2 < w; x2 += 6) dc.draw(Line(x1, y1, x2, y2, color));
+    x2 = w - 1;
+    for (y2 = 0; y2 < h; y2 += 6) dc.draw(Line(x1, y1, x2, y2, color));
+  }
   t += micros() - start;
 
-  yield();
-  dc.fill(color::Black);
-  yield();
+  clr();
 
   x1 = w - 1;
   y1 = h - 1;
   y2 = 0;
   start = micros();
-  for (x2 = 0; x2 < w; x2 += 6) dc.draw(Line(x1, y1, x2, y2, color));
-  x2 = 0;
-  for (y2 = 0; y2 < h; y2 += 6) dc.draw(Line(x1, y1, x2, y2, color));
+  {
+    DrawingContext dc(display);
+    for (x2 = 0; x2 < w; x2 += 6) dc.draw(Line(x1, y1, x2, y2, color));
+    x2 = 0;
+    for (y2 = 0; y2 < h; y2 += 6) dc.draw(Line(x1, y1, x2, y2, color));
+  }
+  t += micros() - start;
 
-  yield();
-  return micros() - start;
+  return t;
 }
 
 unsigned long testFastLines(Color color1, Color color2) {
   unsigned long start;
   int x, y, w = display.width(), h = display.height();
-
-  DrawingContext dc(display);
-  dc.fill(color::Black);
+  clr();
   start = micros();
-  for (y = 0; y < h; y += 5) dc.draw(Line(0, y, w - 1, y, color1));
-  for (x = 0; x < w; x += 5) dc.draw(Line(x, 0, x, h - 1, color2));
-
+  {
+    DrawingContext dc(display);
+    for (y = 0; y < h; y += 5) dc.draw(Line(0, y, w - 1, y, color1));
+    for (x = 0; x < w; x += 5) dc.draw(Line(x, 0, x, h - 1, color2));
+  }
   return micros() - start;
 }
 
 unsigned long testRects(Color color) {
   unsigned long start;
   int n, i, i2, cx = display.width() / 2, cy = display.height() / 2;
-
-  DrawingContext dc(display);
-  dc.fill(color::Black);
+  clr();
   n = min(display.width(), display.height());
   start = micros();
-  for (i = 2; i < n; i += 6) {
-    i2 = i / 2;
-    dc.draw(Rect(cx - i2, cy - i2, cx - i2 + i - 1, cy - i2 + i - 1, color));
+  {
+    DrawingContext dc(display);
+    for (i = 2; i < n; i += 6) {
+      i2 = i / 2;
+      dc.draw(Rect(cx - i2, cy - i2, cx - i2 + i - 1, cy - i2 + i - 1, color));
+    }
   }
-
   return micros() - start;
 }
 
 unsigned long testFilledRects(Color color1, Color color2) {
   unsigned long start, t = 0;
   int n, i, i2, cx = display.width() / 2 - 1, cy = display.height() / 2 - 1;
-
-  DrawingContext dc(display);
-  dc.fill(color::Black);
   n = min(display.width(), display.height());
+  clr();
   for (i = n; i > 0; i -= 6) {
     i2 = i / 2;
     start = micros();
-    dc.draw(
-        FilledRect(cx - i2, cy - i2, cx - i2 + i - 1, cy - i2 + i - 1, color1));
+    {
+      DrawingContext dc(display);
+      dc.draw(
+          FilledRect(cx - i2, cy - i2, cx - i2 + i - 1, cy - i2 + i - 1, color1));
+    }
     t += micros() - start;
     // Outlines are not included in timing results
-    dc.draw(Rect(cx - i2, cy - i2, cx - i2 + i - 1, cy - i2 + i - 1, color2));
+    {
+      DrawingContext dc(display);
+      dc.draw(Rect(cx - i2, cy - i2, cx - i2 + i - 1, cy - i2 + i - 1, color2));
+    }
     yield();
   }
 
@@ -553,16 +568,16 @@ unsigned long testFilledRects(Color color1, Color color2) {
 unsigned long testFilledCircles(uint8_t radius, Color color) {
   unsigned long start;
   int x, y, w = display.width(), h = display.height(), r2 = radius * 2;
-
-  DrawingContext dc(display);
-  dc.fill(color::Black);
+  clr();
   start = micros();
-  for (x = radius; x < w; x += r2) {
-    for (y = radius; y < h; y += r2) {
-      dc.draw(FilledCircle::ByRadius(x, y, radius, color));
+  {
+    DrawingContext dc(display);
+    for (x = radius; x < w; x += r2) {
+      for (y = radius; y < h; y += r2) {
+        dc.draw(FilledCircle::ByRadius(x, y, radius, color));
+      }
     }
   }
-
   return micros() - start;
 }
 
@@ -570,88 +585,91 @@ unsigned long testCircles(uint8_t radius, Color color) {
   unsigned long start;
   int x, y, r2 = radius * 2, w = display.width() + radius,
             h = display.height() + radius;
-
-  DrawingContext dc(display);
-  // Screen is not cleared for this one -- this is
-  // intentional and does not affect the reported time.
   start = micros();
-  for (x = 0; x < w; x += r2) {
-    for (y = 0; y < h; y += r2) {
-      dc.draw(Circle::ByRadius(x, y, radius, color));
+  {
+    DrawingContext dc(display);
+    // Screen is not cleared for this one -- this is
+    // intentional and does not affect the reported time.
+    for (x = 0; x < w; x += r2) {
+      for (y = 0; y < h; y += r2) {
+        dc.draw(Circle::ByRadius(x, y, radius, color));
+      }
     }
   }
-
   return micros() - start;
 }
 
 unsigned long testTriangles() {
   unsigned long start;
   int n, i, cx = display.width() / 2 - 1, cy = display.height() / 2 - 1;
-
-  DrawingContext dc(display);
-  dc.fill(color::Black);
+  clr();
   n = min(cx, cy);
   start = micros();
-  for (i = 0; i < n; i += 5) {
-    dc.draw(Triangle(cx, cy - i,      // peak
-                     cx - i, cy + i,  // bottom left
-                     cx + i, cy + i,  // bottom right
-                     Color(i, i, i)));
+  {
+    DrawingContext dc(display);
+    for (i = 0; i < n; i += 5) {
+      dc.draw(Triangle(cx, cy - i,      // peak
+                      cx - i, cy + i,  // bottom left
+                      cx + i, cy + i,  // bottom right
+                      Color(i, i, i)));
+    }
   }
-
   return micros() - start;
 }
 
 unsigned long testFilledTriangles() {
   unsigned long start, t = 0;
   int i, cx = display.width() / 2 - 1, cy = display.height() / 2 - 1;
-
-  DrawingContext dc(display);
-  dc.fill(color::Black);
+  clr();
   start = micros();
   for (i = min(cx, cy); i > 10; i -= 5) {
     start = micros();
-    dc.draw(FilledTriangle(cx, cy - i, cx - i, cy + i, cx + i, cy + i,
-                           Color(0, i * 10, i * 10)));
+    {
+      DrawingContext dc(display);
+      dc.draw(FilledTriangle(cx, cy - i, cx - i, cy + i, cx + i, cy + i,
+                            Color(0, i * 10, i * 10)));
+    }
     t += micros() - start;
-    dc.draw(Triangle(cx, cy - i, cx - i, cy + i, cx + i, cy + i,
-                     Color(i * 10, i * 10, 0)));
+    {
+      DrawingContext dc(display);
+      dc.draw(Triangle(cx, cy - i, cx - i, cy + i, cx + i, cy + i,
+                      Color(i * 10, i * 10, 0)));
+    }
     yield();
   }
-
   return t;
 }
 
 unsigned long testRoundRects() {
   unsigned long start;
   int w, i, i2, cx = display.width() / 2 - 1, cy = display.height() / 2 - 1;
-
-  DrawingContext dc(display);
-  dc.fill(color::Black);
+  clr();
   w = min(display.width(), display.height());
   start = micros();
-  for (i = 0; i < w; i += 6) {
-    i2 = i / 2;
-    dc.draw(RoundRect(cx - i2, cy - i2, cx - i2 + i - 1, cy - i2 + i - 1, i / 8,
-                      Color(i, 0, 0)));
+  {
+    DrawingContext dc(display);
+    for (i = 0; i < w; i += 6) {
+      i2 = i / 2;
+      dc.draw(RoundRect(cx - i2, cy - i2, cx - i2 + i - 1, cy - i2 + i - 1, i / 8,
+                        Color(i, 0, 0)));
+    }
   }
-
   return micros() - start;
 }
 
 unsigned long testFilledRoundRects() {
   unsigned long start;
   int i, i2, cx = display.width() / 2 - 1, cy = display.height() / 2 - 1;
-
-  DrawingContext dc(display);
-  dc.fill(color::Black);
+  clr();
   start = micros();
-  for (i = min(display.width(), display.height()); i > 20; i -= 6) {
-    i2 = i / 2;
-    dc.draw(FilledRoundRect(cx - i2, cy - i2, cx - i2 + i - 1, cy - i2 + i - 1,
-                            i / 8, Color(0, i, 0)));
-    yield();
+  {
+      DrawingContext dc(display);
+    for (i = min(display.width(), display.height()); i > 20; i -= 6) {
+      i2 = i / 2;
+      dc.draw(FilledRoundRect(cx - i2, cy - i2, cx - i2 + i - 1, cy - i2 + i - 1,
+                              i / 8, Color(0, i, 0)));
+      yield();
+    }
   }
-
   return micros() - start;
 }

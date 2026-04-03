@@ -358,8 +358,7 @@ void EnqueueDmaOp(AsyncBlitState& st, const DmaBlitOp& op) {
   }
 }
 
-bool IRAM_ATTR OnCopyDone(async_memcpy_handle_t, async_memcpy_event_t*,
-                          void* cb_args) {
+bool OnCopyDone(async_memcpy_handle_t, async_memcpy_event_t*, void* cb_args) {
   auto* st = static_cast<AsyncBlitState*>(cb_args);
   if (st == nullptr) return false;
 

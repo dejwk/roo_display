@@ -72,41 +72,66 @@ class RingBuf {
 class DmaController {
  public:
   struct Operation {
+    // Pointer to a buffer acquired from this controller's DmaBufferPool.
+    // Ownership transfers to DmaController on submit().
     const roo::byte* out_data;
-    size_t out_len;
-    size_t repetitions;
+
+    // Maximum number of bytes transmitted per DMA start for this operation.
+    // Must be > 0 and 4-byte aligned.
+    size_t out_size;
+
+    // Total number of bytes to transmit by repeating out_data as needed.
+    // Must be > 0 and 4-byte aligned.
+    size_t remaining;
   };
 
-  // Acquires a DMA-capable buffer from the pool. May block if all buffers are
-  // in use by in-flight operations.
+  // Acquires a DMA-capable buffer from the internal pool.
+  //
+  // Internal contract: buffers acquired here are intended to be submitted via
+  // submit(). This call may block if all buffers are in use by in-flight
+  // operations.
   DmaBufferPool::Buffer acquireBuffer();
 
   // Releases a previously acquired buffer back to the pool.
+  //
+  // Must only be used for buffers that have not been submitted. Submitted
+  // buffers are released by DmaController on completion.
   void releaseBuffer(DmaBufferPool::Buffer buffer);
 
   size_t bufferCapacity() const { return dma_buffer_pool_.buffer_size(); }
 
+  // Binds this controller's transfer-complete ISR callback to the SPI host IRQ
+  // dispatcher. Must succeed before submit() is used.
   bool bindInterrupt();
 
+  // Unbinds this controller's ISR callback from the SPI host IRQ dispatcher.
+  // Call only when no DMA operation is in flight.
   void unbindInterrupt();
 
-  // Submits a DMA operation. The caller must ensure that the data buffer
-  // remains valid until the operation completes.
+  // Submits a DMA operation.
+  //
+  // Internal contract:
+  // - bindInterrupt() must have succeeded before calling submit().
+  // - op.out_data must point to a buffer acquired from acquireBuffer().
+  // - Ownership of op.out_data transfers to DmaController on success; caller
+  //   must not release or reuse that buffer.
   //
   // If there is no pending DMA operation, the submitted operation gets started
   // immediately. Otherwise, the submitted operation gets enqueued and will
   // start when all previously submitted operations complete. The caller can
   // submit multiple operations in a row, and they will get executed in order.
-  // It is the caller's responsibility to ensure that the total number of
-  // pending operations does not exceed the capacity of the dma_buffer_pool_.
+  // In normal usage, the buffer pool bounds in-flight submissions by blocking
+  // acquireBuffer() when all pool buffers are busy.
   //
   // If the DMA operation fails to start, this method returns false.
   bool submit(Operation op);
 
-  // Blocks until all previously submitted operations complete. If there are no
-  // pending operations, returns immediately. Only one task can wait for
-  // completion at a time; if multiple tasks call this method concurrently, the
-  // behavior is undefined.
+  // Blocks until all previously submitted operations complete and submitted
+  // buffers are returned to the pool. If there are no pending operations,
+  // returns immediately.
+  //
+  // Only one task can wait for completion at a time; if multiple tasks call
+  // this method concurrently, the behavior is undefined.
   void awaitCompleted();
 
  private:
@@ -135,9 +160,14 @@ class DmaController {
   void transferCompleteISR();
 
 #if ROO_DISPLAY_HAS_SPI_INTERNAL_DMA
+  // Resets runtime queue/processing state to idle.
+  void resetRuntimeState();
+
   // Starts a DMA operation. Must be called while holding mux_ (task or ISR
   // critical section variant).
-  bool startOperationCritical(Operation op);
+  bool prepareOperationCritical(Operation op);
+
+  bool startOperation();
 #endif
 
   // SPI host this controller is bound to.
@@ -161,9 +191,10 @@ class DmaController {
   // // Guarded by mux_.
   // intr_handle_t dma_intr_handle_;
 
-  // True while a DMA transfer is currently active on the peripheral.
-  // Guarded by mux_.
-  bool transfer_in_progress_;
+  // True while a DMA queue is getting processed. Set to true atomically
+  // when the first DMA operation gets scheduled; cleared when the queue gets
+  // empty.
+  bool processing_;
 
   // Task currently blocked in awaitCompleted(), if any.
   // Guarded by mux_.
@@ -173,9 +204,13 @@ class DmaController {
   // Guarded by mux_.
   Operation current_op_;
 
-  // Number of remaining transmissions for current_op_.
+  // Number of bytes in the current transfer.
   // Guarded by mux_.
-  size_t current_op_repetitions_left_;
+  size_t current_op_size_;
+
+  // Number of remaining bytes after current_op_ completes.
+  // Guarded by mux_.
+  size_t current_op_remaining_;
 
   // Protects ISR/task shared state above.
   portMUX_TYPE mux_;

@@ -109,32 +109,28 @@ void AsyncOperationBase::awaitCompletion(bool eager_completion) {
 
 template <int spi_port>
 void AsyncOperation<spi_port>::awaitCompletion(bool eager_completion) {
-  if (!eager_completion) {
-    AsyncOperationBase::awaitCompletion(false);
-    return;
-  }
+  AsyncOperationBase::awaitCompletion(eager_completion);
 
-  // Mode 1: intercept async progression and finish remaining chunks
-  // synchronously in task context. Let any currently in-flight chunk complete
-  // at the hardware level, then disable transfer-done IRQ progression.
-  bool already_done;
-  portENTER_CRITICAL(&mux_);
-  stop_ = true;
-  already_done = done_;
-  waiter_task_ = nullptr;
-  portEXIT_CRITICAL(&mux_);
-
-  if (!already_done) {
-    SpiTxWait(spi_port);
-    SpiTransferDoneIntDisable(spi_port);
-    SpiTransferDoneIntClear(spi_port);
+  if (eager_completion) {
+    // Mode 1: intercept async progression and finish remaining chunks
+    // synchronously in task context. Let any currently in-flight chunk complete
+    // at the hardware level, then disable transfer-done IRQ progression.
+    bool already_done;
     portENTER_CRITICAL(&mux_);
-    done_ = true;
-    waiter_task_ = nullptr;
+    already_done = done_;
     portEXIT_CRITICAL(&mux_);
-  }
 
-  finishRemaining();
+    if (!already_done) {
+      SpiTxWait(spi_port);
+      SpiTransferDoneIntDisable(spi_port);
+      SpiTransferDoneIntClear(spi_port);
+      portENTER_CRITICAL(&mux_);
+      done_ = true;
+      portEXIT_CRITICAL(&mux_);
+    }
+
+    finishRemaining();
+  }
 }
 
 const roo::byte* AsyncOperationBase::Blit::nextChunk(roo::byte* scratch,

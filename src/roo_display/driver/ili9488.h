@@ -165,8 +165,9 @@ class Ili9488Target {
 
     writeCommand(PIXSET, {0x66});
 
-    // Interface Mode Control.
-    writeCommand(0xB0, {0x00});
+    // Interface Mode Control: disable SDO output (write-only panel path) to
+    // reduce contention on shared SPI MISO when SD card is present.
+    writeCommand(0xB0, {0x80});
 
     // Frame Rate Control.
     writeCommand(0xB1, {0xA0});

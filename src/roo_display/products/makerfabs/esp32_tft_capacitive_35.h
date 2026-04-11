@@ -17,6 +17,12 @@
 #include "roo_display/hal/spi.h"
 #include "roo_display/products/combo_device.h"
 
+#if defined(ARDUINO)
+#include "roo_io/fs/esp32/arduino/sdspi.h"
+#else
+#include "roo_io/fs/esp32/esp-idf/sdspi.h"
+#endif
+
 namespace roo_display::products::makerfabs {
 
 /// Makerfabs ESP32 3.5" TFT capacitive touch device.
@@ -43,13 +49,37 @@ class Esp32TftCapacitive35 : public ComboDevice {
 #endif
 
   /// Initialize SPI/I2C transport and SD card CS pin.
-  void initTransport() {
+  ///
+  /// If prime_sd_spi_mode is true (Arduino only), performs a quick SD init at
+  /// low speed and immediately releases the card, so it is explicitly switched
+  /// to SPI mode before display traffic starts.
+  void initTransport(bool prime_sd_spi_mode = true) {
     spi_.init(14, 12, 13);
     i2c_.init(26, 27);
     // In case the SD card is unused, its CS pin should be held HIGH, so that
     // doesn't interfere with the display.
     DefaultGpio::setOutput(pin_sd_cs());
     DefaultGpio::setHigh(pin_sd_cs());
+
+    if (prime_sd_spi_mode) {
+      primeSdSpiMode();
+    }
+  }
+
+  /// Re-primes the SD card into SPI mode.
+  ///
+  /// Call this after physical card reinsertions, since a newly inserted card
+  /// powers up in SD-native mode again.
+  void primeSdSpiMode() {
+#if defined(ARDUINO)
+    roo_io::SD_SPI.setSPI(hspi_);
+    roo_io::SD_SPI.setCsPin(pin_sd_cs());
+    roo_io::Mount dummy = roo_io::SD_SPI.mount();
+#else
+    roo_io::SDSPI.setSpiHost(SPI2_HOST);
+    roo_io::SDSPI.setCsPin(pin_sd_cs());
+    roo_io::Mount dummy = roo_io::SDSPI.mount();
+#endif
   }
 
   /// Return display device.
@@ -57,6 +87,14 @@ class Esp32TftCapacitive35 : public ComboDevice {
 
   /// Return touch device.
   TouchDevice* touch() override { return &touch_; }
+
+  roo_io::BaseEsp32VfsFilesystem& sd() {
+#if defined(ARDUINO)
+    return roo_io::SD_SPI;
+#else
+    return roo_io::SDSPI;
+#endif
+  }
 
   /// Return touch calibration.
   TouchCalibration touch_calibration() override {

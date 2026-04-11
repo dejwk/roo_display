@@ -216,15 +216,36 @@ inline void SpiTransferDoneIntDisable(uint8_t spi_port) {
 }
 
 inline void SpiDmaTxEnable(uint8_t spi_port) {
+#if CONFIG_IDF_TARGET_ESP32
+  // On original ESP32, SPI_DMA_TX_EN is a read-only status bit
+  // (SPI_DMA_STATUS_REG), not a control bit.  DMA TX is implicitly enabled
+  // when the out-link is started by spi_dma_start() in startOperation().
+  (void)spi_port;
+#else
   SET_PERI_REG_MASK(SPI_DMA_CONF_REG(spi_port), SPI_DMA_TX_ENA);
+#endif
 }
 
 inline void SpiDmaTxDisable(uint8_t spi_port) {
+#if CONFIG_IDF_TARGET_ESP32
+  // On original ESP32, stop the DMA out-link and reset the DMA output path
+  // so that subsequent SPI transfers read from data registers, not the
+  // (now-stale) DMA FIFO.
+  CLEAR_PERI_REG_MASK(SPI_DMA_OUT_LINK_REG(spi_port), SPI_OUTLINK_START);
+  SET_PERI_REG_MASK(SPI_DMA_CONF_REG(spi_port), SPI_OUT_RST);
+  CLEAR_PERI_REG_MASK(SPI_DMA_CONF_REG(spi_port), SPI_OUT_RST);
+#else
   CLEAR_PERI_REG_MASK(SPI_DMA_CONF_REG(spi_port), SPI_DMA_TX_ENA);
+#endif
 }
 
 inline bool SpiDmaTxEnabled(uint8_t spi_port) {
+#if CONFIG_IDF_TARGET_ESP32
+  return (READ_PERI_REG(SPI_DMA_OUT_LINK_REG(spi_port)) & SPI_OUTLINK_START)
+      != 0;
+#else
   return (READ_PERI_REG(SPI_DMA_CONF_REG(spi_port)) & SPI_DMA_TX_ENA) != 0;
+#endif
 }
 
 inline void SpiTxStart(uint8_t spi_port) {

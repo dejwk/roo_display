@@ -314,19 +314,26 @@ bool DmaController::startOperation() {
   spicommon_dma_desc_setup_link(dma_ctx_->dmadesc_tx, current_op_.out_data,
                                 static_cast<int>(current_op_size_), false);
 
+  uint8_t spi_port = SpiHostToPort(host_id_);
+
 #if SOC_GDMA_SUPPORTED
+  // On GDMA platforms (S3, C3, …), we can overlap DMA setup with the tail of
+  // the current SPI transfer because SpiDmaTxEnable() gates the data source.
   gdma_reset(dma_ctx_->tx_dma_chan);
   gdma_start(dma_ctx_->tx_dma_chan,
              reinterpret_cast<intptr_t>(
                  const_cast<spi_dma_desc_t*>(dma_ctx_->dmadesc_tx)));
+  SpiTxWait(spi_port);
 #else
+  // On original ESP32, there is no DMA-TX-enable gate; the SPI peripheral
+  // switches data source as soon as the out-link is started.  Wait for any
+  // in-flight register-based transfer to finish before touching DMA state.
+  SpiTxWait(spi_port);
   spi_dma_reset(dma_ctx_->tx_dma_chan);
   spi_dma_start(dma_ctx_->tx_dma_chan,
                 const_cast<spi_dma_desc_t*>(dma_ctx_->dmadesc_tx));
 #endif
 
-  uint8_t spi_port = SpiHostToPort(host_id_);
-  SpiTxWait(spi_port);
   SpiSetOutBufferSize(spi_port, current_op_size_);
   SpiTransferDoneIntClear(spi_port);
   SpiTransferDoneIntEnable(spi_port);

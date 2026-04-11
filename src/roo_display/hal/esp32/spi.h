@@ -396,7 +396,8 @@ class Esp32SpiDevice {
     }
     SpiSetOutBufferSize(spi_port, 64);
 
-    if (spi_async_mode_ != kSpiAsyncModeSync) {
+    if (spi_async_mode_ == kSpiAsyncModeIsrEager ||
+        spi_async_mode_ == kSpiAsyncModeIsrStrict) {
       non_dma_pipeline_.beginAsyncFill(len);
       async_op_pending_ = true;
       need_sync_ = true;
@@ -434,7 +435,7 @@ class Esp32SpiDevice {
       return;
     }
 
-    if (spi_async_mode_ == kSpiAsyncModeDmaPipeline) {
+    if (spi_async_mode_ == kSpiAsyncModeDmaPipeline && len >= 512) {
       dma_pipeline_.fill24once(data, repetitions);
       need_sync_ = true;
       async_op_pending_ = dma_pipeline_.hasPendingAsync();
@@ -451,7 +452,8 @@ class Esp32SpiDevice {
     }
     SpiSetOutBufferSize(spi_port, 60);
 
-    if (spi_async_mode_ != kSpiAsyncModeSync) {
+    if (spi_async_mode_ == kSpiAsyncModeIsrEager ||
+        spi_async_mode_ == kSpiAsyncModeIsrStrict) {
       non_dma_pipeline_.beginAsyncFill(len, 60);
       async_op_pending_ = true;
       need_sync_ = true;

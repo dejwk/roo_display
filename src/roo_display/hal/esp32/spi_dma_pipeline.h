@@ -150,7 +150,8 @@ class DmaPipeline {
     SpiTxStart(spi_port);
     len -= first;
 
-    size_t reps = std::min<size_t>(len / 4, kDmaBufferCapacity / 4);
+    size_t out_size = std::min<size_t>(len, kDmaBufferCapacity);
+    size_t reps = out_size / 4;
     if (dma_work_buffer_.data == nullptr) {
       dma_work_buffer_ = dma_controller_->acquireBuffer();
     }
@@ -173,7 +174,7 @@ class DmaPipeline {
 
     bool ok = dma_controller_->submit(DmaController::Operation{
         .out_data = dma_work_buffer_.data,
-        .out_size = kDmaBufferCapacity,
+        .out_size = out_size,
         .remaining = len,
     });
     CHECK(ok);
@@ -210,7 +211,7 @@ class DmaPipeline {
       dma_work_buffer_ = dma_controller_->acquireBuffer();
     }
 
-    const size_t capacity = dma_controller_->bufferCapacity();
+    const size_t capacity = kDmaBufferCapacity;
     const size_t out_size =
         std::min(capacity - (capacity % 12), static_cast<size_t>(len));
     CHECK(out_size >= 12);
@@ -408,8 +409,8 @@ class DmaPipeline {
       SpiWrite64Aligned(spi_port, dma_work_buffer_.data);
       SpiTxStart(spi_port);
       dma_work_buffer_used_ -= 64;
-      __builtin_memcpy(dma_work_buffer_.data, dma_work_buffer_.data + 64,
-                       dma_work_buffer_used_);
+      __builtin_memmove(dma_work_buffer_.data, dma_work_buffer_.data + 64,
+                        dma_work_buffer_used_);
       return;
     }
 

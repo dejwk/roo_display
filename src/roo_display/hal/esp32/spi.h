@@ -428,26 +428,12 @@ class Esp32SpiDevice {
       return;
     }
 
-    ++async_blit_stats_.requests;
-    bool source_internal = IsInternalMemory(data);
-    if (source_internal) {
-      ++async_blit_stats_.internal_source;
-    } else {
-      ++async_blit_stats_.non_internal_source;
-    }
-
-    bool async_eligible = source_internal && (row_bytes * row_count >= 64);
-    if (!async_eligible) {
-      ++async_blit_stats_.fallback_non_internal;
+    flush();
+    if (!non_dma_pipeline_.tryBeginAsyncBlit(data, row_stride_bytes, row_bytes,
+                                             row_count)) {
       syncBlitFallback(data, row_stride_bytes, row_bytes, row_count);
       return;
     }
-
-    ++async_blit_stats_.eligible_internal;
-    flush();
-    non_dma_pipeline_.beginAsyncBlit(data, row_stride_bytes, row_bytes,
-                                     row_count);
-    ++async_blit_stats_.async_started;
     async_op_pending_ = true;
     need_sync_ = true;
     return;
@@ -513,21 +499,8 @@ class Esp32SpiDevice {
     need_sync_ = true;
   }
 
-  struct AsyncBlitStats {
-    uint32_t requests = 0;
-    uint32_t internal_source = 0;
-    uint32_t non_internal_source = 0;
-    uint32_t eligible_internal = 0;
-    uint32_t async_started = 0;
-    uint32_t fallback_irq_unavailable = 0;
-    uint32_t fallback_async_init_failed = 0;
-    uint32_t fallback_non_internal = 0;
-    uint32_t sync_fallbacks = 0;
-  };
-
   void syncBlitFallback(const roo::byte* data, size_t row_stride_bytes,
                         size_t row_bytes, size_t row_count) {
-    ++async_blit_stats_.sync_fallbacks;
     const roo::byte* row = data;
     for (size_t i = 0; i < row_count; ++i) {
       flush();
@@ -542,7 +515,6 @@ class Esp32SpiDevice {
   spi_host_device_t spi_;
   spi_device_handle_t device_;
 #endif
-  AsyncBlitStats async_blit_stats_;
   bool need_sync_ = false;
   bool async_op_pending_ = false;
   NonDmaPipeline<spi_port> non_dma_pipeline_;

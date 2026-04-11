@@ -42,9 +42,9 @@ class NonDmaPipeline {
     return true;
   }
 
-  void beginAsyncFill(uint32_t len) {
+  void beginAsyncFill(uint32_t len, size_t chunk_bytes = 64) {
     DCHECK(irq_bound_);
-    async_op_.initFill(len);
+    async_op_.initFill(len, chunk_bytes);
     SpiTransferDoneIntClear(spi_port);
     SpiTransferDoneIntEnable(spi_port);
     SpiTxStart(spi_port);

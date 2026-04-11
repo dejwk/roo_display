@@ -377,6 +377,14 @@ class Esp32SpiDevice {
       SpiTxWait(spi_port);
     }
     SpiSetOutBufferSize(spi_port, 60);
+
+    if (spi_async_mode_ != kSpiAsyncModeSync) {
+      non_dma_pipeline_.beginAsyncFill(len, 60);
+      async_op_pending_ = true;
+      need_sync_ = true;
+      return;
+    }
+
     while (true) {
       SpiTxStart(spi_port);
       len -= 60;

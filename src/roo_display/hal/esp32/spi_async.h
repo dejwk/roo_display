@@ -24,7 +24,7 @@ class AsyncOperationBase {
   AsyncOperationBase();
 
  public:
-  void initFill(size_t len);
+  void initFill(size_t len, size_t chunk_bytes = 64);
 
   void initBlit(const roo::byte* data, size_t row_stride_bytes,
                 size_t row_bytes, size_t row_count);
@@ -36,15 +36,19 @@ class AsyncOperationBase {
 
   struct Fill {
     size_t remaining;
+    size_t chunk_bytes;
 
-    void init(size_t len) { remaining = len; }
+    void init(size_t len, size_t chunk_bytes) {
+      remaining = len;
+      this->chunk_bytes = chunk_bytes;
+    }
 
     bool ROO_DISPLAY_SPI_ASYNC_ISR_ATTR nextChunk() {
-      if (remaining <= 64) {
+      if (remaining <= chunk_bytes) {
         remaining = 0;
         return false;
       }
-      remaining -= 64;
+      remaining -= chunk_bytes;
       return true;
     }
   };

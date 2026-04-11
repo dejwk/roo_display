@@ -54,11 +54,11 @@ AsyncOperationBase::AsyncOperationBase()
 template <int spi_port>
 AsyncOperation<spi_port>::AsyncOperation() : AsyncOperationBase() {}
 
-void AsyncOperationBase::initFill(size_t len) {
+void AsyncOperationBase::initFill(size_t len, size_t chunk_bytes) {
   done_ = false;
   type_ = kFill;
   stop_ = false;
-  fill_.init(len);
+  fill_.init(len, chunk_bytes);
 }
 
 void AsyncOperationBase::initBlit(const roo::byte* data,

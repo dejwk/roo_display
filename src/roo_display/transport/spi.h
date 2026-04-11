@@ -111,6 +111,10 @@ class SpiTransport {
     device_.fill24(data, repetitions);
   }
 
+  void fill24once(const roo::byte* data, uint32_t repetitions) {
+    device_.fill24once(data, repetitions);
+  }
+
   void asyncBlit(const roo::byte* data, size_t row_stride_bytes,
                  size_t row_bytes, size_t row_count) {
     device_.asyncBlit(data, row_stride_bytes, row_bytes, row_count);

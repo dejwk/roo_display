@@ -182,6 +182,50 @@ class DmaPipeline {
     dma_work_buffer_used_ = 0;
   }
 
+  void fill24once(const roo::byte* data, uint32_t repetitions) {
+    uint32_t r = static_cast<uint8_t>(data[0]);
+    uint32_t g = static_cast<uint8_t>(data[1]);
+    uint32_t b = static_cast<uint8_t>(data[2]);
+    // Concatenate 4 pixels into three 32 bit blocks.
+    uint32_t d2 = b | r << 8 | g << 16 | b << 24;
+    uint32_t d1 = d2 << 8 | g;
+    uint32_t d0 = d1 << 8 | r;
+
+    uint32_t len = repetitions * 3;
+
+    // Immediately start the first chunk, to minimize latency.
+    // Keep the remaining payload divisible by 12, so DMA continuation is both
+    // 4-byte aligned and phase-stable for the 3-byte RGB pattern.
+    // 36 is chosen as a baseline to keep the first burst substantial while
+    // fitting in the 60-byte register path.
+    size_t first = (len - 1) % 12 + 37;
+    SpiSetOutBufferSize(spi_port, first);
+    SpiFillUpTo60(spi_port, d0, d1, d2, first);
+    SpiTxStart(spi_port);
+    len -= first;
+
+    CHECK_EQ(len % 12, 0);
+
+    if (dma_work_buffer_.data == nullptr) {
+      dma_work_buffer_ = dma_controller_->acquireBuffer();
+    }
+
+    const size_t capacity = dma_controller_->bufferCapacity();
+    const size_t out_size = capacity - (capacity % 12);
+    CHECK(out_size >= 12);
+    FillPattern3Bytes(dma_work_buffer_.data, out_size, data, first % 3);
+
+    bool ok = dma_controller_->submit(DmaController::Operation{
+        .out_data = dma_work_buffer_.data,
+        .out_size = out_size,
+        .remaining = len,
+    });
+    CHECK(ok);
+    dma_submitted_ = true;
+    dma_work_buffer_ = {nullptr};
+    dma_work_buffer_used_ = 0;
+  }
+
   void appendBytes(const roo::byte* data, size_t len) {
     // CHECK_NOTNULL(dma_controller_);
     if (dma_work_buffer_used_ == 0 && !dma_submitted_ && !SpiTxBusy(spi_port)) {

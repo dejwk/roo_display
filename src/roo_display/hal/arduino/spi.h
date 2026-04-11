@@ -109,6 +109,10 @@ class ArduinoSpiDevice {
     spi_.writeBytes(reinterpret_cast<uint8_t*>(buf), repetitions * 3);
   }
 
+  void fill24once(const roo::byte* data, uint32_t repetitions) {
+    fill24(data, repetitions);
+  }
+
   void asyncBlit(const roo::byte* data, size_t row_stride_bytes,
                  size_t row_bytes, size_t row_count) {
     if (data == nullptr || row_bytes == 0 || row_count == 0) {

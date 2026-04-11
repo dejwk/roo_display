@@ -109,8 +109,7 @@ class Esp32SpiDevice {
   Esp32SpiDevice(Esp32SpiDevice&& other) noexcept : spi_(other.spi_) {}
 #else
   Esp32SpiDevice(Esp32SpiDevice&& other) noexcept
-      : spi_(other.spi_),
-        device_(other.device_) {}
+      : spi_(other.spi_), device_(other.device_) {}
 #endif
 
   Esp32SpiDevice& operator=(Esp32SpiDevice&&) = delete;
@@ -230,64 +229,6 @@ class Esp32SpiDevice {
     writeBytesSyncFlushed(data, len);
   }
 
-  // Like fill16, but must be called when flushed, and hints that it will be
-  // followed by flush.
-  void fill16once(const roo::byte* data, uint32_t repetitions) {
-    uint32_t len = repetitions * 2;
-    if (len <= 64) {
-      // Note: ESP32 is little-endian, so we're byte-swapping to
-      // get the bytes sorted correctly in the output register.
-      uint16_t hi = static_cast<uint16_t>(data[1]);
-      uint16_t lo = static_cast<uint16_t>(data[0]);
-      uint16_t d16 = (hi << 8) | lo;
-      uint32_t d32 = (d16 << 16) | d16;
-      SpiSetOutBufferSize(spi_port, len);
-      SpiFillUpTo64(spi_port, d32, len);
-      SpiTxStart(spi_port);
-      need_sync_ = true;
-      return;
-    }
-    if (spi_async_mode_ == kSpiAsyncModeDmaPipeline && len >= 512) {
-      dma_pipeline_.fill16once(data, repetitions);
-      need_sync_ = true;
-      async_op_pending_ = dma_pipeline_.hasPendingAsync();
-      return;
-    }
-    // Note: ESP32 is little-endian, so we're byte-swapping to
-    // get the bytes sorted correctly in the output register.
-    uint16_t hi = static_cast<uint16_t>(data[1]);
-    uint16_t lo = static_cast<uint16_t>(data[0]);
-    uint16_t d16 = (hi << 8) | lo;
-    uint32_t d32 = (d16 << 16) | d16;
-    SpiFill64(spi_port, d32);
-    uint32_t rem = len & 63;
-    if (rem != 0) {
-      SpiSetOutBufferSize(spi_port, rem);
-      SpiTxStart(spi_port);
-      len -= rem;
-      SpiTxWait(spi_port);
-    }
-    SpiSetOutBufferSize(spi_port, 64);
-
-    if (spi_async_mode_ != kSpiAsyncModeSync) {
-      non_dma_pipeline_.beginAsyncFill(len);
-      async_op_pending_ = true;
-      need_sync_ = true;
-      return;
-    }
-
-    // Sync fallback.
-    while (true) {
-      SpiTxStart(spi_port);
-      len -= 64;
-      if (len == 0) {
-        need_sync_ = true;
-        return;
-      }
-      SpiTxWait(spi_port);
-    }
-  }
-
   void fill16(const roo::byte* data, uint32_t repetitions) {
     // Note: ESP32 is little-endian, so we're byte-swapping to
     // get the bytes sorted correctly in the output register.
@@ -364,6 +305,119 @@ class Esp32SpiDevice {
       SpiFillUpTo60(spi_port, d0, d1, d2, len);
       SpiTxStart(spi_port);
       need_sync_ = true;
+      return;
+    }
+
+    uint32_t rem = len % 60;
+    flush();
+    SpiFill60(spi_port, d0, d1, d2);
+    if (rem != 0) {
+      SpiSetOutBufferSize(spi_port, rem);
+      SpiTxStart(spi_port);
+      len -= rem;
+      SpiTxWait(spi_port);
+    }
+    SpiSetOutBufferSize(spi_port, 60);
+
+    if (spi_async_mode_ != kSpiAsyncModeSync) {
+      non_dma_pipeline_.beginAsyncFill(len, 60);
+      async_op_pending_ = true;
+      need_sync_ = true;
+      return;
+    }
+
+    while (true) {
+      SpiTxStart(spi_port);
+      len -= 60;
+      if (len == 0) {
+        need_sync_ = true;
+        return;
+      }
+      SpiTxWait(spi_port);
+    }
+  }
+
+  // Like fill16, but must be called when flushed, and hints that it will be
+  // followed by flush.
+  void fill16once(const roo::byte* data, uint32_t repetitions) {
+    uint32_t len = repetitions * 2;
+    if (len < 64) {
+      // Note: ESP32 is little-endian, so we're byte-swapping to
+      // get the bytes sorted correctly in the output register.
+      uint16_t hi = static_cast<uint16_t>(data[1]);
+      uint16_t lo = static_cast<uint16_t>(data[0]);
+      uint16_t d16 = (hi << 8) | lo;
+      uint32_t d32 = (d16 << 16) | d16;
+      SpiSetOutBufferSize(spi_port, len);
+      SpiFillUpTo64(spi_port, d32, len);
+      SpiTxStart(spi_port);
+      need_sync_ = true;
+      return;
+    }
+    if (spi_async_mode_ == kSpiAsyncModeDmaPipeline && len >= 512) {
+      dma_pipeline_.fill16once(data, repetitions);
+      need_sync_ = true;
+      async_op_pending_ = dma_pipeline_.hasPendingAsync();
+      return;
+    }
+    // Note: ESP32 is little-endian, so we're byte-swapping to
+    // get the bytes sorted correctly in the output register.
+    uint16_t hi = static_cast<uint16_t>(data[1]);
+    uint16_t lo = static_cast<uint16_t>(data[0]);
+    uint16_t d16 = (hi << 8) | lo;
+    uint32_t d32 = (d16 << 16) | d16;
+    SpiFill64(spi_port, d32);
+    uint32_t rem = len & 63;
+    if (rem != 0) {
+      SpiSetOutBufferSize(spi_port, rem);
+      SpiTxStart(spi_port);
+      len -= rem;
+      SpiTxWait(spi_port);
+    }
+    SpiSetOutBufferSize(spi_port, 64);
+
+    if (spi_async_mode_ != kSpiAsyncModeSync) {
+      non_dma_pipeline_.beginAsyncFill(len);
+      async_op_pending_ = true;
+      need_sync_ = true;
+      return;
+    }
+
+    // Sync fallback.
+    while (true) {
+      SpiTxStart(spi_port);
+      len -= 64;
+      if (len == 0) {
+        need_sync_ = true;
+        return;
+      }
+      SpiTxWait(spi_port);
+    }
+  }
+
+  // Like fill24, but must be called when flushed, and hints that it will be
+  // followed by flush.
+  void fill24once(const roo::byte* data, uint32_t repetitions) {
+    uint32_t r = static_cast<uint8_t>(data[0]);
+    uint32_t g = static_cast<uint8_t>(data[1]);
+    uint32_t b = static_cast<uint8_t>(data[2]);
+    // Concatenate 4 pixels into three 32 bit blocks.
+    uint32_t d2 = b | r << 8 | g << 16 | b << 24;
+    uint32_t d1 = d2 << 8 | g;
+    uint32_t d0 = d1 << 8 | r;
+    uint32_t len = repetitions * 3;
+    if (len < 60) {
+      SpiSetOutBufferSize(spi_port, len);
+      SpiFillUpTo60(spi_port, d0, d1, d2, len);
+      SpiTxStart(spi_port);
+      need_sync_ = true;
+      return;
+    }
+
+    if (spi_async_mode_ == kSpiAsyncModeDmaPipeline) {
+      dma_pipeline_.fill24once(data, repetitions);
+      need_sync_ = true;
+      async_op_pending_ = dma_pipeline_.hasPendingAsync();
       return;
     }
 

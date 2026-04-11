@@ -322,7 +322,7 @@ class DmaPipeline {
     }
 
     const size_t chunk2 = capacity - (capacity % 4);
-    if (chunk2 >= 64 && remaining_bytes >= 2 * chunk2) {
+    if (chunk2 >= 64 && remaining_bytes >= chunk2) {
       phase = FillPattern2Bytes(dma_work_buffer_.data, chunk2, pattern, phase);
       dma_work_buffer_used_ = chunk2;
       size_t op_repetitions = remaining_bytes / chunk2;
@@ -371,7 +371,7 @@ class DmaPipeline {
     }
 
     const size_t chunk3 = capacity - (capacity % 12);
-    if (chunk3 >= 64 && remaining_bytes >= 2 * chunk3) {
+    if (chunk3 >= 64 && remaining_bytes >= chunk3) {
       phase = FillPattern3Bytes(dma_work_buffer_.data, chunk3, pattern, phase);
       dma_work_buffer_used_ = chunk3;
       size_t op_repetitions = remaining_bytes / chunk3;

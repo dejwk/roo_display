@@ -82,9 +82,13 @@ inline __attribute__((always_inline)) size_t FillPattern3Bytes(
 }
 
 template <uint8_t spi_port>
-class DmaWritePipeline {
+class DmaPipeline {
  public:
   void init() { dma_controller_ = GetDmaControllerForHost(spi_port); }
+
+  __attribute__((always_inline)) bool hasPendingAsync() const {
+    return dma_work_buffer_used_ != 0 || dma_submitted_;
+  }
 
   bool beginWriteOnlyTransaction() { return ensureDmaReady(); }
 
@@ -128,26 +132,23 @@ class DmaWritePipeline {
     }
   }
 
-  void fill16once(const roo::byte* data, uint32_t repetitions, bool& need_sync,
-                  bool& async_op_pending) {
+  void fill16once(const roo::byte* data, uint32_t repetitions) {
     uint16_t hi = static_cast<uint16_t>(data[1]);
     uint16_t lo = static_cast<uint16_t>(data[0]);
     uint16_t d16 = (hi << 8) | lo;
     uint32_t d32 = (d16 << 16) | d16;
 
     uint32_t len = repetitions * 2;
-    if (len < 512 || dma_controller_ == nullptr) return;
 
     // Immediately start the first chunk, to minimize latency.
-    size_t first = ((len - 1) % 64) + 1;
+    // Modulo 4 is used to ensure the rest is 4-byte aligned for DMA.
+    // 21 is chosen empirically to tune the concurrency (DMA pipeline prepares
+    // the next chunk while the first is transmitting) and minimize total time.
+    size_t first = ((len - 1) % 4) + 21;
     SpiSetOutBufferSize(spi_port, first);
     SpiFillUpTo64(spi_port, d32, first);
     SpiTxStart(spi_port);
     len -= first;
-    if (len == 0) {
-      need_sync = true;
-      return;
-    }
 
     size_t reps = std::min<size_t>(len / 4, kDmaBufferCapacity / 4);
     if (dma_work_buffer_.data == nullptr) {
@@ -176,17 +177,13 @@ class DmaWritePipeline {
         .remaining = len,
     });
     CHECK(ok);
-    async_op_pending = true;
     dma_submitted_ = true;
     dma_work_buffer_ = {nullptr};
     dma_work_buffer_used_ = 0;
-    need_sync = true;
   }
 
-  void appendBytes(const roo::byte* data, size_t len, bool& need_sync,
-                   bool& async_op_pending) {
-    CHECK_NOTNULL(dma_controller_);
-    if (len == 0) return;
+  void appendBytes(const roo::byte* data, size_t len) {
+    // CHECK_NOTNULL(dma_controller_);
     if (dma_work_buffer_used_ == 0 && !dma_submitted_ && !SpiTxBusy(spi_port)) {
       const bool src_aligned = (reinterpret_cast<uintptr_t>(data) & 0x3u) == 0;
       // If producer is slow enough and line goes idle, publish directly.
@@ -196,7 +193,6 @@ class DmaWritePipeline {
         } else {
           writeBytesSyncFlushed(data, len);
         }
-        need_sync = true;
         return;
       }
       if (src_aligned) {
@@ -220,21 +216,17 @@ class DmaWritePipeline {
       __builtin_memcpy(dma_work_buffer_.data + dma_work_buffer_used_, data,
                        chunk);
       dma_work_buffer_used_ += chunk;
-      async_op_pending = true;
       data += chunk;
       len -= chunk;
       if (dma_work_buffer_used_ == capacity) {
         submitWorkingDmaBuffer();
-        async_op_pending = true;
       } else {
-        submitPartialIfLineIdle(need_sync, async_op_pending);
+        submitPartialIfLineIdle();
       }
     }
-    need_sync = true;
   }
 
-  void appendRepeated16(const roo::byte* pattern, size_t repetitions,
-                        bool& need_sync, bool& async_op_pending) {
+  void appendRepeated16(const roo::byte* pattern, size_t repetitions) {
     CHECK_NOTNULL(dma_controller_);
     const size_t capacity = dma_controller_->bufferCapacity();
     size_t remaining_bytes = repetitions * 2;
@@ -249,8 +241,6 @@ class DmaWritePipeline {
       roo::byte* dst = dma_work_buffer_.data + dma_work_buffer_used_;
       roo_io::PatternFill<2>(dst, repetitions, pattern);
       dma_work_buffer_used_ += remaining_bytes;
-      async_op_pending = true;
-      need_sync = true;
       return;
     }
 
@@ -260,10 +250,8 @@ class DmaWritePipeline {
       phase = FillPattern2Bytes(dma_work_buffer_.data + dma_work_buffer_used_,
                                 available, pattern, phase);
       dma_work_buffer_used_ = capacity;
-      async_op_pending = true;
       remaining_bytes -= available;
       submitWorkingDmaBuffer();
-      async_op_pending = true;
     }
     if (dma_work_buffer_.data == nullptr) {
       dma_work_buffer_ = dma_controller_->acquireBuffer();
@@ -275,7 +263,6 @@ class DmaWritePipeline {
       dma_work_buffer_used_ = chunk2;
       size_t op_repetitions = remaining_bytes / chunk2;
       submitWorkingDmaBuffer(op_repetitions);
-      async_op_pending = true;
       remaining_bytes -= op_repetitions * chunk2;
     }
 
@@ -285,13 +272,10 @@ class DmaWritePipeline {
       }
       FillPattern2Bytes(dma_work_buffer_.data, remaining_bytes, pattern, phase);
       dma_work_buffer_used_ = remaining_bytes;
-      async_op_pending = true;
     }
-    need_sync = true;
   }
 
-  void appendRepeated24(const roo::byte* pattern, size_t repetitions,
-                        bool& need_sync, bool& async_op_pending) {
+  void appendRepeated24(const roo::byte* pattern, size_t repetitions) {
     CHECK_NOTNULL(dma_controller_);
     const size_t capacity = dma_controller_->bufferCapacity();
     size_t remaining_bytes = repetitions * 3;
@@ -306,8 +290,6 @@ class DmaWritePipeline {
       roo::byte* dst = dma_work_buffer_.data + dma_work_buffer_used_;
       roo_io::PatternFill<3>(dst, repetitions, pattern);
       dma_work_buffer_used_ += remaining_bytes;
-      async_op_pending = true;
-      need_sync = true;
       return;
     }
 
@@ -317,9 +299,8 @@ class DmaWritePipeline {
       phase = FillPattern3Bytes(dma_work_buffer_.data + dma_work_buffer_used_,
                                 available, pattern, phase);
       dma_work_buffer_used_ = capacity;
-      async_op_pending = true;
       remaining_bytes -= available;
-      submitWorkingDmaBuffer(async_op_pending, need_sync);
+      submitWorkingDmaBuffer();
     }
     if (dma_work_buffer_.data == nullptr) {
       dma_work_buffer_ = dma_controller_->acquireBuffer();
@@ -330,7 +311,7 @@ class DmaWritePipeline {
       phase = FillPattern3Bytes(dma_work_buffer_.data, chunk3, pattern, phase);
       dma_work_buffer_used_ = chunk3;
       size_t op_repetitions = remaining_bytes / chunk3;
-      submitWorkingDmaBuffer(async_op_pending, need_sync, op_repetitions);
+      submitWorkingDmaBuffer(op_repetitions);
       remaining_bytes -= op_repetitions * chunk3;
     }
 
@@ -340,13 +321,10 @@ class DmaWritePipeline {
       }
       FillPattern3Bytes(dma_work_buffer_.data, remaining_bytes, pattern, phase);
       dma_work_buffer_used_ = remaining_bytes;
-      async_op_pending = true;
     }
-
-    need_sync = true;
   }
 
-  void submitPartialIfLineIdle(bool& need_sync, bool& async_op_pending) {
+  void submitPartialIfLineIdle() {
     CHECK_NOTNULL(dma_controller_);
     if (dma_work_buffer_.data == nullptr || dma_work_buffer_used_ == 0) return;
 
@@ -356,9 +334,7 @@ class DmaWritePipeline {
     if (dma_work_buffer_used_ < 64) {
       syncWriteUpTo64BytesAlignedNoFlush(dma_work_buffer_.data,
                                          dma_work_buffer_used_);
-      need_sync = true;
       dma_work_buffer_used_ = 0;
-      async_op_pending = false;
       return;
     }
 
@@ -367,7 +343,6 @@ class DmaWritePipeline {
       SpiSetOutBufferSize(spi_port, 64);
       SpiWrite64Aligned(spi_port, dma_work_buffer_.data);
       SpiTxStart(spi_port);
-      need_sync = true;
       dma_work_buffer_used_ -= 64;
       __builtin_memcpy(dma_work_buffer_.data, dma_work_buffer_.data + 64,
                        dma_work_buffer_used_);
@@ -383,16 +358,12 @@ class DmaWritePipeline {
 
     dma_work_buffer_used_ = aligned;
     submitWorkingDmaBuffer();
-    async_op_pending = true;
-    need_sync = true;
 
     if (remainder > 0) {
       dma_work_buffer_ = dma_controller_->acquireBuffer();
       CHECK_NOTNULL(dma_work_buffer_.data);
       __builtin_memcpy(dma_work_buffer_.data, tail, remainder);
       dma_work_buffer_used_ = remainder;
-      async_op_pending = true;
-      need_sync = true;
     }
   }
 
@@ -415,7 +386,8 @@ class DmaWritePipeline {
     dma_work_buffer_used_ = 0;
   }
 
-  void syncWriteUpTo64BytesAlignedNoFlush(const roo::byte* data, size_t len) {
+  __attribute__((always_inline)) void syncWriteUpTo64BytesAlignedNoFlush(
+      const roo::byte* data, size_t len) {
     SpiSetOutBufferSize(spi_port, len);
     SpiWriteUpTo64Aligned(spi_port, data, len);
     SpiTxStart(spi_port);

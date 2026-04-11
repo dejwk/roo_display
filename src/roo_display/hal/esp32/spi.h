@@ -18,7 +18,7 @@
 #include "roo_display/hal/esp32/spi_async.h"
 #include "roo_display/hal/esp32/spi_config.h"
 #include "roo_display/hal/esp32/spi_dma.h"
-#include "roo_display/hal/esp32/spi_dma_write.h"
+#include "roo_display/hal/esp32/spi_dma_pipeline.h"
 #include "roo_display/hal/esp32/spi_irq.h"
 #include "roo_display/hal/esp32/spi_reg.h"
 #include "roo_display/hal/spi_settings.h"
@@ -151,7 +151,7 @@ class Esp32SpiDevice {
     ESP_ERROR_CHECK(spi_bus_add_device(spi_, &config_, &device_));
 #endif
     if (spi_async_mode_ == kSpiAsyncModeDmaPipeline) {
-      dma_write_.init();
+      dma_pipeline_.init();
     }
   }
 
@@ -173,7 +173,7 @@ class Esp32SpiDevice {
 #endif
     SpiSetWriteOnlyMode(spi_port);
     if (spi_async_mode_ == kSpiAsyncModeDmaPipeline) {
-      CHECK(dma_write_.beginWriteOnlyTransaction());
+      CHECK(dma_pipeline_.beginWriteOnlyTransaction());
     }
   }
 
@@ -181,7 +181,7 @@ class Esp32SpiDevice {
     flush();
     SpiSetReadWriteMode(spi_port);
     unbindInterrupt();
-    dma_write_.endTransaction();
+    dma_pipeline_.endTransaction();
 #if defined(ARDUINO)
     spi_.endTransaction();
 #else
@@ -199,7 +199,7 @@ class Esp32SpiDevice {
     async_op_pending_ = false;
 
     if (spi_async_mode_ == kSpiAsyncModeDmaPipeline) {
-      dma_write_.flush();
+      dma_pipeline_.flush();
       return;
     }
     // Mode 2 keeps completion fully ISR-driven. Other modes eagerly finish in
@@ -231,13 +231,13 @@ class Esp32SpiDevice {
     need_sync_ = true;
   }
 
+  // We expect len > 0.
   void writeBytes(const roo::byte* data, uint32_t len) {
-    switch (spi_async_mode_) {
-      case kSpiAsyncModeDmaPipeline:
-        dma_write_.appendBytes(data, len, need_sync_, async_op_pending_);
-        return;
-      default:
-        break;
+    if (spi_async_mode_ == kSpiAsyncModeDmaPipeline) {
+      dma_pipeline_.appendBytes(data, len);
+      need_sync_ = true;
+      async_op_pending_ = dma_pipeline_.hasPendingAsync();
+      return;
     }
     flush();
     writeBytesSyncFlushed(data, len);
@@ -246,25 +246,33 @@ class Esp32SpiDevice {
   // Like fill16, but must be called when flushed, and hints that it will be
   // followed by flush.
   void fill16once(const roo::byte* data, uint32_t repetitions) {
-    // Note: ESP32 is little-endian, so we're byte-swapping to
-    // get the bytes sorted correctly in the output register.
-    uint16_t hi = static_cast<uint16_t>(data[1]);
-    uint16_t lo = static_cast<uint16_t>(data[0]);
-    uint16_t d16 = (hi << 8) | lo;
-    uint32_t d32 = (d16 << 16) | d16;
     uint32_t len = repetitions * 2;
     if (len <= 64) {
+      // Note: ESP32 is little-endian, so we're byte-swapping to
+      // get the bytes sorted correctly in the output register.
+      uint16_t hi = static_cast<uint16_t>(data[1]);
+      uint16_t lo = static_cast<uint16_t>(data[0]);
+      uint16_t d16 = (hi << 8) | lo;
+      uint32_t d32 = (d16 << 16) | d16;
       SpiSetOutBufferSize(spi_port, len);
       SpiFillUpTo64(spi_port, d32, len);
       SpiTxStart(spi_port);
       need_sync_ = true;
       return;
     }
-    SpiFill64(spi_port, d32);
     if (spi_async_mode_ == kSpiAsyncModeDmaPipeline && len >= 512) {
-      dma_write_.fill16once(data, repetitions, need_sync_, async_op_pending_);
+      dma_pipeline_.fill16once(data, repetitions);
+      need_sync_ = true;
+      async_op_pending_ = dma_pipeline_.hasPendingAsync();
       return;
     }
+    // Note: ESP32 is little-endian, so we're byte-swapping to
+    // get the bytes sorted correctly in the output register.
+    uint16_t hi = static_cast<uint16_t>(data[1]);
+    uint16_t lo = static_cast<uint16_t>(data[0]);
+    uint16_t d16 = (hi << 8) | lo;
+    uint32_t d32 = (d16 << 16) | d16;
+    SpiFill64(spi_port, d32);
     uint32_t rem = len & 63;
     if (rem != 0) {
       SpiSetOutBufferSize(spi_port, rem);
@@ -304,9 +312,10 @@ class Esp32SpiDevice {
     uint16_t d16 = (hi << 8) | lo;
     uint32_t d32 = (d16 << 16) | d16;
     if (spi_async_mode_ == kSpiAsyncModeDmaPipeline) {
-      dma_write_.appendRepeated16(data, repetitions, need_sync_,
-                                  async_op_pending_);
-      dma_write_.submitPartialIfLineIdle(need_sync_, async_op_pending_);
+      dma_pipeline_.appendRepeated16(data, repetitions);
+      dma_pipeline_.submitPartialIfLineIdle();
+      need_sync_ = true;
+      async_op_pending_ = dma_pipeline_.hasPendingAsync();
       return;
     }
     uint32_t len = repetitions * 2;
@@ -354,9 +363,10 @@ class Esp32SpiDevice {
 
   void fill24(const roo::byte* data, uint32_t repetitions) {
     if (spi_async_mode_ == kSpiAsyncModeDmaPipeline) {
-      dma_write_.appendRepeated24(data, repetitions, need_sync_,
-                                  async_op_pending_);
-      dma_write_.submitPartialIfLineIdle(need_sync_, async_op_pending_);
+      dma_pipeline_.appendRepeated24(data, repetitions);
+      dma_pipeline_.submitPartialIfLineIdle();
+      need_sync_ = true;
+      async_op_pending_ = dma_pipeline_.hasPendingAsync();
       return;
     }
     uint32_t r = static_cast<uint8_t>(data[0]);
@@ -414,17 +424,20 @@ class Esp32SpiDevice {
         return;
       }
       if (row_stride_bytes == row_bytes) {
-        dma_write_.appendBytes(data, row_bytes * row_count, need_sync_,
-                               async_op_pending_);
-        dma_write_.submitPartialIfLineIdle(need_sync_, async_op_pending_);
+        dma_pipeline_.appendBytes(data, row_bytes * row_count);
+        dma_pipeline_.submitPartialIfLineIdle();
+        need_sync_ = true;
+        async_op_pending_ = dma_pipeline_.hasPendingAsync();
         return;
       } else {
         const roo::byte* row = data;
         for (size_t i = 0; i < row_count; ++i) {
-          dma_write_.appendBytes(row, row_bytes, need_sync_, async_op_pending_);
+          dma_pipeline_.appendBytes(row, row_bytes);
           row += row_stride_bytes;
         }
-        dma_write_.submitPartialIfLineIdle(need_sync_, async_op_pending_);
+        dma_pipeline_.submitPartialIfLineIdle();
+        need_sync_ = true;
+        async_op_pending_ = dma_pipeline_.hasPendingAsync();
       }
       return;
     }
@@ -579,7 +592,7 @@ class Esp32SpiDevice {
   // Caching this here does improve performance of tight loops slightly (e.g.
   // filled triangles benchmark: ~6% impact without it).
   SpiAsyncMode spi_async_mode_ = kSpiAsyncModeSync;
-  DmaWritePipeline<spi_port> dma_write_;
+  DmaPipeline<spi_port> dma_pipeline_;
 };
 
 // Original ESP32: SPI0 (none), FSPI -> SPI1, HSPI -> SPI2, VSPI -> SPI3.

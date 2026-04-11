@@ -103,6 +103,10 @@ class SpiTransport {
     device_.fill16(data, repetitions);
   }
 
+  void fill16once(const roo::byte* data, uint32_t repetitions) {
+    device_.fill16once(data, repetitions);
+  }
+
   void fill24(const roo::byte* data, uint32_t repetitions) {
     device_.fill24(data, repetitions);
   }

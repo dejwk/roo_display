@@ -145,7 +145,7 @@ class AddrWindowDevice : public DisplayDevice {
       y1++;
       Color mycolor = *color++;
       processColor(blending_mode, mycolor, raw_color);
-      target_.ramFill(raw_color, pixel_count);
+      target_.ramFillOnce(raw_color, pixel_count);
     }
   }
 
@@ -162,7 +162,7 @@ class AddrWindowDevice : public DisplayDevice {
       y0++;
       x1++;
       y1++;
-      target_.ramFill(raw_color, pixel_count);
+      target_.ramFillOnce(raw_color, pixel_count);
     }
   }
 
@@ -228,7 +228,7 @@ class AddrWindowDevice : public DisplayDevice {
             }
           }
           target_.startRamWrite();
-          target_.ramFill(raw_color_ptr, count);
+          target_.ramFillOnce(raw_color_ptr, count);
         });
   }
 

@@ -194,6 +194,11 @@ class Ili9341Target {
     transport_.fill16(data, pixel_count);
   }
 
+  void ramFillOnce(const roo::byte* data, size_t pixel_count)
+      __attribute__((always_inline)) {
+    transport_.fill16once(data, pixel_count);
+  }
+
   void ramWriteAsyncBlit(const roo::byte* data, size_t row_stride_bytes,
                          size_t row_bytes, size_t row_count)
       __attribute__((always_inline)) {

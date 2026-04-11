@@ -49,6 +49,8 @@ class Esp32Spi {
 
   void init() { spi_.begin(); }
 
+  void deinit() { spi_.end(); }
+
   void init(uint8_t sck, uint8_t miso, uint8_t mosi) {
     spi_.begin(sck, miso, mosi);
   }
@@ -67,6 +69,13 @@ class Esp32Spi {
         .max_transfer_sz = 4096,
     };
     ESP_ERROR_CHECK(spi_bus_initialize(spi_, &config, SPI_DMA_CH_AUTO));
+  }
+
+  void deinit() {
+    esp_err_t err = spi_bus_free(spi_);
+    if (err != ESP_ERR_INVALID_STATE) {
+      ESP_ERROR_CHECK(err);
+    }
   }
 
   void init(uint8_t sck, uint8_t miso, uint8_t mosi) {
@@ -109,7 +118,9 @@ class Esp32SpiDevice {
   Esp32SpiDevice(Esp32SpiDevice&& other) noexcept : spi_(other.spi_) {}
 #else
   Esp32SpiDevice(Esp32SpiDevice&& other) noexcept
-      : spi_(other.spi_), device_(other.device_) {}
+      : spi_(other.spi_), device_(other.device_) {
+    other.device_ = nullptr;
+  }
 #endif
 
   Esp32SpiDevice& operator=(Esp32SpiDevice&&) = delete;
@@ -139,6 +150,15 @@ class Esp32SpiDevice {
     if (spi_async_mode_ == kSpiAsyncModeDmaPipeline) {
       dma_pipeline_.init();
     }
+  }
+
+  void deinit() {
+#if !defined(ARDUINO)
+    if (device_ != nullptr) {
+      ESP_ERROR_CHECK(spi_bus_remove_device(device_));
+      device_ = nullptr;
+    }
+#endif
   }
 
   void beginReadWriteTransaction() {
@@ -575,7 +595,7 @@ class Esp32SpiDevice {
   decltype(SPI)& spi_;
 #else
   spi_host_device_t spi_;
-  spi_device_handle_t device_;
+  spi_device_handle_t device_ = nullptr;
 #endif
   bool need_sync_ = false;
   bool async_op_pending_ = false;

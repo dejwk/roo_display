@@ -442,7 +442,6 @@ class Esp32SpiDevice {
     }
 
     uint32_t rem = len % 60;
-    flush();
     SpiFill60(spi_port, d0, d1, d2);
     if (rem != 0) {
       SpiSetOutBufferSize(spi_port, rem);

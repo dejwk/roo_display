@@ -211,9 +211,29 @@ class DmaPipeline {
     }
 
     const size_t capacity = dma_controller_->bufferCapacity();
-    const size_t out_size = capacity - (capacity % 12);
+    const size_t out_size =
+        std::min(capacity - (capacity % 12), static_cast<size_t>(len));
     CHECK(out_size >= 12);
-    FillPattern3Bytes(dma_work_buffer_.data, out_size, data, first % 3);
+
+    // The DMA buffer is 4-byte aligned, out_size is a multiple of 12, and
+    // 'first' is always a multiple of 3 (since len ≡ 0 mod 3), so the
+    // pattern phase is 0.  Reuse d0/d1/d2 for an unrolled 32-bit fill.
+    uint32_t* dst = reinterpret_cast<uint32_t*>(dma_work_buffer_.data);
+    size_t count = out_size / 3;
+    while (count > 8) {
+      dst[0] = d0; dst[1] = d1; dst[2] = d2;
+      dst[3] = d0; dst[4] = d1; dst[5] = d2;
+      dst += 6;
+      count -= 8;
+    }
+    if (count > 4) {
+      dst[0] = d0; dst[1] = d1; dst[2] = d2;
+      dst += 3;
+      count -= 4;
+    }
+    if (count > 0) {
+      dst[0] = d0; dst[1] = d1; dst[2] = d2;
+    }
 
     bool ok = dma_controller_->submit(DmaController::Operation{
         .out_data = dma_work_buffer_.data,

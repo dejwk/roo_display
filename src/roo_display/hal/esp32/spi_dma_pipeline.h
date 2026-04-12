@@ -222,18 +222,26 @@ class DmaPipeline {
     uint32_t* dst = reinterpret_cast<uint32_t*>(dma_work_buffer_.data);
     size_t count = out_size / 3;
     while (count > 8) {
-      dst[0] = d0; dst[1] = d1; dst[2] = d2;
-      dst[3] = d0; dst[4] = d1; dst[5] = d2;
+      dst[0] = d0;
+      dst[1] = d1;
+      dst[2] = d2;
+      dst[3] = d0;
+      dst[4] = d1;
+      dst[5] = d2;
       dst += 6;
       count -= 8;
     }
     if (count > 4) {
-      dst[0] = d0; dst[1] = d1; dst[2] = d2;
+      dst[0] = d0;
+      dst[1] = d1;
+      dst[2] = d2;
       dst += 3;
       count -= 4;
     }
     if (count > 0) {
-      dst[0] = d0; dst[1] = d1; dst[2] = d2;
+      dst[0] = d0;
+      dst[1] = d1;
+      dst[2] = d2;
     }
 
     bool ok = dma_controller_->submit(DmaController::Operation{
@@ -260,6 +268,7 @@ class DmaPipeline {
         }
         return;
       }
+      // Write the first 64 bytes ASAP to minimize latency.
       if (src_aligned) {
         syncWriteUpTo64BytesAlignedNoFlush(data, 64);
       } else {

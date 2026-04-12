@@ -269,7 +269,7 @@ class DmaPipeline {
       len -= 64;
     }
 
-    const size_t capacity = dma_controller_->bufferCapacity();
+    const size_t capacity = kDmaBufferCapacity;
     while (len != 0) {
       if (dma_work_buffer_.data == nullptr) {
         dma_work_buffer_ = dma_controller_->acquireBuffer();
@@ -293,7 +293,7 @@ class DmaPipeline {
 
   void appendRepeated16(const roo::byte* pattern, size_t repetitions) {
     CHECK_NOTNULL(dma_controller_);
-    const size_t capacity = dma_controller_->bufferCapacity();
+    const size_t capacity = kDmaBufferCapacity;
     size_t remaining_bytes = repetitions * 2;
 
     if (dma_work_buffer_.data == nullptr) {
@@ -342,7 +342,7 @@ class DmaPipeline {
 
   void appendRepeated24(const roo::byte* pattern, size_t repetitions) {
     CHECK_NOTNULL(dma_controller_);
-    const size_t capacity = dma_controller_->bufferCapacity();
+    const size_t capacity = kDmaBufferCapacity;
     size_t remaining_bytes = repetitions * 3;
 
     if (dma_work_buffer_.data == nullptr) {

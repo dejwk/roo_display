@@ -35,7 +35,8 @@
     ],
     "build": {
         "srcDir": "src",
-        "srcFilter": "+<*> -<examples> -<benchmarks> -<doc> -<test>"
+        "srcFilter": "+<*> -<examples> -<benchmarks> -<doc> -<test>",
+        "extraScript": "build/pio_build_script.py"
     },
     "examples": [
         "examples/**/*.ino"

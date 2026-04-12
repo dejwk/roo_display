@@ -69,7 +69,6 @@ class TestTarget {
   void flush() { flushed_ = true; }
 
   void ramWrite(const roo::byte* raw_color, size_t count) {
-    EXPECT_TRUE(flushed_);
     EXPECT_TRUE(inRamWrite_);
     ColorIo<ColorMode, byte_order> io;
     while (count-- > 0) {
@@ -86,7 +85,6 @@ class TestTarget {
 
   void ramFill(const roo::byte* raw_color, size_t count) {
     EXPECT_TRUE(inRamWrite_);
-    EXPECT_TRUE(flushed_);
     Color color = ColorIo<ColorMode, byte_order>().load(raw_color);
     while (count-- > 0) {
       setPixel(xCursor_, yCursor_, color);
@@ -96,6 +94,11 @@ class TestTarget {
         yCursor_++;
       }
     }
+  }
+
+  void ramFillOnce(const roo::byte* raw_color, size_t count) {
+    EXPECT_TRUE(flushed_);
+    ramFill(raw_color, count);
   }
 
   const Color* data() const { return data_.get(); }

@@ -109,6 +109,10 @@ class ArduinoSpiDevice {
     spi_.writeBytes(reinterpret_cast<uint8_t*>(buf), repetitions * 3);
   }
 
+  void fill16once(const roo::byte* data, uint32_t repetitions) {
+    fill16(data, repetitions);
+  }
+
   void fill24once(const roo::byte* data, uint32_t repetitions) {
     fill24(data, repetitions);
   }

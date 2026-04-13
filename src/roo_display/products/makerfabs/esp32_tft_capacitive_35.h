@@ -26,6 +26,22 @@
 namespace roo_display::products::makerfabs {
 
 /// Makerfabs ESP32 3.5" TFT capacitive touch device.
+///
+/// NOTE: this device has a design flaw by using the same SPI bus for the
+/// display and SD card, without a hardware switch to disconnect the SD card
+/// during display updates. A newly inserted SD card powers up in SD-native
+/// mode, which can cause interference with the display by driving the MOSI
+/// line, even when the SD card's CS line is kept high. To work around this,
+/// the driver attempts to switch the SD card to SPI mode at startup, by
+/// calling checkMediaPresence() on the SD SPI driver. This only works, however,
+/// until the card is removed and reinserted, since a newly inserted card powers
+/// up in SD-native mode again.
+///
+/// If you're using this device, it is recommended not to swap SD card while the
+/// display is active. If it is unavoidable, you can mitigate by calling
+/// checkMediaPresence() on the SD SPI driver after each card insertion (perhaps
+/// periodically polling for card presence), which will re-prime the card into
+/// SPI mode.
 class Esp32TftCapacitive35 : public ComboDevice {
  public:
 #if defined(ARDUINO)
@@ -74,11 +90,13 @@ class Esp32TftCapacitive35 : public ComboDevice {
 #if defined(ARDUINO)
     roo_io::SD_SPI.setSPI(hspi_);
     roo_io::SD_SPI.setCsPin(pin_sd_cs());
-    roo_io::Mount dummy = roo_io::SD_SPI.mount();
+    roo_io::SD_SPI.setFrequency(20000000);
+    roo_io::SD_SPI.checkMediaPresence();
 #else
     roo_io::SDSPI.setSpiHost(SPI2_HOST);
     roo_io::SDSPI.setCsPin(pin_sd_cs());
-    roo_io::Mount dummy = roo_io::SDSPI.mount();
+    roo_io::SDSPI.setFrequency(20000000);
+    roo_io::SDSPI.checkMediaPresence();
 #endif
   }
 

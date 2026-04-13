@@ -25,19 +25,26 @@ bool IrqDispatcher::init(int spi_port) {
   if (init_attempted_) return false;
   init_attempted_ = true;
   spi_port_ = spi_port;
-  int flags = 0;
+  // Start DISABLED; bind()/unbind() toggle the handler on demand so that
+  // stale peripheral status bits (forced by spi_hal_init inside the master
+  // driver) cannot cause an infinite ISR loop.
+  int flags = ESP_INTR_FLAG_INTRDISABLED;
+#if !defined(ARDUINO) || ROO_DISPLAY_ESP32_SPI_SHARED_IRQ
+  // Under ESP-IDF, use SHARED so we coexist with the SPI master driver,
+  // which already holds an interrupt for this source (from
+  // spi_bus_add_device).  Under Arduino, the SPI library uses polling
+  // (SPI.transfer), so we can keep the faster exclusive handler.
+  flags |= ESP_INTR_FLAG_SHARED;
+#endif
 #if ROO_DISPLAY_ESP32_SPI_IRQ_IN_IRAM
   flags |= ESP_INTR_FLAG_IRAM;
 #endif
-#if ROO_DISPLAY_ESP32_SPI_SHARED_IRQ
-  flags |= ESP_INTR_FLAG_SHARED;
-#endif
+  spi_host_device_t host = static_cast<spi_host_device_t>(spi_port - 1);
+  int irq_source = spicommon_irqsource_for_host(host);
   esp_err_t intr_err =
-      esp_intr_alloc(spicommon_irqsource_for_host(
-                         static_cast<spi_host_device_t>(spi_port - 1)),
-                     flags, InterruptHandler, this, &intr_handle_);
+      esp_intr_alloc(irq_source, flags, InterruptHandler, this, &intr_handle_);
   if (intr_err != ESP_OK) {
-    log_e("Failed to allocate SPI interrupt: %s", esp_err_to_name(intr_err));
+    LOG(ERROR) << "Failed to allocate SPI interrupt: " << esp_err_to_name(intr_err);
     return false;
   }
   return true;
@@ -58,6 +65,10 @@ bool IrqDispatcher::bind(const Binding* binding) {
     return false;
   }
   binding_ = binding;
+  // Clear any stale transfer-done status before enabling our handler,
+  // so we don't immediately fire for a leftover event.
+  SpiTransferDoneIntClear(spi_port_);
+  esp_intr_enable(intr_handle_);
   portEXIT_CRITICAL(&mux_);
   return true;
 };
@@ -66,17 +77,15 @@ void IrqDispatcher::unbind(const Binding* binding) {
   if (binding == nullptr) return;
   portENTER_CRITICAL(&mux_);
   if (binding_ == binding) {
+    esp_intr_disable(intr_handle_);
     binding_ = nullptr;
   }
   portEXIT_CRITICAL(&mux_);
 }
 
 inline void IrqDispatcher::dispatch() {
-#if ROO_DISPLAY_ESP32_SPI_SHARED_IRQ
-  if (!SpiNonDmaTransferDoneIntPending(spi_port_)) {
-    // Shared IRQ line: ignore unrelated interrupt sources.
-    return;
-  }
+#if !defined(ARDUINO) || ROO_DISPLAY_ESP32_SPI_SHARED_IRQ
+  if (!SpiTransferDoneIntPending(spi_port_)) return;
 #endif
   SpiTransferDoneIntClear(spi_port_);
   const volatile Binding* binding = binding_;
@@ -90,7 +99,7 @@ IrqDispatcher* GetIrqDispatcher(int spi_port) {
   if (spi_port <= 0 || spi_port >= kDispatcherCount) {
     return nullptr;
   }
-  static IrqDispatcher dispatchers[4];
+  static IrqDispatcher dispatchers[4] = {};
   IrqDispatcher& d = dispatchers[spi_port];
   if (!d.init_attempted()) {
     d.init(spi_port);

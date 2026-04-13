@@ -28,6 +28,19 @@
 namespace roo_display {
 namespace esp32 {
 
+#if !defined(ARDUINO)
+// Returns the interrupt flags that spi_bus_initialize() should use so that
+// IrqDispatcher (SHARED) and the ESP-IDF SPI master driver can coexist on
+// the same interrupt source.
+inline int SpiIrqFlags() {
+  int flags = ESP_INTR_FLAG_SHARED;
+#if ROO_DISPLAY_ESP32_SPI_IRQ_IN_IRAM
+  flags |= ESP_INTR_FLAG_IRAM;
+#endif
+  return flags;
+}
+#endif
+
 template <uint8_t spi_port, typename SpiSettings>
 class Esp32SpiDevice;
 
@@ -67,6 +80,7 @@ class Esp32Spi {
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
         .max_transfer_sz = 4096,
+        .intr_flags = SpiIrqFlags(),
     };
     ESP_ERROR_CHECK(spi_bus_initialize(spi_, &config, SPI_DMA_CH_AUTO));
   }
@@ -86,6 +100,7 @@ class Esp32Spi {
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
         .max_transfer_sz = 4096,
+        .intr_flags = SpiIrqFlags(),
     };
     ESP_ERROR_CHECK(spi_bus_initialize(spi_, &config, SPI_DMA_CH_AUTO));
   }
@@ -193,6 +208,16 @@ class Esp32SpiDevice {
 #if defined(ARDUINO)
     spi_.endTransaction();
 #else
+    // Restore the SPI interrupt state that spi_hal_init originally
+    // established: int_trans_done_en=1 and trans_done=1.  Our ISR-based
+    // pipelines disable the peripheral-level interrupt enable
+    // (SpiTransferDoneIntDisable) and clear the latched status
+    // (SpiTransferDoneIntClear).  Without restoring both, the ESP-IDF SPI
+    // master driver's ISR can never be kicked for the next queued
+    // transaction (e.g. SD card data reads via spi_device_transmit),
+    // causing a permanent hang.
+    SpiTransferDoneIntEnable(spi_port);
+    SpiTransferDoneIntSet(spi_port);
     spi_device_release_bus(device_);
 #endif
   }

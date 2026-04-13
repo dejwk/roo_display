@@ -107,6 +107,12 @@ inline bool SpiTransferDoneIntPending(uint8_t spi_port)
 inline void SpiTransferDoneIntClear(uint8_t spi_port)
     __attribute__((always_inline));
 
+// Forces the SPI transfer-done interrupt status bit, so that the SPI master
+// driver ISR fires on the next esp_intr_enable.  This must be called after
+// any direct register work that may have cleared the latched trans_done.
+inline void SpiTransferDoneIntSet(uint8_t spi_port)
+    __attribute__((always_inline));
+
 // Enables the SPI DMA transfer-done interrupt.
 inline void SpiTransferDoneIntEnable(uint8_t spi_port)
     __attribute__((always_inline));
@@ -199,6 +205,14 @@ inline void SpiTransferDoneIntClear(uint8_t spi_port) {
 #endif
 }
 
+inline void SpiTransferDoneIntSet(uint8_t spi_port) {
+#if CONFIG_IDF_TARGET_ESP32
+  SET_PERI_REG_MASK(SPI_SLAVE_REG(spi_port), SPI_TRANS_DONE);
+#else
+  SET_PERI_REG_MASK(SPI_DMA_INT_SET_REG(spi_port), SPI_TRANS_DONE_INT_SET);
+#endif
+}
+
 inline void SpiTransferDoneIntEnable(uint8_t spi_port) {
 #if CONFIG_IDF_TARGET_ESP32
   SET_PERI_REG_MASK(SPI_SLAVE_REG(spi_port), (SPI_TRANS_DONE << 5));
@@ -241,8 +255,8 @@ inline void SpiDmaTxDisable(uint8_t spi_port) {
 
 inline bool SpiDmaTxEnabled(uint8_t spi_port) {
 #if CONFIG_IDF_TARGET_ESP32
-  return (READ_PERI_REG(SPI_DMA_OUT_LINK_REG(spi_port)) & SPI_OUTLINK_START)
-      != 0;
+  return (READ_PERI_REG(SPI_DMA_OUT_LINK_REG(spi_port)) & SPI_OUTLINK_START) !=
+         0;
 #else
   return (READ_PERI_REG(SPI_DMA_CONF_REG(spi_port)) & SPI_DMA_TX_ENA) != 0;
 #endif

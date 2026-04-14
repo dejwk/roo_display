@@ -11,6 +11,7 @@
 #include "roo_display/hal/config.h"
 #include "roo_display/hal/i2c.h"
 #include "roo_display/products/combo_device.h"
+#include "roo_io/fs/esp32/base_vfs_filesystem.h"
 
 #if !defined(ESP_PLATFORM) || !(CONFIG_IDF_TARGET_ESP32S3)
 #warning Compilation target must be ESP32_S3 for this device.
@@ -39,15 +40,32 @@ class Esp32s3ParallelIpsCapacitive : public ComboDevice {
                                Orientation orientation = Orientation(),
                                I2cMasterBusHandle i2c = I2cMasterBusHandle());
 
-  /// Initialize I2C transport for touch.
-  void initTransport() { i2c_.init(17, 18); }
+  /// Initialize I2C transport for touch, and configure the SD card interface.
+  void initTransport();
 
   Display& display() override { return display_; }
 
   TouchDevice* touch() override { return &touch_; }
 
+  roo_io::BaseEsp32VfsFilesystem& sd() const;
+
   /// Return touch calibration for the panel.
   TouchCalibration touch_calibration() override;
+
+  /// SD card D0 pin.
+  constexpr int8_t pin_sd_d0() const { return 13; }
+
+  /// SD card CLK pin.
+  constexpr int8_t pin_sd_clk() const { return 12; }
+
+  /// SD card CMD pin.
+  constexpr int8_t pin_sd_cmd() const { return 11; }
+
+  /// I2C SDA pin.
+  constexpr int8_t pin_sda() const { return 17; }
+
+  /// I2C SCL pin.
+  constexpr int8_t pin_scl() const { return 18; }
 
  private:
   Resolution resolution_;

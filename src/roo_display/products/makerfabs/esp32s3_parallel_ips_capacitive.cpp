@@ -3,6 +3,12 @@
 
 #if defined(ESP_PLATFORM) && CONFIG_IDF_TARGET_ESP32S3
 
+#if defined(ARDUINO)
+#include "roo_io/fs/esp32/arduino/sdmmc.h"
+#else
+#include "roo_io/fs/esp32/esp-idf/sdmmc.h"
+#endif
+
 #include "roo_display/products/makerfabs/esp32s3_parallel_ips_capacitive.h"
 
 namespace roo_display::products::makerfabs {
@@ -92,6 +98,23 @@ Esp32s3ParallelIpsCapacitive::Esp32s3ParallelIpsCapacitive(
       // driver performs reset asynchronously.
       touch_(i2c_, -1, 38, 300) {
   display_.setOrientation(orientation);
+}
+
+void Esp32s3ParallelIpsCapacitive::initTransport() {
+  i2c_.init(pin_sda(), pin_scl());
+#if defined(ARDUINO)
+  roo_io::SD_MMC.setPins(pin_sd_clk(), pin_sd_cmd(), pin_sd_d0());
+#else
+  roo_io::SDMMC.setPins(pin_sd_clk(), pin_sd_cmd(), pin_sd_d0());
+#endif
+}
+
+roo_io::BaseEsp32VfsFilesystem& Esp32s3ParallelIpsCapacitive::sd() const {
+#if defined(ARDUINO)
+  return roo_io::SD_MMC;
+#else
+  return roo_io::SDMMC;
+#endif
 }
 
 TouchCalibration Esp32s3ParallelIpsCapacitive::touch_calibration() {

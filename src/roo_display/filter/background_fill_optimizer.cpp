@@ -917,56 +917,71 @@ void BackgroundFillOptimizer::fillRectBg(int16_t x0, int16_t y0, int16_t x1,
   // Iterate over the bit-map rectangle that encloses the requested rectangle.
   // Skip writing sub-rectangles that are known to be already all-background.
   Box filter_box(x0 / kBlock, y0 / kBlock, x1 / kBlock, y1 / kBlock);
-  internal::NibbleRectWindowIterator itr(background_mask_, filter_box.xMin(),
-                                         filter_box.yMin(), filter_box.xMax(),
-                                         filter_box.yMax());
-  int16_t xendl = filter_box.xMax() + 1;
+  const int16_t inner_x0 = (x0 + kBlock - 1) / kBlock;
+  const int16_t inner_x1 = (x1 + 1) / kBlock - 1;
+  const int16_t fx0 = filter_box.xMin();
+  const int16_t fx1 = filter_box.xMax();
+  const int16_t row_nibble_count = fx1 - fx0 + 1;
+  const int16_t wb = background_mask_->width_bytes();
   for (int16_t y = filter_box.yMin(); y <= filter_box.yMax(); ++y) {
-    int16_t xstart = -1;
-    for (int16_t x = filter_box.xMin(); x <= xendl; ++x) {
-      if (x == xendl || itr.next() == palette_idx) {
-        // End of the streak. Let's draw the necessary rectangle.
-        if (xstart >= 0) {
-          Box box(xstart * kBlock, y * kBlock, x * kBlock - 1,
-                  y * kBlock + kBlock - 1);
-          if (box.clip(Box(x0, y0, x1, y1)) != Box::ClipResult::kUnchanged) {
-            if (y0 > y * kBlock || y1 < y * kBlock + kBlock - 1) {
-              // Need to invalidate the entire line.
-              fillMaskRect(Box(xstart, y, x - 1, y), 0);
-            } else {
-              if (x0 > xstart * kBlock) {
-                const uint8_t old_value = background_mask_->get(xstart, y);
-                if (old_value != 0) {
-                  updateMaskValue(xstart, y, old_value, 0);
-                }
-              }
-              if (x1 < x * kBlock - 1) {
-                const uint8_t old_value = background_mask_->get(x - 1, y);
-                if (old_value != 0) {
-                  updateMaskValue(x - 1, y, old_value, 0);
-                }
-              }
+    // Pointer to the start of this row in the nibble buffer.
+    const roo::byte* row_data = background_mask_->buffer() + y * wb;
+
+    // Bulk-scan to find the first mismatching nibble in this row.
+    int16_t skip = internal::NibbleFindFirstMismatch(
+        row_data + fx0 / 2, fx0 & 1, row_nibble_count, palette_idx);
+    if (skip == row_nibble_count) {
+      // Entire row matches — nothing to draw or update.
+      continue;
+    }
+
+    // There are mismatches. Scan streaks of mismatches, using bulk helpers
+    // to skip over matching runs and find streak boundaries.
+    int16_t x = fx0 + skip;
+    while (x <= fx1) {
+      // x is at a mismatch. Find the end of this mismatch streak.
+      int16_t xstart = x;
+      ++x;
+      if (x <= fx1) {
+        x += internal::NibbleFindFirstMatch(row_data + x / 2, x & 1,
+                                            fx1 - x + 1, palette_idx);
+      }
+
+      // Streak [xstart, x-1] needs drawing.
+      Box box(xstart * kBlock, y * kBlock, x * kBlock - 1,
+              y * kBlock + kBlock - 1);
+      if (box.clip(Box(x0, y0, x1, y1)) != Box::ClipResult::kUnchanged) {
+        if (y0 > y * kBlock || y1 < y * kBlock + kBlock - 1) {
+          fillMaskRect(Box(xstart, y, x - 1, y), 0);
+        } else {
+          if (x0 > xstart * kBlock) {
+            const uint8_t old_value = internal::NibbleAt(row_data, xstart);
+            if (old_value != 0) {
+              updateMaskValue(xstart, y, old_value, 0);
             }
           }
-          filler.fillRect(box.xMin(), box.yMin(), box.xMax(), box.yMax());
-        }
-        xstart = -1;
-      } else {
-        // Continuation, or a new streak.
-        if (xstart < 0) {
-          // New streak.
-          xstart = x;
+          if (x1 < x * kBlock - 1) {
+            const uint8_t old_value = internal::NibbleAt(row_data, x - 1);
+            if (old_value != 0) {
+              updateMaskValue(x - 1, y, old_value, 0);
+            }
+          }
         }
       }
+      filler.fillRect(box.xMin(), box.yMin(), box.xMax(), box.yMax());
+
+      // Skip past matching nibbles to find the next mismatch.
+      if (x <= fx1) {
+        x += internal::NibbleFindFirstMismatch(row_data + x / 2, x & 1,
+                                               fx1 - x + 1, palette_idx);
+      }
     }
-  }
-  // Identify the bit-mask rectangle that is entirely covered by the
-  // requested rect. If non-empty, set all nibbles corresponding to it in
-  // the mask, indicating that the area is all-bg.
-  Box inner_filter_box((x0 + kBlock - 1) / kBlock, (y0 + kBlock - 1) / kBlock,
-                       (x1 + 1) / kBlock - 1, (y1 + 1) / kBlock - 1);
-  if (!inner_filter_box.empty()) {
-    fillMaskRect(inner_filter_box, palette_idx);
+
+    // Update the inner mask for this row.
+    const bool y_is_inner = (y * kBlock >= y0 && y * kBlock + kBlock - 1 <= y1);
+    if (y_is_inner && inner_x0 <= inner_x1) {
+      fillMaskRect(Box(inner_x0, y, inner_x1, y), palette_idx);
+    }
   }
 }
 

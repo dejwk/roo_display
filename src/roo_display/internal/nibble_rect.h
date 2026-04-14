@@ -94,6 +94,107 @@ class NibbleRectWindowIterator {
   const int16_t width_skip_;
 };
 
+// Scans a row of nibbles starting at (data, phase) for the first nibble that
+// differs from 'value'. Returns the offset (in nibbles from start) of the first
+// mismatch, or 'count' if all nibbles match.
+//
+// 'data' points to the byte containing the first nibble.
+// 'phase' is 0 if starting at the high nibble, 1 if starting at the low nibble.
+// 'count' is the number of nibbles to scan.
+// 'value' is the 4-bit nibble value to compare against (0..15).
+inline int16_t NibbleFindFirstMismatch(const roo::byte* data, int phase,
+                                       int16_t count, uint8_t value) {
+  if (count <= 0) return 0;
+  int16_t pos = 0;
+
+  // Phase 1: handle leading nibble to align to byte boundary.
+  if (phase == 1 && count > 0) {
+    uint8_t nibble = (uint8_t)(*data) & 0x0F;
+    if (nibble != value) return 0;
+    ++data;
+    ++pos;
+    --count;
+  }
+
+  // Phase 2: handle leading bytes to align to uint32_t boundary.
+  const uint8_t byte_pattern = (value << 4) | value;
+  while (count >= 2 && (reinterpret_cast<uintptr_t>(data) & 3) != 0) {
+    if ((uint8_t)(*data) != byte_pattern) {
+      // Mismatch in high or low nibble.
+      uint8_t hi = (uint8_t)(*data) >> 4;
+      if (hi != value) return pos;
+      return pos + 1;
+    }
+    ++data;
+    pos += 2;
+    count -= 2;
+  }
+
+  // Phase 3: bulk u32 comparison (8 nibbles per word).
+  const uint32_t word_pattern = byte_pattern * 0x01010101u;
+  while (count >= 8) {
+    uint32_t word;
+    __builtin_memcpy(&word, data, 4);
+    if (word != word_pattern) {
+      // Mismatch somewhere in this word; find exact nibble.
+      for (int i = 0; i < 4; ++i) {
+        if ((uint8_t)(data[i]) != byte_pattern) {
+          uint8_t hi = (uint8_t)(data[i]) >> 4;
+          if (hi != value) return pos + i * 2;
+          return pos + i * 2 + 1;
+        }
+      }
+    }
+    data += 4;
+    pos += 8;
+    count -= 8;
+  }
+
+  // Phase 4: trailing bytes.
+  while (count >= 2) {
+    if ((uint8_t)(*data) != byte_pattern) {
+      uint8_t hi = (uint8_t)(*data) >> 4;
+      if (hi != value) return pos;
+      return pos + 1;
+    }
+    ++data;
+    pos += 2;
+    count -= 2;
+  }
+
+  // Phase 5: trailing nibble.
+  if (count > 0) {
+    uint8_t hi = (uint8_t)(*data) >> 4;
+    if (hi != value) return pos;
+    ++pos;
+  }
+
+  return pos;
+}
+
+// Returns the nibble at the given nibble_index from the start of 'data'.
+// nibble_index 0 is the high nibble of data[0], 1 is the low nibble of
+// data[0], 2 is the high nibble of data[1], etc.
+__attribute__((always_inline)) inline uint8_t NibbleAt(const roo::byte* data,
+                                                       int16_t nibble_index) {
+  return (uint8_t)(data[nibble_index / 2] >> ((1 - (nibble_index & 1)) * 4)) &
+         0xF;
+}
+
+// Scans a row of nibbles starting at (data, phase) for the first nibble that
+// equals 'value'. Returns the offset (in nibbles from start) of the first
+// match, or 'count' if no nibble matches.
+//
+// Simple per-nibble scan — mismatch streaks are typically short, so the
+// overhead of a bulk scan would outweigh its benefit here.
+__attribute__((always_inline)) inline int16_t NibbleFindFirstMatch(
+    const roo::byte* data, int phase, int16_t count, uint8_t value) {
+  for (int16_t i = 0; i < count; ++i) {
+    if (NibbleAt(data, phase + i) == value) return i;
+  }
+  return count;
+}
+
 // Adapter to use writer as filler, for a single rectangle.
 struct RectFillWriter {
   Color color;

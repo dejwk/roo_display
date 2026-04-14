@@ -70,18 +70,7 @@ const std::array<Color, 4> kSmallRectPalette = {
 };
 
 struct Rng {
-  explicit Rng(uint64_t seed, uint64_t seq = 0xDA3E39CB94B95BDBull) : engine() {
-    const uint32_t seed_values[] = {
-        static_cast<uint32_t>(seed),
-        static_cast<uint32_t>(seed >> 32),
-        static_cast<uint32_t>(seq),
-        static_cast<uint32_t>(seq >> 32),
-        0x9E3779B9u,
-        0x243F6A88u,
-    };
-    std::seed_seq seed_data(seed_values, seed_values + 6);
-    engine.seed(seed_data);
-  }
+  explicit Rng(uint32_t seed) : engine(seed) {}
 
   uint32_t next() { return static_cast<uint32_t>(engine()); }
 
@@ -100,7 +89,7 @@ struct Rng {
   }
 
  private:
-  std::mt19937_64 engine;
+  std::minstd_rand engine;
 };
 
 Color randomColor(Rng& rng) {

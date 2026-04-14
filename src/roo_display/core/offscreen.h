@@ -168,6 +168,8 @@ class OffscreenDevice : public DisplayDevice {
 
   void write(Color* color, uint32_t pixel_count) override;
 
+  void fill(Color color, uint32_t pixel_count) override;
+
   void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
                    uint16_t pixel_count) override;
 
@@ -260,6 +262,17 @@ class OffscreenDevice : public DisplayDevice {
           advance();
         }
 
+        // Not used in practice, since we only use this class for non-default
+        // orientations.
+        void operator()(roo::byte* p, uint32_t offset, uint32_t count) {
+          roo::byte* dst = p + offset * kBytesPerPixel;
+          while (count-- > 0) {
+            std::memcpy(dst, src_row_, kBytesPerPixel);
+            dst += kBytesPerPixel;
+            advance();
+          }
+        }
+
        private:
         void advance() {
           src_row_ += kBytesPerPixel;
@@ -302,6 +315,20 @@ class OffscreenDevice : public DisplayDevice {
           uint8_t raw = io.loadRaw(*src_row_, src_index_);
           io.storeRaw(raw, dst, dst_index);
           advance();
+        }
+
+        // Not used in practice, since we only use this class for non-default
+        // orientations.
+        void operator()(roo::byte* p, uint32_t offset, uint32_t count) {
+          SubByteColorIo<ColorMode, pixel_order> io;
+          while (count-- > 0) {
+            roo::byte* dst = p + offset / kPixelsPerByte;
+            int dst_index = offset % kPixelsPerByte;
+            uint8_t raw = io.loadRaw(*src_row_, src_index_);
+            io.storeRaw(raw, dst, dst_index);
+            advance();
+            ++offset;
+          }
         }
 
        private:
@@ -444,9 +471,18 @@ class OffscreenDevice : public DisplayDevice {
 
   template <typename Writer>
   void writeToWindow(Writer& write, uint32_t count) {
-    while (count-- > 0) {
-      write(buffer_, window_.offset());
-      window_.advance();
+    if (window_.advance_x() == 1) {
+      while (count > 0) {
+        uint32_t run = std::min<uint32_t>(count, window_.remaining_in_row());
+        write(buffer_, window_.offset(), run);
+        window_.advance(run);
+        count -= run;
+      }
+    } else {
+      while (count-- > 0) {
+        write(buffer_, window_.offset());
+        window_.advance();
+      }
     }
   }
 
@@ -1428,6 +1464,46 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
       internal::GenericWriter<ColorMode, pixel_order, byte_order> writer(
           color_mode_, blending_mode_, color);
       writeToWindow(writer, pixel_count);
+    }
+  }
+
+  // internal::BlenderSpecialization<
+  //     WriteOp<OffscreenDevice<ColorMode, pixel_order, byte_order,
+  //                             pixels_per_byte, storage_type>,
+  //             ColorMode, pixel_order, byte_order>>(
+  //     blending_mode_, *this, color_mode(), color, pixel_count);
+}
+
+template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
+          int8_t pixels_per_byte, typename storage_type>
+void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
+                     storage_type>::fill(Color color, uint32_t pixel_count) {
+  BlendingMode m = blending_mode_;
+  if (m != BlendingMode::kSource) {
+    m = internal::ResolveBlendingModeForFill(m, color_mode_.transparency(),
+                                             color);
+  }
+  if (m == BlendingMode::kSource) {
+    typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
+        template Operator<BlendingMode::kSource>
+            filler(color_mode_, color);
+    writeToWindow(filler, pixel_count);
+  } else {
+    if (m == BlendingMode::kDestination) return;
+    if (m == BlendingMode::kSourceOverOpaque) {
+      typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
+          template Operator<BlendingMode::kSourceOverOpaque>
+              filler(color_mode_, color);
+      writeToWindow(filler, pixel_count);
+    } else if (m == BlendingMode::kSourceOver) {
+      typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
+          template Operator<BlendingMode::kSourceOver>
+              filler(color_mode_, color);
+      writeToWindow(filler, pixel_count);
+    } else {
+      internal::GenericFiller<ColorMode, pixel_order, byte_order> filler(
+          color_mode_, blending_mode_, color);
+      writeToWindow(filler, pixel_count);
     }
   }
 

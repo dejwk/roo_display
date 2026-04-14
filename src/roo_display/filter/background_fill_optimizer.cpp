@@ -820,12 +820,14 @@ void BackgroundFillOptimizer::drawDirectRectAsync(
   const int16_t by_max = dst_y1 / kBlock;
 
   const ColorFormat& color_format = getColorFormat();
+  const int16_t wb = background_mask_->width_bytes();
 
   for (int16_t by = by_min; by <= by_max; ++by) {
     const int16_t block_y0 = by * kBlock;
     const int16_t block_y1 = block_y0 + kBlock - 1;
     const int16_t draw_y0 = std::max<int16_t>(block_y0, dst_y0);
     const int16_t draw_y1 = std::min<int16_t>(block_y1, dst_y1);
+    const roo::byte* row_data = background_mask_->buffer() + by * wb;
 
     bool streak_active = false;
     int16_t streak_bx0 = 0;
@@ -867,7 +869,7 @@ void BackgroundFillOptimizer::drawDirectRectAsync(
         } else {
           resetPendingDynamicPaletteColor();
         }
-        const uint8_t current_mask_value = background_mask_->get(bx, by);
+        const uint8_t current_mask_value = internal::NibbleAt(row_data, bx);
 
         // Redundant block update: all touched pixels are a palette color and
         // the block is already known to be entirely that color.

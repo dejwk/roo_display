@@ -1570,13 +1570,14 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                                                int16_t* y1, uint16_t count) {
   awaitAsyncBlit();
   orienter_.orientRects(x0, y0, x1, y1, count);
-  if (blending_mode != BlendingMode::kSource) {
-    blending_mode = internal::ResolveBlendingModeForWrite(
-        blending_mode, color_mode_.transparency());
-    if (blending_mode == BlendingMode::kDestination) return;
-  }
   while (count-- > 0) {
-    fillRectsAbsolute(blending_mode, *color++, x0++, y0++, x1++, y1++, 1);
+    BlendingMode m = blending_mode;
+    if (m != BlendingMode::kSource) {
+      m = internal::ResolveBlendingModeForFill(m, color_mode_.transparency(),
+                                               *color);
+      if (m == BlendingMode::kDestination) continue;
+    }
+    fillRectsAbsolute(m, *color++, x0++, y0++, x1++, y1++, 1);
   }
 }
 

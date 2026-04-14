@@ -513,18 +513,13 @@ void BackgroundFillOptimizer::emitUniformScanRun(Color color, int16_t start_y,
     palette_idx = tryAddIdxInPaletteDynamic(color);
   }
 
-  // Inexplicably, using writer and adapter comes out faster in the text scroll
-  // benchmark (by more than 3%). Need further testing, but leaving as-is for
-  // now.
-  BufferedRectWriter writer(output_, blending_mode_);
+  BufferedRectFiller filler(output_, color, blending_mode_);
   if (palette_idx != 0) {
-    RectFillWriter adapter{.color = color, .writer = writer};
-    fillRectBg(address_window_.xMin(), y0, address_window_.xMax(), y1, adapter,
+    fillRectBg(address_window_.xMin(), y0, address_window_.xMax(), y1, filler,
                palette_idx);
   } else {
     fillMaskRect(Box(bx_min_, y0 / kBlock, bx_max_, y1 / kBlock), 0);
-    writer.writeRect(address_window_.xMin(), y0, address_window_.xMax(), y1,
-                     color);
+    filler.fillRect(address_window_.xMin(), y0, address_window_.xMax(), y1);
   }
 }
 
@@ -687,7 +682,6 @@ void BackgroundFillOptimizer::fillRects(BlendingMode mode, Color color,
   flushDeferredUniformRun();
   uint8_t palette_idx = getIdxInPalette(color, palette_, palette_size_);
   BufferedRectFiller filler(output_, color, mode);
-  BufferedRectWriter writer(output_, mode);
 
   for (int i = 0; i < count; ++i) {
     const int16_t rx0 = x0[i];
@@ -712,7 +706,7 @@ void BackgroundFillOptimizer::fillRects(BlendingMode mode, Color color,
       // before writing to the underlying device.
       fillMaskRect(Box(rx0 / kBlock, ry0 / kBlock, rx1 / kBlock, ry1 / kBlock),
                    0);
-      writer.writeRect(rx0, ry0, rx1, ry1, color);
+      filler.fillRect(rx0, ry0, rx1, ry1);
     }
   }
 }
@@ -939,6 +933,11 @@ void BackgroundFillOptimizer::fillRectBg(int16_t x0, int16_t y0, int16_t x1,
 
     // There are mismatches. Scan streaks of mismatches, using bulk helpers
     // to skip over matching runs and find streak boundaries.
+    const int16_t block_y0 = y * kBlock;
+    const int16_t block_y1 = block_y0 + kBlock - 1;
+    const bool is_y_boundary = (y0 > block_y0 || y1 < block_y1);
+    const int16_t draw_y0 = std::max(block_y0, y0);
+    const int16_t draw_y1 = std::min(block_y1, y1);
     int16_t x = fx0 + skip;
     while (x <= fx1) {
       // x is at a mismatch. Find the end of this mismatch streak.
@@ -950,19 +949,21 @@ void BackgroundFillOptimizer::fillRectBg(int16_t x0, int16_t y0, int16_t x1,
       }
 
       // Streak [xstart, x-1] needs drawing.
-      Box box(xstart * kBlock, y * kBlock, x * kBlock - 1,
-              y * kBlock + kBlock - 1);
-      if (box.clip(Box(x0, y0, x1, y1)) != Box::ClipResult::kUnchanged) {
-        if (y0 > y * kBlock || y1 < y * kBlock + kBlock - 1) {
+      const int16_t block_x0 = xstart * kBlock;
+      const int16_t block_x1 = x * kBlock - 1;
+      const int16_t draw_x0 = std::max(block_x0, x0);
+      const int16_t draw_x1 = std::min(block_x1, x1);
+      if (is_y_boundary || draw_x0 != block_x0 || draw_x1 != block_x1) {
+        if (is_y_boundary) {
           fillMaskRect(Box(xstart, y, x - 1, y), 0);
         } else {
-          if (x0 > xstart * kBlock) {
+          if (x0 > block_x0) {
             const uint8_t old_value = internal::NibbleAt(row_data, xstart);
             if (old_value != 0) {
               updateMaskValue(xstart, y, old_value, 0);
             }
           }
-          if (x1 < x * kBlock - 1) {
+          if (x1 < block_x1) {
             const uint8_t old_value = internal::NibbleAt(row_data, x - 1);
             if (old_value != 0) {
               updateMaskValue(x - 1, y, old_value, 0);
@@ -970,7 +971,7 @@ void BackgroundFillOptimizer::fillRectBg(int16_t x0, int16_t y0, int16_t x1,
           }
         }
       }
-      filler.fillRect(box.xMin(), box.yMin(), box.xMax(), box.yMax());
+      filler.fillRect(draw_x0, draw_y0, draw_x1, draw_y1);
 
       // Skip past matching nibbles to find the next mismatch.
       if (x <= fx1) {
@@ -980,8 +981,7 @@ void BackgroundFillOptimizer::fillRectBg(int16_t x0, int16_t y0, int16_t x1,
     }
 
     // Update the inner mask for this row.
-    const bool y_is_inner = (y * kBlock >= y0 && y * kBlock + kBlock - 1 <= y1);
-    if (y_is_inner && inner_x0 <= inner_x1) {
+    if (!is_y_boundary && inner_x0 <= inner_x1) {
       fillMaskRect(Box(inner_x0, y, inner_x1, y), palette_idx);
     }
   }

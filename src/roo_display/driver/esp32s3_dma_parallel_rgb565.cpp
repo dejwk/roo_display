@@ -25,11 +25,10 @@ namespace roo_display {
 
 namespace esp32s3_dma {
 
-roo::byte *AllocateBuffer(const Config &config) {
-  esp_lcd_rgb_panel_config_t *cfg = (esp_lcd_rgb_panel_config_t *)calloc(
-      1, sizeof(esp_lcd_rgb_panel_config_t));
+AllocatedPanel AllocatePanel(const Config& config) {
+  esp_lcd_rgb_panel_config_t cfg = {};
 
-  cfg->clk_src = LCD_CLK_SRC_PLL160M;
+  cfg.clk_src = LCD_CLK_SRC_PLL160M;
 
 #ifdef LEGACY_RGBPANEL
 #ifdef CONFIG_SPIRAM_MODE_QUAD
@@ -45,102 +44,108 @@ roo::byte *AllocateBuffer(const Config &config) {
 // #endif
 #endif
 
-  cfg->timings.pclk_hz =
+  cfg.timings.pclk_hz =
       (config.prefer_speed == -1) ? default_speed : config.prefer_speed;
-  cfg->timings.h_res = config.width;
-  cfg->timings.v_res = config.height;
+  cfg.timings.h_res = config.width;
+  cfg.timings.v_res = config.height;
   // The following parameters should refer to LCD spec.
-  cfg->timings.hsync_pulse_width = config.hsync_pulse_width;
-  cfg->timings.hsync_back_porch = config.hsync_back_porch;
-  cfg->timings.hsync_front_porch = config.hsync_front_porch;
-  cfg->timings.vsync_pulse_width = config.vsync_pulse_width;
-  cfg->timings.vsync_back_porch = config.vsync_back_porch;
-  cfg->timings.vsync_front_porch = config.vsync_front_porch;
-  cfg->timings.flags.hsync_idle_low = (config.hsync_polarity == 0) ? 1 : 0;
-  cfg->timings.flags.vsync_idle_low = (config.vsync_polarity == 0) ? 1 : 0;
-  cfg->timings.flags.de_idle_high = 0;
-  cfg->timings.flags.pclk_active_neg = config.pclk_active_neg;
-  cfg->timings.flags.pclk_idle_high = 0;
+  cfg.timings.hsync_pulse_width = config.hsync_pulse_width;
+  cfg.timings.hsync_back_porch = config.hsync_back_porch;
+  cfg.timings.hsync_front_porch = config.hsync_front_porch;
+  cfg.timings.vsync_pulse_width = config.vsync_pulse_width;
+  cfg.timings.vsync_back_porch = config.vsync_back_porch;
+  cfg.timings.vsync_front_porch = config.vsync_front_porch;
+  cfg.timings.flags.hsync_idle_low = (config.hsync_polarity == 0) ? 1 : 0;
+  cfg.timings.flags.vsync_idle_low = (config.vsync_polarity == 0) ? 1 : 0;
+  cfg.timings.flags.de_idle_high = 0;
+  cfg.timings.flags.pclk_active_neg = config.pclk_active_neg;
+  cfg.timings.flags.pclk_idle_high = 0;
 
-  cfg->data_width = 16;  // RGB565 in parallel mode.
+  cfg.data_width = 16;  // RGB565 in parallel mode.
 #ifdef LEGACY_RGBPANEL
   // Deprecated.
-  cfg->sram_trans_align = 8;
-  cfg->psram_trans_align = 64;
+  cfg.sram_trans_align = 8;
+  cfg.psram_trans_align = 64;
 #endif
-  cfg->hsync_gpio_num = config.hsync;
-  cfg->vsync_gpio_num = config.vsync;
-  cfg->de_gpio_num = config.de;
-  cfg->pclk_gpio_num = config.pclk;
+  cfg.hsync_gpio_num = config.hsync;
+  cfg.vsync_gpio_num = config.vsync;
+  cfg.de_gpio_num = config.de;
+  cfg.pclk_gpio_num = config.pclk;
 
 #ifndef LEGACY_RGBPANEL
-  cfg->bounce_buffer_size_px = 10 * config.width;
-  cfg->dma_burst_size = 32;
+  cfg.bounce_buffer_size_px = 10 * config.width;
+  cfg.dma_burst_size = 32;
 #endif
 
   if (config.bswap) {
-    cfg->data_gpio_nums[0] = config.g3;
-    cfg->data_gpio_nums[1] = config.g4;
-    cfg->data_gpio_nums[2] = config.g5;
-    cfg->data_gpio_nums[3] = config.r0;
-    cfg->data_gpio_nums[4] = config.r1;
-    cfg->data_gpio_nums[5] = config.r2;
-    cfg->data_gpio_nums[6] = config.r3;
-    cfg->data_gpio_nums[7] = config.r4;
-    cfg->data_gpio_nums[8] = config.b0;
-    cfg->data_gpio_nums[9] = config.b1;
-    cfg->data_gpio_nums[10] = config.b2;
-    cfg->data_gpio_nums[11] = config.b3;
-    cfg->data_gpio_nums[12] = config.b4;
-    cfg->data_gpio_nums[13] = config.g0;
-    cfg->data_gpio_nums[14] = config.g1;
-    cfg->data_gpio_nums[15] = config.g2;
+    cfg.data_gpio_nums[0] = config.g3;
+    cfg.data_gpio_nums[1] = config.g4;
+    cfg.data_gpio_nums[2] = config.g5;
+    cfg.data_gpio_nums[3] = config.r0;
+    cfg.data_gpio_nums[4] = config.r1;
+    cfg.data_gpio_nums[5] = config.r2;
+    cfg.data_gpio_nums[6] = config.r3;
+    cfg.data_gpio_nums[7] = config.r4;
+    cfg.data_gpio_nums[8] = config.b0;
+    cfg.data_gpio_nums[9] = config.b1;
+    cfg.data_gpio_nums[10] = config.b2;
+    cfg.data_gpio_nums[11] = config.b3;
+    cfg.data_gpio_nums[12] = config.b4;
+    cfg.data_gpio_nums[13] = config.g0;
+    cfg.data_gpio_nums[14] = config.g1;
+    cfg.data_gpio_nums[15] = config.g2;
   } else {
-    cfg->data_gpio_nums[0] = config.b0;
-    cfg->data_gpio_nums[1] = config.b1;
-    cfg->data_gpio_nums[2] = config.b2;
-    cfg->data_gpio_nums[3] = config.b3;
-    cfg->data_gpio_nums[4] = config.b4;
-    cfg->data_gpio_nums[5] = config.g0;
-    cfg->data_gpio_nums[6] = config.g1;
-    cfg->data_gpio_nums[7] = config.g2;
-    cfg->data_gpio_nums[8] = config.g3;
-    cfg->data_gpio_nums[9] = config.g4;
-    cfg->data_gpio_nums[10] = config.g5;
-    cfg->data_gpio_nums[11] = config.r0;
-    cfg->data_gpio_nums[12] = config.r1;
-    cfg->data_gpio_nums[13] = config.r2;
-    cfg->data_gpio_nums[14] = config.r3;
-    cfg->data_gpio_nums[15] = config.r4;
+    cfg.data_gpio_nums[0] = config.b0;
+    cfg.data_gpio_nums[1] = config.b1;
+    cfg.data_gpio_nums[2] = config.b2;
+    cfg.data_gpio_nums[3] = config.b3;
+    cfg.data_gpio_nums[4] = config.b4;
+    cfg.data_gpio_nums[5] = config.g0;
+    cfg.data_gpio_nums[6] = config.g1;
+    cfg.data_gpio_nums[7] = config.g2;
+    cfg.data_gpio_nums[8] = config.g3;
+    cfg.data_gpio_nums[9] = config.g4;
+    cfg.data_gpio_nums[10] = config.g5;
+    cfg.data_gpio_nums[11] = config.r0;
+    cfg.data_gpio_nums[12] = config.r1;
+    cfg.data_gpio_nums[13] = config.r2;
+    cfg.data_gpio_nums[14] = config.r3;
+    cfg.data_gpio_nums[15] = config.r4;
   }
 
-  cfg->disp_gpio_num = -1;
+  cfg.disp_gpio_num = -1;
 
-  cfg->flags.disp_active_low = 0;
+  cfg.flags.disp_active_low = 0;
 
 #if defined(LEGACY_RGBPANEL)
-  cfg->flags.relax_on_idle = 0;
+  cfg.flags.relax_on_idle = 0;
 #else
-  cfg->num_fbs = 1;
+  cfg.num_fbs = 1;
 #endif
 
-  cfg->flags.fb_in_psram = 1;  // allocate frame buffer in PSRAM
+  cfg.flags.fb_in_psram = 1;  // allocate frame buffer in PSRAM
 
   esp_lcd_panel_handle_t handle;
-  ESP_ERROR_CHECK(esp_lcd_new_rgb_panel(cfg, &handle));
+  ESP_ERROR_CHECK(esp_lcd_new_rgb_panel(&cfg, &handle));
   ESP_ERROR_CHECK(esp_lcd_panel_reset(handle));
   ESP_ERROR_CHECK(esp_lcd_panel_init(handle));
 
-  roo::byte *buf;
-  esp_lcd_rgb_panel_get_frame_buffer(handle, 1, (void **)&buf);
-  return buf;
+  roo::byte* buf;
+  esp_lcd_rgb_panel_get_frame_buffer(handle, 1, (void**)&buf);
+  return {buf, handle};
 }
 
 template <>
 void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::init() {
+  if (panel_handle_ != nullptr) {
+    buffer_.reset();
+    esp_lcd_panel_del(panel_handle_);
+    panel_handle_ = nullptr;
+  }
   async_blit_init();
-  roo::byte *buffer = AllocateBuffer(cfg_);
-  buffer_.reset(new Dev(cfg_.width, cfg_.height, buffer,
+  auto panel = AllocatePanel(cfg_);
+  panel_handle_ = panel.handle;
+  buffer_.reset(new Dev(cfg_.width, cfg_.height, panel.buffer,
                         ::roo_display::internal::Rgb565Dma()));
   buffer_->setOrientation(orientation());
 }
@@ -153,48 +158,48 @@ void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::end() {
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::write(Color *color,
+void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::write(Color* color,
                                                   uint32_t pixel_count) {
   buffer_->write(color, pixel_count);
 }
 
 template <>
 void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::writePixels(BlendingMode mode,
-                                                        Color *color,
-                                                        int16_t *x, int16_t *y,
+                                                        Color* color,
+                                                        int16_t* x, int16_t* y,
                                                         uint16_t pixel_count) {
   buffer_->writePixels(mode, color, x, y, pixel_count);
 }
 
 template <>
 void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::fillPixels(BlendingMode mode,
-                                                       Color color, int16_t *x,
-                                                       int16_t *y,
+                                                       Color color, int16_t* x,
+                                                       int16_t* y,
                                                        uint16_t pixel_count) {
   buffer_->fillPixels(mode, color, x, y, pixel_count);
 }
 
 template <>
 void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::writeRects(BlendingMode mode,
-                                                       Color *color,
-                                                       int16_t *x0, int16_t *y0,
-                                                       int16_t *x1, int16_t *y1,
+                                                       Color* color,
+                                                       int16_t* x0, int16_t* y0,
+                                                       int16_t* x1, int16_t* y1,
                                                        uint16_t count) {
   buffer_->writeRects(mode, color, x0, y0, x1, y1, count);
 }
 
 template <>
 void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::fillRects(BlendingMode mode,
-                                                      Color color, int16_t *x0,
-                                                      int16_t *y0, int16_t *x1,
-                                                      int16_t *y1,
+                                                      Color color, int16_t* x0,
+                                                      int16_t* y0, int16_t* x1,
+                                                      int16_t* y1,
                                                       uint16_t count) {
   buffer_->fillRects(mode, color, x0, y0, x1, y1, count);
 }
 
 template <>
 void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::drawDirectRect(
-    const roo::byte *data, size_t row_width_bytes, int16_t src_x0,
+    const roo::byte* data, size_t row_width_bytes, int16_t src_x0,
     int16_t src_y0, int16_t src_x1, int16_t src_y1, int16_t dst_x0,
     int16_t dst_y0) {
   buffer_->drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1, src_y1,
@@ -215,7 +220,7 @@ void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::drawDirectRect(
 
 template <>
 void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::drawDirectRectAsync(
-    const roo::byte *data, size_t row_width_bytes, int16_t src_x0,
+    const roo::byte* data, size_t row_width_bytes, int16_t src_x0,
     int16_t src_y0, int16_t src_x1, int16_t src_y1, int16_t dst_x0,
     int16_t dst_y0) {
   if (buffer_ == nullptr || src_x1 < src_x0 || src_y1 < src_y0) return;
@@ -230,10 +235,10 @@ struct FlushRange {
   uint32_t length;
 };
 
-inline FlushRange ResolveFlushRangeForRects(const Config &cfg,
+inline FlushRange ResolveFlushRangeForRects(const Config& cfg,
                                             Orientation orientation,
-                                            int16_t *x0, int16_t *y0,
-                                            int16_t *x1, int16_t *y1,
+                                            int16_t* x0, int16_t* y0,
+                                            int16_t* x1, int16_t* y1,
                                             uint16_t count) {
   if (orientation.isXYswapped()) {
     y0 = x0;
@@ -257,9 +262,15 @@ inline FlushRange ResolveFlushRangeForRects(const Config &cfg,
 
 template <>
 void ParallelRgb565<FLUSH_MODE_BUFFERED>::init() {
+  if (panel_handle_ != nullptr) {
+    buffer_.reset();
+    esp_lcd_panel_del(panel_handle_);
+    panel_handle_ = nullptr;
+  }
   async_blit_init();
-  roo::byte *buffer = AllocateBuffer(cfg_);
-  buffer_.reset(new Dev(cfg_.width, cfg_.height, buffer, Rgb565()));
+  auto panel = AllocatePanel(cfg_);
+  panel_handle_ = panel.handle;
+  buffer_.reset(new Dev(cfg_.width, cfg_.height, panel.buffer, Rgb565()));
   buffer_->setOrientation(orientation());
 }
 
@@ -271,7 +282,7 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::end() {
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_BUFFERED>::write(Color *color,
+void ParallelRgb565<FLUSH_MODE_BUFFERED>::write(Color* color,
                                                 uint32_t pixel_count) {
   // int16_t x0 = buffer_->window_x();
   // int16_t y0 = buffer_->window_y();
@@ -302,8 +313,8 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::fill(Color color,
 
 template <>
 void ParallelRgb565<FLUSH_MODE_BUFFERED>::writePixels(BlendingMode mode,
-                                                      Color *color, int16_t *x,
-                                                      int16_t *y,
+                                                      Color* color, int16_t* x,
+                                                      int16_t* y,
                                                       uint16_t pixel_count) {
   // FlushRange range =
   //     ResolveFlushRangeForRects(cfg_, orientation(), x, y, x, y,
@@ -318,8 +329,8 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::writePixels(BlendingMode mode,
 
 template <>
 void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillPixels(BlendingMode mode,
-                                                     Color color, int16_t *x,
-                                                     int16_t *y,
+                                                     Color color, int16_t* x,
+                                                     int16_t* y,
                                                      uint16_t pixel_count) {
   // FlushRange range =
   //     ResolveFlushRangeForRects(cfg_, orientation(), x, y, x, y,
@@ -334,9 +345,9 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillPixels(BlendingMode mode,
 
 template <>
 void ParallelRgb565<FLUSH_MODE_BUFFERED>::writeRects(BlendingMode mode,
-                                                     Color *color, int16_t *x0,
-                                                     int16_t *y0, int16_t *x1,
-                                                     int16_t *y1,
+                                                     Color* color, int16_t* x0,
+                                                     int16_t* y0, int16_t* x1,
+                                                     int16_t* y1,
                                                      uint16_t count) {
   // FlushRange range =
   //     ResolveFlushRangeForRects(cfg_, orientation(), x0, y0, x1, y1,
@@ -351,9 +362,9 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::writeRects(BlendingMode mode,
 
 template <>
 void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillRects(BlendingMode mode,
-                                                    Color color, int16_t *x0,
-                                                    int16_t *y0, int16_t *x1,
-                                                    int16_t *y1,
+                                                    Color color, int16_t* x0,
+                                                    int16_t* y0, int16_t* x1,
+                                                    int16_t* y1,
                                                     uint16_t count) {
   // FlushRange range =
   //     ResolveFlushRangeForRects(cfg_, orientation(), x0, y0, x1, y1,
@@ -368,7 +379,7 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::fillRects(BlendingMode mode,
 
 template <>
 void ParallelRgb565<FLUSH_MODE_BUFFERED>::drawDirectRect(
-    const roo::byte *data, size_t row_width_bytes, int16_t src_x0,
+    const roo::byte* data, size_t row_width_bytes, int16_t src_x0,
     int16_t src_y0, int16_t src_x1, int16_t src_y1, int16_t dst_x0,
     int16_t dst_y0) {
   if (buffer_ == nullptr || src_x1 < src_x0 || src_y1 < src_y0) return;
@@ -390,7 +401,7 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::drawDirectRect(
 
 template <>
 void ParallelRgb565<FLUSH_MODE_BUFFERED>::drawDirectRectAsync(
-    const roo::byte *data, size_t row_width_bytes, int16_t src_x0,
+    const roo::byte* data, size_t row_width_bytes, int16_t src_x0,
     int16_t src_y0, int16_t src_x1, int16_t src_y1, int16_t dst_x0,
     int16_t dst_y0) {
   if (buffer_ == nullptr || src_x1 < src_x0 || src_y1 < src_y0) return;
@@ -400,9 +411,15 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::drawDirectRectAsync(
 
 template <>
 void ParallelRgb565<FLUSH_MODE_LAZY>::init() {
+  if (panel_handle_ != nullptr) {
+    buffer_.reset();
+    esp_lcd_panel_del(panel_handle_);
+    panel_handle_ = nullptr;
+  }
   async_blit_init();
-  roo::byte *buffer = AllocateBuffer(cfg_);
-  buffer_.reset(new Dev(cfg_.width, cfg_.height, buffer, Rgb565()));
+  auto panel = AllocatePanel(cfg_);
+  panel_handle_ = panel.handle;
+  buffer_.reset(new Dev(cfg_.width, cfg_.height, panel.buffer, Rgb565()));
   buffer_->setOrientation(orientation());
 }
 
@@ -415,7 +432,7 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::end() {
 }
 
 template <>
-void ParallelRgb565<FLUSH_MODE_LAZY>::write(Color *color,
+void ParallelRgb565<FLUSH_MODE_LAZY>::write(Color* color,
                                             uint32_t pixel_count) {
   buffer_->write(color, pixel_count);
 }
@@ -427,38 +444,38 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::fill(Color color, uint32_t pixel_count) {
 
 template <>
 void ParallelRgb565<FLUSH_MODE_LAZY>::writePixels(BlendingMode mode,
-                                                  Color *color, int16_t *x,
-                                                  int16_t *y,
+                                                  Color* color, int16_t* x,
+                                                  int16_t* y,
                                                   uint16_t pixel_count) {
   buffer_->writePixels(mode, color, x, y, pixel_count);
 }
 
 template <>
 void ParallelRgb565<FLUSH_MODE_LAZY>::fillPixels(BlendingMode mode, Color color,
-                                                 int16_t *x, int16_t *y,
+                                                 int16_t* x, int16_t* y,
                                                  uint16_t pixel_count) {
   buffer_->fillPixels(mode, color, x, y, pixel_count);
 }
 
 template <>
 void ParallelRgb565<FLUSH_MODE_LAZY>::writeRects(BlendingMode mode,
-                                                 Color *color, int16_t *x0,
-                                                 int16_t *y0, int16_t *x1,
-                                                 int16_t *y1, uint16_t count) {
+                                                 Color* color, int16_t* x0,
+                                                 int16_t* y0, int16_t* x1,
+                                                 int16_t* y1, uint16_t count) {
   buffer_->writeRects(mode, color, x0, y0, x1, y1, count);
 }
 
 template <>
 void ParallelRgb565<FLUSH_MODE_LAZY>::fillRects(BlendingMode mode, Color color,
-                                                int16_t *x0, int16_t *y0,
-                                                int16_t *x1, int16_t *y1,
+                                                int16_t* x0, int16_t* y0,
+                                                int16_t* x1, int16_t* y1,
                                                 uint16_t count) {
   buffer_->fillRects(mode, color, x0, y0, x1, y1, count);
 }
 
 template <>
 void ParallelRgb565<FLUSH_MODE_LAZY>::drawDirectRect(
-    const roo::byte *data, size_t row_width_bytes, int16_t src_x0,
+    const roo::byte* data, size_t row_width_bytes, int16_t src_x0,
     int16_t src_y0, int16_t src_x1, int16_t src_y1, int16_t dst_x0,
     int16_t dst_y0) {
   if (buffer_ == nullptr || src_x1 < src_x0 || src_y1 < src_y0) return;
@@ -468,7 +485,7 @@ void ParallelRgb565<FLUSH_MODE_LAZY>::drawDirectRect(
 
 template <>
 void ParallelRgb565<FLUSH_MODE_LAZY>::drawDirectRectAsync(
-    const roo::byte *data, size_t row_width_bytes, int16_t src_x0,
+    const roo::byte* data, size_t row_width_bytes, int16_t src_x0,
     int16_t src_y0, int16_t src_x1, int16_t src_y1, int16_t dst_x0,
     int16_t dst_y0) {
   if (buffer_ == nullptr || src_x1 < src_x0 || src_y1 < src_y0) return;

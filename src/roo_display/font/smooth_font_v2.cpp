@@ -68,6 +68,8 @@
 
 #include "roo_display/font/smooth_font_v2.h"
 
+#include "roo_display/color/blending.h"
+#include "roo_display/color/color_mode_indexed.h"
 #include "roo_display/core/raster.h"
 #include "roo_display/image/image.h"
 #include "roo_display/internal/raw_streamable_overlay.h"
@@ -82,6 +84,30 @@ namespace {
 constexpr uint8_t kKerningFormatNone = 0;
 constexpr uint8_t kKerningFormatPairs = 1;
 constexpr uint8_t kKerningFormatClasses = 2;
+
+// Pre-blends the 16-level Alpha4 gradient against bgcolor into a palette.
+// This lets glyph rendering use Indexed4 (a simple table lookup) instead of
+// Alpha4 (per-pixel alpha blending).  When bgcolor is opaque, every palette
+// entry is opaque, so the rendering pipeline can use TransparencyMode::kNone
+// and skip blending entirely.
+void BuildAlpha4Palette(Color* out, Color bgcolor, Color color) {
+  Alpha4 alpha(color);
+  out[0] = bgcolor;
+  if (bgcolor.a() == 0xFF) {
+    for (int i = 1; i < 16; ++i) {
+      out[i] = AlphaBlendOverOpaque(bgcolor, alpha.toArgbColor(i));
+    }
+  } else if (bgcolor.a() == 0) {
+    for (int i = 1; i < 16; ++i) {
+      out[i] = alpha.toArgbColor(i);
+    }
+  } else {
+    for (int i = 1; i < 16; ++i) {
+      out[i] = AlphaBlend(bgcolor, alpha.toArgbColor(i));
+    }
+  }
+}
+
 }  // namespace
 
 class FontMetricReader {
@@ -316,29 +342,30 @@ bool is_space(char32_t code) {
 void SmoothFontV2::drawGlyphModeVisible(
     DisplayOutput& output, int16_t x, int16_t y, const GlyphMetrics& metrics,
     bool compressed, const roo::byte* PROGMEM data, const Box& clip_box,
-    Color color, Color bgcolor, BlendingMode blending_mode) const {
+    const Palette& palette, BlendingMode blending_mode) const {
   Surface s(output, x + metrics.bearingX(), y - metrics.bearingY(), clip_box,
-            false, bgcolor, FillMode::kVisible, blending_mode);
+            false, color::Transparent, FillMode::kVisible, blending_mode);
   if (rle() && compressed) {
-    RleImage4bppxBiased<Alpha4> glyph(metrics.width(), metrics.height(), data,
-                                      color);
+    RleImage4bppxBiased<Indexed4> glyph(metrics.width(), metrics.height(), data,
+                                        &palette);
     streamToSurface(s, std::move(glyph));
   } else {
-    // Identical as above, but using Raster<> instead of MonoAlpha4RleImage.
-    ProgMemRaster<Alpha4> glyph(metrics.width(), metrics.height(), data, color);
+    ProgMemRaster<Indexed4> glyph(metrics.width(), metrics.height(), data,
+                                  &palette);
     streamToSurface(s, std::move(glyph));
   }
 }
 
 void SmoothFontV2::drawBordered(DisplayOutput& output, int16_t x, int16_t y,
                                 int16_t bgwidth, const Drawable& glyph,
-                                const Box& clip_box, Color bgColor,
+                                const Box& clip_box, Color borderColor,
+                                Color bgColor,
                                 BlendingMode blending_mode) const {
   Box outer(x, y - metrics().glyphYMax(), x + bgwidth - 1,
             y - metrics().glyphYMin());
 
   // NOTE: bgColor is part of the source, not destination.
-  if (bgColor.a() == 0xFF &&
+  if (borderColor.a() == 0xFF &&
       (blending_mode == BlendingMode::kSourceOver ||
        blending_mode == BlendingMode::kSourceOverOpaque)) {
     // All souce pixels will be fully opaque.
@@ -348,20 +375,20 @@ void SmoothFontV2::drawBordered(DisplayOutput& output, int16_t x, int16_t y,
   if (outer.clip(clip_box) == Box::ClipResult::kEmpty) return;
   Box inner = glyph.extents().translate(x, y);
   if (inner.clip(clip_box) == Box::ClipResult::kEmpty) {
-    output.fillRect(blending_mode, outer, bgColor);
+    output.fillRect(blending_mode, outer, borderColor);
     return;
   }
   if (outer.yMin() < inner.yMin()) {
     output.fillRect(
         blending_mode,
         Box(outer.xMin(), outer.yMin(), outer.xMax(), inner.yMin() - 1),
-        bgColor);
+        borderColor);
   }
   if (outer.xMin() < inner.xMin()) {
     output.fillRect(
         blending_mode,
         Box(outer.xMin(), inner.yMin(), inner.xMin() - 1, inner.yMax()),
-        bgColor);
+        borderColor);
   }
   Surface s(output, x, y, clip_box, false, bgColor, FillMode::kExtents,
             blending_mode);
@@ -370,33 +397,35 @@ void SmoothFontV2::drawBordered(DisplayOutput& output, int16_t x, int16_t y,
     output.fillRect(
         blending_mode,
         Box(inner.xMax() + 1, inner.yMin(), outer.xMax(), inner.yMax()),
-        bgColor);
+        borderColor);
   }
   if (outer.yMax() > inner.yMax()) {
     output.fillRect(
         blending_mode,
         Box(outer.xMin(), inner.yMax() + 1, outer.xMax(), outer.yMax()),
-        bgColor);
+        borderColor);
   }
 }
 
-void SmoothFontV2::drawGlyphModeFill(
-    DisplayOutput& output, int16_t x, int16_t y, int16_t bgwidth,
-    const GlyphMetrics& glyph_metrics, bool compressed,
-    const roo::byte* PROGMEM data, int16_t offset, const Box& clip_box,
-    Color color, Color bgColor, BlendingMode blending_mode) const {
+void SmoothFontV2::drawGlyphModeFill(DisplayOutput& output, int16_t x,
+                                     int16_t y, int16_t bgwidth,
+                                     const GlyphMetrics& glyph_metrics,
+                                     bool compressed,
+                                     const roo::byte* PROGMEM data,
+                                     int16_t offset, const Box& clip_box,
+                                     const Palette& palette, Color borderColor,
+                                     BlendingMode blending_mode) const {
   Box box = glyph_metrics.screen_extents().translate(offset, 0);
   if (rle() && compressed) {
     auto glyph = MakeDrawableRawStreamable(
-        RleImage4bppxBiased<Alpha4>(box, data, color));
-    drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor,
-                 blending_mode);
+        RleImage4bppxBiased<Indexed4>(box, data, &palette));
+    drawBordered(output, x, y, bgwidth, glyph, clip_box, borderColor,
+                 color::Transparent, blending_mode);
   } else {
-    // Identical as above, but using Raster<>
     auto glyph =
-        MakeDrawableRawStreamable(ProgMemRaster<Alpha4>(box, data, color));
-    drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor,
-                 blending_mode);
+        MakeDrawableRawStreamable(ProgMemRaster<Indexed4>(box, data, &palette));
+    drawBordered(output, x, y, bgwidth, glyph, clip_box, borderColor,
+                 color::Transparent, blending_mode);
   }
 }
 
@@ -414,25 +443,25 @@ void SmoothFontV2::drawKernedGlyphsModeFill(
     auto glyph = MakeDrawableRawStreamable(
         Overlay(RleImage4bppxBiased<Alpha4>(lb, left_data, color), 0, 0,
                 RleImage4bppxBiased<Alpha4>(rb, right_data, color), 0, 0));
-    drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor,
+    drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor, bgColor,
                  blending_mode);
   } else if (rle() && left_compressed) {
     auto glyph = MakeDrawableRawStreamable(
         Overlay(RleImage4bppxBiased<Alpha4>(lb, left_data, color), 0, 0,
                 ProgMemRaster<Alpha4>(rb, right_data, color), 0, 0));
-    drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor,
+    drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor, bgColor,
                  blending_mode);
   } else if (rle() && right_compressed) {
     auto glyph = MakeDrawableRawStreamable(
         Overlay(ProgMemRaster<Alpha4>(lb, left_data, color), 0, 0,
                 RleImage4bppxBiased<Alpha4>(rb, right_data, color), 0, 0));
-    drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor,
+    drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor, bgColor,
                  blending_mode);
   } else {
     auto glyph = MakeDrawableRawStreamable(
         Overlay(ProgMemRaster<Alpha4>(lb, left_data, color), 0, 0,
                 ProgMemRaster<Alpha4>(rb, right_data, color), 0, 0));
-    drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor,
+    drawBordered(output, x, y, bgwidth, glyph, clip_box, bgColor, bgColor,
                  blending_mode);
   }
 }
@@ -634,6 +663,11 @@ void SmoothFontV2::drawHorizontalString(const Surface& s, const char* utf8_data,
     preadvanced = glyphs.right_metrics().lsb();
     x += preadvanced;
   }
+  // Pre-compute a 16-color Indexed4 palette that bakes in the alpha blend
+  // against bgcolor, so per-glyph rendering avoids per-pixel blending.
+  Color palette_colors[16];
+  BuildAlpha4Palette(palette_colors, s.bgcolor(), color);
+  Palette palette = Palette::ReadOnly(palette_colors, 16);
   bool has_more;
   do {
     has_more = decoder.next(next_code);
@@ -650,7 +684,7 @@ void SmoothFontV2::drawHorizontalString(const Surface& s, const char* utf8_data,
       // No fill; simply draw and shift.
       drawGlyphModeVisible(output, x - preadvanced, y, glyphs.left_metrics(),
                            glyphs.left_compressed(), glyphs.left_data(),
-                           s.clip_box(), color, s.bgcolor(), s.blending_mode());
+                           s.clip_box(), palette, s.blending_mode());
       x += (glyphs.left_metrics().advance() - kern);
     } else {
       // General case. We may have two glyphs to worry about, and we may be
@@ -692,7 +726,7 @@ void SmoothFontV2::drawHorizontalString(const Surface& s, const char* utf8_data,
             Box::Intersect(s.clip_box(), Box(x, y - metrics().glyphYMax(),
                                              x + total_rect_width - 1,
                                              y - metrics().glyphYMin())),
-            color, s.bgcolor(), s.blending_mode());
+            palette, s.bgcolor(), s.blending_mode());
       }
       x += total_rect_width;
       preadvanced = total_rect_width - (advance - preadvanced);
@@ -700,8 +734,8 @@ void SmoothFontV2::drawHorizontalString(const Surface& s, const char* utf8_data,
   } while (has_more);
 }
 
-void SmoothFontV2::drawGlyph(const Surface& s, char32_t code,
-                             FontLayout layout, Color color) const {
+void SmoothFontV2::drawGlyph(const Surface& s, char32_t code, FontLayout layout,
+                             Color color) const {
   DCHECK(layout == FontLayout::kHorizontal);
   int16_t x = s.dx();
   int16_t y = s.dy();
@@ -734,10 +768,15 @@ void SmoothFontV2::drawGlyph(const Surface& s, char32_t code,
     x += preadvanced;
   }
 
+  // Pre-compute a 16-color Indexed4 palette (see BuildAlpha4Palette).
+  Color palette_colors[16];
+  BuildAlpha4Palette(palette_colors, s.bgcolor(), color);
+  Palette palette = Palette::ReadOnly(palette_colors, 16);
+
   if (s.fill_mode() == FillMode::kVisible) {
     drawGlyphModeVisible(output, x - preadvanced, y, glyph_metrics, compressed,
                          glyph_data_begin_ + reader.data_offset(), s.clip_box(),
-                         color, s.bgcolor(), s.blending_mode());
+                         palette, s.blending_mode());
     return;
   }
 
@@ -750,9 +789,9 @@ void SmoothFontV2::drawGlyph(const Surface& s, char32_t code,
       output, x, y, total_rect_width, glyph_metrics, compressed,
       glyph_data_begin_ + reader.data_offset(), -preadvanced,
       Box::Intersect(s.clip_box(),
-                     Box(x, y - metrics().glyphYMax(),
-                         x + total_rect_width - 1, y - metrics().glyphYMin())),
-      color, s.bgcolor(), s.blending_mode());
+                     Box(x, y - metrics().glyphYMax(), x + total_rect_width - 1,
+                         y - metrics().glyphYMin())),
+      palette, s.bgcolor(), s.blending_mode());
 }
 
 bool SmoothFontV2::getGlyphMetrics(char32_t code, FontLayout layout,

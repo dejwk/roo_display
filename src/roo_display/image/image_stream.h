@@ -429,10 +429,7 @@ class RleStream4bppxBiased<Resource, ColorMode, 4> : public PixelStream {
         run_ = true;
         remaining_items_ = nibble & 0x7;
         bool transparent = ((nibble & 0x8) == 0);
-        run_value_ = color_mode_.color();
-        if (transparent) {
-          run_value_.set_a(0x0);
-        }
+        run_value_ = color_mode_.toArgbColor(transparent ? 0x0 : 0xF);
       }
     }
 

@@ -10,6 +10,8 @@
 
 namespace roo_display {
 
+class Palette;
+
 /// Smooth font v2 with split cmap and glyph metrics format.
 class SmoothFontV2 : public Font {
  public:
@@ -66,14 +68,15 @@ class SmoothFontV2 : public Font {
   void drawGlyphModeVisible(DisplayOutput& output, int16_t x, int16_t y,
                             const GlyphMetrics& metrics, bool compressed,
                             const roo::byte* PROGMEM data, const Box& clip_box,
-                            Color color, Color bgcolor,
+                            const Palette& palette,
                             BlendingMode blending_mode) const;
 
   void drawGlyphModeFill(DisplayOutput& output, int16_t x, int16_t y,
                          int16_t bgwidth, const GlyphMetrics& glyph_metrics,
                          bool compressed, const roo::byte* PROGMEM data,
-                         int16_t offset, const Box& clip_box, Color color,
-                         Color bgColor, BlendingMode blending_mode) const;
+                         int16_t offset, const Box& clip_box,
+                         const Palette& palette, Color borderColor,
+                         BlendingMode blending_mode) const;
 
   void drawKernedGlyphsModeFill(
       DisplayOutput& output, int16_t x, int16_t y, int16_t bgwidth,
@@ -86,7 +89,8 @@ class SmoothFontV2 : public Font {
 
   void drawBordered(DisplayOutput& output, int16_t x, int16_t y,
                     int16_t bgwidth, const Drawable& glyph, const Box& clip_box,
-                    Color bgColor, BlendingMode blending_mode) const;
+                    Color borderColor, Color bgColor,
+                    BlendingMode blending_mode) const;
 
   int glyph_count_;
   int glyph_metadata_size_;

@@ -1653,7 +1653,15 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                                                *color);
       if (m == BlendingMode::kDestination) continue;
     }
-    fillRectsAbsolute(m, *color++, x0++, y0++, x1++, y1++, 1);
+    if (*y0 == *y1) {
+      fillHlinesAbsolute(m, *color++, x0++, y0++, x1++, 1);
+      y1++;
+    } else if (*x0 == *x1) {
+      fillVlinesAbsolute(m, *color++, x0++, y0++, y1++, 1);
+      x1++;
+    } else {
+      fillRectsAbsolute(m, *color++, x0++, y0++, x1++, y1++, 1);
+    }
   }
 }
 
@@ -1749,33 +1757,27 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
                                                       int16_t* y0, int16_t* x1,
                                                       int16_t* y1,
                                                       uint16_t count) {
-  if (y0 == y1) {
-    fillHlinesAbsolute(blending_mode, color, x0, y0, x1, count);
-  } else if (x0 == x1) {
-    fillVlinesAbsolute(blending_mode, color, x0, y0, y1, count);
+  int16_t w = raw_width();
+  roo::byte* buffer = buffer_;
+  if (blending_mode == BlendingMode::kSource) {
+    typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
+        template Operator<BlendingMode::kSource>
+            fill(color_mode_, color);
+    fillRectsAbsoluteImpl(fill, buffer, w, x0, y0, x1, y1, count);
+  } else if (blending_mode == BlendingMode::kSourceOverOpaque) {
+    typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
+        template Operator<BlendingMode::kSourceOverOpaque>
+            fill(color_mode_, color);
+    fillRectsAbsoluteImpl(fill, buffer, w, x0, y0, x1, y1, count);
+  } else if (blending_mode == BlendingMode::kSourceOver) {
+    typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
+        template Operator<BlendingMode::kSourceOver>
+            fill(color_mode_, color);
+    fillRectsAbsoluteImpl(fill, buffer, w, x0, y0, x1, y1, count);
   } else {
-    int16_t w = raw_width();
-    roo::byte* buffer = buffer_;
-    if (blending_mode == BlendingMode::kSource) {
-      typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
-          template Operator<BlendingMode::kSource>
-              fill(color_mode_, color);
-      fillRectsAbsoluteImpl(fill, buffer, w, x0, y0, x1, y1, count);
-    } else if (blending_mode == BlendingMode::kSourceOverOpaque) {
-      typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
-          template Operator<BlendingMode::kSourceOverOpaque>
-              fill(color_mode_, color);
-      fillRectsAbsoluteImpl(fill, buffer, w, x0, y0, x1, y1, count);
-    } else if (blending_mode == BlendingMode::kSourceOver) {
-      typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
-          template Operator<BlendingMode::kSourceOver>
-              fill(color_mode_, color);
-      fillRectsAbsoluteImpl(fill, buffer, w, x0, y0, x1, y1, count);
-    } else {
-      internal::GenericFiller<ColorMode, pixel_order, byte_order> fill(
-          color_mode_, blending_mode, color);
-      fillRectsAbsoluteImpl(fill, buffer, w, x0, y0, x1, y1, count);
-    }
+    internal::GenericFiller<ColorMode, pixel_order, byte_order> fill(
+        color_mode_, blending_mode, color);
+    fillRectsAbsoluteImpl(fill, buffer, w, x0, y0, x1, y1, count);
   }
 }
 

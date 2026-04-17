@@ -33,6 +33,17 @@ class RectUnion {
     return false;
   }
 
+  /// Return whether any single rectangle in the union fully contains `rect`.
+  /// Note that this is a stronger condition than requiring the union as a whole
+  /// to contain `rect`, since the union can consist of adjacent rectangles that
+  /// cover `rect` but none of them individually contain it.
+  inline bool contains(const Box& rect) const {
+    for (const Box* box = begin_; box != end_; ++box) {
+      if (box->contains(rect)) return true;
+    }
+    return false;
+  }
+
   /// Return the number of rectangles in the union.
   size_t size() const { return end_ - begin_; }
 
@@ -66,10 +77,27 @@ class RectUnionFilter : public DisplayOutput {
     blending_mode_ = mode;
     cursor_x_ = x0;
     cursor_y_ = y0;
+    if (!exclusion_->intersects(address_window_)) {
+      addr_excluded_ = kNone;
+      output_->setAddress(x0, y0, x1, y1, mode);
+    } else if (exclusion_->contains(address_window_)) {
+      addr_excluded_ = kFull;
+    } else {
+      addr_excluded_ = kPartial;
+    }
   }
 
   void write(Color* color, uint32_t pixel_count) override {
-    // Naive implementation, for now.
+    if (addr_excluded_ == kNone) {
+      output_->write(color, pixel_count);
+      advanceCursor(pixel_count);
+      return;
+    }
+    if (addr_excluded_ == kFull) {
+      // Don't bother to advance cursor, since we're not using it anyway.
+      return;
+    }
+    // Slow path: per-pixel exclusion check.
     uint32_t i = 0;
     BufferedPixelWriter writer(*output_, blending_mode_);
     while (i < pixel_count) {
@@ -85,6 +113,16 @@ class RectUnionFilter : public DisplayOutput {
   }
 
   void fill(Color color, uint32_t pixel_count) override {
+    if (addr_excluded_ == kNone) {
+      output_->fill(color, pixel_count);
+      advanceCursor(pixel_count);
+      return;
+    }
+    if (addr_excluded_ == kFull) {
+      // Don't bother to advance cursor, since we're not using it anyway.
+      return;
+    }
+    // Slow path: per-pixel exclusion check.
     uint32_t i = 0;
     BufferedPixelFiller filler(*output_, color, blending_mode_);
     while (i < pixel_count) {
@@ -224,12 +262,23 @@ class RectUnionFilter : public DisplayOutput {
     }
   }
 
+  void advanceCursor(uint32_t pixel_count) {
+    int16_t w = address_window_.xMax() - address_window_.xMin() + 1;
+    int32_t pos = (cursor_y_ - address_window_.yMin()) * (int32_t)w +
+                  (cursor_x_ - address_window_.xMin()) + pixel_count;
+    cursor_y_ = address_window_.yMin() + pos / w;
+    cursor_x_ = address_window_.xMin() + pos % w;
+  }
+
+  enum AddrExclusion : uint8_t { kNone, kPartial, kFull };
+
   DisplayOutput* output_;
   const RectUnion* exclusion_;
   Box address_window_;
   BlendingMode blending_mode_;
   int16_t cursor_x_;
   int16_t cursor_y_;
+  AddrExclusion addr_excluded_ = kNone;
 };
 
 }  // namespace roo_display

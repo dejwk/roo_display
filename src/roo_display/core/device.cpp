@@ -70,4 +70,9 @@ void DisplayOutput::drawDirectRectAsync(const roo::byte *data,
                  dst_y0);
 }
 
+const DisplayOutput::Capabilities &DisplayOutput::getCapabilities() const {
+  static const Capabilities kDefault;
+  return kDefault;
+}
+
 }  // namespace roo_display

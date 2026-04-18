@@ -14,6 +14,7 @@ namespace roo_display {
 /// The abstraction for drawing to a display.
 class DisplayOutput {
  public:
+  class Capabilities;
   class ColorFormat;
 
   virtual ~DisplayOutput() {}
@@ -42,7 +43,7 @@ class DisplayOutput {
   ///
   /// @param bounds The target rectangle.
   /// @param blending_mode Blending mode for subsequent writes.
-  void setAddress(const Box &bounds, BlendingMode blending_mode) {
+  void setAddress(const Box& bounds, BlendingMode blending_mode) {
     setAddress(bounds.xMin(), bounds.yMin(), bounds.xMax(), bounds.yMax(),
                blending_mode);
   }
@@ -64,7 +65,7 @@ class DisplayOutput {
   ///
   /// @param color Pointer to source pixels.
   /// @param pixel_count Number of pixels to write.
-  virtual void write(Color *color, uint32_t pixel_count) = 0;
+  virtual void write(Color* color, uint32_t pixel_count) = 0;
 
   /// Write `pixel_count` copies of the same color into the current address
   /// window.
@@ -85,8 +86,8 @@ class DisplayOutput {
   /// @param x Pointer to x-coordinates for each pixel.
   /// @param y Pointer to y-coordinates for each pixel.
   /// @param pixel_count Number of pixels.
-  virtual void writePixels(BlendingMode blending_mode, Color *color, int16_t *x,
-                           int16_t *y, uint16_t pixel_count) = 0;
+  virtual void writePixels(BlendingMode blending_mode, Color* color, int16_t* x,
+                           int16_t* y, uint16_t pixel_count) = 0;
 
   /// Draw the specified pixels using the same color. Invalidates the address
   /// window.
@@ -96,8 +97,8 @@ class DisplayOutput {
   /// @param x Pointer to x-coordinates for each pixel.
   /// @param y Pointer to y-coordinates for each pixel.
   /// @param pixel_count Number of pixels.
-  virtual void fillPixels(BlendingMode blending_mode, Color color, int16_t *x,
-                          int16_t *y, uint16_t pixel_count) = 0;
+  virtual void fillPixels(BlendingMode blending_mode, Color color, int16_t* x,
+                          int16_t* y, uint16_t pixel_count) = 0;
 
   /// Draw the specified rectangles (per-rectangle colors). Invalidates the
   /// address window.
@@ -109,8 +110,8 @@ class DisplayOutput {
   /// @param x1 Pointer to right coordinates for each rectangle.
   /// @param y1 Pointer to bottom coordinates for each rectangle.
   /// @param count Number of rectangles.
-  virtual void writeRects(BlendingMode blending_mode, Color *color, int16_t *x0,
-                          int16_t *y0, int16_t *x1, int16_t *y1,
+  virtual void writeRects(BlendingMode blending_mode, Color* color, int16_t* x0,
+                          int16_t* y0, int16_t* x1, int16_t* y1,
                           uint16_t count) = 0;
 
   /// Draw the specified rectangles using the same color. Invalidates the
@@ -123,8 +124,8 @@ class DisplayOutput {
   /// @param x1 Pointer to right coordinates for each rectangle.
   /// @param y1 Pointer to bottom coordinates for each rectangle.
   /// @param count Number of rectangles.
-  virtual void fillRects(BlendingMode blending_mode, Color color, int16_t *x0,
-                         int16_t *y0, int16_t *x1, int16_t *y1,
+  virtual void fillRects(BlendingMode blending_mode, Color color, int16_t* x0,
+                         int16_t* y0, int16_t* x1, int16_t* y1,
                          uint16_t count) = 0;
 
   /// Fill a single rectangle. Invalidates the address window.
@@ -132,7 +133,7 @@ class DisplayOutput {
   /// @param blending_mode Blending mode used for drawing.
   /// @param rect The rectangle to fill.
   /// @param color The fill color.
-  inline void fillRect(BlendingMode blending_mode, const Box &rect,
+  inline void fillRect(BlendingMode blending_mode, const Box& rect,
                        Color color) {
     int16_t x0 = rect.xMin();
     int16_t y0 = rect.yMin();
@@ -176,7 +177,15 @@ class DisplayOutput {
   }
 
   /// Return the native color format used by this device for direct drawing.
-  virtual const ColorFormat &getColorFormat() const = 0;
+  virtual const ColorFormat& getColorFormat() const = 0;
+
+  /// Return the optional capabilities of this display output.
+  ///
+  /// The default implementation returns a static singleton with no optional
+  /// capabilities enabled. Devices that support additional functionality
+  /// (e.g. hardware blending) should override this method and return a
+  /// singleton describing their capabilities.
+  virtual const Capabilities& getCapabilities() const;
 
   /// Draw a rectangle represented in the device's native color format.
   ///
@@ -192,7 +201,7 @@ class DisplayOutput {
   /// window functions to draw them. Specific devices can override this method
   /// to provide a more efficient implementation that draws directly from the
   /// source data.
-  virtual void drawDirectRect(const roo::byte *data, size_t row_width_bytes,
+  virtual void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
                               int16_t src_x0, int16_t src_y0, int16_t src_x1,
                               int16_t src_y1, int16_t dst_x0, int16_t dst_y0);
 
@@ -203,7 +212,7 @@ class DisplayOutput {
   /// is called.
   ///
   /// The default implementation calls drawDirectRect() synchronously.
-  virtual void drawDirectRectAsync(const roo::byte *data,
+  virtual void drawDirectRectAsync(const roo::byte* data,
                                    size_t row_width_bytes, int16_t src_x0,
                                    int16_t src_y0, int16_t src_x1,
                                    int16_t src_y1, int16_t dst_x0,
@@ -294,6 +303,32 @@ class DisplayDevice : public DisplayOutput {
   int16_t raw_height_;
 };
 
+/// Describes optional capabilities that a display output may support.
+///
+/// Different display outputs may support different subsets of functionality.
+/// For example, some devices can read back the current framebuffer content,
+/// enabling true alpha blending, while others cannot. This class allows
+/// callers to query for such capabilities at runtime, so that rendering
+/// pipelines can choose optimal code paths or fall back to alternatives.
+///
+/// Instances are intended to be lightweight, immutable singletons returned
+/// by reference from `DisplayOutput::getCapabilities()`.
+class DisplayOutput::Capabilities {
+ public:
+  Capabilities() : supports_blending_(false) {}
+  explicit Capabilities(bool supports_blending)
+      : supports_blending_(supports_blending) {}
+
+  virtual ~Capabilities() {}
+
+  /// Whether the device can accept non-opaque pixels and meaningfully blend
+  /// them into the existing content (e.g., by reading back the framebuffer).
+  bool supportsBlending() const { return supports_blending_; }
+
+ private:
+  bool supports_blending_;
+};
+
 class DisplayOutput::ColorFormat {
  public:
   enum Mode {
@@ -334,17 +369,17 @@ class DisplayOutput::ColorFormat {
   /// @param y1 Bottom coordinate of the rectangle.
   /// @param output Output buffer for the decoded colors. Must have capacity
   ///               of at least `(x1 - x0 + 1) * (y1 - y0 + 1)`.
-  virtual void decode(const roo::byte *data, size_t row_width_bytes, int16_t x0,
+  virtual void decode(const roo::byte* data, size_t row_width_bytes, int16_t x0,
                       int16_t y0, int16_t x1, int16_t y1,
-                      Color *output) const = 0;
+                      Color* output) const = 0;
 
   /// Returns true if all pixels in the specified rectangle have the same raw
   /// representation in this format.
   ///
   /// If true, writes the corresponding decoded color to `output`.
-  virtual bool decodeIfUniform(const roo::byte *data, size_t row_width_bytes,
+  virtual bool decodeIfUniform(const roo::byte* data, size_t row_width_bytes,
                                int16_t x0, int16_t y0, int16_t x1, int16_t y1,
-                               Color *output) const = 0;
+                               Color* output) const = 0;
 
   Mode mode() const { return mode_; }
 
@@ -443,7 +478,7 @@ class TouchDevice {
   /// @param points Output buffer for touch points.
   /// @param max_points Capacity of `points`.
   /// @return Touch result metadata.
-  virtual TouchResult getTouch(TouchPoint *points, int max_points) = 0;
+  virtual TouchResult getTouch(TouchPoint* points, int max_points) = 0;
 };
 
 }  // namespace roo_display

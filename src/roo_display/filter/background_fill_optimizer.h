@@ -151,6 +151,10 @@ class BackgroundFillOptimizer : public DisplayOutput {
     return output_.getColorFormat();
   }
 
+  const Capabilities& getCapabilities() const override {
+    return output_.getCapabilities();
+  }
+
  private:
   friend class BackgroundFillOptimizerDevice;
 
@@ -308,6 +312,10 @@ class BackgroundFillOptimizerDevice : public DisplayDevice {
 
   const ColorFormat& getColorFormat() const override {
     return device_.getColorFormat();
+  }
+
+  const Capabilities& getCapabilities() const override {
+    return device_.getCapabilities();
   }
 
   /// Accessor for testing: retrieve the internal frame buffer.

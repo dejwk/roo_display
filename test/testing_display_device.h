@@ -89,6 +89,10 @@ class TestDisplayDevice : public DisplayDevice {
     return test_.getColorFormat();
   }
 
+  const Capabilities& getCapabilities() const override {
+    return test_.getCapabilities();
+  }
+
   const ReferenceDevice& refc() const { return refc_; };
   const TestedDevice& test() const { return test_; }
   TestedDevice& test() { return test_; }

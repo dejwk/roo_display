@@ -1280,6 +1280,10 @@ class FakeFilteringOffscreen : public DisplayOutput {
     return offscreen_.getColorFormat();
   }
 
+  const Capabilities& getCapabilities() const override {
+    return offscreen_.getCapabilities();
+  }
+
   const FakeOffscreen<ColorMode, byte_order, pixel_order>& offscreen() const {
     return offscreen_;
   }
@@ -1365,6 +1369,10 @@ class FilteredOutput : public DisplayOutput {
 
   const ColorFormat& getColorFormat() const override {
     return filter_->getColorFormat();
+  }
+
+  const Capabilities& getCapabilities() const override {
+    return filter_->getCapabilities();
   }
 
   const FakeOffscreen<ColorMode, byte_order, pixel_order>& offscreen() const {

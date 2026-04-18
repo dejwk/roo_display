@@ -81,6 +81,10 @@ class OptimizedDevice : public DisplayDevice {
     return optimizer_.getColorFormat();
   }
 
+  const Capabilities& getCapabilities() const override {
+    return optimizer_.getCapabilities();
+  }
+
   const FakeOffscreen<ColorMode>& device() const { return device_; }
 
   const BackgroundFillOptimizer::FrameBuffer& buffer() const {

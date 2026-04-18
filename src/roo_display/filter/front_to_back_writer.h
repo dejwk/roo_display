@@ -19,6 +19,7 @@ class FrontToBackWriter : public DisplayOutput {
   /// go out of bounds.
   FrontToBackWriter(DisplayOutput& output, Box bounds)
       : color_format_(output.getColorFormat()),
+        capabilities_(output.getCapabilities()),
         offscreen_(bounds, color::Transparent),
         mask_(offscreen_.buffer(), bounds),
         mask_filter_(output, &mask_) {}
@@ -119,8 +120,13 @@ class FrontToBackWriter : public DisplayOutput {
 
   const ColorFormat& getColorFormat() const override { return color_format_; }
 
+  const Capabilities& getCapabilities() const override {
+    return capabilities_;
+  }
+
  private:
   const ColorFormat& color_format_;
+  const Capabilities& capabilities_;
   BitMaskOffscreen offscreen_;
   ClipMask mask_;
   ClipMaskFilter mask_filter_;

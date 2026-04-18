@@ -74,14 +74,14 @@ class Transformation {
   ///
   /// If the transformation swaps axes, the input rectangle is assumed already
   /// swapped.
-  void transformRectNoSwap(int16_t &x0, int16_t &y0, int16_t &x1,
-                           int16_t &y1) const;
+  void transformRectNoSwap(int16_t& x0, int16_t& y0, int16_t& x1,
+                           int16_t& y1) const;
 
   /// Apply the transformation to a box.
   Box transformBox(Box in) const;
 
   /// Smallest rectangle in destination coordinates enclosing `rect`.
-  Box smallestEnclosingRect(const Box &rect) const;
+  Box smallestEnclosingRect(const Box& rect) const;
 
   /// Smallest bounding rect covering the clip box in destination coordinates.
   Box smallestBoundingRect() const;
@@ -100,7 +100,7 @@ class Transformation {
 class TransformedDisplayOutput : public DisplayOutput {
  public:
   /// Construct a transformed output.
-  TransformedDisplayOutput(DisplayOutput &delegate,
+  TransformedDisplayOutput(DisplayOutput& delegate,
                            Transformation transformation)
       : delegate_(delegate),
         transformation_(std::move(transformation)),
@@ -112,31 +112,35 @@ class TransformedDisplayOutput : public DisplayOutput {
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
                   BlendingMode mode) override;
 
-  void write(Color *color, uint32_t pixel_count) override;
+  void write(Color* color, uint32_t pixel_count) override;
 
   void fill(Color color, uint32_t pixel_count) override;
 
-  void writePixels(BlendingMode mode, Color *color, int16_t *x, int16_t *y,
+  void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
                    uint16_t pixel_count) override;
 
-  void fillPixels(BlendingMode mode, Color color, int16_t *x, int16_t *y,
+  void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override;
 
-  void writeRects(BlendingMode mode, Color *color, int16_t *x0, int16_t *y0,
-                  int16_t *x1, int16_t *y1, uint16_t pixel_count) override;
+  void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
+                  int16_t* x1, int16_t* y1, uint16_t pixel_count) override;
 
-  void fillRects(BlendingMode mode, Color color, int16_t *x0, int16_t *y0,
-                 int16_t *x1, int16_t *y1, uint16_t count) override;
+  void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
+                 int16_t* x1, int16_t* y1, uint16_t count) override;
 
   /// Return the effective clip box.
-  const Box &clip_box() const { return clip_box_; }
+  const Box& clip_box() const { return clip_box_; }
 
-  const ColorFormat &getColorFormat() const override {
+  const ColorFormat& getColorFormat() const override {
     return delegate_.getColorFormat();
   }
 
+  const Capabilities& getCapabilities() const override {
+    return delegate_.getCapabilities();
+  }
+
  private:
-  DisplayOutput &delegate_;
+  DisplayOutput& delegate_;
   Transformation transformation_;
   Box clip_box_;
   Box addr_window_;
@@ -149,7 +153,7 @@ class TransformedDisplayOutput : public DisplayOutput {
 class TransformedDrawable : public Drawable {
  public:
   /// Construct a transformed drawable.
-  TransformedDrawable(Transformation transformation, const Drawable *delegate)
+  TransformedDrawable(Transformation transformation, const Drawable* delegate)
       : transformation_(std::move(transformation)), delegate_(delegate) {}
 
   Box extents() const override {
@@ -161,7 +165,7 @@ class TransformedDrawable : public Drawable {
   }
 
  private:
-  void drawTo(const Surface &s) const override {
+  void drawTo(const Surface& s) const override {
     Transformation adjusted =
         transformation_.translate(s.dx(), s.dy()).clip(s.clip_box());
     TransformedDisplayOutput new_output(s.out(), adjusted);
@@ -173,7 +177,7 @@ class TransformedDrawable : public Drawable {
 
  private:
   Transformation transformation_;
-  const Drawable *delegate_;
+  const Drawable* delegate_;
 };
 
 }  // namespace roo_display

@@ -63,6 +63,9 @@ class ReferenceDisplayDevice : public DisplayDevice {
                       int16_t src_x0, int16_t src_y0, int16_t src_x1,
                       int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override;
 
+  void blitCopy(int16_t src_x0, int16_t src_y0, int16_t src_x1, int16_t src_y1,
+                int16_t dst_x0, int16_t dst_y0) override;
+
   void orientationUpdated() override;
 
  private:

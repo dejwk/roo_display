@@ -425,8 +425,142 @@ class OffscreenDevice : public DisplayDevice {
   const ColorFormat& getColorFormat() const override { return color_format_; }
 
   const Capabilities& getCapabilities() const override {
-    static const Capabilities kBlendable(true);
-    return kBlendable;
+    static const Capabilities kCaps(/*supports_blending=*/true,
+                                    /*supports_blit_copy=*/true);
+    return kCaps;
+  }
+
+  void blitCopy(int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override {
+    if (dst_x0 == src_x0 && dst_y0 == src_y0) return;
+    awaitAsyncBlit();
+    if (src_x1 < src_x0 || src_y1 < src_y0) return;
+
+    // Transform oriented coordinates to raw buffer coordinates.
+    int16_t dst_x1 = dst_x0 + (src_x1 - src_x0);
+    int16_t dst_y1 = dst_y0 + (src_y1 - src_y0);
+    orienter_.orientRect(src_x0, src_y0, src_x1, src_y1);
+    orienter_.orientRect(dst_x0, dst_y0, dst_x1, dst_y1);
+
+    int16_t width = src_x1 - src_x0 + 1;
+    int16_t height = src_y1 - src_y0 + 1;
+
+    if constexpr (ColorTraits<ColorMode>::pixels_per_byte == 1) {
+      constexpr size_t kBytesPerPixel =
+          ColorTraits<ColorMode>::bytes_per_pixel;
+      size_t row_bytes = static_cast<size_t>(raw_width()) * kBytesPerPixel;
+      size_t copy_row_bytes = static_cast<size_t>(width) * kBytesPerPixel;
+
+      // Choose row iteration order so overlapping regions are handled
+      // correctly (like memmove).
+      if (dst_y0 < src_y0 ||
+          (dst_y0 == src_y0 && dst_x0 <= src_x0)) {
+        // Copy top-to-bottom.
+        roo::byte* src_row = buffer_ +
+                             static_cast<size_t>(src_y0) * row_bytes +
+                             static_cast<size_t>(src_x0) * kBytesPerPixel;
+        roo::byte* dst_row = buffer_ +
+                             static_cast<size_t>(dst_y0) * row_bytes +
+                             static_cast<size_t>(dst_x0) * kBytesPerPixel;
+        for (int16_t r = 0; r < height; ++r) {
+          std::memmove(dst_row, src_row, copy_row_bytes);
+          src_row += row_bytes;
+          dst_row += row_bytes;
+        }
+      } else {
+        // Copy bottom-to-top.
+        roo::byte* src_row = buffer_ +
+                             static_cast<size_t>(src_y1) * row_bytes +
+                             static_cast<size_t>(src_x0) * kBytesPerPixel;
+        roo::byte* dst_row = buffer_ +
+                             static_cast<size_t>(dst_y1) * row_bytes +
+                             static_cast<size_t>(dst_x0) * kBytesPerPixel;
+        for (int16_t r = 0; r < height; ++r) {
+          std::memmove(dst_row, src_row, copy_row_bytes);
+          src_row -= row_bytes;
+          dst_row -= row_bytes;
+        }
+      }
+    } else {
+      constexpr int kPixelsPerByte = ColorTraits<ColorMode>::pixels_per_byte;
+      size_t row_bytes = static_cast<size_t>(raw_width()) / kPixelsPerByte;
+
+      // Sub-byte fast path: byte-aligned rows and x offsets.
+      if ((src_x0 % kPixelsPerByte) == 0 &&
+          (dst_x0 % kPixelsPerByte) == 0 &&
+          (width % kPixelsPerByte) == 0) {
+        size_t copy_row_bytes = static_cast<size_t>(width) / kPixelsPerByte;
+        if (dst_y0 < src_y0 ||
+            (dst_y0 == src_y0 && dst_x0 <= src_x0)) {
+          roo::byte* src_row =
+              buffer_ + static_cast<size_t>(src_y0) * row_bytes +
+              static_cast<size_t>(src_x0 / kPixelsPerByte);
+          roo::byte* dst_row =
+              buffer_ + static_cast<size_t>(dst_y0) * row_bytes +
+              static_cast<size_t>(dst_x0 / kPixelsPerByte);
+          for (int16_t r = 0; r < height; ++r) {
+            std::memmove(dst_row, src_row, copy_row_bytes);
+            src_row += row_bytes;
+            dst_row += row_bytes;
+          }
+        } else {
+          roo::byte* src_row =
+              buffer_ + static_cast<size_t>(src_y1) * row_bytes +
+              static_cast<size_t>(src_x0 / kPixelsPerByte);
+          roo::byte* dst_row =
+              buffer_ + static_cast<size_t>(dst_y1) * row_bytes +
+              static_cast<size_t>(dst_x0 / kPixelsPerByte);
+          for (int16_t r = 0; r < height; ++r) {
+            std::memmove(dst_row, src_row, copy_row_bytes);
+            src_row -= row_bytes;
+            dst_row -= row_bytes;
+          }
+        }
+        return;
+      }
+
+      // General sub-byte fallback: read pixels, write pixels.
+      static constexpr int16_t kTileSize = 8;
+      Color tile[kTileSize * kTileSize];
+      SubByteColorIo<ColorMode, pixel_order> io;
+
+      // Process in tiles; iterate in correct row order for overlap safety.
+      bool top_to_bottom = (dst_y0 < src_y0 ||
+                            (dst_y0 == src_y0 && dst_x0 <= src_x0));
+      for (int16_t ty = 0; ty < height; ty += kTileSize) {
+        int16_t row_idx = top_to_bottom ? ty : (height - kTileSize - ty);
+        if (row_idx < 0) row_idx = 0;
+        int16_t tile_h = std::min<int16_t>(kTileSize, height - row_idx);
+        for (int16_t tx = 0; tx < width; tx += kTileSize) {
+          int16_t tile_w = std::min<int16_t>(kTileSize, width - tx);
+          // Read from source.
+          for (int16_t r = 0; r < tile_h; ++r) {
+            for (int16_t c = 0; c < tile_w; ++c) {
+              int16_t sx = src_x0 + tx + c;
+              int16_t sy = src_y0 + row_idx + r;
+              const roo::byte* p =
+                  buffer_ + static_cast<size_t>(sy) * row_bytes +
+                  static_cast<size_t>(sx / kPixelsPerByte);
+              tile[r * tile_w + c] = color_mode_.toArgbColor(
+                  io.loadRaw(*p, sx % kPixelsPerByte));
+            }
+          }
+          // Write to destination.
+          for (int16_t r = 0; r < tile_h; ++r) {
+            for (int16_t c = 0; c < tile_w; ++c) {
+              int16_t dx = dst_x0 + tx + c;
+              int16_t dy = dst_y0 + row_idx + r;
+              roo::byte* p =
+                  buffer_ + static_cast<size_t>(dy) * row_bytes +
+                  static_cast<size_t>(dx / kPixelsPerByte);
+              uint8_t raw =
+                  color_mode_.fromArgbColor(tile[r * tile_w + c]);
+              io.storeRaw(raw, p, dx % kPixelsPerByte);
+            }
+          }
+        }
+      }
+    }
   }
 
   // const Raster<const roo::byte *, ColorMode, pixel_order, byte_order>

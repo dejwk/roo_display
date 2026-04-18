@@ -1022,4 +1022,160 @@ TEST_P(OffscreenTest, DrawDirectRect) {
       std::get<0>(GetParam()), std::get<1>(GetParam()));
 }
 
+// ---------- blitCopy tests ----------
+
+TEST_F(OffscreenTest, BlitCopyNonOverlapping) {
+  // Byte-aligned color mode (Argb4444, 2 bytes per pixel -> memmove path).
+  Offscreen<Argb4444> offscreen(8, 6, color::Black);
+  DrawingContext dc(offscreen);
+  dc.draw(SolidRect(1, 1, 3, 3, Color(0xFFAAAAAA)));
+  EXPECT_THAT(offscreen.raster(), MatchesContent(Grayscale4(), Box(0, 0, 7, 5),
+                                                 "        "
+                                                 " AAA    "
+                                                 " AAA    "
+                                                 " AAA    "
+                                                 "        "
+                                                 "        "));
+  offscreen.output().blitCopy(1, 1, 3, 3, 4, 2);
+  EXPECT_THAT(offscreen.raster(), MatchesContent(Grayscale4(), Box(0, 0, 7, 5),
+                                                 "        "
+                                                 " AAA    "
+                                                 " AAAAAA "
+                                                 " AAAAAA "
+                                                 "    AAA "
+                                                 "        "));
+}
+
+TEST_F(OffscreenTest, BlitCopyOverlapDown) {
+  // Overlapping copy moving down — requires bottom-to-top iteration.
+  Offscreen<Grayscale4> offscreen(4, 6, color::Black);
+  DrawingContext dc(offscreen);
+  dc.draw(SolidRect(0, 0, 3, 0, Color(0xFF222222)));
+  dc.draw(SolidRect(0, 1, 3, 1, Color(0xFF444444)));
+  dc.draw(SolidRect(0, 2, 3, 2, Color(0xFF666666)));
+  EXPECT_THAT(offscreen.raster(), MatchesContent(Grayscale4(), Box(0, 0, 3, 5),
+                                                 "2222"
+                                                 "4444"
+                                                 "6666"
+                                                 "    "
+                                                 "    "
+                                                 "    "));
+  offscreen.output().blitCopy(0, 0, 3, 2, 0, 2);
+  EXPECT_THAT(offscreen.raster(), MatchesContent(Grayscale4(), Box(0, 0, 3, 5),
+                                                 "2222"
+                                                 "4444"
+                                                 "2222"
+                                                 "4444"
+                                                 "6666"
+                                                 "    "));
+}
+
+TEST_F(OffscreenTest, BlitCopyOverlapUp) {
+  // Overlapping copy moving up — requires top-to-bottom iteration.
+  Offscreen<Grayscale4> offscreen(4, 6, color::Black);
+  DrawingContext dc(offscreen);
+  dc.draw(SolidRect(0, 3, 3, 3, Color(0xFF222222)));
+  dc.draw(SolidRect(0, 4, 3, 4, Color(0xFF444444)));
+  dc.draw(SolidRect(0, 5, 3, 5, Color(0xFF666666)));
+  EXPECT_THAT(offscreen.raster(), MatchesContent(Grayscale4(), Box(0, 0, 3, 5),
+                                                 "    "
+                                                 "    "
+                                                 "    "
+                                                 "2222"
+                                                 "4444"
+                                                 "6666"));
+  offscreen.output().blitCopy(0, 3, 3, 5, 0, 1);
+  EXPECT_THAT(offscreen.raster(), MatchesContent(Grayscale4(), Box(0, 0, 3, 5),
+                                                 "    "
+                                                 "2222"
+                                                 "4444"
+                                                 "6666"
+                                                 "4444"
+                                                 "6666"));
+}
+
+TEST_F(OffscreenTest, BlitCopyOverlapRight) {
+  // Same-row overlapping copy moving right — memmove handles correctly.
+  Offscreen<Grayscale4> offscreen(8, 1, color::Black);
+  DrawingContext dc(offscreen);
+  dc.draw(SolidRect(0, 0, 0, 0, Color(0xFF222222)));
+  dc.draw(SolidRect(1, 0, 1, 0, Color(0xFF444444)));
+  dc.draw(SolidRect(2, 0, 2, 0, Color(0xFF666666)));
+  dc.draw(SolidRect(3, 0, 3, 0, Color(0xFF888888)));
+  EXPECT_THAT(offscreen.raster(),
+              MatchesContent(Grayscale4(), Box(0, 0, 7, 0), "2468    "));
+  offscreen.output().blitCopy(0, 0, 3, 0, 2, 0);
+  EXPECT_THAT(offscreen.raster(),
+              MatchesContent(Grayscale4(), Box(0, 0, 7, 0), "242468  "));
+}
+
+TEST_F(OffscreenTest, BlitCopyNoOp) {
+  Offscreen<Grayscale4> offscreen(4, 4, color::Black);
+  DrawingContext dc(offscreen);
+  dc.draw(SolidRect(0, 0, 1, 1, Color(0xFF888888)));
+  EXPECT_THAT(offscreen.raster(), MatchesContent(Grayscale4(), Box(0, 0, 3, 3),
+                                                 "88  "
+                                                 "88  "
+                                                 "    "
+                                                 "    "));
+  // src == dst: early return, no change.
+  offscreen.output().blitCopy(0, 0, 1, 1, 0, 0);
+  EXPECT_THAT(offscreen.raster(), MatchesContent(Grayscale4(), Box(0, 0, 3, 3),
+                                                 "88  "
+                                                 "88  "
+                                                 "    "
+                                                 "    "));
+}
+
+TEST_F(OffscreenTest, BlitCopyDegenerate) {
+  Offscreen<Grayscale4> offscreen(4, 4, color::Black);
+  DrawingContext dc(offscreen);
+  dc.draw(SolidRect(0, 0, 1, 1, Color(0xFF888888)));
+  // src_x1 < src_x0: degenerate rect, no-op.
+  offscreen.output().blitCopy(2, 2, 1, 1, 0, 0);
+  EXPECT_THAT(offscreen.raster(), MatchesContent(Grayscale4(), Box(0, 0, 3, 3),
+                                                 "88  "
+                                                 "88  "
+                                                 "    "
+                                                 "    "));
+}
+
+TEST_F(OffscreenTest, BlitCopySinglePixel) {
+  Offscreen<Grayscale4> offscreen(4, 4, color::Black);
+  DrawingContext dc(offscreen);
+  dc.draw(SolidRect(1, 1, 1, 1, Color(0xFFAAAAAA)));
+  EXPECT_THAT(offscreen.raster(), MatchesContent(Grayscale4(), Box(0, 0, 3, 3),
+                                                 "    "
+                                                 " A  "
+                                                 "    "
+                                                 "    "));
+  offscreen.output().blitCopy(1, 1, 1, 1, 3, 3);
+  EXPECT_THAT(offscreen.raster(), MatchesContent(Grayscale4(), Box(0, 0, 3, 3),
+                                                 "    "
+                                                 " A  "
+                                                 "    "
+                                                 "   A"));
+}
+
+TEST_F(OffscreenTest, BlitCopySubByteUnaligned) {
+  // Grayscale4: 2 pixels per byte. src_x0=1 is odd -> general tile fallback.
+  Offscreen<Grayscale4> offscreen(8, 3, color::Black);
+  DrawingContext dc(offscreen);
+  dc.draw(SolidRect(1, 0, 1, 0, Color(0xFF444444)));
+  dc.draw(SolidRect(2, 0, 2, 0, Color(0xFF666666)));
+  dc.draw(SolidRect(3, 0, 3, 0, Color(0xFF888888)));
+  dc.draw(SolidRect(1, 1, 1, 1, Color(0xFFAAAAAA)));
+  dc.draw(SolidRect(2, 1, 2, 1, Color(0xFFCCCCCC)));
+  dc.draw(SolidRect(3, 1, 3, 1, Color(0xFFEEEEEE)));
+  EXPECT_THAT(offscreen.raster(), MatchesContent(Grayscale4(), Box(0, 0, 7, 2),
+                                                 " 468    "
+                                                 " ACE    "
+                                                 "        "));
+  offscreen.output().blitCopy(1, 0, 3, 1, 4, 1);
+  EXPECT_THAT(offscreen.raster(), MatchesContent(Grayscale4(), Box(0, 0, 7, 2),
+                                                 " 468    "
+                                                 " ACE468 "
+                                                 "    ACE "));
+}
+
 }  // namespace roo_display

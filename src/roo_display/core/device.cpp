@@ -10,14 +10,14 @@ void DisplayOutput::fill(Color color, uint32_t pixel_count) {
   Color chunk[kChunkSize];
 
   if (pixel_count < kChunkSize) {
-    roo_io::PatternFill<4>((roo::byte *)chunk, pixel_count,
-                           (const roo::byte *)(&color));
+    roo_io::PatternFill<4>((roo::byte*)chunk, pixel_count,
+                           (const roo::byte*)(&color));
     write(chunk, pixel_count);
     return;
   }
 
-  roo_io::PatternFill<4>((roo::byte *)chunk, kChunkSize,
-                         (const roo::byte *)(&color));
+  roo_io::PatternFill<4>((roo::byte*)chunk, kChunkSize,
+                         (const roo::byte*)(&color));
 
   const uint32_t remainder = pixel_count % kChunkSize;
   if (remainder > 0) {
@@ -30,12 +30,12 @@ void DisplayOutput::fill(Color color, uint32_t pixel_count) {
   }
 }
 
-void DisplayOutput::drawDirectRect(const roo::byte *data,
+void DisplayOutput::drawDirectRect(const roo::byte* data,
                                    size_t row_width_bytes, int16_t src_x0,
                                    int16_t src_y0, int16_t src_x1,
                                    int16_t src_y1, int16_t dst_x0,
                                    int16_t dst_y0) {
-  const ColorFormat &color_format = getColorFormat();
+  const ColorFormat& color_format = getColorFormat();
   if (src_x1 < src_x0 || src_y1 < src_y0) return;
 
   static constexpr int16_t kTileSize = 8;
@@ -61,7 +61,7 @@ void DisplayOutput::drawDirectRect(const roo::byte *data,
   }
 }
 
-void DisplayOutput::drawDirectRectAsync(const roo::byte *data,
+void DisplayOutput::drawDirectRectAsync(const roo::byte* data,
                                         size_t row_width_bytes, int16_t src_x0,
                                         int16_t src_y0, int16_t src_x1,
                                         int16_t src_y1, int16_t dst_x0,
@@ -70,9 +70,14 @@ void DisplayOutput::drawDirectRectAsync(const roo::byte *data,
                  dst_y0);
 }
 
-const DisplayOutput::Capabilities &DisplayOutput::getCapabilities() const {
+const DisplayOutput::Capabilities& DisplayOutput::getCapabilities() const {
   static const Capabilities kDefault;
   return kDefault;
+}
+
+void DisplayOutput::blitCopy(int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                             int16_t src_y1, int16_t dst_x0, int16_t dst_y0) {
+  // No-op by default. Devices that advertise supportsBlitCopy() override this.
 }
 
 }  // namespace roo_display

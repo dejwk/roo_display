@@ -217,6 +217,20 @@ class DisplayOutput {
                                    int16_t src_y0, int16_t src_x1,
                                    int16_t src_y1, int16_t dst_x0,
                                    int16_t dst_y0);
+
+  /// Copy a rectangular region within the device's own framebuffer.
+  ///
+  /// If the device supports the 'blit copy' capability (see
+  /// `getCapabilities()`), this method copies the rectangular area
+  /// `(src_x0, src_y0, src_x1, src_y1)` to the location with the top-left
+  /// corner at `(dst_x0, dst_y0)`. The caller must ensure that both the source
+  /// and the destination rectangles are within the device extents. The
+  /// destination rectangle may overlap the source rectangle.
+  ///
+  /// The default implementation does nothing. Devices that advertise
+  /// `supportsBlitCopy()` must override this method.
+  virtual void blitCopy(int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                        int16_t src_y1, int16_t dst_x0, int16_t dst_y0);
 };
 
 /// Base class for display device drivers.
@@ -315,9 +329,11 @@ class DisplayDevice : public DisplayOutput {
 /// by reference from `DisplayOutput::getCapabilities()`.
 class DisplayOutput::Capabilities {
  public:
-  Capabilities() : supports_blending_(false) {}
-  explicit Capabilities(bool supports_blending)
-      : supports_blending_(supports_blending) {}
+  Capabilities() : supports_blending_(false), supports_blit_copy_(false) {}
+  explicit Capabilities(bool supports_blending,
+                        bool supports_blit_copy = false)
+      : supports_blending_(supports_blending),
+        supports_blit_copy_(supports_blit_copy) {}
 
   virtual ~Capabilities() {}
 
@@ -325,8 +341,14 @@ class DisplayOutput::Capabilities {
   /// them into the existing content (e.g., by reading back the framebuffer).
   bool supportsBlending() const { return supports_blending_; }
 
+  /// Whether the device supports copying a rectangular region within its own
+  /// framebuffer via `blitCopy()`, correctly handling overlapping source and
+  /// destination rectangles.
+  bool supportsBlitCopy() const { return supports_blit_copy_; }
+
  private:
   bool supports_blending_;
+  bool supports_blit_copy_;
 };
 
 class DisplayOutput::ColorFormat {

@@ -92,7 +92,8 @@ const DisplayOutput::ColorFormat& ReferenceDisplayDevice::getColorFormat()
 
 const DisplayOutput::Capabilities& ReferenceDisplayDevice::getCapabilities()
     const {
-  static const Capabilities kBlendable(true);
+  static const Capabilities kBlendable(/*supports_blending=*/true,
+                                       /*supports_blit_copy=*/true);
   static const Capabilities kNotBlendable;
   return blendable_ ? kBlendable : kNotBlendable;
 }
@@ -196,6 +197,17 @@ void ReferenceDisplayDevice::drawDirectRect(const roo::byte* data,
   int16_t width = src_x1 - src_x0 + 1;
   int16_t height = src_y1 - src_y0 + 1;
   blitRect(dst_x0, dst_y0, dst_x0 + width - 1, dst_y0 + height - 1);
+}
+
+void ReferenceDisplayDevice::blitCopy(int16_t src_x0, int16_t src_y0,
+                                      int16_t src_x1, int16_t src_y1,
+                                      int16_t dst_x0, int16_t dst_y0) {
+  if (dst_x0 == src_x0 && dst_y0 == src_y0) return;
+  if (!blendable_ || src_x1 < src_x0 || src_y1 < src_y0) return;
+  output_device_->blitCopy(src_x0, src_y0, src_x1, src_y1, dst_x0, dst_y0);
+  int16_t w = src_x1 - src_x0;
+  int16_t h = src_y1 - src_y0;
+  blitRect(dst_x0, dst_y0, dst_x0 + w, dst_y0 + h);
 }
 
 void ReferenceDisplayDevice::advance(uint32_t pixel_count) {

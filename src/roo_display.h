@@ -452,6 +452,9 @@ class Fill : public Rasterizable {
   bool readColorRect(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax,
                      Color* result) const override;
 
+  bool readUniformColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
+                            int16_t yMax, Color* result) const override;
+
  private:
   void drawTo(const Surface& s) const override;
 
@@ -473,6 +476,9 @@ class Clear : public Rasterizable {
 
   void readColors(const int16_t* x, const int16_t* y, uint32_t count,
                   Color* result) const override;
+
+  bool readUniformColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
+                            int16_t yMax, Color* result) const override;
 
   bool readColorRect(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax,
                      Color* result) const override;

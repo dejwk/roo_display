@@ -38,6 +38,22 @@ class Rasterizable : public virtual Streamable {
   virtual bool readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
                              int16_t yMax, Color* result) const;
 
+  /// Lightweight uniform-color check for a rectangle.
+  ///
+  /// Returns true if all pixels in the rectangle share the same color,
+  /// storing it in *result. Unlike readColorRect, this method never
+  /// writes beyond *result and avoids large buffer allocations.
+  /// The default implementation returns false (conservative).
+  ///
+  /// The caller is responsible for ensuring that the rectangle is within
+  /// the rasterizable's extents().
+  ///
+  /// Implementation should be O(const) ideally; O(sqrt(area)) at worst.
+  virtual bool readUniformColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
+                                    int16_t yMax, Color* result) const {
+    return false;
+  }
+
   /// Default `createStream()` using `readColors()`.
   std::unique_ptr<PixelStream> createStream() const override;
 

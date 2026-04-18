@@ -138,4 +138,16 @@ bool RoundRectShadow::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
   return false;
 }
 
+bool RoundRectShadow::readUniformColorRect(int16_t xMin, int16_t yMin,
+                                           int16_t xMax, int16_t yMax,
+                                           Color* result) const {
+  if (xMin >= object_extents_.xMin() + corner_radius_ &&
+      xMax <= object_extents_.xMax() - corner_radius_ &&
+      yMin >= object_extents_.yMin() && yMax <= object_extents_.yMax()) {
+    *result = color_;
+    return true;
+  }
+  return false;
+}
+
 }  // namespace roo_display

@@ -239,6 +239,17 @@ cc_test(
 )
 
 cc_test(
+    name = "read_uniform_color_rect_test",
+    srcs = [
+        "test/read_uniform_color_rect_test.cpp",
+        "test/testing.h",
+        "test/testing_display_device.h",
+    ],
+    linkstatic = 1,
+    deps = UNIT_TEST_DEPS,
+)
+
+cc_test(
     name = "raster_test",
     srcs = [
         "test/raster_test.cpp",

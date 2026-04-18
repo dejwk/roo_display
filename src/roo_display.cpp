@@ -267,6 +267,12 @@ bool Fill::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax,
   return true;
 }
 
+bool Fill::readUniformColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
+                                int16_t yMax, Color* result) const {
+  *result = color_;
+  return true;
+}
+
 void Fill::drawTo(const Surface& s) const {
   Color color = AlphaBlend(s.bgcolor(), color_);
   if (color == color::Transparent && s.fill_mode() == FillMode::kVisible) {
@@ -282,6 +288,12 @@ void Clear::readColors(const int16_t* x, const int16_t* y, uint32_t count,
 
 bool Clear::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
                           int16_t yMax, Color* result) const {
+  *result = color::Transparent;
+  return true;
+}
+
+bool Clear::readUniformColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
+                                 int16_t yMax, Color* result) const {
   *result = color::Transparent;
   return true;
 }

@@ -92,4 +92,33 @@ bool RasterizableStack::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
   return true;
 }
 
+bool RasterizableStack::readUniformColorRect(int16_t xMin, int16_t yMin,
+                                             int16_t xMax, int16_t yMax,
+                                             Color* result) const {
+  Color accumulated = color::Transparent;
+  Box box(xMin, yMin, xMax, yMax);
+  for (auto r = inputs_.begin(); r != inputs_.end(); r++) {
+    Box clipped = Box::Intersect(r->extents(), box);
+    if (clipped.empty()) continue;
+    Color layer_color;
+    if (!r->source()->readUniformColorRect(clipped.xMin() - r->dx(),
+                                           clipped.yMin() - r->dy(),
+                                           clipped.xMax() - r->dx(),
+                                           clipped.yMax() - r->dy(),
+                                           &layer_color)) {
+      return false;
+    }
+    if (!clipped.contains(box)) {
+      // This input doesn't fully cover the rect. It's OK only if the
+      // layer is fully transparent over the covered part, since that
+      // can't affect the result regardless of partial coverage.
+      if (layer_color.a() != 0) return false;
+      continue;
+    }
+    accumulated = ApplyBlending(r->blending_mode(), accumulated, layer_color);
+  }
+  *result = accumulated;
+  return true;
+}
+
 }  // namespace roo_display

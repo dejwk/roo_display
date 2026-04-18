@@ -1914,4 +1914,68 @@ bool SmoothShape::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
   return true;
 }
 
+bool SmoothShape::readUniformColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
+                                       int16_t yMax, Color* result) const {
+  switch (kind_) {
+    case EMPTY: {
+      *result = color::Transparent;
+      return true;
+    }
+    case PIXEL: {
+      *result = pixel_.color;
+      return true;
+    }
+    case ROUND_RECT: {
+      Box box(xMin, yMin, xMax, yMax);
+      switch (DetermineRectColorForRoundRect(round_rect_, box)) {
+        case TRANSPARENT:
+          *result = color::Transparent;
+          return true;
+        case INTERIOR:
+          *result = round_rect_.interior_color;
+          return true;
+        case OUTLINE_ACTIVE:
+          *result = round_rect_.outline_color;
+          return true;
+        default:
+          return false;
+      }
+    }
+    case ARC: {
+      Box box(xMin, yMin, xMax, yMax);
+      switch (DetermineRectColorForArc(arc_, box)) {
+        case TRANSPARENT:
+          *result = color::Transparent;
+          return true;
+        case INTERIOR:
+          *result = arc_.interior_color;
+          return true;
+        case OUTLINE_ACTIVE:
+          *result = arc_.outline_active_color;
+          return true;
+        case OUTLINE_INACTIVE:
+          *result = arc_.outline_inactive_color;
+          return true;
+        default:
+          return false;
+      }
+    }
+    case TRIANGLE: {
+      Box box(xMin, yMin, xMax, yMax);
+      switch (DetermineRectColorForTriangle(triangle_, box)) {
+        case TRANSPARENT:
+          *result = color::Transparent;
+          return true;
+        case INTERIOR:
+          *result = triangle_.color;
+          return true;
+        default:
+          return false;
+      }
+    }
+    default:
+      return false;
+  }
+}
+
 }  // namespace roo_display

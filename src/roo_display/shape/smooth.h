@@ -193,6 +193,9 @@ class SmoothShape : public Rasterizable {
   bool readColorRect(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax,
                      Color* result) const override;
 
+  bool readUniformColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
+                            int16_t yMax, Color* result) const override;
+
  private:
   friend SmoothShape SmoothWedgedLine(FpPoint a, float width_a, FpPoint b,
                                       float width_b, Color color,

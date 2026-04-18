@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "roo_display/color/color.h"
+#include "roo_display/color/scrim.h"
 #include "roo_display/core/raster.h"
 #include "roo_display/hal/async_blit.h"
 #include "roo_display/hal/blit.h"
@@ -993,7 +994,7 @@ class GenericWriter<ColorMode, pixel_order, byte_order, 1, storage_type> {
 
 // For sub-byte color modes.
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
-          BlendingMode blending_mode,
+          BlendingMode blending_mode, bool scrim,
           uint8_t pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte,
           typename storage_type = ColorStorageType<ColorMode>>
 class BlendingFillerOperator {
@@ -1035,7 +1036,7 @@ class BlendingFillerOperator {
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           BlendingMode blending_mode, typename storage_type>
 class BlendingFillerOperator<ColorMode, pixel_order, byte_order, blending_mode,
-                             1, storage_type> {
+                             false, 1, storage_type> {
  public:
   BlendingFillerOperator(const ColorMode& color_mode, Color color)
       : color_mode_(color_mode), color_(color) {}
@@ -1067,7 +1068,7 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order, blending_mode,
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           uint8_t pixels_per_byte, typename storage_type>
 class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
-                             BlendingMode::kSource, pixels_per_byte,
+                             BlendingMode::kSource, false, pixels_per_byte,
                              storage_type> {
  public:
   BlendingFillerOperator(ColorMode& color_mode, Color color)
@@ -1114,7 +1115,7 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
           typename storage_type>
 class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
-                             BlendingMode::kSource, 1, storage_type> {
+                             BlendingMode::kSource, false, 1, storage_type> {
  public:
   BlendingFillerOperator(const ColorMode& color_mode, Color color)
       : color_mode_(color_mode) {
@@ -1134,6 +1135,30 @@ class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
  private:
   const ColorMode& color_mode_;
   roo::byte raw_color_[ColorMode::bits_per_pixel / 8];
+};
+
+// kSourceOverOpaque specialization for full-byte color modes with scrim.
+template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order,
+          typename storage_type>
+class BlendingFillerOperator<ColorMode, pixel_order, byte_order,
+                             BlendingMode::kSourceOverOpaque, true, 1,
+                             storage_type> {
+ public:
+  BlendingFillerOperator(const ColorMode& color_mode, Color color)
+      : scrim_(color) {}
+
+  void operator()(roo::byte* p, uint32_t offset) const {
+    constexpr uint32_t kBpp = ColorTraits<ColorMode>::bytes_per_pixel;
+    scrim_(p + offset * kBpp, 1);
+  }
+
+  void operator()(roo::byte* p, uint32_t offset, uint32_t count) const {
+    constexpr uint32_t kBpp = ColorTraits<ColorMode>::bytes_per_pixel;
+    scrim_(p + offset * kBpp, count);
+  }
+
+ private:
+  ScrimFiller<ColorMode, byte_order> scrim_;
 };
 
 inline void AddressWindow::advance() {
@@ -1172,9 +1197,9 @@ inline void AddressWindow::advance(uint32_t count) {
 
 template <typename ColorMode, ColorPixelOrder pixel_order, ByteOrder byte_order>
 struct BlendingFiller {
-  template <BlendingMode blending_mode>
-  using Operator =
-      BlendingFillerOperator<ColorMode, pixel_order, byte_order, blending_mode>;
+  template <BlendingMode blending_mode, bool scrim = false>
+  using Operator = BlendingFillerOperator<ColorMode, pixel_order, byte_order,
+                                          blending_mode, scrim>;
 };
 
 // GenericFiller is similar to BlendingFiller, but it resolves the blender at
@@ -1491,6 +1516,17 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
   } else {
     if (m == BlendingMode::kDestination) return;
     if (m == BlendingMode::kSourceOverOpaque) {
+      if constexpr (ScrimFiller<ColorMode, byte_order>::kSupported) {
+        if (color.a() == 0x80) {
+          // Use the efficient scrim specialization.
+          typename internal::BlendingFiller<ColorMode, pixel_order,
+                                            byte_order>::
+              template Operator<BlendingMode::kSourceOverOpaque, true>
+                  filler(color_mode_, color);
+          writeToWindow(filler, pixel_count);
+          return;
+        }
+      }
       typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
           template Operator<BlendingMode::kSourceOverOpaque>
               filler(color_mode_, color);
@@ -1765,6 +1801,16 @@ void OffscreenDevice<ColorMode, pixel_order, byte_order, pixels_per_byte,
             fill(color_mode_, color);
     fillRectsAbsoluteImpl(fill, buffer, w, x0, y0, x1, y1, count);
   } else if (blending_mode == BlendingMode::kSourceOverOpaque) {
+    if constexpr (ScrimFiller<ColorMode, byte_order>::kSupported) {
+      if (color.a() == 0x80) {
+        // Use the efficient scrim specialization.
+        typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
+            template Operator<BlendingMode::kSourceOverOpaque, true>
+                fill(color_mode_, color);
+        fillRectsAbsoluteImpl(fill, buffer, w, x0, y0, x1, y1, count);
+        return;
+      }
+    }
     typename internal::BlendingFiller<ColorMode, pixel_order, byte_order>::
         template Operator<BlendingMode::kSourceOverOpaque>
             fill(color_mode_, color);

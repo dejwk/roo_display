@@ -57,11 +57,31 @@ class BlendingFilter : public DisplayOutput {
     address_window_ = Box(x0 - dx_, y0 - dy_, x1 - dx_, y1 - dy_);
     cursor_x_ = x0 - dx_;
     cursor_y_ = y0 - dy_;
+    addr_uniform_ = raster_->readUniformColorRect(
+        address_window_.xMin(), address_window_.yMin(), address_window_.xMax(),
+        address_window_.yMax(), &addr_uniform_color_);
     output_->setAddress(x0, y0, x1, y1, mode);
   }
 
   void write(Color* color, uint32_t pixel_count) override {
     if (pixel_count == 0) return;
+
+    // Fast path: uniform raster detected in setAddress.
+    if (addr_uniform_) {
+      Color newcolor[pixel_count];
+      for (uint32_t i = 0; i < pixel_count; ++i) {
+        newcolor[i] = blender_(addr_uniform_color_, color[i]);
+      }
+      if (bgcolor_.a() != 0) {
+        for (uint32_t i = 0; i < pixel_count; ++i) {
+          newcolor[i] = AlphaBlend(bgcolor_, newcolor[i]);
+        }
+      }
+      output_->write(newcolor, pixel_count);
+      advanceCursor(pixel_count);
+      return;
+    }
+
     int16_t x[pixel_count];
     int16_t y[pixel_count];
     Color newcolor[pixel_count];
@@ -74,7 +94,6 @@ class BlendingFilter : public DisplayOutput {
         cursor_x_ = address_window_.xMin();
       }
     }
-    // TODO: detect (common) cases when all pixels are out of bounds.
     raster_->readColorsMaybeOutOfBounds(x, y, pixel_count, newcolor);
     for (uint32_t i = 0; i < pixel_count; ++i) {
       newcolor[i] = blender_(newcolor[i], color[i]);
@@ -89,6 +108,16 @@ class BlendingFilter : public DisplayOutput {
 
   void fill(Color color, uint32_t pixel_count) override {
     if (pixel_count == 0) return;
+
+    // Fast path: uniform raster detected in setAddress.
+    if (addr_uniform_) {
+      Color blended =
+          AlphaBlend(bgcolor_, blender_(addr_uniform_color_, color));
+      output_->fill(blended, pixel_count);
+      advanceCursor(pixel_count);
+      return;
+    }
+
     int16_t x[pixel_count];
     int16_t y[pixel_count];
     Color newcolor[pixel_count];
@@ -138,6 +167,29 @@ class BlendingFilter : public DisplayOutput {
 
   void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
+    if (count == 0) return;
+    {
+      // Fast-path: if the bounding box of all rects is uniform in the raster,
+      // we can blend once and fill.
+      int16_t bbx0 = x0[0], bby0 = y0[0], bbx1 = x1[0], bby1 = y1[0];
+      for (uint16_t i = 1; i < count; ++i) {
+        if (x0[i] < bbx0) bbx0 = x0[i];
+        if (y0[i] < bby0) bby0 = y0[i];
+        if (x1[i] > bbx1) bbx1 = x1[i];
+        if (y1[i] > bby1) bby1 = y1[i];
+      }
+      Box bb(bbx0 - dx_, bby0 - dy_, bbx1 - dx_, bby1 - dy_);
+      if (raster_->extents().contains(bb)) {
+        Color uniform;
+        if (raster_->readUniformColorRect(bb.xMin(), bb.yMin(), bb.xMax(),
+                                          bb.yMax(), &uniform)) {
+          output_->fillRects(mode,
+                             AlphaBlend(bgcolor_, blender_(uniform, color)), x0,
+                             y0, x1, y1, count);
+          return;
+        }
+      }
+    }
     while (count-- > 0) {
       fillRect(mode, *x0++, *y0++, *x1++, *y1++, color);
     }
@@ -162,6 +214,28 @@ class BlendingFilter : public DisplayOutput {
   void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override {
     if (pixel_count == 0) return;
+    {
+      // Fast-path: if the bounding box of all rects is uniform in the raster,
+      // we can blend once and fill.
+      int16_t bbx0 = x[0], bby0 = y[0], bbx1 = x[0], bby1 = y[0];
+      for (uint16_t i = 1; i < pixel_count; ++i) {
+        if (x[i] < bbx0) bbx0 = x[i];
+        if (y[i] < bby0) bby0 = y[i];
+        if (x[i] > bbx1) bbx1 = x[i];
+        if (y[i] > bby1) bby1 = y[i];
+      }
+      Box bb(bbx0 - dx_, bby0 - dy_, bbx1 - dx_, bby1 - dy_);
+      if (raster_->extents().contains(bb)) {
+        Color uniform;
+        if (raster_->readUniformColorRect(bb.xMin(), bb.yMin(), bb.xMax(),
+                                          bb.yMax(), &uniform)) {
+          output_->fillPixels(mode,
+                              AlphaBlend(bgcolor_, blender_(uniform, color)), x,
+                              y, pixel_count);
+          return;
+        }
+      }
+    }
     Color newcolor[pixel_count];
     read(x, y, pixel_count, newcolor);
     for (uint32_t i = 0; i < pixel_count; ++i) {
@@ -181,8 +255,7 @@ class BlendingFilter : public DisplayOutput {
 
   void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
                       int16_t src_x0, int16_t src_y0, int16_t src_x1,
-                      int16_t src_y1, int16_t dst_x0,
-                      int16_t dst_y0) override {
+                      int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override {
     DisplayOutput::drawDirectRect(data, row_width_bytes, src_x0, src_y0, src_x1,
                                   src_y1, dst_x0, dst_y0);
   }
@@ -240,21 +313,57 @@ class BlendingFilter : public DisplayOutput {
   void fillRectIntersectingRaster(BlendingMode mode, int16_t xMin, int16_t yMin,
                                   int16_t xMax, int16_t yMax, Color color) {
     {
+      Color uniform;
+      if (raster_->readUniformColorRect(xMin - dx_, yMin - dy_, xMax - dx_,
+                                        yMax - dy_, &uniform)) {
+        output_->fillRect(mode, Box(xMin, yMin, xMax, yMax),
+                          AlphaBlend(bgcolor_, blender_(uniform, color)));
+        return;
+      }
+    }
+    {
       uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
       if (pixel_count <= 64) {
         fillRectInternal(mode, xMin, yMin, xMax, yMax, color);
         return;
       }
     }
-    const int16_t xMinOuter = (xMin / 8) * 8;
-    const int16_t yMinOuter = (yMin / 8) * 8;
-    const int16_t xMaxOuter = (xMax / 8) * 8 + 7;
-    const int16_t yMaxOuter = (yMax / 8) * 8 + 7;
-    for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
-      for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
-        fillRectInternal(mode, std::max(x, xMin), std::max(y, yMin),
-                         std::min((int16_t)(x + 7), xMax),
-                         std::min((int16_t)(y + 7), yMax), color);
+    // Adaptive subdivision: prefer quad-split (both axes), fall back to
+    // binary split if one axis would go below 8 pixels.
+    int16_t w = xMax - xMin + 1;
+    int16_t h = yMax - yMin + 1;
+    bool can_split_x = (w >= 16);
+    bool can_split_y = (h >= 16);
+    if (can_split_x && can_split_y) {
+      int16_t xMid = (int16_t)((((int32_t)xMin + xMax) / 2) | 3);
+      if (xMid >= xMax) xMid = xMax - 1;
+      int16_t yMid = (int16_t)((((int32_t)yMin + yMax) / 2) | 3);
+      if (yMid >= yMax) yMid = yMax - 1;
+      fillRectIntersectingRaster(mode, xMin, yMin, xMid, yMid, color);
+      fillRectIntersectingRaster(mode, xMid + 1, yMin, xMax, yMid, color);
+      fillRectIntersectingRaster(mode, xMin, yMid + 1, xMid, yMax, color);
+      fillRectIntersectingRaster(mode, xMid + 1, yMid + 1, xMax, yMax, color);
+    } else if (can_split_x) {
+      int16_t xMid = (int16_t)((((int32_t)xMin + xMax) / 2) | 3);
+      if (xMid >= xMax) xMid = xMax - 1;
+      fillRectIntersectingRaster(mode, xMin, yMin, xMid, yMax, color);
+      fillRectIntersectingRaster(mode, xMid + 1, yMin, xMax, yMax, color);
+    } else if (can_split_y) {
+      int16_t yMid = (int16_t)((((int32_t)yMin + yMax) / 2) | 3);
+      if (yMid >= yMax) yMid = yMax - 1;
+      fillRectIntersectingRaster(mode, xMin, yMin, xMax, yMid, color);
+      fillRectIntersectingRaster(mode, xMin, yMid + 1, xMax, yMax, color);
+    } else {
+      if (w >= h) {
+        int16_t xMid = (int16_t)((((int32_t)xMin + xMax) / 2) | 3);
+        if (xMid >= xMax) xMid = xMax - 1;
+        fillRectIntersectingRaster(mode, xMin, yMin, xMid, yMax, color);
+        fillRectIntersectingRaster(mode, xMid + 1, yMin, xMax, yMax, color);
+      } else {
+        int16_t yMid = (int16_t)((((int32_t)yMin + yMax) / 2) | 3);
+        if (yMid >= yMax) yMid = yMax - 1;
+        fillRectIntersectingRaster(mode, xMin, yMin, xMax, yMid, color);
+        fillRectIntersectingRaster(mode, xMin, yMid + 1, xMax, yMax, color);
       }
     }
   }
@@ -283,6 +392,16 @@ class BlendingFilter : public DisplayOutput {
     }
   }
 
+  void advanceCursor(uint32_t pixel_count) {
+    for (uint32_t i = 0; i < pixel_count; ++i) {
+      cursor_x_++;
+      if (cursor_x_ > address_window_.xMax()) {
+        cursor_y_++;
+        cursor_x_ = address_window_.xMin();
+      }
+    }
+  }
+
   DisplayOutput* output_;
   Blender blender_;
   const Rasterizable* raster_;
@@ -292,6 +411,8 @@ class BlendingFilter : public DisplayOutput {
   int16_t dx_;
   int16_t dy_;
   Color bgcolor_;
+  bool addr_uniform_ = false;
+  Color addr_uniform_color_;
 };
 
 }  // namespace roo_display

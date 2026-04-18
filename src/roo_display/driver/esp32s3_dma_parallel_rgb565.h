@@ -327,6 +327,11 @@ class ParallelRgb565 : public DisplayDevice {
     return format;
   }
 
+  const Capabilities& getCapabilities() const override {
+    static const Capabilities kBlendable(true);
+    return kBlendable;
+  }
+
   const Rgb565& color_mode() const {
     static const Rgb565 mode;
     return mode;

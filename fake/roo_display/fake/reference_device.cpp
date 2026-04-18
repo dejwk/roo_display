@@ -90,6 +90,13 @@ const DisplayOutput::ColorFormat& ReferenceDisplayDevice::getColorFormat()
   return output_device_->getColorFormat();
 }
 
+const DisplayOutput::Capabilities& ReferenceDisplayDevice::getCapabilities()
+    const {
+  static const Capabilities kBlendable(true);
+  static const Capabilities kNotBlendable;
+  return blendable_ ? kBlendable : kNotBlendable;
+}
+
 void ReferenceDisplayDevice::orientationUpdated() {
   output_device_->setOrientation(orientation());
   orienter_.setOrientation(orientation());

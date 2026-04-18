@@ -164,6 +164,11 @@ class BufferedAddrWindowDevice : public DisplayDevice {
     return buffer_dev_.getColorFormat();
   }
 
+  const Capabilities& getCapabilities() const override {
+    static const Capabilities kBlendable(true);
+    return kBlendable;
+  }
+
   const ColorMode& color_mode() const { return buffer_dev_.color_mode(); }
 
   void orientationUpdated() override { target_.setOrientation(orientation()); }

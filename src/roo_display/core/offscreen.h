@@ -424,6 +424,11 @@ class OffscreenDevice : public DisplayDevice {
 
   const ColorFormat& getColorFormat() const override { return color_format_; }
 
+  const Capabilities& getCapabilities() const override {
+    static const Capabilities kBlendable(true);
+    return kBlendable;
+  }
+
   // const Raster<const roo::byte *, ColorMode, pixel_order, byte_order>
   // &raster()
   //     const {

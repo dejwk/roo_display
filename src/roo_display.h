@@ -461,6 +461,18 @@ class Fill : public Rasterizable {
   Color color_;
 };
 
+// Fill with 50% alpha. Offscreens, and devices with a frame buffer, may
+// optimize drawing scrims over the existing content (the 0x80 alpha allows very
+// efficient blending).
+class Scrim : public Fill {
+ public:
+  // Creates a black scrim with 50% alpha.
+  Scrim() : Fill(Color(0x80000000)) {}
+
+  // Creates an RGB scrim with 50% alpha.
+  Scrim(uint8_t r, uint8_t g, uint8_t b) : Fill(Color(0x80, r, g, b)) {}
+};
+
 /**
  * @brief Infinite transparent area.
  *

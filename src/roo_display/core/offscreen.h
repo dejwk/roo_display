@@ -430,8 +430,8 @@ class OffscreenDevice : public DisplayDevice {
     return kCaps;
   }
 
-  void blitCopy(int16_t src_x0, int16_t src_y0, int16_t src_x1,
-                int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override {
+  void blitCopy(int16_t src_x0, int16_t src_y0, int16_t src_x1, int16_t src_y1,
+                int16_t dst_x0, int16_t dst_y0) override {
     if (dst_x0 == src_x0 && dst_y0 == src_y0) return;
     awaitAsyncBlit();
     if (src_x1 < src_x0 || src_y1 < src_y0) return;
@@ -446,39 +446,51 @@ class OffscreenDevice : public DisplayDevice {
     int16_t height = src_y1 - src_y0 + 1;
 
     if constexpr (ColorTraits<ColorMode>::pixels_per_byte == 1) {
-      constexpr size_t kBytesPerPixel =
-          ColorTraits<ColorMode>::bytes_per_pixel;
+      constexpr size_t kBytesPerPixel = ColorTraits<ColorMode>::bytes_per_pixel;
       size_t row_bytes = static_cast<size_t>(raw_width()) * kBytesPerPixel;
       size_t copy_row_bytes = static_cast<size_t>(width) * kBytesPerPixel;
 
-      // Choose row iteration order so overlapping regions are handled
-      // correctly (like memmove).
-      if (dst_y0 < src_y0 ||
-          (dst_y0 == src_y0 && dst_x0 <= src_x0)) {
-        // Copy top-to-bottom.
-        roo::byte* src_row = buffer_ +
-                             static_cast<size_t>(src_y0) * row_bytes +
+      if (dst_y0 != src_y0) {
+        // Rows are at different Y positions, so per-row source and dest
+        // never overlap.  Use memcpy (faster than memmove).
+        // Row iteration order still matters for cross-row overlap safety.
+        if (dst_y0 < src_y0) {
+          // Copy top-to-bottom.
+          roo::byte* src_row = buffer_ +
+                               static_cast<size_t>(src_y0) * row_bytes +
+                               static_cast<size_t>(src_x0) * kBytesPerPixel;
+          roo::byte* dst_row = buffer_ +
+                               static_cast<size_t>(dst_y0) * row_bytes +
+                               static_cast<size_t>(dst_x0) * kBytesPerPixel;
+          for (int16_t r = 0; r < height; ++r) {
+            std::memcpy(dst_row, src_row, copy_row_bytes);
+            src_row += row_bytes;
+            dst_row += row_bytes;
+          }
+        } else {
+          // Copy bottom-to-top.
+          roo::byte* src_row = buffer_ +
+                               static_cast<size_t>(src_y1) * row_bytes +
+                               static_cast<size_t>(src_x0) * kBytesPerPixel;
+          roo::byte* dst_row = buffer_ +
+                               static_cast<size_t>(dst_y1) * row_bytes +
+                               static_cast<size_t>(dst_x0) * kBytesPerPixel;
+          for (int16_t r = 0; r < height; ++r) {
+            std::memcpy(dst_row, src_row, copy_row_bytes);
+            src_row -= row_bytes;
+            dst_row -= row_bytes;
+          }
+        }
+      } else {
+        // Horizontal-only: same Y, overlapping X ranges.  Must use memmove.
+        roo::byte* src_row = buffer_ + static_cast<size_t>(src_y0) * row_bytes +
                              static_cast<size_t>(src_x0) * kBytesPerPixel;
-        roo::byte* dst_row = buffer_ +
-                             static_cast<size_t>(dst_y0) * row_bytes +
+        roo::byte* dst_row = buffer_ + static_cast<size_t>(dst_y0) * row_bytes +
                              static_cast<size_t>(dst_x0) * kBytesPerPixel;
         for (int16_t r = 0; r < height; ++r) {
           std::memmove(dst_row, src_row, copy_row_bytes);
           src_row += row_bytes;
           dst_row += row_bytes;
-        }
-      } else {
-        // Copy bottom-to-top.
-        roo::byte* src_row = buffer_ +
-                             static_cast<size_t>(src_y1) * row_bytes +
-                             static_cast<size_t>(src_x0) * kBytesPerPixel;
-        roo::byte* dst_row = buffer_ +
-                             static_cast<size_t>(dst_y1) * row_bytes +
-                             static_cast<size_t>(dst_x0) * kBytesPerPixel;
-        for (int16_t r = 0; r < height; ++r) {
-          std::memmove(dst_row, src_row, copy_row_bytes);
-          src_row -= row_bytes;
-          dst_row -= row_bytes;
         }
       }
     } else {
@@ -486,34 +498,48 @@ class OffscreenDevice : public DisplayDevice {
       size_t row_bytes = static_cast<size_t>(raw_width()) / kPixelsPerByte;
 
       // Sub-byte fast path: byte-aligned rows and x offsets.
-      if ((src_x0 % kPixelsPerByte) == 0 &&
-          (dst_x0 % kPixelsPerByte) == 0 &&
+      if ((src_x0 % kPixelsPerByte) == 0 && (dst_x0 % kPixelsPerByte) == 0 &&
           (width % kPixelsPerByte) == 0) {
         size_t copy_row_bytes = static_cast<size_t>(width) / kPixelsPerByte;
-        if (dst_y0 < src_y0 ||
-            (dst_y0 == src_y0 && dst_x0 <= src_x0)) {
-          roo::byte* src_row =
-              buffer_ + static_cast<size_t>(src_y0) * row_bytes +
-              static_cast<size_t>(src_x0 / kPixelsPerByte);
-          roo::byte* dst_row =
-              buffer_ + static_cast<size_t>(dst_y0) * row_bytes +
-              static_cast<size_t>(dst_x0 / kPixelsPerByte);
+        if (dst_y0 != src_y0) {
+          // Rows at different Y: per-row memcpy is safe (no overlap).
+          if (dst_y0 < src_y0) {
+            roo::byte* src_row = buffer_ +
+                                 static_cast<size_t>(src_y0) * row_bytes +
+                                 static_cast<size_t>(src_x0 / kPixelsPerByte);
+            roo::byte* dst_row = buffer_ +
+                                 static_cast<size_t>(dst_y0) * row_bytes +
+                                 static_cast<size_t>(dst_x0 / kPixelsPerByte);
+            for (int16_t r = 0; r < height; ++r) {
+              std::memcpy(dst_row, src_row, copy_row_bytes);
+              src_row += row_bytes;
+              dst_row += row_bytes;
+            }
+          } else {
+            roo::byte* src_row = buffer_ +
+                                 static_cast<size_t>(src_y1) * row_bytes +
+                                 static_cast<size_t>(src_x0 / kPixelsPerByte);
+            roo::byte* dst_row = buffer_ +
+                                 static_cast<size_t>(dst_y1) * row_bytes +
+                                 static_cast<size_t>(dst_x0 / kPixelsPerByte);
+            for (int16_t r = 0; r < height; ++r) {
+              std::memcpy(dst_row, src_row, copy_row_bytes);
+              src_row -= row_bytes;
+              dst_row -= row_bytes;
+            }
+          }
+        } else {
+          // Same Y (horizontal): memmove needed.
+          roo::byte* src_row = buffer_ +
+                               static_cast<size_t>(src_y0) * row_bytes +
+                               static_cast<size_t>(src_x0 / kPixelsPerByte);
+          roo::byte* dst_row = buffer_ +
+                               static_cast<size_t>(dst_y0) * row_bytes +
+                               static_cast<size_t>(dst_x0 / kPixelsPerByte);
           for (int16_t r = 0; r < height; ++r) {
             std::memmove(dst_row, src_row, copy_row_bytes);
             src_row += row_bytes;
             dst_row += row_bytes;
-          }
-        } else {
-          roo::byte* src_row =
-              buffer_ + static_cast<size_t>(src_y1) * row_bytes +
-              static_cast<size_t>(src_x0 / kPixelsPerByte);
-          roo::byte* dst_row =
-              buffer_ + static_cast<size_t>(dst_y1) * row_bytes +
-              static_cast<size_t>(dst_x0 / kPixelsPerByte);
-          for (int16_t r = 0; r < height; ++r) {
-            std::memmove(dst_row, src_row, copy_row_bytes);
-            src_row -= row_bytes;
-            dst_row -= row_bytes;
           }
         }
         return;
@@ -525,8 +551,8 @@ class OffscreenDevice : public DisplayDevice {
       SubByteColorIo<ColorMode, pixel_order> io;
 
       // Process in tiles; iterate in correct row order for overlap safety.
-      bool top_to_bottom = (dst_y0 < src_y0 ||
-                            (dst_y0 == src_y0 && dst_x0 <= src_x0));
+      bool top_to_bottom =
+          (dst_y0 < src_y0 || (dst_y0 == src_y0 && dst_x0 <= src_x0));
       for (int16_t ty = 0; ty < height; ty += kTileSize) {
         int16_t row_idx = top_to_bottom ? ty : (height - kTileSize - ty);
         if (row_idx < 0) row_idx = 0;
@@ -538,11 +564,11 @@ class OffscreenDevice : public DisplayDevice {
             for (int16_t c = 0; c < tile_w; ++c) {
               int16_t sx = src_x0 + tx + c;
               int16_t sy = src_y0 + row_idx + r;
-              const roo::byte* p =
-                  buffer_ + static_cast<size_t>(sy) * row_bytes +
-                  static_cast<size_t>(sx / kPixelsPerByte);
-              tile[r * tile_w + c] = color_mode_.toArgbColor(
-                  io.loadRaw(*p, sx % kPixelsPerByte));
+              const roo::byte* p = buffer_ +
+                                   static_cast<size_t>(sy) * row_bytes +
+                                   static_cast<size_t>(sx / kPixelsPerByte);
+              tile[r * tile_w + c] =
+                  color_mode_.toArgbColor(io.loadRaw(*p, sx % kPixelsPerByte));
             }
           }
           // Write to destination.
@@ -550,11 +576,9 @@ class OffscreenDevice : public DisplayDevice {
             for (int16_t c = 0; c < tile_w; ++c) {
               int16_t dx = dst_x0 + tx + c;
               int16_t dy = dst_y0 + row_idx + r;
-              roo::byte* p =
-                  buffer_ + static_cast<size_t>(dy) * row_bytes +
-                  static_cast<size_t>(dx / kPixelsPerByte);
-              uint8_t raw =
-                  color_mode_.fromArgbColor(tile[r * tile_w + c]);
+              roo::byte* p = buffer_ + static_cast<size_t>(dy) * row_bytes +
+                             static_cast<size_t>(dx / kPixelsPerByte);
+              uint8_t raw = color_mode_.fromArgbColor(tile[r * tile_w + c]);
               io.storeRaw(raw, p, dx % kPixelsPerByte);
             }
           }

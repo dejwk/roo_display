@@ -77,6 +77,11 @@ class OptimizedDevice : public DisplayDevice {
                               src_y1, dst_x0, dst_y0);
   }
 
+  void blitCopy(int16_t src_x0, int16_t src_y0, int16_t src_x1, int16_t src_y1,
+                int16_t dst_x0, int16_t dst_y0) override {
+    optimizer_.blitCopy(src_x0, src_y0, src_x1, src_y1, dst_x0, dst_y0);
+  }
+
   const ColorFormat& getColorFormat() const override {
     return optimizer_.getColorFormat();
   }
@@ -476,6 +481,154 @@ TEST(BackgroundFillOptimizer, AlternatingColors) {
                              "1 3 111 2 11"
                              "1 3 111 2 11"
                              "1   111   11");
+}
+
+TEST(BackgroundFillOptimizer, BlitCopyRedundantAlignedRegionSkipped) {
+  TestScreen screen(24, 8, color::White);
+  screen.test().setPalette({color::White, color::Blue}, color::White);
+  Display display(screen);
+  DrawingContext dc(display);
+
+  dc.draw(FilledRect(0, 0, 23, 7, color::Blue));
+
+  const uint64_t test_before = screen.test().device().pixelDrawCount();
+  const uint64_t ref_before = screen.refc().pixelDrawCount();
+
+  screen.blitCopy(0, 0, 15, 7, 8, 0);
+
+  const uint64_t test_after = screen.test().device().pixelDrawCount();
+  const uint64_t ref_after = screen.refc().pixelDrawCount();
+
+  EXPECT_CONSISTENT(screen);
+  EXPECT_EQ(test_after, test_before);
+  EXPECT_EQ(ref_after - ref_before, 128u);
+  EXPECT_FRAMEBUFFER_MATCHES(screen,
+                             "222222"
+                             "222222");
+}
+
+TEST(BackgroundFillOptimizer, BlitCopyOverlappingAlignedShiftUpdatesMask) {
+  // Red/Green/Blue stripes in first three blocks; remaining three are white.
+  // Blit [0..19]→dst_x=4 shifts them right by 4px.
+  // Blocks 1-3 (dst) are mismatched → copied; blocks 4-5 (white→white) →
+  // skipped.
+  TestScreen screen(24, 8, color::White);
+  screen.test().setPalette(
+      {color::White, color::Red, color::Green, color::Blue}, color::White);
+  Display display(screen);
+  DrawingContext dc(display);
+
+  dc.draw(FilledRect(0, 0, 3, 7, color::Red));
+  dc.draw(FilledRect(4, 0, 7, 7, color::Green));
+  dc.draw(FilledRect(8, 0, 11, 7, color::Blue));
+
+  const uint64_t test_before = screen.test().device().pixelDrawCount();
+  const uint64_t ref_before = screen.refc().pixelDrawCount();
+
+  screen.blitCopy(0, 0, 19, 7, 4, 0);
+
+  const uint64_t test_after = screen.test().device().pixelDrawCount();
+  const uint64_t ref_after = screen.refc().pixelDrawCount();
+
+  EXPECT_CONSISTENT(screen);
+  // 3 mismatched blocks × 4 cols × 8 rows = 96 pixels written; 2 white→white
+  // blocks skipped.
+  EXPECT_EQ(test_after - test_before, 96u);
+  EXPECT_EQ(ref_after - ref_before, 160u);
+  EXPECT_FRAMEBUFFER_MATCHES(screen,
+                             "223411"
+                             "223411");
+}
+
+TEST(BackgroundFillOptimizer, BlitCopySelectiveSkipNonUniform) {
+  // Source has two red blocks followed by two green blocks.
+  // Destination already has green in all four target blocks.
+  // The first two destination blocks (red→green mismatch) must be copied;
+  // the last two (green→green match, non-trivial color) must be skipped.
+  // This catches bugs that use a trivially-uniform screen to pass skip tests.
+  TestScreen screen(24, 8, color::White);
+  screen.test().setPalette({color::White, color::Red, color::Green},
+                           color::White);
+  Display display(screen);
+  DrawingContext dc(display);
+
+  dc.draw(FilledRect(0, 0, 7, 7, color::Red));
+  dc.draw(FilledRect(8, 0, 23, 7, color::Green));
+
+  const uint64_t test_before = screen.test().device().pixelDrawCount();
+  const uint64_t ref_before = screen.refc().pixelDrawCount();
+
+  // Copy cols 0-15 (red, red, green, green) to cols 8-23 (green, green, green,
+  // green).
+  screen.blitCopy(0, 0, 15, 7, 8, 0);
+
+  const uint64_t test_after = screen.test().device().pixelDrawCount();
+  const uint64_t ref_after = screen.refc().pixelDrawCount();
+
+  EXPECT_CONSISTENT(screen);
+  // Blocks bx2-bx3 (red→green mismatch) written; bx4-bx5 (green→green) skipped.
+  EXPECT_EQ(test_after - test_before, 64u);
+  EXPECT_EQ(ref_after - ref_before, 128u);
+  EXPECT_FRAMEBUFFER_MATCHES(screen,
+                             "222233"
+                             "222233");
+}
+
+TEST(BackgroundFillOptimizer, BlitCopyMismatchedColorsAllWritten) {
+  // Destination has a different color in every block than the source.
+  // The optimizer must write all blocks; nothing may be skipped.
+  // Paired with BlitCopySelectiveSkipNonUniform which verifies the skip half.
+  TestScreen screen(16, 8, color::White);
+  screen.test().setPalette({color::White, color::Red, color::Green},
+                           color::White);
+  Display display(screen);
+  DrawingContext dc(display);
+
+  dc.draw(FilledRect(0, 0, 7, 7, color::Red));
+  dc.draw(FilledRect(8, 0, 15, 7, color::Green));
+
+  const uint64_t test_before = screen.test().device().pixelDrawCount();
+  const uint64_t ref_before = screen.refc().pixelDrawCount();
+
+  // Copy left (red) over right (green) — every block is a red→green mismatch.
+  screen.blitCopy(0, 0, 7, 7, 8, 0);
+
+  const uint64_t test_after = screen.test().device().pixelDrawCount();
+  const uint64_t ref_after = screen.refc().pixelDrawCount();
+
+  EXPECT_CONSISTENT(screen);
+  // All 4 blocks mismatched → 2 block cols × 2 block rows × 16 px/block = 64
+  // pixels written (no skips).
+  EXPECT_EQ(test_after - test_before, 64u);
+  EXPECT_EQ(ref_after - ref_before, 64u);
+  EXPECT_FRAMEBUFFER_MATCHES(screen,
+                             "2222"
+                             "2222");
+}
+
+TEST(BackgroundFillOptimizer, BlitCopyRedundantMisalignedRegionSkipped) {
+  TestScreen screen(16, 16, color::White);
+  Display display(screen);
+  DrawingContext dc(display);
+
+  dc.draw(FilledRect(0, 0, 15, 15, color::White));
+
+  const uint64_t test_before = screen.test().device().pixelDrawCount();
+  const uint64_t ref_before = screen.refc().pixelDrawCount();
+
+  screen.blitCopy(1, 1, 10, 10, 3, 3);
+
+  const uint64_t test_after = screen.test().device().pixelDrawCount();
+  const uint64_t ref_after = screen.refc().pixelDrawCount();
+
+  EXPECT_CONSISTENT(screen);
+  EXPECT_EQ(test_after, test_before);
+  EXPECT_EQ(ref_after - ref_before, 100u);
+  EXPECT_FRAMEBUFFER_MATCHES(screen,
+                             "1111"
+                             "1111"
+                             "1111"
+                             "1111");
 }
 
 namespace {

@@ -21,6 +21,36 @@ inline uint8_t getIdxInPalette(Color color, const Color* palette,
   return 0;
 }
 
+inline uint8_t getCommonMaskValue(const internal::NibbleRect& mask, int16_t x0,
+                                  int16_t y0, int16_t x1, int16_t y1) {
+  uint8_t value = 0;
+  for (int16_t y = y0; y <= y1; ++y) {
+    for (int16_t x = x0; x <= x1; ++x) {
+      const uint8_t current = mask.get(x, y);
+      if (current == 0) return 0;
+      if (value == 0) {
+        value = current;
+      } else if (value != current) {
+        return 0;
+      }
+    }
+  }
+  return value;
+}
+
+inline void orientCopyRange(int16_t min_value, int16_t max_value, bool reverse,
+                            int16_t& begin, int16_t& end, int16_t& step) {
+  if (reverse) {
+    begin = max_value;
+    end = min_value;
+    step = -1;
+  } else {
+    begin = min_value;
+    end = max_value;
+    step = 1;
+  }
+}
+
 }  // namespace
 
 BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height)
@@ -796,6 +826,115 @@ void BackgroundFillOptimizer::drawDirectRect(const roo::byte* data,
                                              int16_t dst_x0, int16_t dst_y0) {
   drawDirectRectAsync(data, row_width_bytes, src_x0, src_y0, src_x1, src_y1,
                       dst_x0, dst_y0);
+  output_.flush();
+}
+
+void BackgroundFillOptimizer::blitCopy(int16_t src_x0, int16_t src_y0,
+                                       int16_t src_x1, int16_t src_y1,
+                                       int16_t dst_x0, int16_t dst_y0) {
+  flushDeferredUniformRun();
+  resetPendingDynamicPaletteColor();
+  if (src_x1 < src_x0 || src_y1 < src_y0) return;
+  if (src_x0 == dst_x0 && src_y0 == dst_y0) return;
+  if (!output_.getCapabilities().supportsBlitCopy()) {
+    output_.blitCopy(src_x0, src_y0, src_x1, src_y1, dst_x0, dst_y0);
+    return;
+  }
+
+  const int16_t dst_x1 = dst_x0 + (src_x1 - src_x0);
+  const int16_t dst_y1 = dst_y0 + (src_y1 - src_y0);
+
+  const int16_t bx_min = dst_x0 / kBlock;
+  const int16_t by_min = dst_y0 / kBlock;
+  const int16_t bx_max = dst_x1 / kBlock;
+  const int16_t by_max = dst_y1 / kBlock;
+
+  const bool forward_rows = dst_y0 <= src_y0;
+  const bool reverse_x = dst_x0 > src_x0;
+
+  const int16_t wb = background_mask_->width_bytes();
+  int16_t by_begin, by_end, by_step;
+  orientCopyRange(by_min, by_max, !forward_rows, by_begin, by_end, by_step);
+
+  for (int16_t by = by_begin;; by += by_step) {
+    const int16_t block_y0 = by * kBlock;
+    const int16_t block_y1 = block_y0 + kBlock - 1;
+    const int16_t draw_y0 = std::max<int16_t>(block_y0, dst_y0);
+    const int16_t draw_y1 = std::min<int16_t>(block_y1, dst_y1);
+    const roo::byte* row_data = background_mask_->buffer() + by * wb;
+
+    bool streak_active = false;
+    int16_t streak_bx0 = 0;
+
+    int16_t bx_begin, bx_end, bx_step;
+    orientCopyRange(bx_min, bx_max, reverse_x, bx_begin, bx_end, bx_step);
+    const int16_t sentinel_bx = bx_end + bx_step;
+
+    for (int16_t bx = bx_begin;; bx += bx_step) {
+      bool must_copy = false;
+
+      if (bx != sentinel_bx) {
+        const int16_t block_x0 = bx * kBlock;
+        const int16_t block_x1 = block_x0 + kBlock - 1;
+        const int16_t draw_x0 = std::max<int16_t>(block_x0, dst_x0);
+        const int16_t draw_x1 = std::min<int16_t>(block_x1, dst_x1);
+
+        const int16_t src_block_x0 = src_x0 + (draw_x0 - dst_x0);
+        const int16_t src_block_y0 = src_y0 + (draw_y0 - dst_y0);
+        const int16_t src_block_x1 = src_x0 + (draw_x1 - dst_x0);
+        const int16_t src_block_y1 = src_y0 + (draw_y1 - dst_y0);
+
+        const uint8_t src_mask_value = getCommonMaskValue(
+            *background_mask_, src_block_x0 / kBlock, src_block_y0 / kBlock,
+            src_block_x1 / kBlock, src_block_y1 / kBlock);
+        const uint8_t current_mask_value = internal::NibbleAt(row_data, bx);
+
+        must_copy =
+            !(src_mask_value > 0 && current_mask_value == src_mask_value);
+
+        uint8_t new_mask_value = current_mask_value;
+        if (must_copy) {
+          const bool fully_covered =
+              (draw_x0 == block_x0 && draw_x1 == block_x1 &&
+               draw_y0 == block_y0 && draw_y1 == block_y1);
+          new_mask_value =
+              (fully_covered && src_mask_value > 0) ? src_mask_value : 0;
+        }
+
+        if (new_mask_value != current_mask_value) {
+          updateMaskValue(bx, by, current_mask_value, new_mask_value);
+        }
+      }
+
+      if (must_copy) {
+        if (!streak_active) {
+          streak_active = true;
+          streak_bx0 = bx;
+        }
+      } else if (streak_active) {
+        const int16_t streak_bx1 = bx - bx_step;
+        const int16_t streak_min_bx = std::min(streak_bx0, streak_bx1);
+        const int16_t streak_max_bx = std::max(streak_bx0, streak_bx1);
+        const int16_t streak_block_x0 = streak_min_bx * kBlock;
+        const int16_t streak_block_x1 = streak_max_bx * kBlock + kBlock - 1;
+        const int16_t copy_x0 = std::max<int16_t>(streak_block_x0, dst_x0);
+        const int16_t copy_x1 = std::min<int16_t>(streak_block_x1, dst_x1);
+        const int16_t copy_src_x0 = src_x0 + (copy_x0 - dst_x0);
+        const int16_t copy_src_y0 = src_y0 + (draw_y0 - dst_y0);
+        const int16_t copy_src_x1 = src_x0 + (copy_x1 - dst_x0);
+        const int16_t copy_src_y1 = src_y0 + (draw_y1 - dst_y0);
+
+        output_.blitCopy(copy_src_x0, copy_src_y0, copy_src_x1, copy_src_y1,
+                         copy_x0, draw_y0);
+        streak_active = false;
+      }
+
+      if (bx == sentinel_bx) break;
+    }
+
+    if (by == by_end) break;
+  }
+
   output_.flush();
 }
 

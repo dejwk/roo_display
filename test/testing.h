@@ -1139,7 +1139,71 @@ class FakeOffscreen : public DisplayDevice {
     }
   }
 
+  void blitCopy(int16_t src_x0, int16_t src_y0, int16_t src_x1,
+                int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override {
+    if (dst_x0 == src_x0 && dst_y0 == src_y0) return;
+    if (src_x1 < src_x0 || src_y1 < src_y0) return;
+
+    int16_t dst_x1 = dst_x0 + (src_x1 - src_x0);
+    int16_t dst_y1 = dst_y0 + (src_y1 - src_y0);
+
+    auto orient_rect = [&](int16_t& x0, int16_t& y0, int16_t& x1,
+                           int16_t& y1) {
+      if (orientation().isXYswapped()) {
+        std::swap(x0, y0);
+        std::swap(x1, y1);
+      }
+      if (orientation().isRightToLeft()) {
+        x0 = raw_width() - x0 - 1;
+        x1 = raw_width() - x1 - 1;
+        if (x0 > x1) std::swap(x0, x1);
+      }
+      if (orientation().isBottomToTop()) {
+        y0 = raw_height() - y0 - 1;
+        y1 = raw_height() - y1 - 1;
+        if (y0 > y1) std::swap(y0, y1);
+      }
+    };
+
+    orient_rect(src_x0, src_y0, src_x1, src_y1);
+    orient_rect(dst_x0, dst_y0, dst_x1, dst_y1);
+
+    const int16_t width = src_x1 - src_x0 + 1;
+    const int16_t height = src_y1 - src_y0 + 1;
+    if (width <= 0 || height <= 0) return;
+
+    if (dst_y0 != src_y0) {
+      if (dst_y0 < src_y0) {
+        for (int16_t row = 0; row < height; ++row) {
+          Color* src = buffer_.get() + (src_y0 + row) * raw_width() + src_x0;
+          Color* dst = buffer_.get() + (dst_y0 + row) * raw_width() + dst_x0;
+          std::memcpy(dst, src, static_cast<size_t>(width) * sizeof(Color));
+        }
+      } else {
+        for (int16_t row = height - 1; row >= 0; --row) {
+          Color* src = buffer_.get() + (src_y0 + row) * raw_width() + src_x0;
+          Color* dst = buffer_.get() + (dst_y0 + row) * raw_width() + dst_x0;
+          std::memcpy(dst, src, static_cast<size_t>(width) * sizeof(Color));
+        }
+      }
+    } else {
+      for (int16_t row = 0; row < height; ++row) {
+        Color* src = buffer_.get() + (src_y0 + row) * raw_width() + src_x0;
+        Color* dst = buffer_.get() + (dst_y0 + row) * raw_width() + dst_x0;
+        std::memmove(dst, src, static_cast<size_t>(width) * sizeof(Color));
+      }
+    }
+
+    pixel_draw_count_ += static_cast<uint64_t>(width) * height;
+  }
+
   const ColorFormat& getColorFormat() const override { return color_format_; }
+
+  const Capabilities& getCapabilities() const override {
+    static const Capabilities kCaps(/*supports_blending=*/true,
+                                    /*supports_blit_copy=*/true);
+    return kCaps;
+  }
 
   const Color* buffer() const { return buffer_.get(); }
 

@@ -631,6 +631,122 @@ TEST(BackgroundFillOptimizer, BlitCopyRedundantMisalignedRegionSkipped) {
                              "1111");
 }
 
+TEST(BackgroundFillOptimizer, BlitCopyOverlappingMisalignedStress) {
+  // Regression stress for misaligned overlapping blitCopy paths used by
+  // scrolling. Verifies optimizer output stays bit-identical to reference.
+  constexpr int16_t kW = 43;
+  constexpr int16_t kH = 37;
+  TestScreen screen(kW, kH, color::White);
+  screen.test().setPalette(
+      {color::White, color::Black, color::Red, color::Green, color::Blue,
+       color::Yellow, color::Cyan, color::Magenta},
+      color::White);
+
+  Display display(screen);
+  DrawingContext dc(display);
+
+  // Build a non-trivial baseline with many partial 4x4 updates.
+  for (int16_t y = 0; y < kH; ++y) {
+    const Color c = (y % 2 == 0) ? color::White : color::Blue;
+    dc.draw(FilledRect(0, y, kW - 1, y, c));
+  }
+  for (int16_t x = 0; x < kW; x += 3) {
+    const Color c = (x % 2 == 0) ? color::Red : color::Green;
+    dc.draw(FilledRect(x, 1, std::min<int16_t>(kW - 1, x + 1), kH - 2, c));
+  }
+  EXPECT_CONSISTENT(screen);
+
+  std::mt19937 rng(0xB17C0DEu);
+  std::uniform_int_distribution<int16_t> size_w_dist(5, 23);
+  std::uniform_int_distribution<int16_t> size_h_dist(5, 19);
+  std::uniform_int_distribution<int16_t> dy_dist(-7, 7);
+  std::uniform_int_distribution<int16_t> dx_dist(-3, 3);
+
+  for (int iter = 0; iter < 220; ++iter) {
+    int16_t w = size_w_dist(rng);
+    int16_t h = size_h_dist(rng);
+    w = std::min<int16_t>(w, kW - 2);
+    h = std::min<int16_t>(h, kH - 2);
+
+    std::uniform_int_distribution<int16_t> x0_dist(0, kW - w - 1);
+    std::uniform_int_distribution<int16_t> y0_dist(0, kH - h - 1);
+    int16_t src_x0 = x0_dist(rng);
+    int16_t src_y0 = y0_dist(rng);
+    int16_t src_x1 = src_x0 + w;
+    int16_t src_y1 = src_y0 + h;
+
+    int16_t dx = dx_dist(rng);
+    int16_t dy = dy_dist(rng);
+
+    // Keep destination on-screen while still allowing heavy overlap.
+    int16_t dst_x0 = src_x0 + dx;
+    int16_t dst_y0 = src_y0 + dy;
+    dst_x0 = std::max<int16_t>(0, std::min<int16_t>(dst_x0, kW - (w + 1)));
+    dst_y0 = std::max<int16_t>(0, std::min<int16_t>(dst_y0, kH - (h + 1)));
+
+    // Bias toward vertical scroll-like copies, but keep some diagonal cases.
+    if ((iter % 3) != 0) {
+      dst_x0 = src_x0;
+    }
+
+    screen.blitCopy(src_x0, src_y0, src_x1, src_y1, dst_x0, dst_y0);
+    EXPECT_CONSISTENT(screen);
+  }
+}
+
+TEST(BackgroundFillOptimizer, BlitCopyVerticalScrollWithRevealFillStress) {
+  // Emulates panel scrolling: blit-copy old content and repaint only the
+  // revealed strip. This is where stale/misaligned mask updates are most likely
+  // to surface as visible artifacts.
+  constexpr int16_t kW = 46;
+  constexpr int16_t kH = 39;
+  TestScreen screen(kW, kH, color::White);
+  screen.test().setPalette(
+      {color::White, color::Black, color::Red, color::Green, color::Blue,
+       color::Yellow, color::Cyan, color::Magenta},
+      color::White);
+  Display display(screen);
+  DrawingContext dc(display);
+
+  // Seed deterministic, non-uniform content with many 4x4 misalignments.
+  for (int16_t y = 0; y < kH; ++y) {
+    Color row = (y % 3 == 0) ? color::White : ((y % 3 == 1) ? color::Blue : color::Green);
+    dc.draw(FilledRect(0, y, kW - 1, y, row));
+  }
+  for (int16_t x = 1; x < kW; x += 5) {
+    dc.draw(FilledRect(x, 0, std::min<int16_t>(kW - 1, x + 1), kH - 1,
+                       (x % 2 == 0) ? color::Red : color::Yellow));
+  }
+  EXPECT_CONSISTENT(screen);
+
+  std::mt19937 rng(0x5C4011u);
+  std::uniform_int_distribution<int> dy_dist(-3, 3);
+  std::uniform_int_distribution<int> color_dist(0, 6);
+  const Color palette[] = {color::White, color::Black, color::Red,
+                           color::Green, color::Blue, color::Yellow,
+                           color::Cyan};
+
+  for (int step = 0; step < 260; ++step) {
+    int dy = dy_dist(rng);
+    if (dy == 0) dy = 1;
+
+    if (dy > 0) {
+      // Scroll down by dy: copy [0..h-dy-1] -> [dy..h-1], repaint top strip.
+      screen.blitCopy(0, 0, kW - 1, kH - dy - 1, 0, dy);
+      dc.draw(FilledRect(0, 0, kW - 1, dy - 1, palette[color_dist(rng)]));
+    } else {
+      const int ady = -dy;
+      // Scroll up by ady: copy [ady..h-1] -> [0..h-ady-1], repaint bottom
+      // strip.
+      screen.blitCopy(0, ady, kW - 1, kH - 1, 0, 0);
+      dc.draw(FilledRect(0, kH - ady, kW - 1, kH - 1,
+                         palette[color_dist(rng)]));
+    }
+
+    EXPECT_CONSISTENT(screen);
+  }
+}
+
 namespace {
 
 class SplitFillDrawable : public Drawable {

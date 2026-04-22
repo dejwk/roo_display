@@ -212,7 +212,7 @@ void ReferenceDisplayDevice::blitCopy(int16_t src_x0, int16_t src_y0,
 
 void ReferenceDisplayDevice::advance(uint32_t pixel_count) {
   if (pixel_count == 0) return;
-  if (addr_x1_ - cursor_x_ + 1 > pixel_count) {
+  if (static_cast<uint32_t>(addr_x1_ - cursor_x_ + 1) > pixel_count) {
     // Fast path - still within the current line.
     cursor_x_ += static_cast<int16_t>(pixel_count);
     return;

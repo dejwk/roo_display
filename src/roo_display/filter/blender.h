@@ -38,6 +38,8 @@ class BlendingFilter : public DisplayOutput {
                  const Rasterizable* raster, int16_t dx, int16_t dy,
                  Color bgcolor = color::Transparent)
       : output_(&output),
+        capabilities_(output.getCapabilities().supportsBlending(),
+                      /*supports_blit_copy=*/false),
         blender_(std::move(blender)),
         raster_(raster),
         address_window_(0, 0, 0, 0),
@@ -50,7 +52,11 @@ class BlendingFilter : public DisplayOutput {
   virtual ~BlendingFilter() {}
 
   /// Replace the underlying output.
-  void setOutput(DisplayOutput& output) { output_ = &output; }
+  void setOutput(DisplayOutput& output) {
+    output_ = &output;
+    capabilities_ = Capabilities(output.getCapabilities().supportsBlending(),
+                                 /*supports_blit_copy=*/false);
+  }
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
                   BlendingMode mode) override {
@@ -253,9 +259,7 @@ class BlendingFilter : public DisplayOutput {
     return output_->getColorFormat();
   }
 
-  const Capabilities& getCapabilities() const override {
-    return output_->getCapabilities();
-  }
+  const Capabilities& getCapabilities() const override { return capabilities_; }
 
   void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
                       int16_t src_x0, int16_t src_y0, int16_t src_x1,
@@ -407,6 +411,7 @@ class BlendingFilter : public DisplayOutput {
   }
 
   DisplayOutput* output_;
+  Capabilities capabilities_;
   Blender blender_;
   const Rasterizable* raster_;
   Box address_window_;

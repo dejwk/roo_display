@@ -104,6 +104,8 @@ class TransformedDisplayOutput : public DisplayOutput {
                            Transformation transformation)
       : delegate_(delegate),
         transformation_(std::move(transformation)),
+        capabilities_(delegate.getCapabilities().supportsBlending(),
+                      /*supports_blit_copy=*/false),
         clip_box_(transformation_.clip_box()),
         addr_window_(),
         x_cursor_(0),
@@ -135,13 +137,12 @@ class TransformedDisplayOutput : public DisplayOutput {
     return delegate_.getColorFormat();
   }
 
-  const Capabilities& getCapabilities() const override {
-    return delegate_.getCapabilities();
-  }
+  const Capabilities& getCapabilities() const override { return capabilities_; }
 
  private:
   DisplayOutput& delegate_;
   Transformation transformation_;
+  Capabilities capabilities_;
   Box clip_box_;
   Box addr_window_;
   BlendingMode blending_mode_;

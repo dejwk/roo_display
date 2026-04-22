@@ -109,7 +109,9 @@ class ClipMaskFilter : public DisplayOutput {
                    clip_mask->inverted()),
         address_window_(0, 0, 0, 0),
         cursor_x_(0),
-        cursor_y_(0) {}
+        cursor_y_(0),
+        capabilities_(output.getCapabilities().supportsBlending(),
+                      /*supports_blit_copy=*/false) {}
 
   virtual ~ClipMaskFilter() {}
 
@@ -206,9 +208,7 @@ class ClipMaskFilter : public DisplayOutput {
     return output_.getColorFormat();
   }
 
-  const Capabilities& getCapabilities() const override {
-    return output_.getCapabilities();
-  }
+  const Capabilities& getCapabilities() const override { return capabilities_; }
 
   void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
                       int16_t src_x0, int16_t src_y0, int16_t src_x1,
@@ -321,6 +321,7 @@ class ClipMaskFilter : public DisplayOutput {
   BlendingMode blending_mode_;
   int16_t cursor_x_;
   int16_t cursor_y_;
+  Capabilities capabilities_;
 };
 
 }  // namespace roo_display

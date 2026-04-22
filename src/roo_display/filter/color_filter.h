@@ -15,7 +15,11 @@ class ColorFilter : public DisplayOutput {
   /// Create a filter with a custom filter functor.
   ColorFilter(DisplayOutput& output, Filter filter,
               Color bgcolor = color::Transparent)
-      : output_(output), filter_(filter), bgcolor_(bgcolor) {}
+      : output_(output),
+        filter_(filter),
+        bgcolor_(bgcolor),
+        capabilities_(output.getCapabilities().supportsBlending(),
+                      /*supports_blit_copy=*/false) {}
 
   /// Create a filter using the default-constructed functor.
   ColorFilter(DisplayOutput& output, Color bgcolor = color::Transparent)
@@ -65,9 +69,7 @@ class ColorFilter : public DisplayOutput {
     return output_.getColorFormat();
   }
 
-  const Capabilities& getCapabilities() const override {
-    return output_.getCapabilities();
-  }
+  const Capabilities& getCapabilities() const override { return capabilities_; }
 
   void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
                       int16_t src_x0, int16_t src_y0, int16_t src_x1,
@@ -107,6 +109,7 @@ class ColorFilter : public DisplayOutput {
   DisplayOutput& output_;
   Filter filter_;
   Color bgcolor_;
+  Capabilities capabilities_;
 };
 
 /// Filter functor that scales alpha (0..127).
@@ -140,7 +143,10 @@ class ColorFilter<Erasure> : public DisplayOutput {
  public:
   ColorFilter(DisplayOutput& output, Erasure filter,
               Color bgcolor = color::Transparent)
-      : output_(output), bgcolor_(bgcolor) {}
+      : output_(output),
+        bgcolor_(bgcolor),
+        capabilities_(output.getCapabilities().supportsBlending(),
+                      /*supports_blit_copy=*/false) {}
 
   ColorFilter(DisplayOutput& output, Color bgcolor = color::Transparent)
       : ColorFilter(output, Erasure(), bgcolor) {}
@@ -189,9 +195,7 @@ class ColorFilter<Erasure> : public DisplayOutput {
     return output_.getColorFormat();
   }
 
-  const Capabilities& getCapabilities() const override {
-    return output_.getCapabilities();
-  }
+  const Capabilities& getCapabilities() const override { return capabilities_; }
 
   void drawDirectRect(const roo::byte* data, size_t row_width_bytes,
                       int16_t src_x0, int16_t src_y0, int16_t src_x1,
@@ -203,6 +207,7 @@ class ColorFilter<Erasure> : public DisplayOutput {
  private:
   DisplayOutput& output_;
   Color bgcolor_;
+  Capabilities capabilities_;
 };
 
 /// Filter functor that alpha-blends a fixed overlay color.

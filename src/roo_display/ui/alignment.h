@@ -7,25 +7,34 @@
 namespace roo_display {
 
 /// Anchor point used for alignment.
-enum Anchor {
-  ANCHOR_ORIGIN = 0,  // Point with the zero coordinate.
-  ANCHOR_MIN = 1,     // Left or top.
-  ANCHOR_MID = 2,     // Center or middle.
-  ANCHOR_MAX = 3      // Right or bottom.
+enum class Anchor {
+  kOrigin = 0,  // Point with the zero coordinate.
+  kMin = 1,     // Left or top.
+  kMid = 2,     // Center or middle.
+  kMax = 3      // Right or bottom.
 };
+
+[[deprecated("Use Anchor::kOrigin instead")]]
+constexpr Anchor ANCHOR_ORIGIN = Anchor::kOrigin;
+[[deprecated("Use Anchor::kMin instead")]]
+constexpr Anchor ANCHOR_MIN = Anchor::kMin;
+[[deprecated("Use Anchor::kMid instead")]]
+constexpr Anchor ANCHOR_MID = Anchor::kMid;
+[[deprecated("Use Anchor::kMax instead")]]
+constexpr Anchor ANCHOR_MAX = Anchor::kMax;
 
 namespace internal {
 
 template <typename Dim>
 inline Dim resolveAnchor(Anchor anchor, Dim first, Dim last) {
   switch (anchor) {
-    case ANCHOR_MIN:
+    case Anchor::kMin:
       return first;
-    case ANCHOR_MID:
+    case Anchor::kMid:
       return (first + last) / 2;
-    case ANCHOR_MAX:
+    case Anchor::kMax:
       return last;
-    case ANCHOR_ORIGIN:
+    case Anchor::kOrigin:
     default:
       return 0;
   }
@@ -33,10 +42,11 @@ inline Dim resolveAnchor(Anchor anchor, Dim first, Dim last) {
 
 class AlignBase {
  public:
-  explicit constexpr AlignBase() : AlignBase(ANCHOR_ORIGIN, ANCHOR_ORIGIN, 0) {}
+  explicit constexpr AlignBase()
+      : AlignBase(Anchor::kOrigin, Anchor::kOrigin, 0) {}
 
   explicit constexpr AlignBase(Anchor dst, Anchor src, int16_t shift)
-      : rep_((uint16_t)(shift + (1 << 11)) << 4 | src << 2 | dst) {}
+      : rep_((uint16_t)(shift + (1 << 11)) << 4 | (int)src << 2 | (int)dst) {}
 
   constexpr Anchor src() const { return (Anchor)((rep_ >> 2) & 3); }
   constexpr Anchor dst() const { return (Anchor)(rep_ & 3); }
@@ -80,35 +90,37 @@ class HAlign : public internal::AlignBase {
   }
 
   // Sets the anchor relative to the left of the destination.
-  constexpr HAlign toLeft() const { return HAlign(ANCHOR_MIN, src(), shift()); }
+  constexpr HAlign toLeft() const {
+    return HAlign(Anchor::kMin, src(), shift());
+  }
 
   // Sets the anchor relative to the center of the destination.
   constexpr HAlign toCenter() const {
-    return HAlign(ANCHOR_MID, src(), shift());
+    return HAlign(Anchor::kMid, src(), shift());
   }
 
   // Sets the anchor relative to the right of the destination.
   constexpr HAlign toRight() const {
-    return HAlign(ANCHOR_MAX, src(), shift());
+    return HAlign(Anchor::kMax, src(), shift());
   }
 
   // Sets the anchor relative to the origin (point zero) of the destination.
   constexpr HAlign toOrigin() const {
-    return HAlign(ANCHOR_ORIGIN, src(), shift());
+    return HAlign(Anchor::kOrigin, src(), shift());
   }
 };
 
 /// Left-to-left with no shift.
-static constexpr HAlign kLeft = HAlign(ANCHOR_MIN, ANCHOR_MIN, 0);
+static constexpr HAlign kLeft = HAlign(Anchor::kMin, Anchor::kMin, 0);
 
 /// Center-to-center with no shift.
-static constexpr HAlign kCenter = HAlign(ANCHOR_MID, ANCHOR_MID, 0);
+static constexpr HAlign kCenter = HAlign(Anchor::kMid, Anchor::kMid, 0);
 
 /// Right-to-right with no shift.
-static constexpr HAlign kRight = HAlign(ANCHOR_MAX, ANCHOR_MAX, 0);
+static constexpr HAlign kRight = HAlign(Anchor::kMax, Anchor::kMax, 0);
 
 /// Origin-to-origin with no shift.
-static constexpr HAlign kOrigin = HAlign(ANCHOR_ORIGIN, ANCHOR_ORIGIN, 0);
+static constexpr HAlign kOrigin = HAlign(Anchor::kOrigin, Anchor::kOrigin, 0);
 
 /// Vertical alignment.
 ///
@@ -129,36 +141,38 @@ class VAlign : public internal::AlignBase {
   }
 
   // Sets the anchor relative to the top of the destination.
-  constexpr VAlign toTop() const { return VAlign(ANCHOR_MIN, src(), shift()); }
+  constexpr VAlign toTop() const {
+    return VAlign(Anchor::kMin, src(), shift());
+  }
 
   // Sets the anchor relative to the middle of the destination.
   constexpr VAlign toMiddle() const {
-    return VAlign(ANCHOR_MID, src(), shift());
+    return VAlign(Anchor::kMid, src(), shift());
   }
 
   // Sets the anchor relative to the bottom of the destination.
   constexpr VAlign toBottom() const {
-    return VAlign(ANCHOR_MAX, src(), shift());
+    return VAlign(Anchor::kMax, src(), shift());
   }
 
   // Sets the anchor relative to the baseline (zero coordinate) of the
   // destination.
   constexpr VAlign toBaseline() const {
-    return VAlign(ANCHOR_ORIGIN, src(), shift());
+    return VAlign(Anchor::kOrigin, src(), shift());
   }
 };
 
 /// Top-to-top with no shift.
-static constexpr VAlign kTop = VAlign(ANCHOR_MIN, ANCHOR_MIN, 0);
+static constexpr VAlign kTop = VAlign(Anchor::kMin, Anchor::kMin, 0);
 
 /// Middle-to-middle with no shift.
-static constexpr VAlign kMiddle = VAlign(ANCHOR_MID, ANCHOR_MID, 0);
+static constexpr VAlign kMiddle = VAlign(Anchor::kMid, Anchor::kMid, 0);
 
 /// Bottom-to-bottom with no shift.
-static constexpr VAlign kBottom = VAlign(ANCHOR_MAX, ANCHOR_MAX, 0);
+static constexpr VAlign kBottom = VAlign(Anchor::kMax, Anchor::kMax, 0);
 
 /// Baseline-to-baseline with no shift.
-static constexpr VAlign kBaseline = VAlign(ANCHOR_ORIGIN, ANCHOR_ORIGIN, 0);
+static constexpr VAlign kBaseline = VAlign(Anchor::kOrigin, Anchor::kOrigin, 0);
 
 struct Offset {
   int16_t dx;

@@ -40,7 +40,7 @@ AllocatedPanel AllocatePanel(const Config& config) {
   // #ifdef CONFIG_SPIRAM_MODE_QUAD
   //   int32_t default_speed = 10000000L;
   // #else
-  int32_t default_speed = 18000000L;
+  int32_t default_speed = 16000000L;
 // #endif
 #endif
 

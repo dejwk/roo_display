@@ -882,6 +882,301 @@ void ReadRoundRectColors(const SmoothShape::RoundRect& rect, const int16_t* x,
   }
 }
 
+class EmptyStream : public PixelStream {
+ public:
+  void Read(Color*, uint16_t) override {}
+
+  void Skip(uint32_t) override {}
+};
+
+inline int16_t FloorDiv2(int32_t value) {
+  return value >= 0 ? value / 2 : -(((-value) + 1) / 2);
+}
+
+inline int16_t CeilDiv2(int32_t value) {
+  return value >= 0 ? (value + 1) / 2 : -((-value) / 2);
+}
+
+inline uint64_t Square(int32_t value) {
+  return (uint64_t)value * (uint64_t)value;
+}
+
+class RoundRectStream : public PixelStream {
+ public:
+  // Emits a round-rect in row-major order without buffering the whole row.
+  // Each scanline is decomposed into a small number of uniform segments:
+  // transparent, outline, interior, plus narrow 'slow' edge segments that
+  // still need per-pixel anti-aliased evaluation.
+  RoundRectStream(const SmoothShape::RoundRect& rect, Box bounds)
+      : rect_(rect),
+        bounds_(std::move(bounds)),
+        x_(bounds_.xMin()),
+        y_(bounds_.yMin()),
+        segment_count_(0),
+        segment_index_(0),
+        row_ready_(false),
+        x0x2_(lroundf(2 * rect.x0)),
+        y0x2_(lroundf(2 * rect.y0)),
+        x1x2_(lroundf(2 * rect.x1)),
+        y1x2_(lroundf(2 * rect.y1)),
+        rox2_(lroundf(2 * rect.ro)),
+        rix2_(lroundf(2 * rect.ri)),
+        outer_full_sq4_(Square(std::max<int32_t>(0, rox2_ - 1))),
+        outer_trans_sq4_(Square(rox2_ + 1)),
+        has_inner_full_(rix2_ > 0),
+        inner_full_sq4_(has_inner_full_ ? Square(rix2_ - 1) : 0),
+        inner_out_sq4_(Square(rix2_ + 1)),
+        outer_dx_max_(std::max<int32_t>(-1, rox2_ - 1)),
+        trans_dx_min_(rox2_ + 1),
+        inner_dx_max_(has_inner_full_ ? std::max<int32_t>(-1, rix2_ - 1) : -1),
+        inner_out_dx_min_(rix2_ + 1) {}
+
+  void Read(Color* buf, uint16_t count) override {
+    while (count > 0) {
+      if (!row_ready_) PrepareRow();
+      if (segment_index_ >= segment_count_) return;
+      const Segment& segment = segments_[segment_index_];
+      uint16_t batch = segment.end_x - x_ + 1;
+      if (batch > count) batch = count;
+      switch (segment.kind) {
+        case SegmentKind::kTransparent:
+          FillColor(buf, batch, color::Transparent);
+          break;
+        case SegmentKind::kInterior:
+          FillColor(buf, batch, rect_.interior_color);
+          break;
+        case SegmentKind::kOutline:
+          FillColor(buf, batch, rect_.outline_color);
+          break;
+        case SegmentKind::kSlow:
+          for (uint16_t i = 0; i < batch; ++i) {
+            buf[i] = GetSmoothRoundRectPixelColor(rect_, x_ + i, y_);
+          }
+          break;
+      }
+      buf += batch;
+      count -= batch;
+      x_ += batch;
+      if (x_ > segment.end_x) {
+        ++segment_index_;
+      }
+      if (x_ > bounds_.xMax()) {
+        x_ = bounds_.xMin();
+        ++y_;
+        row_ready_ = false;
+      }
+    }
+  }
+
+  void Skip(uint32_t count) override {
+    uint16_t width = bounds_.width();
+    y_ += count / width;
+    x_ += count % width;
+    if (x_ > bounds_.xMax()) {
+      x_ -= width;
+      ++y_;
+    }
+    row_ready_ = false;
+    segment_count_ = 0;
+    segment_index_ = 0;
+  }
+
+ private:
+  enum class SegmentKind : uint8_t {
+    kTransparent,
+    kInterior,
+    kOutline,
+    kSlow,
+  };
+
+  struct Segment {
+    int16_t start_x;
+    int16_t end_x;
+    SegmentKind kind;
+  };
+
+  // Maintains the integer x extent for a given doubled-radius threshold as the
+  // doubled y distance changes from one scanline to the next. This avoids the
+  // sqrt previously used on every row.
+  void UpdateMaxDx(uint64_t dy_sq4, uint64_t limit_sq4, int32_t* dx) {
+    if (dy_sq4 > limit_sq4) {
+      *dx = -1;
+      return;
+    }
+    if (*dx < 0) *dx = 0;
+    while (*dx > 0 && Square(*dx) + dy_sq4 > limit_sq4) {
+      --*dx;
+    }
+    while (Square(*dx + 1) + dy_sq4 <= limit_sq4) {
+      ++*dx;
+    }
+  }
+
+  void UpdateMinDx(uint64_t dy_sq4, uint64_t limit_sq4, int32_t* dx) {
+    if (dy_sq4 >= limit_sq4) {
+      *dx = 0;
+      return;
+    }
+    if (*dx < 0) *dx = 0;
+    while (*dx > 0 && Square(*dx - 1) + dy_sq4 >= limit_sq4) {
+      --*dx;
+    }
+    while (Square(*dx) + dy_sq4 < limit_sq4) {
+      ++*dx;
+    }
+  }
+
+  void UpdateThresholds(uint64_t dy_sq4) {
+    UpdateMaxDx(dy_sq4, outer_full_sq4_, &outer_dx_max_);
+    UpdateMinDx(dy_sq4, outer_trans_sq4_, &trans_dx_min_);
+    if (has_inner_full_) {
+      UpdateMaxDx(dy_sq4, inner_full_sq4_, &inner_dx_max_);
+    } else {
+      inner_dx_max_ = -1;
+    }
+    UpdateMinDx(dy_sq4, inner_out_sq4_, &inner_out_dx_min_);
+  }
+
+  void AddSegment(int16_t start_x, int16_t end_x, SegmentKind kind) {
+    if (start_x > end_x) return;
+    if (segment_count_ > 0) {
+      Segment& prev = segments_[segment_count_ - 1];
+      if (prev.kind == kind && prev.end_x + 1 == start_x) {
+        prev.end_x = end_x;
+        return;
+      }
+    }
+    segments_[segment_count_++] = Segment{start_x, end_x, kind};
+  }
+
+  SegmentKind ClassifyZeroDx(uint64_t dy_sq4) const {
+    if (has_inner_full_ && dy_sq4 <= inner_full_sq4_) {
+      return SegmentKind::kInterior;
+    }
+    if (dy_sq4 >= outer_trans_sq4_) {
+      return SegmentKind::kTransparent;
+    }
+    if (dy_sq4 <= outer_full_sq4_ &&
+        (rox2_ == rix2_ || dy_sq4 >= inner_out_sq4_)) {
+      return SegmentKind::kOutline;
+    }
+    return SegmentKind::kSlow;
+  }
+
+  void PrepareLeftSide(int16_t start_x, int16_t end_x, int32_t trans_dx_min,
+                       int32_t outer_dx_max, int32_t inner_out_dx_min,
+                       int32_t inner_dx_max) {
+    if (start_x > end_x) return;
+    int16_t transparent_end = FloorDiv2(x0x2_ - trans_dx_min);
+    int16_t outer_start = CeilDiv2(x0x2_ - outer_dx_max);
+    int16_t outline_end = FloorDiv2(x0x2_ - inner_out_dx_min);
+    int16_t interior_start = CeilDiv2(x0x2_ - inner_dx_max);
+
+    AddSegment(start_x, std::min(end_x, transparent_end),
+               SegmentKind::kTransparent);
+    AddSegment(std::max(start_x, (int16_t)(transparent_end + 1)),
+               std::min(end_x, (int16_t)(outer_start - 1)), SegmentKind::kSlow);
+    AddSegment(std::max(start_x, outer_start), std::min(end_x, outline_end),
+               SegmentKind::kOutline);
+    AddSegment(std::max(start_x, (int16_t)(outline_end + 1)),
+               std::min(end_x, (int16_t)(interior_start - 1)),
+               SegmentKind::kSlow);
+    AddSegment(std::max(start_x, interior_start), end_x,
+               SegmentKind::kInterior);
+  }
+
+  void PrepareRightSide(int16_t start_x, int16_t end_x, int32_t trans_dx_min,
+                        int32_t outer_dx_max, int32_t inner_out_dx_min,
+                        int32_t inner_dx_max) {
+    if (start_x > end_x) return;
+    int16_t interior_end = FloorDiv2(x1x2_ + inner_dx_max);
+    int16_t outline_start = CeilDiv2(x1x2_ + inner_out_dx_min);
+    int16_t outer_end = FloorDiv2(x1x2_ + outer_dx_max);
+    int16_t transparent_start = CeilDiv2(x1x2_ + trans_dx_min);
+
+    AddSegment(start_x, std::min(end_x, interior_end), SegmentKind::kInterior);
+    AddSegment(std::max(start_x, (int16_t)(interior_end + 1)),
+               std::min(end_x, (int16_t)(outline_start - 1)),
+               SegmentKind::kSlow);
+    AddSegment(std::max(start_x, outline_start), std::min(end_x, outer_end),
+               SegmentKind::kOutline);
+    AddSegment(std::max(start_x, (int16_t)(outer_end + 1)),
+               std::min(end_x, (int16_t)(transparent_start - 1)),
+               SegmentKind::kSlow);
+    AddSegment(std::max(start_x, transparent_start), end_x,
+               SegmentKind::kTransparent);
+  }
+
+  void PrepareRow() {
+    segment_count_ = 0;
+    segment_index_ = 0;
+    row_ready_ = true;
+    if (y_ > bounds_.yMax()) return;
+
+    // Distances are tracked in doubled coordinates so the +/-0.5 pixel margins
+    // used by the anti-aliased round-rect tests become exact integer
+    // thresholds. For the current row we reduce the shape to three zones:
+    // left cap, center slab, right cap.
+    int32_t yx2 = 2 * y_;
+    int32_t ref_yx2 = std::min(std::max(yx2, y0x2_), y1x2_);
+    uint64_t dyx2 = (uint64_t)std::abs(yx2 - ref_yx2);
+    uint64_t dy_sq4 = dyx2 * dyx2;
+
+    UpdateThresholds(dy_sq4);
+
+    int16_t zero_start = CeilDiv2(x0x2_);
+    int16_t zero_end = FloorDiv2(x1x2_);
+
+    PrepareLeftSide(
+        bounds_.xMin(), std::min(bounds_.xMax(), (int16_t)(zero_start - 1)),
+        trans_dx_min_, outer_dx_max_, inner_out_dx_min_, inner_dx_max_);
+
+    int16_t center_start = std::max(bounds_.xMin(), zero_start);
+    int16_t center_end = std::min(bounds_.xMax(), zero_end);
+    if (center_start <= center_end) {
+      AddSegment(center_start, center_end, ClassifyZeroDx(dy_sq4));
+    }
+
+    PrepareRightSide(std::max(bounds_.xMin(), (int16_t)(zero_end + 1)),
+                     bounds_.xMax(), trans_dx_min_, outer_dx_max_,
+                     inner_out_dx_min_, inner_dx_max_);
+  }
+
+  const SmoothShape::RoundRect& rect_;
+  Box bounds_;
+  int16_t x_;
+  int16_t y_;
+  // Worst case is five left-cap spans, one center span, and five right-cap
+  // spans before adjacent equal-color spans are merged.
+  Segment segments_[11];
+  uint8_t segment_count_;
+  uint8_t segment_index_;
+  bool row_ready_;
+
+  // Stored in doubled coordinates so half-pixel AA thresholds stay integral.
+  const int32_t x0x2_;
+  const int32_t y0x2_;
+  const int32_t x1x2_;
+  const int32_t y1x2_;
+  const int32_t rox2_;
+  const int32_t rix2_;
+
+  // Squared doubled-radius thresholds used to classify pixels without floating
+  // point math while scanning. 'full' means definitely inside a region;
+  // 'trans/out' means definitely outside it.
+  const uint64_t outer_full_sq4_;
+  const uint64_t outer_trans_sq4_;
+  const bool has_inner_full_;
+  const uint64_t inner_full_sq4_;
+  const uint64_t inner_out_sq4_;
+
+  // Current scanline state for the incremental circle trackers.
+  int32_t outer_dx_max_;
+  int32_t trans_dx_min_;
+  int32_t inner_dx_max_;
+  int32_t inner_out_dx_min_;
+};
+
 struct RoundRectDrawSpec {
   DisplayOutput* out;
   FillMode fill_mode;
@@ -1819,6 +2114,25 @@ void DrawPixel(SmoothShape::Pixel pixel, const Surface& s, const Box& box) {
 }
 
 }  // namespace
+
+std::unique_ptr<PixelStream> SmoothShape::createStream() const {
+  return createStream(extents());
+}
+
+std::unique_ptr<PixelStream> SmoothShape::createStream(
+    const Box& clip_box) const {
+  Box bounds = Box::Intersect(extents(), clip_box);
+  if (bounds.empty()) {
+    return std::unique_ptr<PixelStream>(new EmptyStream());
+  }
+  switch (kind_) {
+    case ROUND_RECT:
+      return std::unique_ptr<PixelStream>(
+          new RoundRectStream(round_rect_, bounds));
+    default:
+      return Rasterizable::createStream(bounds);
+  }
+}
 
 void SmoothShape::drawTo(const Surface& s) const {
   Box box = Box::Intersect(extents_.translate(s.dx(), s.dy()), s.clip_box());

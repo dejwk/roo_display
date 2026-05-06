@@ -187,6 +187,10 @@ class SmoothShape : public Rasterizable {
 
   Box extents() const override { return extents_; }
 
+  std::unique_ptr<PixelStream> createStream() const override;
+
+  std::unique_ptr<PixelStream> createStream(const Box& clip_box) const override;
+
   void readColors(const int16_t* x, const int16_t* y, uint32_t count,
                   Color* result) const override;
 

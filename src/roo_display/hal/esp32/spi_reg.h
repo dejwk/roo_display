@@ -208,8 +208,12 @@ inline void SpiTransferDoneIntClear(uint8_t spi_port) {
 inline void SpiTransferDoneIntSet(uint8_t spi_port) {
 #if CONFIG_IDF_TARGET_ESP32
   SET_PERI_REG_MASK(SPI_SLAVE_REG(spi_port), SPI_TRANS_DONE);
-#else
+#elif defined(SPI_DMA_INT_SET_REG) && defined(SPI_TRANS_DONE_INT_SET)
   SET_PERI_REG_MASK(SPI_DMA_INT_SET_REG(spi_port), SPI_TRANS_DONE_INT_SET);
+#elif defined(SPI_DMA_INT_RAW_REG) && defined(SPI_TRANS_DONE_INT_RAW)
+  SET_PERI_REG_MASK(SPI_DMA_INT_RAW_REG(spi_port), SPI_TRANS_DONE_INT_RAW);
+#else
+#error "No SPI transfer-done interrupt set mechanism available for this target"
 #endif
 }
 

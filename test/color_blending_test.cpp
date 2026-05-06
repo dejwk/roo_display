@@ -58,6 +58,21 @@ Color BlendReferenceXor(Color bg, Color fg) {
   return Blend(bg, fg, 1 - AsF(bg.a()), 1 - AsF(fg.a()));
 }
 
+template <BlendingMode mode>
+void ExpectTransparentSrcEquivalent(Color bg, Color src) {
+  BlendOp<mode> op;
+  Color transparent_src = src.withA(0);
+  Color control = op.blend(bg, transparent_src);
+  Color test = op.blendTransparentSrc(bg, transparent_src);
+  if (control == test) return;
+  if ((control == Color(0) || test == Color(0)) ||
+      (control.a() != 0 || test.a() != 0)) {
+    EXPECT_EQ(op.blend(bg, transparent_src).asArgb(),
+              op.blendTransparentSrc(bg, transparent_src).asArgb())
+        << bg << ", " << transparent_src << "; mode = " << (int)mode;
+  }
+}
+
 TEST(Color, AlphaBlendSimple) {
   EXPECT_EQ(Color(0xFFFFFFFF),
             AlphaBlend(Color(0xFFFFFFFF), Color(0x00000000)));
@@ -105,7 +120,7 @@ TEST(Color, AlphaBlendSourceAtopFull) {
           Color fg(as, cs, cs, cs);
           Color bg(ad, cd, cd, cd);
           EXPECT_PRED3(Near, BlendReferenceSourceAtop(bg, fg),
-                       BlendOp<BlendingMode::kSourceAtop>()(bg, fg), 1)
+                       BlendOp<BlendingMode::kSourceAtop>().blend(bg, fg), 1)
               << bg << ", " << fg;
         }
       }
@@ -121,7 +136,7 @@ TEST(Color, AlphaBlendSourceInFull) {
           Color fg(as, cs, cs, cs);
           Color bg(ad, cd, cd, cd);
           EXPECT_PRED3(Near, BlendReferenceSourceIn(bg, fg),
-                       BlendOp<BlendingMode::kSourceIn>()(bg, fg), 1)
+                       BlendOp<BlendingMode::kSourceIn>().blend(bg, fg), 1)
               << bg << ", " << fg;
         }
       }
@@ -137,7 +152,7 @@ TEST(Color, AlphaBlendSourceOutFull) {
           Color fg(as, cs, cs, cs);
           Color bg(ad, cd, cd, cd);
           EXPECT_PRED3(Near, BlendReferenceSourceOut(bg, fg),
-                       BlendOp<BlendingMode::kSourceOut>()(bg, fg), 1)
+                       BlendOp<BlendingMode::kSourceOut>().blend(bg, fg), 1)
               << bg << ", " << fg;
         }
       }
@@ -153,9 +168,53 @@ TEST(Color, AlphaBlendSourceXorFull) {
           Color fg(as, cs, cs, cs);
           Color bg(ad, cd, cd, cd);
           EXPECT_PRED3(Near, BlendReferenceXor(bg, fg),
-                       BlendOp<BlendingMode::kXor>()(bg, fg), 1)
+                       BlendOp<BlendingMode::kXor>().blend(bg, fg), 1)
               << bg << ", " << fg;
         }
+      }
+    }
+  }
+}
+
+TEST(Color, BlendTransparentSrcMatchesBlendWithZeroAlpha) {
+  for (uint8_t ad = 0; ad < 255; ad += 17) {
+    for (uint8_t as = 0; as < 255; as += 17) {
+      for (uint8_t cd = 0; cd < 255; cd += 17) {
+        for (uint8_t cs = 0; cs < 255; cs += 17) {
+          Color bg(ad, cd, (uint8_t)(255 - cd), (uint8_t)(cd ^ 0x55));
+          Color src(as, cs, (uint8_t)(255 - cs), (uint8_t)(cs ^ 0xAA));
+          ExpectTransparentSrcEquivalent<BlendingMode::kSource>(bg, src);
+          ExpectTransparentSrcEquivalent<BlendingMode::kSourceOver>(bg, src);
+          ExpectTransparentSrcEquivalent<BlendingMode::kSourceIn>(bg, src);
+          ExpectTransparentSrcEquivalent<BlendingMode::kSourceAtop>(bg, src);
+          ExpectTransparentSrcEquivalent<BlendingMode::kDestination>(bg, src);
+          ExpectTransparentSrcEquivalent<BlendingMode::kDestinationOver>(bg,
+                                                                         src);
+          // This one is excluded because it requires an opaque src.
+          // ExpectTransparentSrcEquivalent<BlendingMode::kDestinationOverOpaque>(
+          //     bg, src);
+          ExpectTransparentSrcEquivalent<BlendingMode::kDestinationIn>(bg, src);
+          ExpectTransparentSrcEquivalent<BlendingMode::kDestinationAtop>(bg,
+                                                                         src);
+          ExpectTransparentSrcEquivalent<BlendingMode::kClear>(bg, src);
+          ExpectTransparentSrcEquivalent<BlendingMode::kSourceOut>(bg, src);
+          ExpectTransparentSrcEquivalent<BlendingMode::kDestinationOut>(bg,
+                                                                        src);
+          ExpectTransparentSrcEquivalent<BlendingMode::kXor>(bg, src);
+        }
+      }
+    }
+  }
+}
+
+TEST(Color, BlendTransparentSrcMatchesBlendWithZeroAlphaOpaqueDst) {
+  for (uint8_t as = 0; as < 255; as += 17) {
+    for (uint8_t cd = 0; cd < 255; cd += 17) {
+      for (uint8_t cs = 0; cs < 255; cs += 17) {
+        Color bg(255, cd, (uint8_t)(255 - cd), (uint8_t)(cd ^ 0x55));
+        Color src(as, cs, (uint8_t)(255 - cs), (uint8_t)(cs ^ 0xAA));
+        ExpectTransparentSrcEquivalent<BlendingMode::kSourceOverOpaque>(bg,
+                                                                        src);
       }
     }
   }

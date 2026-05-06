@@ -201,12 +201,14 @@ struct BlendOp;
 
 template <>
 struct BlendOp<BlendingMode::kSource> {
-  inline Color operator()(Color dst, Color src) const { return src; }
+  inline Color blend(Color dst, Color src) const { return src; }
+
+  inline Color blendTransparentSrc(Color dst, Color src) const { return src; }
 };
 
 template <>
 struct BlendOp<BlendingMode::kSourceOverOpaque> {
-  inline Color operator()(Color dst, Color src) const {
+  inline Color blend(Color dst, Color src) const {
     uint16_t alpha = src.a();
     uint16_t inv_alpha = alpha ^ 0xFF;
     uint8_t r = (uint8_t)(internal::__div_255_rounded(alpha * src.r() +
@@ -231,6 +233,8 @@ struct BlendOp<BlendingMode::kSourceOverOpaque> {
     //
     return Color(0xFF000000 | r << 16 | g << 8 | b);
   }
+
+  inline Color blendTransparentSrc(Color dst, Color src) const { return dst; }
 };
 
 #ifndef ROO_DISPLAY_BLENDING_PRECITION
@@ -243,14 +247,14 @@ struct BlendOp<BlendingMode::kSourceOver> {
   // co = αs x Cs + αb x Cb x (1 – αs)
   // αo = αs + αb x (1 – αs)
 
-  inline Color operator()(Color dst, Color src) const {
+  inline Color blend(Color dst, Color src) const {
     uint16_t src_alpha = src.a();
     if (src_alpha == 0xFF) {
       return src;
     }
     uint16_t dst_alpha = dst.a();
     if (dst_alpha == 0xFF) {
-      return BlendOp<BlendingMode::kSourceOverOpaque>()(dst, src);
+      return BlendOp<BlendingMode::kSourceOverOpaque>().blend(dst, src);
     }
     if (src_alpha == 0) {
       return dst;
@@ -305,6 +309,8 @@ struct BlendOp<BlendingMode::kSourceOver> {
 
     return Color(alpha << 24 | r << 16 | g << 8 | b);
   }
+
+  inline Color blendTransparentSrc(Color dst, Color src) const { return dst; }
 };
 
 template <>
@@ -313,7 +319,7 @@ struct BlendOp<BlendingMode::kSourceAtop> {
   // co = αs x Cs x αb + αb x Cb x (1 – αs)
   // αo = αs x αb + αb x (1 – αs)
 
-  inline Color operator()(Color dst, Color src) const {
+  inline Color blend(Color dst, Color src) const {
     uint16_t src_alpha = src.a();
     uint16_t dst_alpha = dst.a();
     if (src_alpha == 0xFF) {
@@ -333,30 +339,55 @@ struct BlendOp<BlendingMode::kSourceAtop> {
     uint8_t b = (uint8_t)((src_multi * src.b() + dst_multi * dst.b()) >> 8);
     return Color(dst_alpha << 24 | r << 16 | g << 8 | b);
   }
+
+  inline Color blendTransparentSrc(Color dst, Color src) const { return dst; }
 };
 
 template <>
 struct BlendOp<BlendingMode::kDestination> {
-  inline Color operator()(Color dst, Color src) const { return dst; }
+  inline Color blend(Color dst, Color src) const { return dst; }
+
+  inline Color blendTransparentSrc(Color dst, Color src) const { return dst; }
 };
 
 template <>
 struct BlendOp<BlendingMode::kDestinationOverOpaque> {
-  inline Color operator()(Color dst, Color src) const {
-    return BlendOp<BlendingMode::kSourceOverOpaque>()(src, dst);
+  inline Color blend(Color dst, Color src) const {
+    return BlendOp<BlendingMode::kSourceOverOpaque>().blend(src, dst);
+  }
+
+  // This is actually self-conflicting, but included for completeness.
+  inline Color blendTransparentSrc(Color dst, Color src) const {
+    uint16_t alpha = dst.a();
+    uint16_t inv_alpha = alpha ^ 0xFF;
+    uint8_t r = (uint8_t)(internal::__div_255_rounded(alpha * dst.r() +
+                                                      inv_alpha * src.r()));
+    uint8_t g = (uint8_t)(internal::__div_255_rounded(alpha * dst.g() +
+                                                      inv_alpha * src.g()));
+    uint8_t b = (uint8_t)(internal::__div_255_rounded(alpha * dst.b() +
+                                                      inv_alpha * src.b()));
+    return Color(0xFF000000 | r << 16 | g << 8 | b);
   }
 };
 
 template <>
 struct BlendOp<BlendingMode::kDestinationOver> {
-  inline Color operator()(Color dst, Color src) const {
-    return BlendOp<BlendingMode::kSourceOver>()(src, dst);
+  inline Color blend(Color dst, Color src) const {
+    return BlendOp<BlendingMode::kSourceOver>().blend(src, dst);
   }
+
+  inline Color blendTransparentSrc(Color dst, Color src) const { return dst; }
 };
 
 template <>
 struct BlendOp<BlendingMode::kClear> {
-  inline Color operator()(Color dst, Color src) const {
+  inline Color blend(Color dst, Color src) const {
+    return dst == color::Transparent && src == color::Transparent
+               ? color::Transparent
+               : color::Background;
+  }
+
+  inline Color blendTransparentSrc(Color dst, Color src) const {
     return dst == color::Transparent && src == color::Transparent
                ? color::Transparent
                : color::Background;
@@ -368,7 +399,7 @@ struct BlendOp<BlendingMode::kSourceIn> {
   // Fa = αb; Fb = 0
   // co = αs x Cs x αb
   // αo = αs x αb
-  inline Color operator()(Color dst, Color src) const {
+  inline Color blend(Color dst, Color src) const {
     uint16_t dst_alpha = dst.a();
     if (dst_alpha == 0xFF) {
       return src;
@@ -382,19 +413,33 @@ struct BlendOp<BlendingMode::kSourceIn> {
     }
     return src.withA(internal::__div_255_rounded(src_alpha * dst_alpha));
   }
+
+  inline Color blendTransparentSrc(Color dst, Color src) const {
+    return dst.a() == 0xFF ? src : color::Background;
+  }
 };
 
 template <>
 struct BlendOp<BlendingMode::kDestinationIn> {
-  inline Color operator()(Color dst, Color src) const {
-    return BlendOp<BlendingMode::kSourceIn>()(src, dst);
+  inline Color blend(Color dst, Color src) const {
+    return BlendOp<BlendingMode::kSourceIn>().blend(src, dst);
+  }
+
+  inline Color blendTransparentSrc(Color dst, Color src) const {
+    return dst.a() == 0 ? color::Background : dst.withA(0);
   }
 };
 
 template <>
 struct BlendOp<BlendingMode::kDestinationAtop> {
-  inline Color operator()(Color dst, Color src) const {
-    return BlendOp<BlendingMode::kSourceAtop>()(src, dst);
+  inline Color blend(Color dst, Color src) const {
+    return BlendOp<BlendingMode::kSourceAtop>().blend(src, dst);
+  }
+
+  inline Color blendTransparentSrc(Color dst, Color src) const {
+    if (dst.a() == 0xFF) return dst.withA(0);
+    if (dst.a() == 0) return src;
+    return color::Background;
   }
 };
 
@@ -403,7 +448,7 @@ struct BlendOp<BlendingMode::kSourceOut> {
   // Fa = 1 – αb; Fb = 0
   // co = αs x Cs x (1 – αb)
   // αo = αs x (1 – αb)
-  inline Color operator()(Color dst, Color src) const {
+  inline Color blend(Color dst, Color src) const {
     uint8_t dst_alpha = dst.a();
     if (dst_alpha == 0) {
       return src;
@@ -418,13 +463,19 @@ struct BlendOp<BlendingMode::kSourceOut> {
     return src.withA(
         internal::__div_255_rounded(src_alpha * (dst_alpha ^ 0xFF)));
   }
+
+  inline Color blendTransparentSrc(Color dst, Color src) const {
+    return dst.a() == 0 ? src : color::Background;
+  }
 };
 
 template <>
 struct BlendOp<BlendingMode::kDestinationOut> {
-  inline Color operator()(Color dst, Color src) const {
-    return BlendOp<BlendingMode::kSourceOut>()(src, dst);
+  inline Color blend(Color dst, Color src) const {
+    return BlendOp<BlendingMode::kSourceOut>().blend(src, dst);
   }
+
+  inline Color blendTransparentSrc(Color dst, Color src) const { return dst; }
 };
 
 template <>
@@ -432,7 +483,7 @@ struct BlendOp<BlendingMode::kXor> {
   // Fa = 1 - αb; Fb = 1 – αs
   // co = αs x Cs x (1 - αb) + αb x Cb x (1 – αs)
   // αo = αs x (1 - αb) + αb x (1 – αs)
-  inline Color operator()(Color dst, Color src) const {
+  inline Color blend(Color dst, Color src) const {
     uint16_t src_alpha = src.a();
     uint16_t dst_alpha = dst.a();
     if (src_alpha == 0xFF) {
@@ -457,23 +508,27 @@ struct BlendOp<BlendingMode::kXor> {
         (uint8_t)(internal::__div_255_rounded(cs * src.b() + cd * dst.b()));
     return Color(alpha << 24 | r << 16 | g << 8 | b);
   }
+
+  inline Color blendTransparentSrc(Color dst, Color src) const { return dst; }
 };
 
 // Utility function to calculates alpha-blending of the foreground color (fgc)
 // over the background color (bgc), ignoring background color's alpha, as if it
 // is fully opaque.
 inline Color AlphaBlendOverOpaque(Color bgc, Color fgc) {
-  return BlendOp<BlendingMode::kSourceOverOpaque>()(bgc, fgc);
+  return BlendOp<BlendingMode::kSourceOverOpaque>().blend(bgc, fgc);
 }
 
 template <BlendingMode mode>
 struct Blender {
-  inline Color apply(Color dst, Color src) { return BlendOp<mode>()(dst, src); }
+  inline Color apply(Color dst, Color src) {
+    return BlendOp<mode>().blend(dst, src);
+  }
 
   inline void applyInPlace(Color* dst, const Color* src, int16_t count) {
     BlendOp<mode> op;
     while (count-- > 0) {
-      *dst = op(*dst, *src);
+      *dst = op.blend(*dst, *src);
       ++dst;
       ++src;
     }
@@ -481,8 +536,15 @@ struct Blender {
 
   inline void applySingleSourceInPlace(Color* dst, Color src, int16_t count) {
     BlendOp<mode> op;
+    if (src.a() == 0) {
+      while (count-- > 0) {
+        *dst = op.blendTransparentSrc(*dst, src);
+        ++dst;
+      }
+      return;
+    }
     while (count-- > 0) {
-      *dst = op(*dst, src);
+      *dst = op.blend(*dst, src);
       ++dst;
     }
   }
@@ -491,7 +553,7 @@ struct Blender {
                                   const uint32_t* index) {
     BlendOp<mode> op;
     while (count-- > 0) {
-      dst[*index] = op(dst[*index], *src);
+      dst[*index] = op.blend(dst[*index], *src);
       ++src;
       ++index;
     }
@@ -500,7 +562,7 @@ struct Blender {
   inline void applyOverBackground(Color bg, Color* src, int16_t count) {
     BlendOp<mode> op;
     while (count-- > 0) {
-      *src = op(bg, *src);
+      *src = op.blend(bg, *src);
       ++src;
     }
   }
@@ -596,7 +658,7 @@ inline void ApplyBlendingOverBackground(BlendingMode mode, Color bg, Color* src,
 // semi-transparent. If the background is (or should be treated as) opaque, use
 // AlphaBlendOverOpaque() instead.
 inline Color AlphaBlend(Color bgc, Color fgc) {
-  return BlendOp<BlendingMode::kSourceOver>()(bgc, fgc);
+  return BlendOp<BlendingMode::kSourceOver>().blend(bgc, fgc);
 }
 
 template <typename ColorMode, BlendingMode blending_mode,
@@ -604,12 +666,14 @@ template <typename ColorMode, BlendingMode blending_mode,
 struct RawFullByteBlender {
   void operator()(roo::byte* dst, Color src, const ColorMode& mode) const {
     ColorIo<ColorMode, byte_order> io;
-    io.store(BlendOp<blending_mode>()(io.load(dst, mode), src), dst, mode);
+    io.store(BlendOp<blending_mode>().blend(io.load(dst, mode), src), dst,
+             mode);
   }
 
   void operator()(roo::byte* dst, Color src, ColorMode& mode) const {
     ColorIo<ColorMode, byte_order> io;
-    io.store(BlendOp<blending_mode>()(io.load(dst, mode), src), dst, mode);
+    io.store(BlendOp<blending_mode>().blend(io.load(dst, mode), src), dst,
+             mode);
   }
 };
 
@@ -638,12 +702,12 @@ struct RawSubByteBlender {
   uint8_t operator()(uint8_t dst, Color src,
                      const ColorMode& color_mode) const {
     return color_mode.fromArgbColor(
-        BlendOp<blending_mode>()(color_mode.toArgbColor(dst), src));
+        BlendOp<blending_mode>().blend(color_mode.toArgbColor(dst), src));
   }
 
   uint8_t operator()(uint8_t dst, Color src, ColorMode& color_mode) const {
     return color_mode.fromArgbColor(
-        BlendOp<blending_mode>()(color_mode.toArgbColor(dst), src));
+        BlendOp<blending_mode>().blend(color_mode.toArgbColor(dst), src));
   }
 };
 

@@ -110,7 +110,8 @@ class WindowedPixelStream {
 /// The Blender template matches `BlendOp`:
 /// ```
 /// struct T {
-///   Color operator()(Color dst, Color src) const;
+///   Color blend(Color dst, Color src) const;
+///   Color blendTransparentSrc(Color dst, Color src) const;
 /// };
 /// ```
 /// where `dst` is the raster color and `src` is the drawable color.
@@ -196,7 +197,7 @@ class BlendingFilter : public DisplayOutput {
                              : pixel_count;
         Color newcolor[kPixelWritingBufferSize];
         for (uint16_t i = 0; i < batch; ++i) {
-          newcolor[i] = blender_(addr_uniform_color_, color[i]);
+          newcolor[i] = blender_.blend(addr_uniform_color_, color[i]);
         }
         if (bgcolor_.a() != 0) {
           for (uint16_t i = 0; i < batch; ++i) {
@@ -221,7 +222,7 @@ class BlendingFilter : public DisplayOutput {
         Color newcolor[kPixelWritingBufferSize];
         addr_stream_->Read(raster_color, batch);
         for (uint16_t i = 0; i < batch; ++i) {
-          newcolor[i] = blender_(raster_color[i], color[i]);
+          newcolor[i] = blender_.blend(raster_color[i], color[i]);
         }
         if (bgcolor_ != color::Transparent) {
           for (uint16_t i = 0; i < batch; ++i) {
@@ -250,7 +251,7 @@ class BlendingFilter : public DisplayOutput {
     }
     raster_->readColorsMaybeOutOfBounds(x, y, pixel_count, newcolor);
     for (uint32_t i = 0; i < pixel_count; ++i) {
-      newcolor[i] = blender_(newcolor[i], color[i]);
+      newcolor[i] = blender_.blend(newcolor[i], color[i]);
     }
     if (bgcolor_ != color::Transparent) {
       for (uint32_t i = 0; i < pixel_count; ++i) {
@@ -262,11 +263,12 @@ class BlendingFilter : public DisplayOutput {
 
   void fill(Color color, uint32_t pixel_count) override {
     if (pixel_count == 0) return;
+    bool transparent_src = color.a() == 0;
 
     // Fast path: uniform raster detected in setAddress.
     if (addr_uniform_) {
       Color blended =
-          AlphaBlend(bgcolor_, blender_(addr_uniform_color_, color));
+          AlphaBlend(bgcolor_, blender_.blend(addr_uniform_color_, color));
       output_->fill(blended, pixel_count);
       advanceCursor(pixel_count);
       return;
@@ -281,8 +283,14 @@ class BlendingFilter : public DisplayOutput {
         Color raster_color[kPixelWritingBufferSize];
         Color newcolor[kPixelWritingBufferSize];
         addr_stream_->Read(raster_color, batch);
-        for (uint16_t i = 0; i < batch; ++i) {
-          newcolor[i] = blender_(raster_color[i], color);
+        if (transparent_src) {
+          for (uint16_t i = 0; i < batch; ++i) {
+            newcolor[i] = blender_.blendTransparentSrc(raster_color[i], color);
+          }
+        } else {
+          for (uint16_t i = 0; i < batch; ++i) {
+            newcolor[i] = blender_.blend(raster_color[i], color);
+          }
         }
         if (bgcolor_ != color::Transparent) {
           for (uint16_t i = 0; i < batch; ++i) {
@@ -309,8 +317,14 @@ class BlendingFilter : public DisplayOutput {
       }
     }
     raster_->readColorsMaybeOutOfBounds(x, y, pixel_count, newcolor);
-    for (uint32_t i = 0; i < pixel_count; ++i) {
-      newcolor[i] = blender_(newcolor[i], color);
+    if (transparent_src) {
+      for (uint32_t i = 0; i < pixel_count; ++i) {
+        newcolor[i] = blender_.blendTransparentSrc(newcolor[i], color);
+      }
+    } else {
+      for (uint32_t i = 0; i < pixel_count; ++i) {
+        newcolor[i] = blender_.blend(newcolor[i], color);
+      }
     }
     if (bgcolor_ != color::Transparent) {
       for (uint32_t i = 0; i < pixel_count; ++i) {
@@ -361,9 +375,9 @@ class BlendingFilter : public DisplayOutput {
         Color uniform;
         if (raster_->readUniformColorRect(bb.xMin(), bb.yMin(), bb.xMax(),
                                           bb.yMax(), &uniform)) {
-          output_->fillRects(mode,
-                             AlphaBlend(bgcolor_, blender_(uniform, color)), x0,
-                             y0, x1, y1, count);
+          output_->fillRects(
+              mode, AlphaBlend(bgcolor_, blender_.blend(uniform, color)), x0,
+              y0, x1, y1, count);
           return;
         }
       }
@@ -379,7 +393,7 @@ class BlendingFilter : public DisplayOutput {
     Color newcolor[pixel_count];
     read(x, y, pixel_count, newcolor);
     for (uint32_t i = 0; i < pixel_count; ++i) {
-      newcolor[i] = blender_(newcolor[i], color[i]);
+      newcolor[i] = blender_.blend(newcolor[i], color[i]);
     }
     if (bgcolor_ != color::Transparent) {
       for (uint32_t i = 0; i < pixel_count; ++i) {
@@ -392,6 +406,7 @@ class BlendingFilter : public DisplayOutput {
   void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override {
     if (pixel_count == 0) return;
+    bool transparent_src = color.a() == 0;
     {
       // Fast-path: if the bounding box of all rects is uniform in the raster,
       // we can blend once and fill.
@@ -407,17 +422,23 @@ class BlendingFilter : public DisplayOutput {
         Color uniform;
         if (raster_->readUniformColorRect(bb.xMin(), bb.yMin(), bb.xMax(),
                                           bb.yMax(), &uniform)) {
-          output_->fillPixels(mode,
-                              AlphaBlend(bgcolor_, blender_(uniform, color)), x,
-                              y, pixel_count);
+          output_->fillPixels(
+              mode, AlphaBlend(bgcolor_, blender_.blend(uniform, color)), x, y,
+              pixel_count);
           return;
         }
       }
     }
     Color newcolor[pixel_count];
     read(x, y, pixel_count, newcolor);
-    for (uint32_t i = 0; i < pixel_count; ++i) {
-      newcolor[i] = blender_(newcolor[i], color);
+    if (transparent_src) {
+      for (uint32_t i = 0; i < pixel_count; ++i) {
+        newcolor[i] = blender_.blendTransparentSrc(newcolor[i], color);
+      }
+    } else {
+      for (uint32_t i = 0; i < pixel_count; ++i) {
+        newcolor[i] = blender_.blend(newcolor[i], color);
+      }
     }
     if (bgcolor_ != color::Transparent) {
       for (uint32_t i = 0; i < pixel_count; ++i) {
@@ -497,7 +518,7 @@ class BlendingFilter : public DisplayOutput {
       if (raster_->readUniformColorRect(xMin - dx_, yMin - dy_, xMax - dx_,
                                         yMax - dy_, &uniform)) {
         output_->fillRect(mode, Box(xMin, yMin, xMax, yMax),
-                          AlphaBlend(bgcolor_, blender_(uniform, color)));
+                          AlphaBlend(bgcolor_, blender_.blend(uniform, color)));
         return;
       }
     }
@@ -552,15 +573,23 @@ class BlendingFilter : public DisplayOutput {
   void fillRectInternal(BlendingMode mode, int16_t xMin, int16_t yMin,
                         int16_t xMax, int16_t yMax, Color color) {
     uint16_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
+    bool transparent_src = color.a() == 0;
     Color newcolor[pixel_count];
     bool same = raster_->readColorRect(xMin - dx_, yMin - dy_, xMax - dx_,
                                        yMax - dy_, newcolor);
     if (same) {
-      output_->fillRect(mode, Box(xMin, yMin, xMax, yMax),
-                        AlphaBlend(bgcolor_, blender_(newcolor[0], color)));
+      output_->fillRect(
+          mode, Box(xMin, yMin, xMax, yMax),
+          AlphaBlend(bgcolor_, blender_.blend(newcolor[0], color)));
     } else {
-      for (uint16_t i = 0; i < pixel_count; ++i) {
-        newcolor[i] = blender_(newcolor[i], color);
+      if (transparent_src) {
+        for (uint16_t i = 0; i < pixel_count; ++i) {
+          newcolor[i] = blender_.blendTransparentSrc(newcolor[i], color);
+        }
+      } else {
+        for (uint16_t i = 0; i < pixel_count; ++i) {
+          newcolor[i] = blender_.blend(newcolor[i], color);
+        }
       }
       if (bgcolor_ != color::Transparent) {
         for (uint16_t i = 0; i < pixel_count; ++i) {

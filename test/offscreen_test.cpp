@@ -290,7 +290,8 @@ class TrivialWriter {
     while (count-- > 0) {
       Color bg = p[offset];
       p[offset++] = color_mode_.toArgbColor(
-          color_mode_.fromArgbColor(BlendOp<blending_mode>()(bg, *color_++)));
+          color_mode_.fromArgbColor(
+              BlendOp<blending_mode>().blend(bg, *color_++)));
     }
   }
 
@@ -311,7 +312,8 @@ class TrivialFiller {
     while (count-- > 0) {
       Color bg = p[offset];
       p[offset++] = color_mode_.toArgbColor(
-          color_mode_.fromArgbColor(BlendOp<blending_mode>()(bg, color_)));
+          color_mode_.fromArgbColor(
+              BlendOp<blending_mode>().blend(bg, color_)));
     }
   }
 

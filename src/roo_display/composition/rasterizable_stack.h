@@ -93,6 +93,12 @@ class RasterizableStack : public Rasterizable {
 
   Box anchorExtents() const override { return anchor_extents_; }
 
+  /// Create a stream for the full stack.
+  std::unique_ptr<PixelStream> createStream() const override;
+
+  /// Create a stream for a clipped box.
+  std::unique_ptr<PixelStream> createStream(const Box& clip_box) const override;
+
   /// Return minimal extents that fit all inputs without clipping.
   Box naturalExtents() {
     if (inputs_.empty()) return Box(0, 0, -1, -1);

@@ -1,5 +1,7 @@
 #include "roo_display/composition/rasterizable_stack.h"
 
+#include "roo_display/composition/streamable_stack.h"
+
 namespace roo_display {
 
 namespace {
@@ -119,6 +121,29 @@ bool RasterizableStack::readUniformColorRect(int16_t xMin, int16_t yMin,
   }
   *result = accumulated;
   return true;
+}
+
+std::unique_ptr<PixelStream> RasterizableStack::createStream() const {
+  StreamableStack stack(extents_);
+  stack.setAnchorExtents(anchor_extents_);
+  for (const auto& input : inputs_) {
+    Box source_extents = input.extents().translate(-input.dx(), -input.dy());
+    stack.addInput(input.source(), source_extents, input.dx(), input.dy())
+        .withMode(input.blending_mode());
+  }
+  return stack.createStream();
+}
+
+std::unique_ptr<PixelStream> RasterizableStack::createStream(
+    const Box& clip_box) const {
+  StreamableStack stack(extents_);
+  stack.setAnchorExtents(anchor_extents_);
+  for (const auto& input : inputs_) {
+    Box source_extents = input.extents().translate(-input.dx(), -input.dy());
+    stack.addInput(input.source(), source_extents, input.dx(), input.dy())
+        .withMode(input.blending_mode());
+  }
+  return stack.createStream(clip_box);
 }
 
 }  // namespace roo_display

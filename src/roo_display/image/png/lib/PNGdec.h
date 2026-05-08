@@ -130,7 +130,7 @@ typedef void (PNG_DRAW_CALLBACK)(PNGDRAW *);
 typedef void (PNG_CLOSE_CALLBACK)(void *pHandle);
 
 //
-// our private structure to hold a JPEG image decode state
+// our private structure to hold a PNG image decode state
 //
 typedef struct png_image_tag
 {

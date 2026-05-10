@@ -1295,20 +1295,32 @@ void DrawRoundRect(SmoothShape::RoundRect rect, const Surface& s,
     FillSubrectangle(rect, spec, box);
   } else {
     const Box& inner = rect.inner_mid;
-    FillSubrectangle(rect, spec,
-                     Box(box.xMin(), box.yMin(), box.xMax(), inner.yMin() - 1));
-    FillSubrectangle(
-        rect, spec,
-        Box(box.xMin(), inner.yMin(), inner.xMin() - 1, inner.yMax()));
-    if (s.fill_mode() == FillMode::kExtents ||
-        rect.interior_color != color::Transparent) {
-      s.out().fillRect(s.blending_mode(), inner, spec.pre_blended_interior);
+    const Box top = Box::Intersect(
+        Box(box.xMin(), box.yMin(), box.xMax(), inner.yMin() - 1), box);
+    const Box left = Box::Intersect(
+        Box(box.xMin(), inner.yMin(), inner.xMin() - 1, inner.yMax()), box);
+    const Box clipped_inner = Box::Intersect(inner, box);
+    const Box right = Box::Intersect(
+        Box(inner.xMax() + 1, inner.yMin(), box.xMax(), inner.yMax()), box);
+    const Box bottom = Box::Intersect(
+        Box(box.xMin(), inner.yMax() + 1, box.xMax(), box.yMax()), box);
+    if (!top.empty()) {
+      FillSubrectangle(rect, spec, top);
     }
-    FillSubrectangle(
-        rect, spec,
-        Box(inner.xMax() + 1, inner.yMin(), box.xMax(), inner.yMax()));
-    FillSubrectangle(rect, spec,
-                     Box(box.xMin(), inner.yMax() + 1, box.xMax(), box.yMax()));
+    if (!left.empty()) {
+      FillSubrectangle(rect, spec, left);
+    }
+    if (!clipped_inner.empty() && (s.fill_mode() == FillMode::kExtents ||
+                                   rect.interior_color != color::Transparent)) {
+      s.out().fillRect(s.blending_mode(), clipped_inner,
+                       spec.pre_blended_interior);
+    }
+    if (!right.empty()) {
+      FillSubrectangle(rect, spec, right);
+    }
+    if (!bottom.empty()) {
+      FillSubrectangle(rect, spec, bottom);
+    }
   }
 }
 

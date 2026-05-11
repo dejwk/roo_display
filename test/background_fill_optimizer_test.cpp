@@ -8,6 +8,7 @@
 #include "roo_display.h"
 #include "roo_display/color/color.h"
 #include "roo_display/core/offscreen.h"
+#include "roo_display/shape/smooth.h"
 #include "roo_display/shape/basic.h"
 #include "testing.h"
 #include "testing_display_device.h"
@@ -423,6 +424,56 @@ TEST(BackgroundFillOptimizer, FillRectBgWithNonPaletteOverlay) {
                              "111111111111"
                              "111111111111"
                              "111111111111");
+}
+
+TEST(BackgroundFillOptimizer, SmoothFilledRoundRectClipsPastBottomEdge) {
+  constexpr Color kBg = color::White;
+  constexpr Color kFill = color::Green;
+
+  OptimizedDevice<Rgb565> optimized(16, 16, kBg);
+  optimized.setPalette({kBg, kFill}, kBg);
+  FakeOffscreen<Rgb565> reference(16, 16, kBg, Rgb565());
+
+  auto shape = SmoothFilledRoundRect(4, 14, 12, 20, 3, kFill);
+
+  {
+    Display display(optimized);
+    DrawingContext dc(display);
+    dc.draw(shape);
+  }
+
+  {
+    Display display(reference);
+    DrawingContext dc(display);
+    dc.draw(shape);
+  }
+
+  EXPECT_THAT(RasterOf(optimized), MatchesContent(RasterOf(reference)));
+}
+
+TEST(BackgroundFillOptimizer, WideSmoothFilledRoundRectClipsPastBottomEdge) {
+  constexpr Color kBg = color::White;
+  constexpr Color kFill = color::Green;
+
+  OptimizedDevice<Rgb565> optimized(32, 24, kBg);
+  optimized.setPalette({kBg, kFill}, kBg);
+  FakeOffscreen<Rgb565> reference(32, 24, kBg, Rgb565());
+
+  auto shape = SmoothFilledRoundRect(2, 10, 29, 30, 4, kFill);
+
+  {
+    Display display(optimized);
+    DrawingContext dc(display);
+    dc.draw(shape);
+  }
+
+  {
+    Display display(reference);
+    DrawingContext dc(display);
+    dc.draw(shape);
+  }
+
+  EXPECT_THAT(RasterOf(optimized), MatchesContent(RasterOf(reference)));
 }
 
 TEST(BackgroundFillOptimizer, RepeatedBackgroundFillPattern) {

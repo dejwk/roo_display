@@ -96,4 +96,30 @@ TEST(TileTest, InteriorStaysClipped) {
                                      "          "));
 }
 
+TEST(TileTest, EmptyTileDrawsNothing) {
+  FakeScreen<Argb8888> screen(6, 4, color::Black);
+  auto interior = SolidRect(0, 0, 2, 1, color::White);
+  Tile tile(&interior, Box(3, 2, 2, 3), kNoAlign);
+  screen.Draw(tile, 0, 0);
+  EXPECT_THAT(screen, MatchesContent(WhiteOnBlack(), 6, 4,
+                                     "      "
+                                     "      "
+                                     "      "
+                                     "      "));
+}
+
+TEST(TileTest, ClipBoxCropsTileAndBorderConsistently) {
+  FakeScreen<Argb4444> screen(8, 6, color::Black);
+  auto interior = SolidRect(1, 1, 4, 3, color::Gray);
+  Tile tile(&interior, Box(0, 0, 5, 4), kNoAlign, color::White);
+  screen.Draw(tile, 0, 0, Box(3, 0, 5, 2));
+  EXPECT_THAT(screen, MatchesContent(Grayscale4(), 8, 6,
+                                     "   ***  "
+                                     "   77*  "
+                                     "   77*  "
+                                     "        "
+                                     "        "
+                                     "        "));
+}
+
 }  // namespace roo_display

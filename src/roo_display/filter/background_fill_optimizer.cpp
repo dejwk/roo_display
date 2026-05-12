@@ -51,6 +51,27 @@ inline void orientCopyRange(int16_t min_value, int16_t max_value, bool reverse,
   }
 }
 
+#if DCHECK_IS_ON()
+inline void DebugCheckRectInBounds(const char* method, int16_t x0, int16_t y0,
+                                   int16_t x1, int16_t y1, int16_t width,
+                                   int16_t height) {
+  DCHECK_LE(x0, x1) << method << " requires x0 <= x1";
+  DCHECK_LE(y0, y1) << method << " requires y0 <= y1";
+  DCHECK_GE(x0, 0) << method << " requires in-bounds x0";
+  DCHECK_GE(y0, 0) << method << " requires in-bounds y0";
+  DCHECK_LT(x1, width) << method << " requires in-bounds x1";
+  DCHECK_LT(y1, height) << method << " requires in-bounds y1";
+}
+
+inline void DebugCheckPointInBounds(const char* method, int16_t x, int16_t y,
+                                    int16_t width, int16_t height) {
+  DCHECK_GE(x, 0) << method << " requires in-bounds x";
+  DCHECK_GE(y, 0) << method << " requires in-bounds y";
+  DCHECK_LT(x, width) << method << " requires in-bounds x";
+  DCHECK_LT(y, height) << method << " requires in-bounds y";
+}
+#endif
+
 }  // namespace
 
 BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height)
@@ -69,8 +90,13 @@ BackgroundFillOptimizer::FrameBuffer::FrameBuffer(int16_t width, int16_t height,
                                                   bool owns_buffer)
     : background_mask_(buffer, ((((width - 1) / kBlock + 1) + 1) / 2),
                        ((((height - 1) / kBlock + 1) + 1) / 2) * 2),
+#if DCHECK_IS_ON()
+      width_(width),
+      height_(height),
+#endif
       swap_xy_(false),
-      owned_buffer_(owns_buffer ? buffer : nullptr) {}
+      owned_buffer_(owns_buffer ? buffer : nullptr) {
+}
 
 void BackgroundFillOptimizer::setPalette(const Color* palette,
                                          uint8_t palette_size) {
@@ -126,6 +152,10 @@ BackgroundFillOptimizer::BackgroundFillOptimizer(DisplayOutput& output,
                                                  FrameBuffer& buffer)
     : output_(output),
       background_mask_(&buffer.background_mask_),
+#if DCHECK_IS_ON()
+      display_width_(buffer.width_),
+      display_height_(buffer.height_),
+#endif
       palette_size_(0),
       address_window_(0, 0, 0, 0),
       cursor_x_(0),
@@ -287,6 +317,10 @@ void BackgroundFillOptimizer::resetPendingDynamicPaletteColor() {
 void BackgroundFillOptimizer::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
                                          uint16_t y1, BlendingMode mode) {
   flushDeferredUniformRun();
+#if DCHECK_IS_ON()
+  DebugCheckRectInBounds("setAddress", x0, y0, x1, y1, display_width_,
+                         display_height_);
+#endif
   address_window_ = Box(x0, y0, x1, y1);
   address_window_area_ = address_window_.area();
   bx_min_ = x0 / kBlock;
@@ -679,6 +713,11 @@ void BackgroundFillOptimizer::writeRects(BlendingMode mode, Color* color,
     const int16_t rx1 = *x1++;
     const int16_t ry1 = *y1++;
 
+#if DCHECK_IS_ON()
+    DebugCheckRectInBounds("writeRects", rx0, ry0, rx1, ry1, display_width_,
+                           display_height_);
+#endif
+
     uint8_t palette_idx = getIdxInPalette(c, palette_, palette_size_);
     if (palette_idx == 0) {
       const int16_t rect_w = rx1 - rx0 + 1;
@@ -719,6 +758,11 @@ void BackgroundFillOptimizer::fillRects(BlendingMode mode, Color color,
     const int16_t rx1 = x1[i];
     const int16_t ry1 = y1[i];
 
+#if DCHECK_IS_ON()
+    DebugCheckRectInBounds("fillRects", rx0, ry0, rx1, ry1, display_width_,
+                           display_height_);
+#endif
+
     if (palette_idx == 0) {
       const int16_t rect_w = rx1 - rx0 + 1;
       const int16_t rect_h = ry1 - ry0 + 1;
@@ -750,6 +794,10 @@ void BackgroundFillOptimizer::writePixels(BlendingMode mode, Color* color,
   Color* color_out = color;
   uint16_t new_pixel_count = 0;
   for (uint16_t i = 0; i < pixel_count; ++i) {
+#if DCHECK_IS_ON()
+    DebugCheckPointInBounds("writePixels", x[i], y[i], display_width_,
+                            display_height_);
+#endif
     const int16_t bx = x[i] / kBlock;
     const int16_t by = y[i] / kBlock;
     const uint8_t old_value = background_mask_->get(bx, by);
@@ -785,6 +833,10 @@ void BackgroundFillOptimizer::fillPixels(BlendingMode mode, Color color,
     int16_t* y_out = y;
     uint16_t new_pixel_count = 0;
     for (uint16_t i = 0; i < pixel_count; ++i) {
+#if DCHECK_IS_ON()
+      DebugCheckPointInBounds("fillPixels", x[i], y[i], display_width_,
+                              display_height_);
+#endif
       const int16_t bx = x[i] / kBlock;
       const int16_t by = y[i] / kBlock;
       const uint8_t old_value = background_mask_->get(bx, by);
@@ -808,6 +860,10 @@ void BackgroundFillOptimizer::fillPixels(BlendingMode mode, Color color,
     // We need to draw all the pixels, but also mark the corresponding
     // bit-mask rectangles as not all-background.
     for (uint16_t i = 0; i < pixel_count; ++i) {
+#if DCHECK_IS_ON()
+      DebugCheckPointInBounds("fillPixels", x[i], y[i], display_width_,
+                              display_height_);
+#endif
       const int16_t bx = x[i] / kBlock;
       const int16_t by = y[i] / kBlock;
       const uint8_t old_value = background_mask_->get(bx, by);
@@ -836,6 +892,10 @@ void BackgroundFillOptimizer::blitCopy(int16_t src_x0, int16_t src_y0,
   resetPendingDynamicPaletteColor();
   if (src_x1 < src_x0 || src_y1 < src_y0) return;
   if (src_x0 == dst_x0 && src_y0 == dst_y0) return;
+#if DCHECK_IS_ON()
+  DebugCheckRectInBounds("blitCopy", src_x0, src_y0, src_x1, src_y1,
+                         display_width_, display_height_);
+#endif
   if (!output_.getCapabilities().supportsBlitCopy()) {
     output_.blitCopy(src_x0, src_y0, src_x1, src_y1, dst_x0, dst_y0);
     return;
@@ -843,6 +903,10 @@ void BackgroundFillOptimizer::blitCopy(int16_t src_x0, int16_t src_y0,
 
   const int16_t dst_x1 = dst_x0 + (src_x1 - src_x0);
   const int16_t dst_y1 = dst_y0 + (src_y1 - src_y0);
+#if DCHECK_IS_ON()
+  DebugCheckRectInBounds("blitCopy", dst_x0, dst_y0, dst_x1, dst_y1,
+                         display_width_, display_height_);
+#endif
 
   const int16_t bx_min = dst_x0 / kBlock;
   const int16_t by_min = dst_y0 / kBlock;
@@ -946,6 +1010,10 @@ void BackgroundFillOptimizer::drawDirectRectAsync(
   if (src_x1 < src_x0 || src_y1 < src_y0) return;
   const int16_t dst_x1 = dst_x0 + (src_x1 - src_x0);
   const int16_t dst_y1 = dst_y0 + (src_y1 - src_y0);
+#if DCHECK_IS_ON()
+  DebugCheckRectInBounds("drawDirectRect", dst_x0, dst_y0, dst_x1, dst_y1,
+                         display_width_, display_height_);
+#endif
 
   const int16_t bx_min = dst_x0 / kBlock;
   const int16_t by_min = dst_y0 / kBlock;

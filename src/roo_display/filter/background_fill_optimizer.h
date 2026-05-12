@@ -104,6 +104,10 @@ class BackgroundFillOptimizer : public DisplayOutput {
     void prefilled(uint8_t idx_in_palette);
 
     internal::NibbleRect background_mask_;
+#if DCHECK_IS_ON()
+    int16_t width_;
+    int16_t height_;
+#endif
     bool swap_xy_;
     std::unique_ptr<roo::byte[]> owned_buffer_;
   };
@@ -214,6 +218,10 @@ class BackgroundFillOptimizer : public DisplayOutput {
 
   DisplayOutput& output_;
   internal::NibbleRect* background_mask_;
+#if DCHECK_IS_ON()
+  int16_t display_width_;
+  int16_t display_height_;
+#endif
   Color palette_[15];
   uint8_t palette_size_;
 

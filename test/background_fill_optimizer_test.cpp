@@ -396,6 +396,51 @@ TEST(BackgroundFillOptimizer, FillRects) {
                              "11    111111");
 }
 
+TEST(BackgroundFillOptimizer, FillRectsRejectsOutOfBoundsRect) {
+  if (!DCHECK_IS_ON()) GTEST_SKIP() << "Requires debug checks";
+  OptimizedDevice<Rgb565> device(16, 12, color::White);
+  device.setPalette({color::White}, color::White);
+
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        int16_t x0[] = {-1};
+        int16_t y0[] = {0};
+        int16_t x1[] = {3};
+        int16_t y1[] = {3};
+        device.fillRects(BlendingMode::kSource, color::White, x0, y0, x1, y1,
+                         1);
+      },
+      "fillRects");
+}
+
+TEST(BackgroundFillOptimizer, WritePixelsRejectsOutOfBoundsCoordinate) {
+  if (!DCHECK_IS_ON()) GTEST_SKIP() << "Requires debug checks";
+  OptimizedDevice<Rgb565> device(16, 12, color::White);
+  device.setPalette({color::White}, color::White);
+
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        Color colors[] = {color::White};
+        int16_t x[] = {16};
+        int16_t y[] = {0};
+        device.writePixels(BlendingMode::kSource, colors, x, y, 1);
+      },
+      "writePixels");
+}
+
+TEST(BackgroundFillOptimizer, DrawDirectRectRejectsOutOfBoundsDestination) {
+  if (!DCHECK_IS_ON()) GTEST_SKIP() << "Requires debug checks";
+  OptimizedDevice<Rgb565> device(16, 12, color::White);
+  device.setPalette({color::White}, color::White);
+
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        roo::byte data[8] = {};
+        device.drawDirectRect(data, 4, 0, 0, 1, 1, 15, 10);
+      },
+      "drawDirectRect");
+}
+
 TEST(BackgroundFillOptimizer, FillRectBgWithNonPaletteOverlay) {
   // Verifies full bg fill, non-palette overlay, and bg refill sequence.
   TestScreen screen(48, 32, color::White);

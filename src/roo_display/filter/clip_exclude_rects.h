@@ -1,5 +1,7 @@
 #pragma once
 
+#include <limits>
+
 #include "roo_display/core/buffered_drawing.h"
 #include "roo_display/core/device.h"
 
@@ -18,11 +20,30 @@ class RectUnion {
   }
 
   /// Return whether the union contains a point.
-  inline bool contains(int16_t x, int16_t y) const {
+  inline bool contains(int16_t x, int16_t y, size_t* same_count) const {
+    int16_t next_x_min = std::numeric_limits<int16_t>::max();
     for (const Box* box = begin_; box != end_; ++box) {
-      if (box->contains(x, y)) return true;
+      if (box->yMin() > y || box->yMax() < y) continue;
+      if (box->xMin() <= x && box->xMax() >= x) {
+        if (same_count != nullptr) {
+          *same_count = static_cast<size_t>(box->xMax() - x + 1);
+        }
+        return true;
+      }
+      if (box->xMin() > x && box->xMin() < next_x_min) {
+        next_x_min = box->xMin();
+      }
+    }
+    if (same_count != nullptr) {
+      *same_count = next_x_min == std::numeric_limits<int16_t>::max()
+                        ? std::numeric_limits<size_t>::max()
+                        : static_cast<size_t>(next_x_min - x);
     }
     return false;
+  }
+
+  inline bool contains(int16_t x, int16_t y) const {
+    return contains(x, y, nullptr);
   }
 
   /// Return whether the union intersects a rectangle.
@@ -103,18 +124,26 @@ class RectUnionFilter : public DisplayOutput {
       // Don't bother to advance cursor, since we're not using it anyway.
       return;
     }
-    // Slow path: per-pixel exclusion check.
+    // Slow path: classify once per horizontal run, then emit pixels without
+    // re-checking exclusion membership within that run.
     uint32_t i = 0;
     BufferedPixelWriter writer(*output_, blending_mode_);
     while (i < pixel_count) {
-      if (!exclusion_->contains(cursor_x_, cursor_y_)) {
-        writer.writePixel(cursor_x_, cursor_y_, color[i]);
+      size_t same_count = 1;
+      bool excluded = exclusion_->contains(cursor_x_, cursor_y_, &same_count);
+      uint32_t run = pixel_count - i;
+      uint32_t row_remaining = address_window_.xMax() - cursor_x_ + 1;
+      if (run > row_remaining) run = row_remaining;
+      if (same_count < run) run = same_count;
+
+      if (!excluded) {
+        int16_t x = cursor_x_;
+        for (uint32_t j = 0; j < run; ++j, ++x) {
+          writer.writePixel(x, cursor_y_, color[i + j]);
+        }
       }
-      if (++cursor_x_ > address_window_.xMax()) {
-        ++cursor_y_;
-        cursor_x_ = address_window_.xMin();
-      }
-      ++i;
+      advanceCursor(run);
+      i += run;
     }
   }
 
@@ -128,18 +157,26 @@ class RectUnionFilter : public DisplayOutput {
       // Don't bother to advance cursor, since we're not using it anyway.
       return;
     }
-    // Slow path: per-pixel exclusion check.
+    // Slow path: classify once per horizontal run, then emit pixels without
+    // re-checking exclusion membership within that run.
     uint32_t i = 0;
     BufferedPixelFiller filler(*output_, color, blending_mode_);
     while (i < pixel_count) {
-      if (!exclusion_->contains(cursor_x_, cursor_y_)) {
-        filler.fillPixel(cursor_x_, cursor_y_);
+      size_t same_count = 1;
+      bool excluded = exclusion_->contains(cursor_x_, cursor_y_, &same_count);
+      uint32_t run = pixel_count - i;
+      uint32_t row_remaining = address_window_.xMax() - cursor_x_ + 1;
+      if (run > row_remaining) run = row_remaining;
+      if (same_count < run) run = same_count;
+
+      if (!excluded) {
+        int16_t x = cursor_x_;
+        for (uint32_t j = 0; j < run; ++j, ++x) {
+          filler.fillPixel(x, cursor_y_);
+        }
       }
-      if (++cursor_x_ > address_window_.xMax()) {
-        ++cursor_y_;
-        cursor_x_ = address_window_.xMin();
-      }
-      ++i;
+      advanceCursor(run);
+      i += run;
     }
   }
 

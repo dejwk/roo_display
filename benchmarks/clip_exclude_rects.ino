@@ -29,20 +29,29 @@ using roo_testing_transducers::FltkViewport;
 struct Emulator {
   FltkViewport viewport;
   FlexViewport flexViewport;
-  FakeIli9341Spi display;
 
-  Emulator() : viewport(), flexViewport(viewport, 6), display(flexViewport) {
-    FakeEsp32().attachSpiDevice(display, 18, 19, 23);
-    FakeEsp32().gpio.attachOutput(5, display.cs());
-    FakeEsp32().gpio.attachOutput(17, display.dc());
-    FakeEsp32().gpio.attachOutput(27, display.rst());
+  FakeIli9341Spi display;
+  FakeXpt2046Spi touch;
+
+  Emulator()
+      : viewport(),
+        flexViewport(viewport, 1, FlexViewport::kRotationRight),
+        display(flexViewport),
+        touch(flexViewport, FakeXpt2046Spi::Calibration(269, 249, 3829, 3684,
+                                                        true, false, false)) {
+    FakeEsp32().attachSpiDevice(display, 4, 5, 6);
+    FakeEsp32().gpio.attachOutput(7, display.cs());
+    FakeEsp32().gpio.attachOutput(2, display.dc());
+    FakeEsp32().gpio.attachOutput(3, display.rst());
+    FakeEsp32().attachSpiDevice(touch, 4, 5, 6);
+    FakeEsp32().gpio.attachOutput(1, touch.cs());
   }
 } emulator;
 
 #endif
 
 #include "roo_display/driver/ili9341.h"
-Ili9341spi<5, 17, 27> device;
+Ili9341spi<7, 2, 3> device;
 Display display(device);
 
 #endif
@@ -242,7 +251,7 @@ void RunBenchmarksOnTarget(Display& target) {
 void setup() {
   Serial.begin(115200);
 #ifndef ROO_DISPLAY_BENCHMARK_OFFSCREEN
-  SPI.begin();
+  SPI.begin(4, 5, 6);
   display.init(color::White);
 #endif
 }

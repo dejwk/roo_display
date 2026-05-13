@@ -8,8 +8,8 @@
 #include "roo_display.h"
 #include "roo_display/color/color.h"
 #include "roo_display/core/offscreen.h"
-#include "roo_display/shape/smooth.h"
 #include "roo_display/shape/basic.h"
+#include "roo_display/shape/smooth.h"
 #include "testing.h"
 #include "testing_display_device.h"
 
@@ -806,7 +806,8 @@ TEST(BackgroundFillOptimizer, BlitCopyVerticalScrollWithRevealFillStress) {
 
   // Seed deterministic, non-uniform content with many 4x4 misalignments.
   for (int16_t y = 0; y < kH; ++y) {
-    Color row = (y % 3 == 0) ? color::White : ((y % 3 == 1) ? color::Blue : color::Green);
+    Color row = (y % 3 == 0) ? color::White
+                             : ((y % 3 == 1) ? color::Blue : color::Green);
     dc.draw(FilledRect(0, y, kW - 1, y, row));
   }
   for (int16_t x = 1; x < kW; x += 5) {
@@ -819,7 +820,7 @@ TEST(BackgroundFillOptimizer, BlitCopyVerticalScrollWithRevealFillStress) {
   std::uniform_int_distribution<int> dy_dist(-3, 3);
   std::uniform_int_distribution<int> color_dist(0, 6);
   const Color palette[] = {color::White, color::Black, color::Red,
-                           color::Green, color::Blue, color::Yellow,
+                           color::Green, color::Blue,  color::Yellow,
                            color::Cyan};
 
   for (int step = 0; step < 260; ++step) {
@@ -835,8 +836,8 @@ TEST(BackgroundFillOptimizer, BlitCopyVerticalScrollWithRevealFillStress) {
       // Scroll up by ady: copy [ady..h-1] -> [0..h-ady-1], repaint bottom
       // strip.
       screen.blitCopy(0, ady, kW - 1, kH - 1, 0, 0);
-      dc.draw(FilledRect(0, kH - ady, kW - 1, kH - 1,
-                         palette[color_dist(rng)]));
+      dc.draw(
+          FilledRect(0, kH - ady, kW - 1, kH - 1, palette[color_dist(rng)]));
     }
 
     EXPECT_CONSISTENT(screen);

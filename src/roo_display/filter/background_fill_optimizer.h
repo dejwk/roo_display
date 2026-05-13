@@ -149,8 +149,8 @@ class BackgroundFillOptimizer : public DisplayOutput {
                            int16_t src_y1, int16_t dst_x0,
                            int16_t dst_y0) override;
 
-  void blitCopy(int16_t src_x0, int16_t src_y0, int16_t src_x1,
-                int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override;
+  void blitCopy(int16_t src_x0, int16_t src_y0, int16_t src_x1, int16_t src_y1,
+                int16_t dst_x0, int16_t dst_y0) override;
 
   void flush() override;
 
@@ -321,8 +321,8 @@ class BackgroundFillOptimizerDevice : public DisplayDevice {
                               src_y1, dst_x0, dst_y0);
   }
 
-  void blitCopy(int16_t src_x0, int16_t src_y0, int16_t src_x1,
-                int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override {
+  void blitCopy(int16_t src_x0, int16_t src_y0, int16_t src_x1, int16_t src_y1,
+                int16_t dst_x0, int16_t dst_y0) override {
     optimizer_.blitCopy(src_x0, src_y0, src_x1, src_y1, dst_x0, dst_y0);
   }
 

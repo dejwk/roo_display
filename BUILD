@@ -110,6 +110,17 @@ cc_test(
 )
 
 cc_test(
+    name = "clip_exclude_rects_test",
+    srcs = [
+        "test/clip_exclude_rects_test.cpp",
+        "test/testing.h",
+        "test/testing_display_device.h",
+    ],
+    linkstatic = 1,
+    deps = UNIT_TEST_DEPS,
+)
+
+cc_test(
     name = "color_subpixel_test",
     srcs = [
         "test/color_subpixel_test.cpp",

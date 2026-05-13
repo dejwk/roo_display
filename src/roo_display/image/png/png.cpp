@@ -118,7 +118,9 @@ bool PngDecoder::open(const roo_io::MultipassResource &resource, int16_t &width,
                       int16_t &height) {
   input_ = resource.open();
   if (input_ == nullptr) return false;
-  *pngdec_ = {};
+  // Zero the heap-allocated PNGIMAGE directly to avoid a stack allocation. The extra temporary object may
+  // spike the main task stack and trigger stack-protection faults
+  memset(pngdec_.get(), 0, sizeof(PNGIMAGE));
   pngdec_->pfnRead = png_read;
   pngdec_->pfnSeek = png_seek;
   pngdec_->pfnDraw = png_draw;

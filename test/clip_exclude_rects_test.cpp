@@ -162,6 +162,44 @@ TEST(RectUnionFilter, WriteSequentialChunksPreserveCursorAndSourceAdvance) {
   ExpectSameRaster(actual, expected);
 }
 
+TEST(RectUnionFilter, WriteSequentialChunksReuseVisibleRunAcrossCalls) {
+  std::array<Box, 1> boxes = {Box(4, 0, 4, 0)};
+  RectUnion exclusion(boxes.data(), boxes.data() + boxes.size());
+  Box window(0, 0, 5, 0);
+  std::vector<Color> colors = MakeGradient(static_cast<size_t>(window.area()));
+
+  TestOffscreen actual(6, 1, color::White);
+  TestOffscreen expected(6, 1, color::White);
+
+  RectUnionFilter filter(actual, &exclusion);
+  filter.setAddress(window.xMin(), window.yMin(), window.xMax(), window.yMax(),
+                    BlendingMode::kSource);
+  filter.write(colors.data(), 2);
+  filter.write(colors.data() + 2, colors.size() - 2);
+
+  WriteExpected(expected, exclusion, window, colors);
+  ExpectSameRaster(actual, expected);
+}
+
+TEST(RectUnionFilter, WriteSequentialChunksReuseExcludedRunAcrossCalls) {
+  std::array<Box, 1> boxes = {Box(1, 0, 3, 0)};
+  RectUnion exclusion(boxes.data(), boxes.data() + boxes.size());
+  Box window(0, 0, 5, 0);
+  std::vector<Color> colors = MakeGradient(static_cast<size_t>(window.area()));
+
+  TestOffscreen actual(6, 1, color::White);
+  TestOffscreen expected(6, 1, color::White);
+
+  RectUnionFilter filter(actual, &exclusion);
+  filter.setAddress(window.xMin(), window.yMin(), window.xMax(), window.yMax(),
+                    BlendingMode::kSource);
+  filter.write(colors.data(), 2);
+  filter.write(colors.data() + 2, colors.size() - 2);
+
+  WriteExpected(expected, exclusion, window, colors);
+  ExpectSameRaster(actual, expected);
+}
+
 TEST(RectUnionFilter, FillAcrossRowsMatchesReference) {
   std::array<Box, 2> boxes = {Box(0, 0, 0, 0), Box(2, 1, 3, 1)};
   RectUnion exclusion(boxes.data(), boxes.data() + boxes.size());
@@ -175,6 +213,26 @@ TEST(RectUnionFilter, FillAcrossRowsMatchesReference) {
   filter.setAddress(window.xMin(), window.yMin(), window.xMax(), window.yMax(),
                     BlendingMode::kSource);
   filter.fill(fill, static_cast<uint32_t>(window.area()));
+
+  FillExpected(expected, exclusion, window, fill,
+               static_cast<uint32_t>(window.area()));
+  ExpectSameRaster(actual, expected);
+}
+
+TEST(RectUnionFilter, FillSequentialChunksReuseExcludedRunAcrossCalls) {
+  std::array<Box, 1> boxes = {Box(1, 0, 3, 0)};
+  RectUnion exclusion(boxes.data(), boxes.data() + boxes.size());
+  Box window(0, 0, 5, 0);
+  Color fill = Color(0xFF2255AA);
+
+  TestOffscreen actual(6, 1, color::White);
+  TestOffscreen expected(6, 1, color::White);
+
+  RectUnionFilter filter(actual, &exclusion);
+  filter.setAddress(window.xMin(), window.yMin(), window.xMax(), window.yMax(),
+                    BlendingMode::kSource);
+  filter.fill(fill, 2);
+  filter.fill(fill, static_cast<uint32_t>(window.area()) - 2);
 
   FillExpected(expected, exclusion, window, fill,
                static_cast<uint32_t>(window.area()));

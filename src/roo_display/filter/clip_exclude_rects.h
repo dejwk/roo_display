@@ -96,6 +96,7 @@ class RectUnionFilter : public DisplayOutput {
     output_ = &output;
     capabilities_ = Capabilities(output.getCapabilities().supportsBlending(),
                                  /*supports_blit_copy=*/false);
+    resetPartialRunState();
   }
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
@@ -104,6 +105,7 @@ class RectUnionFilter : public DisplayOutput {
     blending_mode_ = mode;
     cursor_x_ = x0;
     cursor_y_ = y0;
+    resetPartialRunState();
     if (!exclusion_->intersects(address_window_)) {
       addr_excluded_ = kNone;
       output_->setAddress(x0, y0, x1, y1, mode);
@@ -124,25 +126,18 @@ class RectUnionFilter : public DisplayOutput {
       // Don't bother to advance cursor, since we're not using it anyway.
       return;
     }
-    // Slow path: classify once per horizontal run, then emit pixels without
-    // re-checking exclusion membership within that run.
+    // Slow path: cache same-answer runs and forward visible runs through the
+    // wrapped address-window interface.
     uint32_t i = 0;
-    BufferedPixelWriter writer(*output_, blending_mode_);
     while (i < pixel_count) {
-      size_t same_count = 1;
-      bool excluded = exclusion_->contains(cursor_x_, cursor_y_, &same_count);
+      primePartialRun();
       uint32_t run = pixel_count - i;
-      uint32_t row_remaining = address_window_.xMax() - cursor_x_ + 1;
-      if (run > row_remaining) run = row_remaining;
-      if (same_count < run) run = same_count;
+      if (run > partial_run_remaining_) run = partial_run_remaining_;
 
-      if (!excluded) {
-        int16_t x = cursor_x_;
-        for (uint32_t j = 0; j < run; ++j, ++x) {
-          writer.writePixel(x, cursor_y_, color[i + j]);
-        }
+      if (!partial_run_excluded_) {
+        output_->write(color + i, run);
       }
-      advanceCursor(run);
+      consumePartialRun(run);
       i += run;
     }
   }
@@ -157,25 +152,18 @@ class RectUnionFilter : public DisplayOutput {
       // Don't bother to advance cursor, since we're not using it anyway.
       return;
     }
-    // Slow path: classify once per horizontal run, then emit pixels without
-    // re-checking exclusion membership within that run.
+    // Slow path: cache same-answer runs and forward visible runs through the
+    // wrapped address-window interface.
     uint32_t i = 0;
-    BufferedPixelFiller filler(*output_, color, blending_mode_);
     while (i < pixel_count) {
-      size_t same_count = 1;
-      bool excluded = exclusion_->contains(cursor_x_, cursor_y_, &same_count);
+      primePartialRun();
       uint32_t run = pixel_count - i;
-      uint32_t row_remaining = address_window_.xMax() - cursor_x_ + 1;
-      if (run > row_remaining) run = row_remaining;
-      if (same_count < run) run = same_count;
+      if (run > partial_run_remaining_) run = partial_run_remaining_;
 
-      if (!excluded) {
-        int16_t x = cursor_x_;
-        for (uint32_t j = 0; j < run; ++j, ++x) {
-          filler.fillPixel(x, cursor_y_);
-        }
+      if (!partial_run_excluded_) {
+        output_->fill(color, run);
       }
-      advanceCursor(run);
+      consumePartialRun(run);
       i += run;
     }
   }
@@ -246,6 +234,46 @@ class RectUnionFilter : public DisplayOutput {
   }
 
  private:
+  void resetPartialRunState() {
+    partial_run_remaining_ = 0;
+    partial_run_excluded_ = false;
+    partial_row_window_open_ = false;
+  }
+
+  uint32_t rowRemaining() const {
+    return static_cast<uint32_t>(address_window_.xMax() - cursor_x_ + 1);
+  }
+
+  void primePartialRun() {
+    uint32_t row_remaining = rowRemaining();
+    if (partial_run_remaining_ == 0) {
+      size_t same_count = 1;
+      partial_run_excluded_ =
+          exclusion_->contains(cursor_x_, cursor_y_, &same_count);
+      partial_run_remaining_ = row_remaining;
+      if (same_count < partial_run_remaining_) {
+        partial_run_remaining_ = static_cast<uint32_t>(same_count);
+      }
+      if (partial_run_excluded_) {
+        partial_row_window_open_ = false;
+      }
+    }
+    if (!partial_run_excluded_ && !partial_row_window_open_) {
+      output_->setAddress(cursor_x_, cursor_y_, address_window_.xMax(),
+                          cursor_y_, blending_mode_);
+      partial_row_window_open_ = true;
+    }
+  }
+
+  void consumePartialRun(uint32_t pixel_count) {
+    advanceCursor(pixel_count);
+    partial_run_remaining_ -= pixel_count;
+    if (cursor_x_ == address_window_.xMin()) {
+      partial_run_remaining_ = 0;
+      partial_row_window_open_ = false;
+    }
+  }
+
   void writeRect(Color color, int16_t x0, int16_t y0, int16_t x1, int16_t y1,
                  int mask_idx, BufferedRectWriter* writer) {
     Box rect(x0, y0, x1, y1);
@@ -323,6 +351,9 @@ class RectUnionFilter : public DisplayOutput {
   BlendingMode blending_mode_;
   int16_t cursor_x_;
   int16_t cursor_y_;
+  uint32_t partial_run_remaining_ = 0;
+  bool partial_run_excluded_ = false;
+  bool partial_row_window_open_ = false;
   AddrExclusion addr_excluded_ = kNone;
   Capabilities capabilities_;
 };

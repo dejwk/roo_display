@@ -220,6 +220,20 @@ cc_test(
 )
 
 cc_test(
+    name = "png_test",
+    srcs = [
+        "test/png_test.cpp",
+        "test/testing.h",
+    ],
+    data = [
+        "test/testdata/palette_opaque_8x4.png",
+        "test/testdata/rgba_alpha_8x4.png",
+    ],
+    linkstatic = 1,
+    deps = UNIT_TEST_DEPS,
+)
+
+cc_test(
     name = "streamable_stack_test",
     srcs = [
         "test/streamable_stack_test.cpp",

@@ -44,8 +44,7 @@ void png_draw(PNGDRAW *pDraw) {
   ResumeOutput resume(surface->out());
   switch (pDraw->iPixelType) {
     case PNG_PIXEL_TRUECOLOR_ALPHA: {
-      ConstDramRaster<Rgba8888> raster(box,
-                                       (const roo::byte *)pDraw->pPixels);
+      ConstDramRaster<Rgba8888> raster(box, (const roo::byte *)pDraw->pPixels);
       surface->drawObject(raster);
       break;
     }
@@ -69,30 +68,26 @@ void png_draw(PNGDRAW *pDraw) {
     case PNG_PIXEL_INDEXED: {
       switch (pDraw->iBpp) {
         case 8: {
-          ConstDramRaster<Indexed8> raster(box,
-                                           (const roo::byte *)pDraw->pPixels,
-                                           Indexed8(user.palette));
+          ConstDramRaster<Indexed8> raster(
+              box, (const roo::byte *)pDraw->pPixels, Indexed8(user.palette));
           surface->drawObject(raster);
           break;
         }
         case 4: {
-          ConstDramRaster<Indexed4> raster(box,
-                                           (const roo::byte *)pDraw->pPixels,
-                                           Indexed4(user.palette));
+          ConstDramRaster<Indexed4> raster(
+              box, (const roo::byte *)pDraw->pPixels, Indexed4(user.palette));
           surface->drawObject(raster);
           break;
         }
         case 2: {
-          ConstDramRaster<Indexed2> raster(box,
-                                           (const roo::byte *)pDraw->pPixels,
-                                           Indexed2(user.palette));
+          ConstDramRaster<Indexed2> raster(
+              box, (const roo::byte *)pDraw->pPixels, Indexed2(user.palette));
           surface->drawObject(raster);
           break;
         }
         case 1: {
-          ConstDramRaster<Indexed1> raster(box,
-                                           (const roo::byte *)pDraw->pPixels,
-                                           Indexed1(user.palette));
+          ConstDramRaster<Indexed1> raster(
+              box, (const roo::byte *)pDraw->pPixels, Indexed1(user.palette));
           surface->drawObject(raster);
           break;
         }
@@ -118,17 +113,24 @@ bool PngDecoder::open(const roo_io::MultipassResource &resource, int16_t &width,
                       int16_t &height) {
   input_ = resource.open();
   if (input_ == nullptr) return false;
-  // Zero the heap-allocated PNGIMAGE directly to avoid a stack allocation. The extra temporary object may
-  // spike the main task stack and trigger stack-protection faults
-  memset(pngdec_.get(), 0, sizeof(PNGIMAGE));
+  // Note: zeroing pnggec_ with memset causes compiler warnings; zeroing with =
+  // {} causes stack overflow issues due to copy construction. But clearing out
+  // the entire large state isn't really necessary, so we just set the few
+  // fields that need to be initialized.
+  pngdec_->pImage = nullptr;
   pngdec_->pfnRead = png_read;
   pngdec_->pfnSeek = png_seek;
   pngdec_->pfnDraw = png_draw;
   pngdec_->pfnOpen = nullptr;
   pngdec_->pfnClose = nullptr;
+  pngdec_->PNGFile.iPos = 0;
   pngdec_->PNGFile.iSize = input_->size();
-
+  pngdec_->PNGFile.pData = nullptr;
   pngdec_->PNGFile.fHandle = this;
+  pngdec_->iError = PNG_SUCCESS;
+
+  // Fills in iWidth, iHeight, ucBpp, ucPixelType, iInterlaced, iPitch, and
+  // iHasAlpha.
   if (PNGInit(pngdec_.get()) != PNG_SUCCESS) return false;
   width = pngdec_->iWidth;
   height = pngdec_->iHeight;

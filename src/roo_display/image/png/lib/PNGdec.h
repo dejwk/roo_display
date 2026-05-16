@@ -136,7 +136,6 @@ typedef struct png_image_tag
 {
     int iWidth, iHeight; // image size
     uint8_t ucBpp, ucPixelType;
-    uint8_t ucMemType;
     uint8_t *pImage;
     int iPitch; // bytes per line
     int iHasAlpha;

@@ -234,6 +234,20 @@ cc_test(
 )
 
 cc_test(
+    name = "jpeg_test",
+    srcs = [
+        "test/jpeg_test.cpp",
+        "test/testing.h",
+    ],
+    data = [
+        "test/testdata/color_blocks_9x9.jpg",
+        "test/testdata/grayscale_blocks_9x9.jpg",
+    ],
+    linkstatic = 1,
+    deps = UNIT_TEST_DEPS,
+)
+
+cc_test(
     name = "streamable_stack_test",
     srcs = [
         "test/streamable_stack_test.cpp",

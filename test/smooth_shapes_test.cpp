@@ -247,4 +247,23 @@ TEST(SmoothShapes, DrawTinyShapes) {
               MatchesContent(Alpha8(color::Black), Box(2, 3, 2, 3), "C8"));
 }
 
+TEST(SmoothShapes, ThickRoundRectWithZeroInnerRadiusKeepsInteriorOpaque) {
+  Color outline = color::Black;
+  Color interior(0xFFF3EFE7);
+  auto shape = SmoothThickRoundRect(0.5f, 0.5f, 16.5f, 16.5f, 1.0f, 2.0f,
+                                    outline, interior);
+
+  auto rendered = CoercedTo<Argb8888>(shape, Argb8888(), color::Transparent,
+                                      FillMode::kVisible, BlendingMode::kSourceOver,
+                                      color::Transparent);
+  const Color* pixels = rendered.buffer();
+  auto pixel_at = [&](int x, int y) {
+    return pixels[y * rendered.raw_width() + x];
+  };
+
+  EXPECT_EQ(interior, pixel_at(3, 3));
+  EXPECT_EQ(interior, pixel_at(3, 9));
+  EXPECT_EQ(interior, pixel_at(9, 3));
+}
+
 }  // namespace roo_display

@@ -668,11 +668,15 @@ void ReadWedgeColors(const SmoothShape::Wedge& wedge, const int16_t* x,
 
 inline Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& rect,
                                           int16_t x, int16_t y) {
-  // // This only applies to a handful of pixels and seems to slow things down.
-  // if (rect.inner_mid.contains(x, y) || rect.inner_wide.contains(x, y) ||
-  //     rect.inner_tall.contains(x, y)) {
-  //   return rect.interior_color;
-  // }
+  if (rect.ri < 0.5) {
+    // Note: checking this unconditionally is correct, but since it tends to
+    // apply to few pixels, it is not a net win. But for ri < 0.5, it is needed
+    // for correctness, due to the math below.
+    if (rect.inner_mid.contains(x, y) || rect.inner_wide.contains(x, y) ||
+        rect.inner_tall.contains(x, y)) {
+      return rect.interior_color;
+    }
+  }
   float ref_x = std::min(std::max((float)x, rect.x0), rect.x1);
   float ref_y = std::min(std::max((float)y, rect.y0), rect.y1);
   float dx = x - ref_x;

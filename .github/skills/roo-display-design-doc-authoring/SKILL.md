@@ -41,6 +41,14 @@ Use this section order unless a narrower document genuinely needs less:
 - Put detailed enumeration in Requirements, not in Motivation.
 - Put major decisions in Design Overview and leave mechanics for Design
   Details.
+- Split Implementation Plan into small incremental subsections or phases.
+- Each implementation step should describe the intended code change slice and
+  the narrow validation that makes that slice complete.
+- Keep each implementation step reasonably sized so it can be implemented and
+  tested before moving on.
+- Keep Testing Plan as a summary of validation scope, targets, and coverage.
+- Do not repeat detailed per-step test cases in Testing Plan when they are
+  already described under Implementation Plan.
 - Put rejected alternatives in Caveats, not scattered through the main design.
 
 ## roo_display-Specific Rules
@@ -62,7 +70,10 @@ Use this section order unless a narrower document genuinely needs less:
 
 - Section order matches the required structure.
 - No repeated requirements across Objective, Motivation, and Requirements.
+- Implementation Plan is split into incremental, testable steps.
+- Each implementation step states both the work and the intended validation.
 - RAM and rendering-cost impact are discussed when relevant.
 - Driver, product, or integration coverage is called out when relevant.
 - User-facing documentation follow-up is identified when behavior changes.
-- Testing plan covers the intended contract and likely regressions.
+- Testing Plan summarizes validation coverage without repeating per-step test
+  case detail from Implementation Plan.

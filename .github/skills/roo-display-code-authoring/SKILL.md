@@ -28,6 +28,8 @@ API work, tests, documentation updates, and validation.
 - Every code change must ship with focused unit tests.
 - Non-trivial test cases should carry brief `Verifies ...` comments stating the
   contract or regression being checked.
+- When a change affects user-visible behavior or recommended usage, update
+  `doc/programming_guide.md` or other relevant user-facing docs.
 - Code comments should be sparse and should explain the why or the overall
   what of a complex block, not restate the mechanics line by line.
 
@@ -50,5 +52,6 @@ API work, tests, documentation updates, and validation.
 - Non-trivial tests have short `Verifies ...` comments.
 - Validation uses the narrowest relevant Bazel target first.
 - Compile-coverage checks use `products_compile_test` when relevant.
+- User-facing docs are updated when behavior or recommended usage changes.
 - Complex implementation comments explain intent, not mechanics.
 - The change does not add avoidable per-instance RAM cost.

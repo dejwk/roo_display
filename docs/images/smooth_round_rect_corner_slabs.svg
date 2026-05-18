@@ -21,11 +21,22 @@
                A 60 60 0 0 1 60 0 Z"
         fill="#ffffff" stroke="#26221d" stroke-width="3"/>
 
-      <rect x="60" y="0" width="380" height="300" fill="#f7c66b" fill-opacity="0.18" stroke="#a46a00" stroke-width="2"/>
-      <rect x="130" y="1" width="300" height="319" fill="#ebb66e" fill-opacity="0.18" stroke="#9f6730" stroke-width="2"/>
-      <rect x="0" y="60" width="511" height="130" fill="#79c2a0" fill-opacity="0.18" stroke="#246a4a" stroke-width="2"/>
-      <rect x="17" y="80" width="503" height="150" fill="#77b8d8" fill-opacity="0.18" stroke="#2f6f8f" stroke-width="2"/>
-      <rect x="38" y="23" width="456" height="259" fill="#d97d72" fill-opacity="0.22" stroke="#9c3f37" stroke-width="2" stroke-dasharray="8 6"/>
+      <!-- top_slab    = [ctl.x, ctr.x] x [T, min(bottom_inside(ctl.x), bottom_inside(ctr.x))]
+                       = [60, 440] x [0, 299.54] -->
+      <rect x="60" y="0" width="380" height="299.54" fill="#f7c66b" fill-opacity="0.18" stroke="#a46a00" stroke-width="2"/>
+      <!-- bottom_slab = [cbl.x, cbr.x] x [max(top_inside(cbl.x), top_inside(cbr.x)), B]
+                       = [130, 430] x [0, 320] -->
+      <rect x="130" y="0" width="300" height="320" fill="#ebb66e" fill-opacity="0.18" stroke="#9f6730" stroke-width="2"/>
+      <!-- left_slab   = [L, min(right_inside(ctl.y), right_inside(cbl.y))] x [ctl.y, cbl.y]
+                       = [0, 517.46] x [60, 190] -->
+      <rect x="0" y="60" width="517.46" height="130" fill="#79c2a0" fill-opacity="0.18" stroke="#246a4a" stroke-width="2"/>
+      <!-- right_slab  = [max(left_inside(ctr.y), left_inside(cbr.y)), R] x [ctr.y, cbr.y]
+                       = [6.31, 520] x [80, 230] -->
+      <rect x="6.31" y="80" width="513.69" height="150" fill="#77b8d8" fill-opacity="0.18" stroke="#2f6f8f" stroke-width="2"/>
+      <!-- inner_core  = [L + max(diag(ri_tl), diag(ri_bl)), R - max(diag(ri_tr), diag(ri_br))]
+                       x [T + max(diag(ri_tl), diag(ri_tr)), B - max(diag(ri_bl), diag(ri_br))]
+                       = [38.08, 493.64] x [23.43, 281.92] -->
+      <rect x="38.08" y="23.43" width="455.56" height="258.49" fill="#d97d72" fill-opacity="0.22" stroke="#9c3f37" stroke-width="2" stroke-dasharray="8 6"/>
 
       <circle cx="60" cy="60" r="60" fill="none" stroke="#8d8277" stroke-width="2" stroke-dasharray="4 4"/>
       <circle cx="440" cy="80" r="80" fill="none" stroke="#8d8277" stroke-width="2" stroke-dasharray="4 4"/>

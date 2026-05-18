@@ -51,6 +51,33 @@ Use this section order unless a narrower document genuinely needs less:
   already described under Implementation Plan.
 - Put rejected alternatives in Caveats, not scattered through the main design.
 
+## Closing On Decisions
+
+A design doc exists to close on decisions, not to enumerate them. Every
+open question in the doc should either be resolved, or be moved into the
+Implementation Plan as an explicit experiment with success criteria.
+
+Rules:
+
+- Do not use hedged phrasing such as "the design should decide whether to
+  include X", "may include Y if profiling shows a win", or "define how the
+  evaluator chooses between A and B". Decide, and state the chosen option
+  with the reasoning.
+- When a decision depends on quantitative tradeoffs (RAM versus cycles,
+  branch cost versus cache footprint, etc.), include the analysis: ballpark
+  per-pixel or per-row cost estimates, payload-size deltas, and the
+  reasoning that selects the chosen option over the rejected ones.
+- If the analysis genuinely cannot resolve the choice on paper, add a
+  numbered phase to the Implementation Plan that runs a targeted micro-
+  benchmark or measurement, specifies the input shapes, the metric, and the
+  threshold that selects between the candidates. The doc is not done until
+  that phase has a defined exit criterion.
+- Record rejected alternatives in Caveats with a one-line reason and a
+  pointer back to the section that made the call.
+- Re-read the finished doc and remove every "if", "may", "could", "should
+  consider", or "depending on" that hides an unresolved choice; replace each
+  with a decision or a planned experiment.
+
 ## roo_display-Specific Rules
 
 - Discuss RAM and buffer-footprint impact whenever the proposal touches
@@ -75,5 +102,10 @@ Use this section order unless a narrower document genuinely needs less:
 - RAM and rendering-cost impact are discussed when relevant.
 - Driver, product, or integration coverage is called out when relevant.
 - User-facing documentation follow-up is identified when behavior changes.
+- Every design decision in the doc is closed: chosen option, rejected
+  alternatives, and the analysis or planned experiment that selects between
+  them are all present.
+- No hedged language ("may", "could", "should consider", "depending on")
+  hides an unresolved choice.
 - Testing Plan summarizes validation coverage without repeating per-step test
   case detail from Implementation Plan.

@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="420" viewBox="0 0 920 420">
+  <rect x="1" y="1" width="918" height="418" fill="#ffffff" stroke="#d0d0d0" stroke-width="2"/>
+
+  <g transform="translate(70,40)">
+    <text x="0" y="0" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#2c2a28">
+      Maximal Precomputed Interior Boxes
+    </text>
+    <text x="0" y="28" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#5b564f">
+      The slabs are intentionally large and overlap heavily.
+    </text>
+
+    <g transform="translate(20,50)">
+      <path d="M 60 0
+               H 440
+               A 80 80 0 0 1 520 80
+               V 230
+               A 90 90 0 0 1 430 320
+               H 130
+               A 130 130 0 0 1 0 190
+               V 60
+               A 60 60 0 0 1 60 0 Z"
+        fill="#ffffff" stroke="#26221d" stroke-width="3"/>
+
+      <rect x="60" y="0" width="380" height="300" fill="#f7c66b" fill-opacity="0.18" stroke="#a46a00" stroke-width="2"/>
+      <rect x="130" y="1" width="300" height="319" fill="#ebb66e" fill-opacity="0.18" stroke="#9f6730" stroke-width="2"/>
+      <rect x="0" y="60" width="511" height="130" fill="#79c2a0" fill-opacity="0.18" stroke="#246a4a" stroke-width="2"/>
+      <rect x="17" y="80" width="503" height="150" fill="#77b8d8" fill-opacity="0.18" stroke="#2f6f8f" stroke-width="2"/>
+      <rect x="38" y="23" width="456" height="259" fill="#d97d72" fill-opacity="0.22" stroke="#9c3f37" stroke-width="2" stroke-dasharray="8 6"/>
+
+      <circle cx="60" cy="60" r="60" fill="none" stroke="#8d8277" stroke-width="2" stroke-dasharray="4 4"/>
+      <circle cx="440" cy="80" r="80" fill="none" stroke="#8d8277" stroke-width="2" stroke-dasharray="4 4"/>
+      <circle cx="130" cy="190" r="130" fill="none" stroke="#8d8277" stroke-width="2" stroke-dasharray="4 4"/>
+      <circle cx="430" cy="230" r="90" fill="none" stroke="#8d8277" stroke-width="2" stroke-dasharray="4 4"/>
+
+      <g fill="#5b564f" font-family="Arial, Helvetica, sans-serif" font-size="14">
+        <text x="34" y="56">ctl</text>
+        <text x="448" y="86">ctr</text>
+        <text x="102" y="210">cbl</text>
+        <text x="438" y="250">cbr</text>
+      </g>
+
+      <g fill="#2c2a28">
+        <circle cx="60" cy="60" r="4"/>
+        <circle cx="440" cy="80" r="4"/>
+        <circle cx="130" cy="190" r="4"/>
+        <circle cx="430" cy="230" r="4"/>
+      </g>
+    </g>
+
+    <g transform="translate(560,85)" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#2c2a28">
+      <rect x="0" y="0" width="18" height="18" fill="#f7c66b" fill-opacity="0.65" stroke="#a46a00" stroke-width="1.5"/>
+      <text x="28" y="14">top_slab</text>
+      <rect x="0" y="32" width="18" height="18" fill="#ebb66e" fill-opacity="0.65" stroke="#9f6730" stroke-width="1.5"/>
+      <text x="28" y="46">bottom_slab</text>
+      <rect x="0" y="64" width="18" height="18" fill="#79c2a0" fill-opacity="0.65" stroke="#246a4a" stroke-width="1.5"/>
+      <text x="28" y="78">left_slab</text>
+      <rect x="0" y="96" width="18" height="18" fill="#77b8d8" fill-opacity="0.65" stroke="#2f6f8f" stroke-width="1.5"/>
+      <text x="28" y="110">right_slab</text>
+      <rect x="0" y="128" width="18" height="18" fill="#d97d72" fill-opacity="0.45" stroke="#9c3f37" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <text x="28" y="142">inner_core</text>
+      <text x="0" y="184" font-size="13" fill="#5b564f">Boxes are drawn to the maximal guaranteed</text>
+      <text x="0" y="202" font-size="13" fill="#5b564f">interior extent for their anchor intervals.</text>
+      <text x="0" y="220" font-size="13" fill="#5b564f">Dashed circles indicate the four inner</text>
+      <text x="0" y="238" font-size="13" fill="#5b564f">corner arcs centered at ctl, ctr, cbl, cbr.</text>
+    </g>
+  </g>
+</svg>

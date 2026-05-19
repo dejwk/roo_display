@@ -18,6 +18,12 @@ API work, tests, documentation updates, and validation.
   more naturally, matching the spelling of the underlying field.
 - Favor readability. Avoid redundant branches, repeated explanations, and
   unnecessary line count when the code can stay clear without them.
+- Avoid long lambdas. When logic is substantial, prefer an unnamed-namespace
+  helper over a large local lambda, and define that helper close to the place
+  where it is used.
+- Avoid `auto` unless the type is obvious from the initializer context, such
+  as `std::make_unique<...>()`, or the spelled-out type would be excessively
+  complex.
 - Be conservative about RAM. Flash is usually cheaper than per-instance state,
   so prefer shared data, existing ownership points, and zero-cost hooks when
   possible.
@@ -27,7 +33,8 @@ API work, tests, documentation updates, and validation.
   for pure-virtual and otherwise contract-defining declarations.
 - Every code change must ship with focused unit tests.
 - Non-trivial test cases should carry brief `Verifies ...` comments stating the
-  contract or regression being checked.
+  contract or regression being checked. The comment should apply to the whole
+  test case and appear immediately before the test declaration.
 - When a change affects user-visible behavior or recommended usage, update
   `doc/programming_guide.md` or other relevant user-facing docs.
 - Code comments should be sparse and should explain the why or the overall
@@ -68,7 +75,8 @@ API work, tests, documentation updates, and validation.
 
 - Public API declarations have Doxygen comments.
 - The code change includes focused unit tests.
-- Non-trivial tests have short `Verifies ...` comments.
+- Non-trivial tests have short `Verifies ...` comments immediately before the
+  test declaration, covering the whole test case.
 - Validation uses the narrowest relevant Bazel target first.
 - Compile-coverage checks use `products_compile_test` when relevant.
 - User-facing docs are updated when behavior or recommended usage changes.

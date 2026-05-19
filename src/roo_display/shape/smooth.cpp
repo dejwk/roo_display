@@ -144,6 +144,8 @@ SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
   const internal::NormalizedSingleRadiusRoundRect normalized =
       internal::NormalizeSingleRadiusRoundRect(x0, y0, x1, y1, radius,
                                                thickness);
+  const bool rectangular_inner =
+      normalized.kind == internal::NormalizedRoundRectKind::kRectInner;
   if (normalized.kind == internal::NormalizedRoundRectKind::kFilled) {
     thickness = 0.0f;
     interior_color = color;
@@ -160,6 +162,10 @@ SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
   if (outer_radius < 0) outer_radius = 0;
   float inner_radius = outer_radius - thickness;
   if (inner_radius < 0) inner_radius = 0;
+  const float inner_total_width =
+      std::max(0.0f, normalized.inner_x1 - normalized.inner_x0);
+  const float inner_total_height =
+      std::max(0.0f, normalized.inner_y1 - normalized.inner_y0);
   Box extents((int16_t)floorf(x0 + 0.5f), (int16_t)floorf(y0 + 0.5f),
               (int16_t)ceilf(x1 - 0.5f), (int16_t)ceilf(y1 - 0.5f));
   if (extents.xMin() == extents.xMax() && extents.yMin() == extents.yMax()) {
@@ -171,7 +177,7 @@ SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
                                   (4.0f - M_PI) * outer_radius * outer_radius));
     float inner_area = std::min<float>(
         1.0f,
-        std::max<float>(0.0f, (width - thickness) * (height - thickness) -
+        std::max<float>(0.0f, inner_total_width * inner_total_height -
                                   (4.0f - M_PI) * inner_radius * inner_radius));
     color = color.withA(color.a() * outer_area);
     interior_color = interior_color.withA(interior_color.a() * inner_area);
@@ -185,17 +191,33 @@ SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
   y0 += outer_radius;
   x1 -= outer_radius;
   y1 -= outer_radius;
-  float diagonal_offset = sqrtf(0.5f) * inner_radius;
-  Box inner_mid((int16_t)ceilf(x0 - diagonal_offset + 0.5f),
-                (int16_t)ceilf(y0 - diagonal_offset + 0.5f),
-                (int16_t)floorf(x1 + diagonal_offset - 0.5f),
-                (int16_t)floorf(y1 + diagonal_offset - 0.5f));
-  Box inner_wide(
-      (int16_t)ceilf(x0 - inner_radius + 0.5f), (int16_t)ceilf(y0 + 0.5f),
-      (int16_t)floorf(x1 + inner_radius - 0.5f), (int16_t)floorf(y1 - 0.5f));
-  Box inner_tall(
-      (int16_t)ceilf(x0 + 0.5f), (int16_t)ceilf(y0 - inner_radius + 0.5f),
-      (int16_t)floorf(x1 - 0.5f), (int16_t)floorf(y1 + inner_radius - 0.5f));
+  const SmoothShape::RoundRect::InnerBoundaryMode inner_boundary_mode =
+      rectangular_inner ? SmoothShape::RoundRect::InnerBoundaryMode::kRect
+                        : SmoothShape::RoundRect::InnerBoundaryMode::kRound;
+  Box inner_mid;
+  Box inner_wide;
+  Box inner_tall;
+  if (rectangular_inner) {
+    const Box inner_rect_interior((int16_t)ceilf(normalized.inner_x0 + 0.5f),
+                                  (int16_t)ceilf(normalized.inner_y0 + 0.5f),
+                                  (int16_t)floorf(normalized.inner_x1 - 0.5f),
+                                  (int16_t)floorf(normalized.inner_y1 - 0.5f));
+    inner_mid = inner_rect_interior;
+    inner_wide = inner_rect_interior;
+    inner_tall = inner_rect_interior;
+  } else {
+    float diagonal_offset = sqrtf(0.5f) * inner_radius;
+    inner_mid = Box((int16_t)ceilf(x0 - diagonal_offset + 0.5f),
+                    (int16_t)ceilf(y0 - diagonal_offset + 0.5f),
+                    (int16_t)floorf(x1 + diagonal_offset - 0.5f),
+                    (int16_t)floorf(y1 + diagonal_offset - 0.5f));
+    inner_wide = Box(
+        (int16_t)ceilf(x0 - inner_radius + 0.5f), (int16_t)ceilf(y0 + 0.5f),
+        (int16_t)floorf(x1 + inner_radius - 0.5f), (int16_t)floorf(y1 - 0.5f));
+    inner_tall = Box(
+        (int16_t)ceilf(x0 + 0.5f), (int16_t)ceilf(y0 - inner_radius + 0.5f),
+        (int16_t)floorf(x1 - 0.5f), (int16_t)floorf(y1 + inner_radius - 0.5f));
+  }
   SmoothShape::RoundRect spec{x0,
                               y0,
                               x1,
@@ -204,11 +226,16 @@ SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
                               inner_radius,
                               outer_radius * outer_radius + 0.25f,
                               inner_radius * inner_radius + 0.25f,
+                              normalized.inner_x0,
+                              normalized.inner_y0,
+                              normalized.inner_x1,
+                              normalized.inner_y1,
                               color,
                               interior_color,
                               std::move(inner_mid),
                               std::move(inner_wide),
-                              std::move(inner_tall)};
+                              std::move(inner_tall),
+                              inner_boundary_mode};
 
   return SmoothShape(std::move(extents), std::move(spec));
 }
@@ -713,14 +740,41 @@ void ReadWedgeColors(const SmoothShape::Wedge& wedge, const int16_t* x,
 
 // Helper functions for round rect.
 
+inline bool UsesRectInnerBoundary(const SmoothShape::RoundRect& rect) {
+  return rect.inner_boundary_mode ==
+         SmoothShape::RoundRect::InnerBoundaryMode::kRect;
+}
+
+inline bool PointInsideRoundRectInteriorHelper(
+    const SmoothShape::RoundRect& rect, int16_t x, int16_t y) {
+  return rect.inner_mid.contains(x, y) || rect.inner_wide.contains(x, y) ||
+         rect.inner_tall.contains(x, y);
+}
+
+inline bool BoxInsideRoundRectInteriorHelper(const SmoothShape::RoundRect& rect,
+                                             const Box& box) {
+  return rect.inner_mid.contains(box) || rect.inner_wide.contains(box) ||
+         rect.inner_tall.contains(box);
+}
+
+inline float CalcDistSqRectInnerBoundary(const SmoothShape::RoundRect& rect,
+                                         float xt, float yt);
+
+inline float CalcDistSqRoundRectInnerBoundary(
+    const SmoothShape::RoundRect& rect, float outer_d_squared, int16_t x,
+    int16_t y) {
+  return UsesRectInnerBoundary(rect) ? CalcDistSqRectInnerBoundary(rect, x, y)
+                                     : outer_d_squared;
+}
+
 inline Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& rect,
                                           int16_t x, int16_t y) {
+  const bool uses_rect_inner = UsesRectInnerBoundary(rect);
   if (rect.ri < 0.5) {
     // Note: checking this unconditionally is correct, but since it tends to
     // apply to few pixels, it is not a net win. But for ri < 0.5, it is needed
     // for correctness, due to the math below.
-    if (rect.inner_mid.contains(x, y) || rect.inner_wide.contains(x, y) ||
-        rect.inner_tall.contains(x, y)) {
+    if (PointInsideRoundRectInteriorHelper(rect, x, y)) {
       return rect.interior_color;
     }
   }
@@ -739,7 +793,7 @@ inline Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& rect,
   float ri = rect.ri;
   Color outline = rect.outline_color;
 
-  if (d_squared <= rect.ri_sq_adj - ri && ri >= 0.5f) {
+  if (!uses_rect_inner && d_squared <= rect.ri_sq_adj - ri && ri >= 0.5f) {
     // Point fully within the interior.
     return interior;
   }
@@ -748,7 +802,9 @@ inline Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& rect,
     return color::Transparent;
   }
   bool fully_within_outer = d_squared <= rect.ro_sq_adj - ro;
-  bool fully_outside_inner = ro == ri || d_squared >= rect.ri_sq_adj + ri;
+  float inner_d_squared =
+      CalcDistSqRoundRectInnerBoundary(rect, d_squared, x, y);
+  bool fully_outside_inner = ro == ri || inner_d_squared >= rect.ri_sq_adj + ri;
   if (fully_within_outer && fully_outside_inner) {
     // Point fully within the outline band.
     return outline;
@@ -759,16 +815,18 @@ inline Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& rect,
   // Point is on either of the boundaries; need anti-aliasing.
   // Note: replacing with integer sqrt (iterative, loop-unrolled, 24-bit) slows
   // things down. At 64-bit not loop-unrolled, does so dramatically.
-  float d = sqrtf(d_squared);
+  float outer_d = sqrtf(d_squared);
   if (fully_outside_inner) {
     // On the outer boundary.
-    return outline.withA((uint8_t)(outline.a() * (ro - d + 0.5f)));
+    return outline.withA((uint8_t)(outline.a() * (ro - outer_d + 0.5f)));
   }
+  float inner_d = uses_rect_inner ? sqrtf(inner_d_squared) : outer_d;
   if (fully_within_outer) {
     // On the inner boundary.
-    float opacity = 1.0f - (ri - d + 0.5f);
-    if (ri < 0.5f && (roundf(rect.x0 - ri) == roundf(rect.x1 + ri) ||
-                      roundf(rect.y0 - ri) == roundf(rect.y1 + ri))) {
+    float opacity = 1.0f - (ri - inner_d + 0.5f);
+    if (!uses_rect_inner && ri < 0.5f &&
+        (roundf(rect.x0 - ri) == roundf(rect.x1 + ri) ||
+         roundf(rect.y0 - ri) == roundf(rect.y1 + ri))) {
       // Pesky corner case: the interior is hair-thin. Approximate.
       opacity = std::min(1.0f, opacity * 2.0f);
     }
@@ -777,9 +835,10 @@ inline Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& rect,
   }
   // On both bounderies (e.g. the band is very thin).
   return AlphaBlend(
-      interior, outline.withA((uint8_t)(outline.a() *
-                                        std::max(0.0f, (ro - d + 0.5f) -
-                                                           (ri - d + 0.5f)))));
+      interior,
+      outline.withA(
+          (uint8_t)(outline.a() * std::max(0.0f, (ro - outer_d + 0.5f) -
+                                                     (ri - inner_d + 0.5f)))));
 }
 
 enum RectColor {
@@ -797,11 +856,23 @@ inline float CalcDistSqRect(float x0, float y0, float x1, float y1, float xt,
   return dx * dx + dy * dy;
 }
 
+inline float CalcDistSqRectInnerBoundary(const SmoothShape::RoundRect& rect,
+                                         float xt, float yt) {
+  return CalcDistSqRect(rect.inner_x0, rect.inner_y0, rect.inner_x1,
+                        rect.inner_y1, xt, yt);
+}
+
+inline bool BoxFullyOutsideRectInnerBoundary(const SmoothShape::RoundRect& rect,
+                                             float x_min, float y_min,
+                                             float x_max, float y_max) {
+  return x_max <= rect.inner_x0 - 0.5f || x_min >= rect.inner_x1 + 0.5f ||
+         y_max <= rect.inner_y0 - 0.5f || y_min >= rect.inner_y1 + 0.5f;
+}
+
 // Called for rectangles with area <= 64 pixels.
 inline RectColor DetermineRectColorForRoundRect(
     const SmoothShape::RoundRect& rect, const Box& box) {
-  if (rect.inner_mid.contains(box) || rect.inner_wide.contains(box) ||
-      rect.inner_tall.contains(box)) {
+  if (BoxInsideRoundRectInteriorHelper(rect, box)) {
     return INTERIOR;
   }
   float xMin = box.xMin() - 0.5f;
@@ -842,6 +913,39 @@ inline RectColor DetermineRectColorForRoundRect(
         return TRANSPARENT;
       }
     }
+  }
+  if (UsesRectInnerBoundary(rect)) {
+    if (!BoxFullyOutsideRectInnerBoundary(rect, xMin, yMin, xMax, yMax)) {
+      return NON_UNIFORM;
+    }
+    if (xMin >= rect.x0 && xMax <= rect.x1 && yMin >= rect.y0 &&
+        yMax <= rect.y1) {
+      return OUTLINE_ACTIVE;
+    }
+
+    float outer_full_sq = rect.ro_sq_adj - rect.ro;
+    if (xMax <= rect.x1) {
+      if (yMax <= rect.y1) {
+        if (dtl < outer_full_sq && dbr < outer_full_sq) {
+          return OUTLINE_ACTIVE;
+        }
+      } else if (yMin >= rect.y0) {
+        if (dtr < outer_full_sq && dbl < outer_full_sq) {
+          return OUTLINE_ACTIVE;
+        }
+      }
+    } else if (xMin >= rect.x0) {
+      if (yMax <= rect.y1) {
+        if (dtr < outer_full_sq && dbl < outer_full_sq) {
+          return OUTLINE_ACTIVE;
+        }
+      } else if (yMin >= rect.y0) {
+        if (dtl < outer_full_sq && dbr < outer_full_sq) {
+          return OUTLINE_ACTIVE;
+        }
+      }
+    }
+    return NON_UNIFORM;
   }
   // If all corners are in the same quadrant, and all corners are within the
   // ring, then the rect is also within the ring.
@@ -921,8 +1025,7 @@ bool ReadColorRectOfRoundRect(const SmoothShape::RoundRect& rect, int16_t xMin,
 void ReadRoundRectColors(const SmoothShape::RoundRect& rect, const int16_t* x,
                          const int16_t* y, uint32_t count, Color* result) {
   while (count-- > 0) {
-    if (rect.inner_mid.contains(*x, *y) || rect.inner_wide.contains(*x, *y) ||
-        rect.inner_tall.contains(*x, *y)) {
+    if (PointInsideRoundRectInteriorHelper(rect, *x, *y)) {
       *result = rect.interior_color;
     } else {
       *result = GetSmoothRoundRectPixelColor(rect, *x, *y);
@@ -2190,6 +2293,9 @@ std::unique_ptr<PixelStream> SmoothShape::createStream(
   }
   switch (kind_) {
     case ROUND_RECT:
+      if (UsesRectInnerBoundary(round_rect_)) {
+        return Rasterizable::createStream(bounds);
+      }
       return std::unique_ptr<PixelStream>(
           new RoundRectStream(round_rect_, bounds));
     default:

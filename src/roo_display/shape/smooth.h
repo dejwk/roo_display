@@ -102,6 +102,11 @@ class SmoothShape : public Rasterizable {
   };
 
   struct RoundRect {
+    enum class InnerBoundaryMode : uint8_t {
+      kRound = 0,
+      kRect = 1,
+    };
+
     float x0;
     float y0;
     float x1;
@@ -110,11 +115,16 @@ class SmoothShape : public Rasterizable {
     float ri;
     float ro_sq_adj;  // ro * ro + 0.25f
     float ri_sq_adj;  // ri * ri + 0.25f
+    float inner_x0;
+    float inner_y0;
+    float inner_x1;
+    float inner_y1;
     Color outline_color;
     Color interior_color;
     Box inner_mid;
     Box inner_wide;
     Box inner_tall;
+    InnerBoundaryMode inner_boundary_mode;
   };
 
   struct Arc {
@@ -162,6 +172,9 @@ class SmoothShape : public Rasterizable {
     // entire given quadrant.
     uint8_t quadrants_;
   };
+
+  static_assert(sizeof(RoundRect) <= sizeof(Arc),
+                "RoundRect payload must stay within Arc storage");
 
   struct Triangle {
     float x1;

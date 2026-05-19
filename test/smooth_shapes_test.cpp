@@ -16,8 +16,8 @@ Color PixelAt(const FakeOffscreen<Argb8888>& offscreen, int16_t x, int16_t y) {
 
 }  // namespace
 
+// Verifies ordered centerline bounds normalize to the rounded-inner case.
 TEST(SmoothShapes, NormalizeSingleRadiusRoundRectHandlesRoundedInnerCase) {
-  // Verifies ordered centerline bounds normalize to the rounded-inner case.
   const internal::NormalizedSingleRadiusRoundRect normalized =
       internal::NormalizeSingleRadiusRoundRect(10.0f, 8.0f, 0.0f, 0.0f, 3.0f,
                                                2.0f);
@@ -35,8 +35,8 @@ TEST(SmoothShapes, NormalizeSingleRadiusRoundRectHandlesRoundedInnerCase) {
   EXPECT_FLOAT_EQ(2.0f, normalized.inner_radius);
 }
 
+// Verifies normalization clamps radius to half of the centerline minor axis.
 TEST(SmoothShapes, NormalizeSingleRadiusRoundRectClampsRadiusToMinorAxis) {
-  // Verifies normalization clamps radius to half of the centerline minor axis.
   const internal::NormalizedSingleRadiusRoundRect normalized =
       internal::NormalizeSingleRadiusRoundRect(0.0f, 0.0f, 10.0f, 6.0f, 5.0f,
                                                2.0f);
@@ -46,9 +46,9 @@ TEST(SmoothShapes, NormalizeSingleRadiusRoundRectClampsRadiusToMinorAxis) {
   EXPECT_FLOAT_EQ(2.0f, normalized.inner_radius);
 }
 
+// Verifies delta == radius selects the rectangular-inner normalization.
 TEST(SmoothShapes,
      NormalizeSingleRadiusRoundRectTurnsThresholdCaseIntoRectInner) {
-  // Verifies delta == radius selects the rectangular-inner normalization.
   const internal::NormalizedSingleRadiusRoundRect normalized =
       internal::NormalizeSingleRadiusRoundRect(0.0f, 0.0f, 20.0f, 12.0f, 4.0f,
                                                8.0f);
@@ -61,10 +61,10 @@ TEST(SmoothShapes,
   EXPECT_FLOAT_EQ(0.0f, normalized.inner_radius);
 }
 
+// Verifies the inner rect keeps shrinking after the rounded inner radius hits
+// zero.
 TEST(SmoothShapes,
      NormalizeSingleRadiusRoundRectKeepsShrinkingRectInnerAfterRadiusZero) {
-  // Verifies the inner rect keeps shrinking after the rounded inner radius hits
-  // zero.
   const internal::NormalizedSingleRadiusRoundRect normalized =
       internal::NormalizeSingleRadiusRoundRect(0.0f, 0.0f, 30.0f, 20.0f, 3.0f,
                                                10.0f);
@@ -77,9 +77,9 @@ TEST(SmoothShapes,
   EXPECT_FLOAT_EQ(0.0f, normalized.inner_radius);
 }
 
+// Verifies collapsed inner bounds normalize to the filled outer-shape case.
 TEST(SmoothShapes,
      NormalizeSingleRadiusRoundRectFoldsCollapsedInnerRegionToFilled) {
-  // Verifies collapsed inner bounds normalize to the filled outer-shape case.
   const internal::NormalizedSingleRadiusRoundRect normalized =
       internal::NormalizeSingleRadiusRoundRect(0.0f, 0.0f, 10.0f, 6.0f, 2.0f,
                                                6.0f);
@@ -330,9 +330,9 @@ TEST(SmoothShapes, DrawTinyShapes) {
               MatchesContent(Alpha8(color::Black), Box(2, 3, 2, 3), "C8"));
 }
 
+// Verifies collapsed inner bounds render as the normalized outer filled round
+// rect.
 TEST(SmoothShapes, ThickRoundRectWithCollapsedInnerRegionFoldsToFilledOuter) {
-  // Verifies collapsed inner bounds render as the normalized outer filled round
-  // rect.
   Color outline = color::Black;
   Color interior(0xFFF3EFE7);
   const internal::NormalizedSingleRadiusRoundRect normalized =
@@ -355,8 +355,26 @@ TEST(SmoothShapes, ThickRoundRectWithCollapsedInnerRegionFoldsToFilledOuter) {
   EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
 }
 
+// Verifies the rectangular-inner mode keeps shrinking the interior once delta
+// exceeds the centerline radius.
+TEST(SmoothShapes, ThickRoundRectWithRectInnerShrinksInteriorBounds) {
+  Color outline = color::Black;
+  Color interior(0xFFF3EFE7);
+  const SmoothShape shape = SmoothThickRoundRect(0.5f, 0.5f, 16.5f, 16.5f, 1.0f,
+                                                 3.0f, outline, interior);
+  const FakeOffscreen<Argb8888> rendered = CoercedTo<Argb8888>(
+      shape, Argb8888(), color::Transparent, FillMode::kVisible,
+      BlendingMode::kSourceOver, color::Transparent);
+  const Color edge_color = AlphaBlend(interior, outline.withA(127));
+
+  EXPECT_EQ(interior, PixelAt(rendered, 4, 9));
+  EXPECT_EQ(interior, PixelAt(rendered, 9, 4));
+  EXPECT_EQ(edge_color, PixelAt(rendered, 3, 9));
+  EXPECT_EQ(edge_color, PixelAt(rendered, 9, 3));
+}
+
+// Verifies the zero-inner-radius case still preserves interior-color pixels.
 TEST(SmoothShapes, ThickRoundRectWithZeroInnerRadiusKeepsInteriorOpaque) {
-  // Verifies the zero-inner-radius case still preserves interior-color pixels.
   Color outline = color::Black;
   Color interior(0xFFF3EFE7);
   const SmoothShape shape = SmoothThickRoundRect(0.5f, 0.5f, 16.5f, 16.5f, 1.0f,

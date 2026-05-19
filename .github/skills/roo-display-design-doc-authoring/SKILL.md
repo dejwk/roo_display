@@ -42,11 +42,16 @@ Use this section order unless a narrower document genuinely needs less:
 - Put detailed enumeration in Requirements, not in Motivation.
 - Put major decisions in Design Overview and leave mechanics for Design
   Details.
-- Split Implementation Plan into small incremental subsections or phases.
-- Each implementation step should describe the intended code change slice and
-  the narrow validation that makes that slice complete.
+- Split Implementation Plan into small incremental subsections or phases that
+  each map to a single commit.
+- Each implementation step should describe the intended code change slice,
+  include a proposed commit message, and state the narrow validation that
+  makes that slice complete.
 - Keep each implementation step reasonably sized so it can be implemented and
   tested before moving on.
+- When a phase adds new functionality, include the incremental test coverage
+  and example or documentation updates for that functionality in the same
+  phase rather than deferring them to later cleanup.
 - Keep Testing Plan as a summary of validation scope, targets, and coverage.
 - Do not repeat detailed per-step test cases in Testing Plan when they are
   already described under Implementation Plan.
@@ -69,6 +74,12 @@ Use this section order unless a narrower document genuinely needs less:
   prefer PNG. Use PNG for expected raster output of drawing algorithms,
   antialiasing behavior, per-pixel coverage, or any case where exact pixel
   colors matter more than geometric construction.
+- When Proposed API introduces entry points that will land before full
+  support is implemented, specify the interim behavior explicitly: if the API
+  can return an error, prefer returning an error; otherwise emit
+  `LOG(WARNING) << "Unimplemented: <details>"` and fall back to a degenerate
+  behavior when possible; if no safe fallback exists, emit
+  `LOG(FATAL) << "Unimplemented: <details>"`.
 
 ## Closing On Decisions
 
@@ -122,7 +133,11 @@ Rules:
 - Section order matches the required structure.
 - No repeated requirements across Objective, Motivation, and Requirements.
 - Implementation Plan is split into incremental, testable steps.
+- Each implementation step maps to a single commit and includes a proposed
+  commit message.
 - Each implementation step states both the work and the intended validation.
+- Phases that add new functionality include incremental test coverage and
+  example or documentation updates.
 - RAM and rendering-cost impact are discussed when relevant.
 - Driver, product, or integration coverage is called out when relevant.
 - User-facing documentation follow-up is identified when behavior changes.
@@ -139,6 +154,9 @@ Rules:
   algorithm-derived coordinates, and no clipped content.
 - Pixel-output illustrations, when present, prefer PNG when exact raster color
   or antialiasing behavior is the point of the figure.
+- Partially implemented new APIs prefer returning an error when the API
+  supports it; otherwise they define temporary `LOG(WARNING)` plus degenerate
+  fallback behavior, or `LOG(FATAL)` when no safe fallback exists.
 - No hedged language ("may", "could", "should consider", "depending on")
   hides an unresolved choice.
 - Testing Plan summarizes validation coverage without repeating per-step test

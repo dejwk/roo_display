@@ -8,10 +8,19 @@ using namespace testing;
 
 namespace roo_display {
 
+namespace {
+
+Color PixelAt(const FakeOffscreen<Argb8888>& offscreen, int16_t x, int16_t y) {
+  return offscreen.buffer()[y * offscreen.raw_width() + x];
+}
+
+}  // namespace
+
 TEST(SmoothShapes, NormalizeSingleRadiusRoundRectHandlesRoundedInnerCase) {
   // Verifies ordered centerline bounds normalize to the rounded-inner case.
-  auto normalized = internal::NormalizeSingleRadiusRoundRect(
-      10.0f, 8.0f, 0.0f, 0.0f, 3.0f, 2.0f);
+  const internal::NormalizedSingleRadiusRoundRect normalized =
+      internal::NormalizeSingleRadiusRoundRect(10.0f, 8.0f, 0.0f, 0.0f, 3.0f,
+                                               2.0f);
 
   EXPECT_EQ(internal::NormalizedRoundRectKind::kRoundInner, normalized.kind);
   EXPECT_FLOAT_EQ(-1.0f, normalized.outer_x0);
@@ -28,8 +37,9 @@ TEST(SmoothShapes, NormalizeSingleRadiusRoundRectHandlesRoundedInnerCase) {
 
 TEST(SmoothShapes, NormalizeSingleRadiusRoundRectClampsRadiusToMinorAxis) {
   // Verifies normalization clamps radius to half of the centerline minor axis.
-  auto normalized = internal::NormalizeSingleRadiusRoundRect(
-      0.0f, 0.0f, 10.0f, 6.0f, 5.0f, 2.0f);
+  const internal::NormalizedSingleRadiusRoundRect normalized =
+      internal::NormalizeSingleRadiusRoundRect(0.0f, 0.0f, 10.0f, 6.0f, 5.0f,
+                                               2.0f);
 
   EXPECT_EQ(internal::NormalizedRoundRectKind::kRoundInner, normalized.kind);
   EXPECT_FLOAT_EQ(4.0f, normalized.outer_radius);
@@ -39,8 +49,9 @@ TEST(SmoothShapes, NormalizeSingleRadiusRoundRectClampsRadiusToMinorAxis) {
 TEST(SmoothShapes,
      NormalizeSingleRadiusRoundRectTurnsThresholdCaseIntoRectInner) {
   // Verifies delta == radius selects the rectangular-inner normalization.
-  auto normalized = internal::NormalizeSingleRadiusRoundRect(
-      0.0f, 0.0f, 20.0f, 12.0f, 4.0f, 8.0f);
+  const internal::NormalizedSingleRadiusRoundRect normalized =
+      internal::NormalizeSingleRadiusRoundRect(0.0f, 0.0f, 20.0f, 12.0f, 4.0f,
+                                               8.0f);
 
   EXPECT_EQ(internal::NormalizedRoundRectKind::kRectInner, normalized.kind);
   EXPECT_FLOAT_EQ(4.0f, normalized.inner_x0);
@@ -52,9 +63,11 @@ TEST(SmoothShapes,
 
 TEST(SmoothShapes,
      NormalizeSingleRadiusRoundRectKeepsShrinkingRectInnerAfterRadiusZero) {
-  // Verifies the inner rect keeps shrinking after the rounded inner radius hits zero.
-  auto normalized = internal::NormalizeSingleRadiusRoundRect(
-      0.0f, 0.0f, 30.0f, 20.0f, 3.0f, 10.0f);
+  // Verifies the inner rect keeps shrinking after the rounded inner radius hits
+  // zero.
+  const internal::NormalizedSingleRadiusRoundRect normalized =
+      internal::NormalizeSingleRadiusRoundRect(0.0f, 0.0f, 30.0f, 20.0f, 3.0f,
+                                               10.0f);
 
   EXPECT_EQ(internal::NormalizedRoundRectKind::kRectInner, normalized.kind);
   EXPECT_FLOAT_EQ(5.0f, normalized.inner_x0);
@@ -67,8 +80,9 @@ TEST(SmoothShapes,
 TEST(SmoothShapes,
      NormalizeSingleRadiusRoundRectFoldsCollapsedInnerRegionToFilled) {
   // Verifies collapsed inner bounds normalize to the filled outer-shape case.
-  auto normalized = internal::NormalizeSingleRadiusRoundRect(
-      0.0f, 0.0f, 10.0f, 6.0f, 2.0f, 6.0f);
+  const internal::NormalizedSingleRadiusRoundRect normalized =
+      internal::NormalizeSingleRadiusRoundRect(0.0f, 0.0f, 10.0f, 6.0f, 2.0f,
+                                               6.0f);
 
   EXPECT_EQ(internal::NormalizedRoundRectKind::kFilled, normalized.kind);
   EXPECT_FLOAT_EQ(3.0f, normalized.inner_y0);
@@ -305,33 +319,56 @@ TEST(SmoothShapes, DrawTinyShapes) {
               // Pi/4 * 245 = hex(c8).
               MatchesContent(Alpha8(color::Black), Box(2, 3, 2, 3), "C8"));
 
-  EXPECT_THAT(CoercedTo<Alpha8>(SmoothFilledCircle({2.1, 3.05}, 0.2, color::Black),
-                                Alpha8(color::Black)),
-              // Pi * (0.2)^2 * 245 = hex(20).
-              MatchesContent(Alpha8(color::Black), Box(2, 3, 2, 3), "20"));
+  EXPECT_THAT(
+      CoercedTo<Alpha8>(SmoothFilledCircle({2.1, 3.05}, 0.2, color::Black),
+                        Alpha8(color::Black)),
+      // Pi * (0.2)^2 * 245 = hex(20).
+      MatchesContent(Alpha8(color::Black), Box(2, 3, 2, 3), "20"));
 
   EXPECT_THAT(CoercedTo<Alpha8>(SmoothCircle({2, 3}, 0, color::Black),
                                 Alpha8(color::Black)),
               MatchesContent(Alpha8(color::Black), Box(2, 3, 2, 3), "C8"));
 }
 
-TEST(SmoothShapes, ThickRoundRectWithZeroInnerRadiusKeepsInteriorOpaque) {
+TEST(SmoothShapes, ThickRoundRectWithCollapsedInnerRegionFoldsToFilledOuter) {
+  // Verifies collapsed inner bounds render as the normalized outer filled round
+  // rect.
   Color outline = color::Black;
   Color interior(0xFFF3EFE7);
-  auto shape = SmoothThickRoundRect(0.5f, 0.5f, 16.5f, 16.5f, 1.0f, 2.0f,
-                                    outline, interior);
+  const internal::NormalizedSingleRadiusRoundRect normalized =
+      internal::NormalizeSingleRadiusRoundRect(4.0f, 4.0f, 14.0f, 10.0f, 2.0f,
+                                               6.0f);
+  ASSERT_EQ(internal::NormalizedRoundRectKind::kFilled, normalized.kind);
 
-  auto rendered = CoercedTo<Argb8888>(shape, Argb8888(), color::Transparent,
-                                      FillMode::kVisible, BlendingMode::kSourceOver,
-                                      color::Transparent);
-  const Color* pixels = rendered.buffer();
-  auto pixel_at = [&](int x, int y) {
-    return pixels[y * rendered.raw_width() + x];
-  };
+  const FakeOffscreen<Argb8888> actual =
+      CoercedTo<Argb8888>(SmoothThickRoundRect(4.0f, 4.0f, 14.0f, 10.0f, 2.0f,
+                                               6.0f, outline, interior),
+                          Argb8888(), color::Transparent, FillMode::kVisible,
+                          BlendingMode::kSourceOver, color::Transparent);
+  const FakeOffscreen<Argb8888> expected = CoercedTo<Argb8888>(
+      SmoothFilledRoundRect(normalized.outer_x0, normalized.outer_y0,
+                            normalized.outer_x1, normalized.outer_y1,
+                            normalized.outer_radius, outline),
+      Argb8888(), color::Transparent, FillMode::kVisible,
+      BlendingMode::kSourceOver, color::Transparent);
 
-  EXPECT_EQ(interior, pixel_at(3, 3));
-  EXPECT_EQ(interior, pixel_at(3, 9));
-  EXPECT_EQ(interior, pixel_at(9, 3));
+  EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
+}
+
+TEST(SmoothShapes, ThickRoundRectWithZeroInnerRadiusKeepsInteriorOpaque) {
+  // Verifies the zero-inner-radius case still preserves interior-color pixels.
+  Color outline = color::Black;
+  Color interior(0xFFF3EFE7);
+  const SmoothShape shape = SmoothThickRoundRect(0.5f, 0.5f, 16.5f, 16.5f, 1.0f,
+                                                 2.0f, outline, interior);
+
+  const FakeOffscreen<Argb8888> rendered = CoercedTo<Argb8888>(
+      shape, Argb8888(), color::Transparent, FillMode::kVisible,
+      BlendingMode::kSourceOver, color::Transparent);
+
+  EXPECT_EQ(interior, PixelAt(rendered, 3, 3));
+  EXPECT_EQ(interior, PixelAt(rendered, 3, 9));
+  EXPECT_EQ(interior, PixelAt(rendered, 9, 3));
 }
 
 }  // namespace roo_display

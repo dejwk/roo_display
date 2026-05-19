@@ -1,17 +1,16 @@
 #include "roo_display/shape/smooth.h"
 
-#include "roo_display/shape/smooth_internal.h"
-
 #include <math.h>
 
 #include "roo_display/core/buffered_drawing.h"
+#include "roo_display/shape/smooth_internal.h"
 
 namespace roo_display {
 
 namespace internal {
 
 NormalizedSingleRadiusRoundRect NormalizeSingleRadiusRoundRect(
-  float x0, float y0, float x1, float y1, float radius, float thickness) {
+    float x0, float y0, float x1, float y1, float radius, float thickness) {
   if (radius < 0.0f) radius = 0.0f;
   if (thickness < 0.0f) thickness = 0.0f;
   if (x1 < x0) std::swap(x0, x1);
@@ -31,14 +30,14 @@ NormalizedSingleRadiusRoundRect NormalizeSingleRadiusRoundRect(
   if (inner_radius < 0.0f) inner_radius = 0.0f;
 
   NormalizedRoundRectKind kind =
-    (inner_x0 >= inner_x1 || inner_y0 >= inner_y1)
-      ? NormalizedRoundRectKind::kFilled
-      : (inner_radius > 0.0f ? NormalizedRoundRectKind::kRoundInner
-                 : NormalizedRoundRectKind::kRectInner);
+      (inner_x0 >= inner_x1 || inner_y0 >= inner_y1)
+          ? NormalizedRoundRectKind::kFilled
+          : (inner_radius > 0.0f ? NormalizedRoundRectKind::kRoundInner
+                                 : NormalizedRoundRectKind::kRectInner);
 
-  return {kind, x0 - delta, y0 - delta, x1 + delta, y1 + delta,
-      radius + delta, inner_x0, inner_y0, inner_x1, inner_y1,
-      inner_radius};
+  return {kind,       x0 - delta,     y0 - delta,  x1 + delta,
+          y1 + delta, radius + delta, inner_x0,    inner_y0,
+          inner_x1,   inner_y1,       inner_radius};
 }
 
 }  // namespace internal
@@ -141,33 +140,39 @@ SmoothShape SmoothRotatedFilledRect(FpPoint center, float width, float height,
 SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
                                  float radius, float thickness, Color color,
                                  Color interior_color) {
-  if (radius < 0) radius = 0;
   if (thickness < 0) thickness = 0;
-  if (x1 < x0) std::swap(x0, x1);
-  if (y1 < y0) std::swap(y0, y1);
-  x0 -= thickness * 0.5f;
-  y0 -= thickness * 0.5f;
-  x1 += thickness * 0.5f;
-  y1 += thickness * 0.5f;
-  radius += thickness * 0.5f;
-  float w = x1 - x0;
-  float h = y1 - y0;
-  float max_radius = ((w < h) ? w : h) / 2;  // 1/2 minor axis.
-  if (radius > max_radius) radius = max_radius;
-  float ro = radius;
-  if (ro < 0) ro = 0;
-  float ri = ro - thickness;
-  if (ri < 0) ri = 0;
+  const internal::NormalizedSingleRadiusRoundRect normalized =
+      internal::NormalizeSingleRadiusRoundRect(x0, y0, x1, y1, radius,
+                                               thickness);
+  if (normalized.kind == internal::NormalizedRoundRectKind::kFilled) {
+    thickness = 0.0f;
+    interior_color = color;
+  }
+
+  x0 = normalized.outer_x0;
+  y0 = normalized.outer_y0;
+  x1 = normalized.outer_x1;
+  y1 = normalized.outer_y1;
+  radius = normalized.outer_radius;
+  float width = x1 - x0;
+  float height = y1 - y0;
+  float outer_radius = radius;
+  if (outer_radius < 0) outer_radius = 0;
+  float inner_radius = outer_radius - thickness;
+  if (inner_radius < 0) inner_radius = 0;
   Box extents((int16_t)floorf(x0 + 0.5f), (int16_t)floorf(y0 + 0.5f),
               (int16_t)ceilf(x1 - 0.5f), (int16_t)ceilf(y1 - 0.5f));
   if (extents.xMin() == extents.xMax() && extents.yMin() == extents.yMax()) {
     // Special case: the rect fits into a single pixel. Let's just calculate the
     // color and get it over with.
     float outer_area = std::min<float>(
-        1.0f, std::max<float>(0.0f, w * h - (4.0f - M_PI) * ro * ro));
+        1.0f,
+        std::max<float>(0.0f, width * height -
+                                  (4.0f - M_PI) * outer_radius * outer_radius));
     float inner_area = std::min<float>(
-        1.0f, std::max<float>(0.0f, (w - thickness) * (h - thickness) -
-                                        (4.0f - M_PI) * ri * ri));
+        1.0f,
+        std::max<float>(0.0f, (width - thickness) * (height - thickness) -
+                                  (4.0f - M_PI) * inner_radius * inner_radius));
     color = color.withA(color.a() * outer_area);
     interior_color = interior_color.withA(interior_color.a() * inner_area);
     Color pixel_color = AlphaBlend(color, interior_color);
@@ -175,25 +180,30 @@ SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
     return SmoothShape(extents.xMin(), extents.yMin(),
                        SmoothShape::Pixel{color});
   }
-  x0 += ro;
-  y0 += ro;
-  x1 -= ro;
-  y1 -= ro;
-  float d = sqrtf(0.5f) * ri;
-  Box inner_mid((int16_t)ceilf(x0 - d + 0.5f), (int16_t)ceilf(y0 - d + 0.5f),
-                (int16_t)floorf(x1 + d - 0.5f), (int16_t)floorf(y1 + d - 0.5f));
-  Box inner_wide((int16_t)ceilf(x0 - ri + 0.5f), (int16_t)ceilf(y0 + 0.5f),
-                 (int16_t)floorf(x1 + ri - 0.5f), (int16_t)floorf(y1 - 0.5f));
-  Box inner_tall((int16_t)ceilf(x0 + 0.5f), (int16_t)ceilf(y0 - ri + 0.5f),
-                 (int16_t)floorf(x1 - 0.5f), (int16_t)floorf(y1 + ri - 0.5f));
+
+  x0 += outer_radius;
+  y0 += outer_radius;
+  x1 -= outer_radius;
+  y1 -= outer_radius;
+  float diagonal_offset = sqrtf(0.5f) * inner_radius;
+  Box inner_mid((int16_t)ceilf(x0 - diagonal_offset + 0.5f),
+                (int16_t)ceilf(y0 - diagonal_offset + 0.5f),
+                (int16_t)floorf(x1 + diagonal_offset - 0.5f),
+                (int16_t)floorf(y1 + diagonal_offset - 0.5f));
+  Box inner_wide(
+      (int16_t)ceilf(x0 - inner_radius + 0.5f), (int16_t)ceilf(y0 + 0.5f),
+      (int16_t)floorf(x1 + inner_radius - 0.5f), (int16_t)floorf(y1 - 0.5f));
+  Box inner_tall(
+      (int16_t)ceilf(x0 + 0.5f), (int16_t)ceilf(y0 - inner_radius + 0.5f),
+      (int16_t)floorf(x1 - 0.5f), (int16_t)floorf(y1 + inner_radius - 0.5f));
   SmoothShape::RoundRect spec{x0,
                               y0,
                               x1,
                               y1,
-                              ro,
-                              ri,
-                              ro * ro + 0.25f,
-                              ri * ri + 0.25f,
+                              outer_radius,
+                              inner_radius,
+                              outer_radius * outer_radius + 0.25f,
+                              inner_radius * inner_radius + 0.25f,
                               color,
                               interior_color,
                               std::move(inner_mid),

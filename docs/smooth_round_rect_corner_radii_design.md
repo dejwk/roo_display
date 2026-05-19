@@ -394,6 +394,10 @@ and then:
 These boxes are intentionally large and they are expected to overlap heavily.
 That overlap is beneficial: each box is a cheap guaranteed-interior accept, and
 their union covers most of the non-AA interior for many asymmetric shapes.
+`inner_core` has one additional role: it is the draw path's center fill
+rectangle, analogous to the existing equal-radius `inner_mid` box. The other
+four slabs are classifier accelerators for points, readback rectangles, and
+the 8x8 tiles surrounding the direct center fill.
 
 Any helper box may still become empty for thin or degenerate geometries. In
 that case it is simply omitted.
@@ -495,35 +499,40 @@ composition behavior predictable and bounds the worst common fallback to the
 small readback rectangle size rather than adding a second subdivision system to
 the initial implementation.
 
-#### `drawTo()`: Nine Semantic Regions And Tile Filling
+#### `drawTo()`: Center Fill And Tiled Remainder
 
-`drawTo()` owns the shape subdivision used for direct rendering. The same
-region splitter is not required by `readColorRect()` in the initial design;
-readback uses its whole-rectangle classifier and small-rectangle per-pixel
-fallback.
-
-Geometrically, the shape is treated as nine semantic regions:
-
-- four corner annulus regions,
-- four straight edge band regions,
-- and one interior region covered by `inner_core` and the overlapping slabs.
-
-![Nine-region draw partition](images/smooth_round_rect_corner_regions.svg)
+`drawTo()` owns the shape subdivision used for direct rendering. The initial
+unequal-radius draw path follows the optimization that motivates the current
+equal-radius implementation: draw the largest cheap guaranteed-interior
+rectangle in one `fillRect()` call, then tile the remaining boundary bands.
 
 For equal radii, the current draw path splits around `inner_mid`, fills that
 interior directly, and subdivides the remaining top/left/right/bottom bands
-into 8x8 tiles. The unequal-radius path keeps that classify-fill-subdivide
-shape, but the split is based on corner transition coordinates and helper
-slabs instead of a single symmetric `inner_mid` box.
+into 8x8 tiles. For unequal radii, `inner_core` is the direct generalization of
+`inner_mid`: it is the maximal center rectangle derived from the per-corner
+diagonal support distances and guaranteed to lie inside the inner shape.
 
-The nine regions are semantic, not always exactly nine physical rectangles.
-When opposite-side radii differ, transition coordinates such as `ctl.x` and
-`cbl.x` or `ctr.y` and `cbr.y` differ. The implementation splits the requested
-draw box at the distinct relevant corner-center x and y coordinates,
-then routes each resulting cell to one of the nine semantic region types.
-Cells that are fully interior, transparent, or outline are filled directly;
-unresolved cells are tiled at 8x8 and evaluated only where the tile classifier
-remains non-uniform.
+![Center fill and tiled remainder](images/smooth_round_rect_corner_center_fill.svg)
+
+When `inner_core` is non-empty and wider than 16 pixels, matching the current
+equal-radius split threshold, `drawTo()` intersects it with the requested draw
+box and fills that clipped rectangle directly with the pre-blended interior
+color. It then tiles the four remaining rectangles around it:
+
+- the top band above `inner_core`,
+- the left band beside `inner_core`,
+- the right band beside `inner_core`,
+- and the bottom band below `inner_core`.
+
+Each 8x8 tile uses the unequal-radius rectangle classifier. Fully transparent,
+interior, and outline tiles are filled directly; only mixed AA tiles fall back
+to per-pixel evaluation. The `top_slab`, `bottom_slab`, `left_slab`, and
+`right_slab` helper boxes still matter here because they let the classifier
+accept many interior tiles in the tiled bands without per-pixel work.
+
+If `inner_core` is empty or too narrow to be worth splitting, `drawTo()` tiles
+the entire requested draw box. This mirrors the current equal-radius behavior
+for narrow round rects and avoids adding small extra address-window operations.
 
 #### `createStream()`: Row-Major Streaming
 
@@ -542,8 +551,9 @@ the arc crossings; straight middle rows reduce to edge/interior spans.
 Helper slabs are not consulted by the row classifier. Once the row-local arc
 crossing intervals are known, interior and outline spans are already classified,
 and slab containment tests add work without improving the result. Slabs are
-owned by the rectangle-bounded paths (`drawTo()` and `readColorRect()`), where
-2D containment is the useful short-circuit.
+owned by rectangle-bounded classifiers such as `drawTo()`,
+`readUniformColorRect()`, and `readColorRect()`, where 2D containment is the
+useful short-circuit.
 
 The implementation target is the best shape-specific stream the stored geometry
 supports: obvious runs are emitted as fills, and per-pixel work is limited to
@@ -696,12 +706,12 @@ Work:
 - add the new unequal-radius draw helper,
 - wire `drawTo()` through the new shape kind,
 - preserve the current equal-radius draw path unchanged,
-- implement the nine-semantic-region splitter shown in
-  `docs/images/smooth_round_rect_corner_regions.svg`, mapping physical cells
-  to corner, edge, or interior region types,
+- implement the center-fill partition shown in
+  `docs/images/smooth_round_rect_corner_center_fill.svg`, filling the clipped
+  `inner_core` rectangle directly and tiling the four surrounding bands,
 - and use subdivision logic analogous to the current round-rect path, but with
   helper-box fills, straight-edge classification, corner classification, and
-  8x8 fallback for unresolved cells.
+  8x8 fallback for unresolved tiles.
 
 Validation:
 
@@ -720,7 +730,7 @@ Work:
   using per-corner row trackers in the stream object, generalized from the
   equal-radius doubled-coordinate threshold trackers,
 - do not consult helper slabs in the stream row classifier; slabs are owned by
-  `drawTo()` and `readColorRect()` where 2D containment is useful,
+  rectangle-bounded classifiers where 2D containment is useful,
 - and route `createStream()` to the new stream for the unequal-radius kind.
 
 Validation:
@@ -815,10 +825,10 @@ implementation.
 
 ## Future Work
 
-- Investigate whether `readColorRect()` should reuse the `drawTo()` semantic
-  region splitter for large readback rectangles. Current composition callers
-  usually request small rectangles, commonly up to 8x8, so subdivision is left
-  out of the initial implementation.
+- Investigate whether `readColorRect()` should reuse the `drawTo()`
+  center-fill plus tiled-band partition for large readback rectangles. Current
+  composition callers usually request small rectangles, commonly up to 8x8, so
+  subdivision is left out of the initial implementation.
 - Investigate whether `drawTo()` should be refactored to draw through the
   dedicated unequal-radius stream, or whether the block-based implementation
   remains better because it interacts more directly with the background fill

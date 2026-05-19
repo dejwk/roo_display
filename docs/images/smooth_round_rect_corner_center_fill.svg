@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="520" viewBox="0 0 920 520">
+  <rect x="1" y="1" width="918" height="518" fill="#ffffff" stroke="#d0d0d0" stroke-width="2"/>
+
+  <g transform="translate(54,42)" font-family="Arial, Helvetica, sans-serif">
+    <text x="0" y="0" font-size="24" fill="#2c2a28">
+      Center Fill And Tiled Remainder For drawTo()
+    </text>
+    <text x="0" y="28" font-size="14" fill="#5b564f">
+      The center rectangle is generated from the same diagonal support formula used by the design.
+    </text>
+
+    <g transform="translate(62,68)">
+      <defs>
+        <!--
+          Example geometry: x0=0, y0=0, x1=560, y1=360;
+          ri_tl=70, ri_tr=80, ri_bl=130, ri_br=95.
+          diag(r)=r-r/sqrt(2).
+          inner_core=[38.076,532.175] x [23.431,321.924].
+        -->
+        <clipPath id="rounded-shape-clip">
+          <path d="M 70 0
+                   H 480
+                   A 80 80 0 0 1 560 80
+                   V 265
+                   A 95 95 0 0 1 465 360
+                   H 130
+                   A 130 130 0 0 1 0 230
+                   V 70
+                   A 70 70 0 0 1 70 0 Z"/>
+        </clipPath>
+        <pattern id="tile-grid" width="8" height="8" patternUnits="userSpaceOnUse">
+          <rect x="0" y="0" width="8" height="8" fill="#f7d36b" fill-opacity="0.36"/>
+          <path d="M 8 0 H 0 V 8" fill="none" stroke="#b08a1d" stroke-width="0.7" stroke-opacity="0.55"/>
+        </pattern>
+      </defs>
+
+      <path d="M 70 0
+               H 480
+               A 80 80 0 0 1 560 80
+               V 265
+               A 95 95 0 0 1 465 360
+               H 130
+               A 130 130 0 0 1 0 230
+               V 70
+               A 70 70 0 0 1 70 0 Z"
+        fill="#ffffff" stroke="#26221d" stroke-width="3"/>
+
+      <g clip-path="url(#rounded-shape-clip)">
+        <rect x="0" y="0" width="560" height="360" fill="url(#tile-grid)"/>
+        <rect x="38.076" y="23.431" width="494.099" height="298.493"
+          fill="#9fc6ee" fill-opacity="0.78"/>
+      </g>
+
+      <g stroke="#6d655c" stroke-width="2" stroke-dasharray="8 6">
+        <line x1="38.076" y1="0" x2="38.076" y2="360"/>
+        <line x1="532.175" y1="0" x2="532.175" y2="360"/>
+        <line x1="0" y1="23.431" x2="560" y2="23.431"/>
+        <line x1="0" y1="321.924" x2="560" y2="321.924"/>
+      </g>
+
+      <g stroke="#8d8277" stroke-width="2" stroke-dasharray="4 4" fill="none">
+        <circle cx="70" cy="70" r="70"/>
+        <circle cx="480" cy="80" r="80"/>
+        <circle cx="130" cy="230" r="130"/>
+        <circle cx="465" cy="265" r="95"/>
+      </g>
+
+      <rect x="38.076" y="23.431" width="494.099" height="298.493"
+        fill="none" stroke="#2f6796" stroke-width="3"/>
+
+      <path d="M 70 0
+               H 480
+               A 80 80 0 0 1 560 80
+               V 265
+               A 95 95 0 0 1 465 360
+               H 130
+               A 130 130 0 0 1 0 230
+               V 70
+               A 70 70 0 0 1 70 0 Z"
+        fill="none" stroke="#26221d" stroke-width="3"/>
+
+      <g fill="#2c2a28" text-anchor="middle" dominant-baseline="middle">
+        <text x="285" y="164" font-size="18">single center fillRect()</text>
+        <text x="285" y="190" font-size="14">inner_core</text>
+        <text x="280" y="12" font-size="14">8x8 tiled remainder</text>
+        <text x="20" y="176" font-size="13" transform="rotate(-90 20 176)">tiled band</text>
+        <text x="540" y="176" font-size="13" transform="rotate(90 540 176)">tiled band</text>
+        <text x="280" y="342" font-size="14">8x8 tiled remainder</text>
+      </g>
+
+      <g fill="#2c2a28">
+        <circle cx="70" cy="70" r="4"/>
+        <circle cx="480" cy="80" r="4"/>
+        <circle cx="130" cy="230" r="4"/>
+        <circle cx="465" cy="265" r="4"/>
+      </g>
+
+      <g fill="#5b564f" font-size="13">
+        <text x="48" y="66">ctl</text>
+        <text x="488" y="86">ctr</text>
+        <text x="100" y="250">cbl</text>
+        <text x="474" y="286">cbr</text>
+        <text x="14" y="385">x=38.076</text>
+        <text x="494" y="385">x=532.175</text>
+        <text x="-57" y="27">y=23.431</text>
+        <text x="-63" y="326">y=321.924</text>
+      </g>
+    </g>
+
+    <g transform="translate(648,96)" font-size="14" fill="#2c2a28">
+      <rect x="0" y="0" width="18" height="18" fill="#9fc6ee" fill-opacity="0.78" stroke="#2f6796" stroke-width="1.5"/>
+      <text x="28" y="14">one direct fill</text>
+      <rect x="0" y="36" width="18" height="18" fill="url(#tile-grid)" stroke="#9c7a1b" stroke-width="1.5"/>
+      <text x="28" y="50">8x8 classified tiles</text>
+
+      <text x="0" y="96" font-size="13" fill="#5b564f">diag(r) = r - r / sqrt(2)</text>
+      <text x="0" y="122" font-size="13" fill="#5b564f">x_min = max(diag(tl), diag(bl))</text>
+      <text x="0" y="140" font-size="13" fill="#5b564f">x_max = 560 - max(diag(tr), diag(br))</text>
+      <text x="0" y="166" font-size="13" fill="#5b564f">y_min = max(diag(tl), diag(tr))</text>
+      <text x="0" y="184" font-size="13" fill="#5b564f">y_max = 360 - max(diag(bl), diag(br))</text>
+
+      <text x="0" y="232" font-size="13" fill="#5b564f">The tiled remainder still uses</text>
+      <text x="0" y="250" font-size="13" fill="#5b564f">the rectangle classifier, so slabs</text>
+      <text x="0" y="268" font-size="13" fill="#5b564f">can accept interior tiles cheaply.</text>
+    </g>
+  </g>
+</svg>

@@ -35,6 +35,9 @@ Use this section order unless a narrower document genuinely needs less:
 ## Writing Rules
 
 - Be succinct.
+- References and cross-references should generally be Markdown hyperlinks.
+  Prefer linked file paths, doc titles, issues, PRs, and APIs over bare text
+  mentions when a stable target exists.
 - Do not repeat the same content across sections.
 - Keep Motivation brief; it explains why, not the full requirement set.
 - Use Background only for current-state context needed to understand the
@@ -44,6 +47,9 @@ Use this section order unless a narrower document genuinely needs less:
   Details.
 - Split Implementation Plan into small incremental subsections or phases that
   each map to a single commit.
+- Start Implementation Plan with a short authoring-reference line that links
+  the corresponding code-authoring skill, for example
+  `[roo-display-code-authoring](../.github/skills/roo-display-code-authoring/SKILL.md)`.
 - Each implementation step should describe the intended code change slice,
   include a proposed commit message, and state the narrow validation that
   makes that slice complete.
@@ -62,18 +68,24 @@ Use this section order unless a narrower document genuinely needs less:
 - Add an optional Future Work section after Caveats for potential improvements
   that are intentionally left out of scope. Do not use Future Work to defer a
   decision required by the current proposal.
-- When Design Overview or Design Details discuss geometry, consider adding an
-  illustration. Prefer hand-authored SVG over vectorized graphics when the
-  important thing to communicate is geometry, layout, or formula-derived
-  coordinates. Use a white background and a sans font. Make geometry precise:
-  derive coordinates from the formulas in the design, or simulate the
+- LaTeX math is acceptable for formulas when it makes geometric, rendering,
+  or cost analysis clearer. Use inline math for short expressions and display
+  math for longer derivations.
+- When Design Overview or Design Details discuss geometry, layout, clipping,
+  paint order, rasterization, or other rendering-related issues, include an
+  illustration unless the point is genuinely obvious without one. Prefer
+  hand-authored SVG over vectorized graphics when the important thing to
+  communicate is geometry, layout, render ordering, clip regions, or formula-
+  derived coordinates. Use a white background and a sans font. Make geometry
+  precise: derive coordinates from the formulas in the design, or simulate the
   algorithm used by the design doc to calculate them. Write a small helper
   script when that prevents hand-calculation drift. Check the SVG viewBox and
   bounds so labels, strokes, and content are not clipped.
 - When the important thing to communicate is raster output or pixel color,
   prefer PNG. Use PNG for expected raster output of drawing algorithms,
   antialiasing behavior, per-pixel coverage, or any case where exact pixel
-  colors matter more than geometric construction.
+  colors matter more than geometric construction, and include one when that
+  output is part of the design argument.
 - When Proposed API introduces entry points that will land before full
   support is implemented, specify the interim behavior explicitly: if the API
   can return an error, prefer returning an error; otherwise emit
@@ -131,8 +143,11 @@ Rules:
 ## Checklist
 
 - Section order matches the required structure.
+- References are generally hyperlinks when a stable link target exists.
 - No repeated requirements across Objective, Motivation, and Requirements.
 - Implementation Plan is split into incremental, testable steps.
+- Implementation Plan includes a hyperlink to the corresponding code-authoring
+  skill.
 - Each implementation step maps to a single commit and includes a proposed
   commit message.
 - Each implementation step states both the work and the intended validation.
@@ -149,9 +164,12 @@ Rules:
   alternative.
 - Future Work, when present, appears after Caveats and contains only
   intentionally out-of-scope improvements.
+- LaTeX formulas are used when they clarify the design.
 - Geometry-driven illustrations, when present, prefer hand-authored SVG over
   vectorized graphics and use a white background, sans-font labels, exact or
   algorithm-derived coordinates, and no clipped content.
+- Geometry- or rendering-related discussions include illustrations unless the
+  point is genuinely obvious without one.
 - Pixel-output illustrations, when present, prefer PNG when exact raster color
   or antialiasing behavior is the point of the figure.
 - Partially implemented new APIs prefer returning an error when the API

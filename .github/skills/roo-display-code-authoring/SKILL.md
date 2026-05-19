@@ -38,12 +38,14 @@ API work, tests, documentation updates, and validation.
 - When the implemented change maps to a single stage or phase from a design
   doc, include a proposed commit message in the completion note even if no
   commit is created.
-- Keep the proposed message to at most one paragraph. A single subject line or
-  a subject with a short body are both acceptable.
-- Describe the concrete slice that landed in that stage, not the whole
-  feature. Name the API, helper, tests, docs, or validation added by the
-  change.
-- Reference the relevant design doc path or title so the commit preserves the
+- Use a two-part structure: one summary sentence followed by one descriptive
+  paragraph.
+- The summary sentence must be clear without additional context. Start it with
+  the design doc and stage or phase, then state what landed in that stage.
+- The descriptive paragraph should explain the concrete slice that landed in
+  that stage, not the whole feature. Name the API, helper, tests, docs, or
+  validation added by the change.
+- Reference the relevant design doc path or title so the message preserves the
   stage context.
 - When the design doc includes a `Proposed commit message` hint for that
   stage, treat it as the starting point and keep its intent unless the
@@ -73,5 +75,6 @@ API work, tests, documentation updates, and validation.
 - Complex implementation comments explain intent, not mechanics.
 - The change does not add avoidable per-instance RAM cost.
 - If the change implements a design-doc stage, the response includes a
-  proposed commit message that references the design doc and reflects any
+  proposed commit message with a standalone summary sentence followed by a
+  descriptive paragraph, references the design doc, and reflects any
   stage-specific commit-message hint.

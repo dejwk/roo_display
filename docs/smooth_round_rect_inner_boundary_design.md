@@ -1,14 +1,21 @@
 # Smooth Round Rect Inner Boundary Design
 
+Primary references:
+[smooth_round_rect_corner_radii_design.md](smooth_round_rect_corner_radii_design.md)
+[src/roo_display/shape/smooth.h](../src/roo_display/shape/smooth.h)
+[src/roo_display/shape/smooth.cpp](../src/roo_display/shape/smooth.cpp)
+[src/roo_display/shape/smooth_internal.h](../src/roo_display/shape/smooth_internal.h)
+[doc/programming_guide.md](../doc/programming_guide.md)
+
 ## Objective
 
 Correct the geometry semantics of thick smooth round rects once the inward
 offset reaches or exceeds the centerline corner radius.
 
 This design lands before the asymmetric-corner work described in
-`smooth_round_rect_corner_radii_design.md`. That later design must reuse the
-normalization contract defined here instead of building on the current equal-
-radius implementation.
+[smooth_round_rect_corner_radii_design.md](smooth_round_rect_corner_radii_design.md).
+That later design must reuse the normalization contract defined here instead
+of building on the current equal-radius implementation.
 
 ## Motivation
 
@@ -34,28 +41,34 @@ Let the centerline bounds be `[cx0, cy0, cx1, cy1]`, the centerline radius be
 
 With the current code, the corner-center rectangle becomes:
 
-```text
-left_center_x  = cx0 + r
-right_center_x = cx1 - r
-top_center_y   = cy0 + r
-bottom_center_y = cy1 - r
-```
+$$
+\begin{aligned}
+x_{\text{center,left}} &= cx0 + r \\
+x_{\text{center,right}} &= cx1 - r \\
+y_{\text{center,top}} &= cy0 + r \\
+y_{\text{center,bottom}} &= cy1 - r
+\end{aligned}
+$$
 
 Those center coordinates are independent of thickness. Once `delta > r`, the
 inner radius clamps to zero, but the inner helper geometry remains tied to the
 frozen center rectangle. The resulting inner span is therefore:
 
-```text
-centerline_width  - 2 * r
-centerline_height - 2 * r
-```
+$$
+\begin{aligned}
+w_{\text{inner,current}} &= (cx1 - cx0) - 2r \\
+h_{\text{inner,current}} &= (cy1 - cy0) - 2r
+\end{aligned}
+$$
 
 instead of the expected inward-offset span:
 
-```text
-centerline_width  - t
-centerline_height - t
-```
+$$
+\begin{aligned}
+w_{\text{inner,expected}} &= (cx1 - cx0) - t \\
+h_{\text{inner,expected}} &= (cy1 - cy0) - t
+\end{aligned}
+$$
 
 The current `SmoothShape::RoundRect` payload cannot represent the corrected
 geometry after `delta >= r` without additional inner-boundary state. Its
@@ -74,10 +87,16 @@ The chosen semantics for this design are:
   disappears and the shape is equivalent to a filled outer round rect in the
   outline color.
 
+The three normalized outcomes are illustrated below. The figure is part of
+the geometry contract: if the formulas change, update the illustration to
+match the derived coordinates.
+
+![Single-radius normalization modes](images/smooth_round_rect_inner_boundary_modes.svg)
+
 ## Requirements
 
 - This fix is a prerequisite for implementing the asymmetric-corner work in
-  `smooth_round_rect_corner_radii_design.md`.
+  [smooth_round_rect_corner_radii_design.md](smooth_round_rect_corner_radii_design.md).
 - The public equal-radius smooth round-rect API remains unchanged.
 - Single-radius round-rect normalization is extracted into an internal header
   that tests can include directly.
@@ -105,7 +124,8 @@ The chosen semantics for this design are:
 
 ## Design Overview
 
-Add an internal normalization helper in `roo_display/shape/smooth_internal.h`
+Add an internal normalization helper in
+[src/roo_display/shape/smooth_internal.h](../src/roo_display/shape/smooth_internal.h)
 that works from centerline geometry.
 
 The helper will:
@@ -143,23 +163,27 @@ centerline radius be `r`, the thickness be `t >= 0`, and `delta = t / 2`.
 
 The normalized outer geometry is:
 
-```text
-outer_x0 = cx0 - delta
-outer_y0 = cy0 - delta
-outer_x1 = cx1 + delta
-outer_y1 = cy1 + delta
-outer_radius = r + delta
-```
+$$
+\begin{aligned}
+outer\_x0 &= cx0 - \delta \\
+outer\_y0 &= cy0 - \delta \\
+outer\_x1 &= cx1 + \delta \\
+outer\_y1 &= cy1 + \delta \\
+outer\_radius &= r + \delta
+\end{aligned}
+$$
 
 The normalized inner geometry is:
 
-```text
-inner_x0 = cx0 + delta
-inner_y0 = cy0 + delta
-inner_x1 = cx1 - delta
-inner_y1 = cy1 - delta
-inner_radius = max(0, r - delta)
-```
+$$
+\begin{aligned}
+inner\_x0 &= cx0 + \delta \\
+inner\_y0 &= cy0 + \delta \\
+inner\_x1 &= cx1 - \delta \\
+inner\_y1 &= cy1 - \delta \\
+inner\_radius &= \max(0, r - \delta)
+\end{aligned}
+$$
 
 The normalization result kind is chosen by this rule:
 
@@ -178,7 +202,9 @@ shrinking the inner span by `t` until it disappears.
 
 No public API changes are required.
 
-Add a new internal header, `roo_display/shape/smooth_internal.h`, with:
+Add a new internal header,
+[src/roo_display/shape/smooth_internal.h](../src/roo_display/shape/smooth_internal.h),
+with:
 
 ```cpp
 namespace roo_display {
@@ -212,8 +238,9 @@ NormalizedSingleRadiusRoundRect NormalizeSingleRadiusRoundRect(
 ```
 
 The function is declared in the internal header and defined in
-`roo_display/shape/smooth.cpp`. Tests include the header and link against
-`:roo_display`, so they can assert normalized kinds and coordinates directly.
+[src/roo_display/shape/smooth.cpp](../src/roo_display/shape/smooth.cpp).
+Tests include the header and link against `:roo_display`, so they can assert
+normalized kinds and coordinates directly.
 
 Normalization does not perform the existing single-pixel area shortcut.
 Tiny-shape and area-based alpha handling stay in the builder after dispatch.
@@ -406,7 +433,9 @@ state.
 This design lands first and defines the normalization contract that the later
 asymmetric-corner design extends.
 
-The later work in `smooth_round_rect_corner_radii_design.md` will generalize:
+The later work in
+[smooth_round_rect_corner_radii_design.md](smooth_round_rect_corner_radii_design.md)
+will generalize:
 
 - one centerline radius to four centerline radii,
 - one inner-boundary mode to per-corner inner radii plus the same filled fold
@@ -426,7 +455,8 @@ equal-radius math.
 
 Public API: no change.
 
-Internal API added in `roo_display/shape/smooth_internal.h`:
+Internal API added in
+[src/roo_display/shape/smooth_internal.h](../src/roo_display/shape/smooth_internal.h):
 
 ```cpp
 namespace roo_display {
@@ -461,6 +491,9 @@ NormalizedSingleRadiusRoundRect NormalizeSingleRadiusRoundRect(
 
 ## Implementation Plan
 
+Authoring reference:
+[roo-display-code-authoring](../.github/skills/roo-display-code-authoring/SKILL.md)
+
 ### Phase 1: Extract Testable Normalization
 
 Proposed commit message:
@@ -469,7 +502,7 @@ Proposed commit message:
 
 Work:
 
-- add `roo_display/shape/smooth_internal.h`,
+- add [src/roo_display/shape/smooth_internal.h](../src/roo_display/shape/smooth_internal.h),
 - add `internal::NormalizedRoundRectKind` and
   `internal::NormalizedSingleRadiusRoundRect`,
 - move single-radius ordering, radius clamp, `delta` computation, outer-bound
@@ -521,8 +554,8 @@ Work:
   `ROUND_RECT` case,
 - add focused behavior tests for `delta > radius` with non-empty inner
   bounds,
-- update `doc/programming_guide.md` if it describes thick smooth round-rect
-  geometry.
+- update [doc/programming_guide.md](../doc/programming_guide.md) if it
+  describes thick smooth round-rect geometry.
 
 Validation:
 
@@ -586,12 +619,14 @@ retain rounded inner geometry while others collapse.
 
 #### Keep `ROUND_RECT` But Add A Parallel Classifier Or Evaluator Family
 
-Rejected because the helper families in `smooth.cpp` are already organized by
-top-level shape kind. Keeping `ROUND_RECT` while adding a second evaluator or
-rectangle-classification entry point for the same kind would split behavior
-that is better expressed as one helper family with an inner-boundary mode
-branch. The current bug is not missing helper ownership; it is that the
-existing helpers infer the inner boundary from the wrong rectangle.
+Rejected because the helper families in
+[src/roo_display/shape/smooth.cpp](../src/roo_display/shape/smooth.cpp)
+are already organized by top-level shape kind. Keeping `ROUND_RECT` while
+adding a second evaluator or rectangle-classification entry point for the same
+kind would split behavior that is better expressed as one helper family with
+an inner-boundary mode branch. The current bug is not missing helper
+ownership; it is that the existing helpers infer the inner boundary from the
+wrong rectangle.
 
 #### Test Only Through Raster Expectation Images
 
@@ -607,6 +642,7 @@ gives the later corner-radii work no reusable normalization contract.
 ## Future Work
 
 - Extend `NormalizeSingleRadiusRoundRect()` to `RoundRectRadii` in the later
+  [smooth_round_rect_corner_radii_design.md](smooth_round_rect_corner_radii_design.md)
   asymmetric-corner design.
 - Extend the equal-radius inner-boundary mode and explicit inner-boundary state
   to the later unequal-corner payload and its dedicated readback, stream, and

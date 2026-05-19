@@ -1,15 +1,24 @@
 # Smooth Round Rect Corner Radii Design
 
+Primary references:
+[smooth_round_rect_inner_boundary_design.md](smooth_round_rect_inner_boundary_design.md)
+[src/roo_display/shape/smooth.h](../src/roo_display/shape/smooth.h)
+[src/roo_display/shape/smooth.cpp](../src/roo_display/shape/smooth.cpp)
+[doc/programming_guide.md](../doc/programming_guide.md)
+[images/smooth_round_rect_corner_slabs.svg](images/smooth_round_rect_corner_slabs.svg)
+[images/smooth_round_rect_corner_center_fill.svg](images/smooth_round_rect_corner_center_fill.svg)
+
 ## Objective
 
-Add a new smooth rounded-rectangle API in `roo_display/shape/smooth.h` that
+Add a new smooth rounded-rectangle API in
+[src/roo_display/shape/smooth.h](../src/roo_display/shape/smooth.h) that
 allows the four corner radii to be specified individually while preserving the
 corrected equal-radius behavior, performance, and `SmoothShape` object size.
 
 This design assumes the inner-boundary correction in
-`smooth_round_rect_inner_boundary_design.md` has landed. The four-radii work
-extends that normalization model instead of preserving the older fixed-inner-
-center behavior.
+[smooth_round_rect_inner_boundary_design.md](smooth_round_rect_inner_boundary_design.md)
+has landed. The four-radii work extends that normalization model instead of
+preserving the older fixed-inner-center behavior.
 
 ## Motivation
 
@@ -28,7 +37,8 @@ to four independent centerline radii.
 ## Background
 
 Smooth round rects are currently implemented as a dedicated `SmoothShape`
-variant in `roo_display/shape/smooth.h` and `roo_display/shape/smooth.cpp`.
+variant in [src/roo_display/shape/smooth.h](../src/roo_display/shape/smooth.h)
+and [src/roo_display/shape/smooth.cpp](../src/roo_display/shape/smooth.cpp).
 The equal-radius path has specialized support for:
 
 - construction and geometry normalization,
@@ -94,7 +104,8 @@ state without checking the union ceiling.
   `RoundRectRadii{.tl = 2, .tr = 3, .bl = 4, .br = 5}`.
 - The existing equal-radius overloads must remain available.
 - The inner-boundary correction in
-  `smooth_round_rect_inner_boundary_design.md` must land first.
+  [smooth_round_rect_inner_boundary_design.md](smooth_round_rect_inner_boundary_design.md)
+  must land first.
 - Four-radii normalization must extend the corrected centerline-based
   normalization model from the inner-boundary design.
 - When the effective centerline radii are equal after normalization, the
@@ -158,7 +169,8 @@ only extra per-corner cache beyond the public geometry.
 
 ### Public Radii Type
 
-Add a small aggregate type in `roo_display/shape/smooth.h`:
+Add a small aggregate type in
+[src/roo_display/shape/smooth.h](../src/roo_display/shape/smooth.h):
 
 ```cpp
 struct RoundRectRadii {
@@ -180,7 +192,7 @@ unconditional 16-byte by-value copy at each public API entry point.
 ### Geometry Semantics
 
 The new overloads use the corrected smooth round-rect semantics from
-`smooth_round_rect_inner_boundary_design.md`:
+[smooth_round_rect_inner_boundary_design.md](smooth_round_rect_inner_boundary_design.md):
 
 - `x0`, `y0`, `x1`, and `y1` describe the outline centerline extents,
 - `thickness` expands the outer boundary by `thickness / 2`,
@@ -205,14 +217,15 @@ Normalize the input as follows:
 5. If the four centerline radii do not fit the centerline bounds, scale them
   by a single factor:
 
-```text
-scale = min(
+$$
+scale = \min\left(
   1,
-  width  / (tl + tr),
-  width  / (bl + br),
-  height / (tl + bl),
-  height / (tr + br))
-```
+  \frac{width}{tl + tr},
+  \frac{width}{bl + br},
+  \frac{height}{tl + bl},
+  \frac{height}{tr + br}
+\right)
+$$
 
 6. Derive outer bounds by expanding the centerline bounds by `delta`.
 7. Derive inner bounds by insetting the centerline bounds by `delta`.
@@ -284,12 +297,14 @@ corners can therefore collapse independently: a corner whose reconstructed
 
 The inner rectangle follows the same stored-state rule:
 
-```text
-inner_x0 = outer_x0 + thickness
-inner_y0 = outer_y0 + thickness
-inner_x1 = outer_x1 - thickness
-inner_y1 = outer_y1 - thickness
-```
+$$
+\begin{aligned}
+inner\_x0 &= outer\_x0 + thickness \\
+inner\_y0 &= outer\_y0 + thickness \\
+inner\_x1 &= outer\_x1 - thickness \\
+inner\_y1 &= outer\_y1 - thickness
+\end{aligned}
+$$
 
 The corrected equal-radius payload stores explicit inner rectangle bounds
 because it retrofits the existing `RoundRect` representation, whose `x0`,
@@ -489,7 +504,9 @@ the 8x8 tiles surrounding the direct center fill.
 Any helper box can still become empty for thin or degenerate geometries. In
 that case it is simply omitted.
 
-The intended layout is illustrated here:
+Because the helper boxes drive both classification and drawing, the figure
+below is part of the geometry contract and should stay synchronized with the
+formulas that define the slabs.
 
 ![Helper slab layout](images/smooth_round_rect_corner_slabs.svg)
 
@@ -613,6 +630,9 @@ into 8x8 tiles. For unequal radii, `inner_core` is the direct generalization of
 `inner_mid`: it is the maximal center rectangle derived from the per-corner
 diagonal support distances and guaranteed to lie inside the inner shape.
 
+The draw-path partition below is likewise part of the rendering argument and
+should be kept in sync with the center-fill formulas.
+
 ![Center fill and tiled remainder](images/smooth_round_rect_corner_center_fill.svg)
 
 When `inner_core` is non-empty and wider than 16 pixels, matching the current
@@ -729,9 +749,13 @@ corrected equal-radius path.
 
 ## Implementation Plan
 
+Authoring reference:
+[roo-display-code-authoring](../.github/skills/roo-display-code-authoring/SKILL.md)
+
 Prerequisite state:
 
-- `smooth_round_rect_inner_boundary_design.md` has landed,
+- [smooth_round_rect_inner_boundary_design.md](smooth_round_rect_inner_boundary_design.md)
+  has landed,
 - `internal::NormalizeSingleRadiusRoundRect()` exists,
 - and the corrected equal-radius `SmoothShape::RoundRect` path handles rounded
   inner bounds, rectangular inner bounds, and filled folds.
@@ -744,7 +768,8 @@ Proposed commit message:
 
 Work:
 
-- add `RoundRectRadii` to `roo_display/shape/smooth.h`,
+- add `RoundRectRadii` to
+  [src/roo_display/shape/smooth.h](../src/roo_display/shape/smooth.h),
 - add the three public overloads taking `const RoundRectRadii&`,
 - add internal four-radii normalization that extends the corrected
   centerline-based single-radius helper,
@@ -853,8 +878,9 @@ Work:
 - wire `drawTo()` through the new shape kind,
 - preserve the corrected equal-radius draw path unchanged,
 - implement the center-fill partition shown in
-  `docs/images/smooth_round_rect_corner_center_fill.svg`, filling the clipped
-  `inner_core` rectangle directly and tiling the four surrounding bands,
+  [images/smooth_round_rect_corner_center_fill.svg](images/smooth_round_rect_corner_center_fill.svg),
+  filling the clipped `inner_core` rectangle directly and tiling the four
+  surrounding bands,
 - and use subdivision logic analogous to the current round-rect path, but with
   helper-box fills, straight-edge classification, corner classification, and
   8x8 fallback for unresolved tiles.
@@ -903,8 +929,8 @@ Proposed commit message:
 
 Work:
 
-- update `doc/programming_guide.md` with the new struct-based smooth round-rect
-  API,
+- update [doc/programming_guide.md](../doc/programming_guide.md) with the new
+  struct-based smooth round-rect API,
 - update or add the mirrored programming-guide example sketch,
 - and document any designated-initializer caveats for toolchain portability.
 

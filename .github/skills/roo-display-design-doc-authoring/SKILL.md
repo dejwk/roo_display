@@ -49,7 +49,9 @@ Use this section order unless a narrower document genuinely needs less:
 - Keep Testing Plan as a summary of validation scope, targets, and coverage.
 - Do not repeat detailed per-step test cases in Testing Plan when they are
   already described under Implementation Plan.
-- Put rejected alternatives in Caveats, not scattered through the main design.
+- Put discussion of rejected alternatives in Caveats, not in Detailed Design.
+  Detailed Design may include a brief forward reference when the selected
+  mechanics need that context.
 
 ## Closing On Decisions
 
@@ -66,14 +68,15 @@ Rules:
 - When a decision depends on quantitative tradeoffs (RAM versus cycles,
   branch cost versus cache footprint, etc.), include the analysis: ballpark
   per-pixel or per-row cost estimates, payload-size deltas, and the
-  reasoning that selects the chosen option over the rejected ones.
+  reasoning that selects the chosen option. Put the rejected-alternative
+  discussion in Caveats.
 - If the analysis genuinely cannot resolve the choice on paper, add a
   numbered phase to the Implementation Plan that runs a targeted micro-
   benchmark or measurement, specifies the input shapes, the metric, and the
   threshold that selects between the candidates. The doc is not done until
   that phase has a defined exit criterion.
-- Record rejected alternatives in Caveats with a one-line reason and a
-  pointer back to the section that made the call.
+- Record rejected alternatives in Caveats with the reason they were rejected
+  and a pointer back to the section that made the call.
 - Re-read the finished doc and remove every "if", "may", "could", "should
   consider", or "depending on" that hides an unresolved choice; replace each
   with a decision or a planned experiment.
@@ -105,6 +108,8 @@ Rules:
 - Every design decision in the doc is closed: chosen option, rejected
   alternatives, and the analysis or planned experiment that selects between
   them are all present.
+- Rejected alternatives are discussed in Caveats, not in Detailed Design;
+  any mention in Detailed Design is only a forward reference.
 - No hedged language ("may", "could", "should consider", "depending on")
   hides an unresolved choice.
 - Testing Plan summarizes validation coverage without repeating per-step test

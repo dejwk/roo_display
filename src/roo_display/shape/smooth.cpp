@@ -1,10 +1,47 @@
 #include "roo_display/shape/smooth.h"
 
+#include "roo_display/shape/smooth_internal.h"
+
 #include <math.h>
 
 #include "roo_display/core/buffered_drawing.h"
 
 namespace roo_display {
+
+namespace internal {
+
+NormalizedSingleRadiusRoundRect NormalizeSingleRadiusRoundRect(
+  float x0, float y0, float x1, float y1, float radius, float thickness) {
+  if (radius < 0.0f) radius = 0.0f;
+  if (thickness < 0.0f) thickness = 0.0f;
+  if (x1 < x0) std::swap(x0, x1);
+  if (y1 < y0) std::swap(y0, y1);
+
+  float width = x1 - x0;
+  float height = y1 - y0;
+  float max_radius = ((width < height) ? width : height) * 0.5f;
+  if (radius > max_radius) radius = max_radius;
+
+  float delta = thickness * 0.5f;
+  float inner_x0 = x0 + delta;
+  float inner_y0 = y0 + delta;
+  float inner_x1 = x1 - delta;
+  float inner_y1 = y1 - delta;
+  float inner_radius = radius - delta;
+  if (inner_radius < 0.0f) inner_radius = 0.0f;
+
+  NormalizedRoundRectKind kind =
+    (inner_x0 >= inner_x1 || inner_y0 >= inner_y1)
+      ? NormalizedRoundRectKind::kFilled
+      : (inner_radius > 0.0f ? NormalizedRoundRectKind::kRoundInner
+                 : NormalizedRoundRectKind::kRectInner);
+
+  return {kind, x0 - delta, y0 - delta, x1 + delta, y1 + delta,
+      radius + delta, inner_x0, inner_y0, inner_x1, inner_y1,
+      inner_radius};
+}
+
+}  // namespace internal
 
 SmoothShape::SmoothShape()
     : kind_(SmoothShape::EMPTY), extents_(0, 0, -1, -1) {}

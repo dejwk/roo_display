@@ -1,11 +1,79 @@
 
 #include "roo_display/color/color.h"
 #include "roo_display/shape/smooth.h"
+#include "roo_display/shape/smooth_internal.h"
 #include "testing.h"
 
 using namespace testing;
 
 namespace roo_display {
+
+TEST(SmoothShapes, NormalizeSingleRadiusRoundRectHandlesRoundedInnerCase) {
+  // Verifies ordered centerline bounds normalize to the rounded-inner case.
+  auto normalized = internal::NormalizeSingleRadiusRoundRect(
+      10.0f, 8.0f, 0.0f, 0.0f, 3.0f, 2.0f);
+
+  EXPECT_EQ(internal::NormalizedRoundRectKind::kRoundInner, normalized.kind);
+  EXPECT_FLOAT_EQ(-1.0f, normalized.outer_x0);
+  EXPECT_FLOAT_EQ(-1.0f, normalized.outer_y0);
+  EXPECT_FLOAT_EQ(11.0f, normalized.outer_x1);
+  EXPECT_FLOAT_EQ(9.0f, normalized.outer_y1);
+  EXPECT_FLOAT_EQ(4.0f, normalized.outer_radius);
+  EXPECT_FLOAT_EQ(1.0f, normalized.inner_x0);
+  EXPECT_FLOAT_EQ(1.0f, normalized.inner_y0);
+  EXPECT_FLOAT_EQ(9.0f, normalized.inner_x1);
+  EXPECT_FLOAT_EQ(7.0f, normalized.inner_y1);
+  EXPECT_FLOAT_EQ(2.0f, normalized.inner_radius);
+}
+
+TEST(SmoothShapes, NormalizeSingleRadiusRoundRectClampsRadiusToMinorAxis) {
+  // Verifies normalization clamps radius to half of the centerline minor axis.
+  auto normalized = internal::NormalizeSingleRadiusRoundRect(
+      0.0f, 0.0f, 10.0f, 6.0f, 5.0f, 2.0f);
+
+  EXPECT_EQ(internal::NormalizedRoundRectKind::kRoundInner, normalized.kind);
+  EXPECT_FLOAT_EQ(4.0f, normalized.outer_radius);
+  EXPECT_FLOAT_EQ(2.0f, normalized.inner_radius);
+}
+
+TEST(SmoothShapes,
+     NormalizeSingleRadiusRoundRectTurnsThresholdCaseIntoRectInner) {
+  // Verifies delta == radius selects the rectangular-inner normalization.
+  auto normalized = internal::NormalizeSingleRadiusRoundRect(
+      0.0f, 0.0f, 20.0f, 12.0f, 4.0f, 8.0f);
+
+  EXPECT_EQ(internal::NormalizedRoundRectKind::kRectInner, normalized.kind);
+  EXPECT_FLOAT_EQ(4.0f, normalized.inner_x0);
+  EXPECT_FLOAT_EQ(4.0f, normalized.inner_y0);
+  EXPECT_FLOAT_EQ(16.0f, normalized.inner_x1);
+  EXPECT_FLOAT_EQ(8.0f, normalized.inner_y1);
+  EXPECT_FLOAT_EQ(0.0f, normalized.inner_radius);
+}
+
+TEST(SmoothShapes,
+     NormalizeSingleRadiusRoundRectKeepsShrinkingRectInnerAfterRadiusZero) {
+  // Verifies the inner rect keeps shrinking after the rounded inner radius hits zero.
+  auto normalized = internal::NormalizeSingleRadiusRoundRect(
+      0.0f, 0.0f, 30.0f, 20.0f, 3.0f, 10.0f);
+
+  EXPECT_EQ(internal::NormalizedRoundRectKind::kRectInner, normalized.kind);
+  EXPECT_FLOAT_EQ(5.0f, normalized.inner_x0);
+  EXPECT_FLOAT_EQ(5.0f, normalized.inner_y0);
+  EXPECT_FLOAT_EQ(25.0f, normalized.inner_x1);
+  EXPECT_FLOAT_EQ(15.0f, normalized.inner_y1);
+  EXPECT_FLOAT_EQ(0.0f, normalized.inner_radius);
+}
+
+TEST(SmoothShapes,
+     NormalizeSingleRadiusRoundRectFoldsCollapsedInnerRegionToFilled) {
+  // Verifies collapsed inner bounds normalize to the filled outer-shape case.
+  auto normalized = internal::NormalizeSingleRadiusRoundRect(
+      0.0f, 0.0f, 10.0f, 6.0f, 2.0f, 6.0f);
+
+  EXPECT_EQ(internal::NormalizedRoundRectKind::kFilled, normalized.kind);
+  EXPECT_FLOAT_EQ(3.0f, normalized.inner_y0);
+  EXPECT_FLOAT_EQ(3.0f, normalized.inner_y1);
+}
 
 TEST(SmoothShapes, DrawSmallCirclesCenterWhole) {
   EXPECT_THAT(CoercedTo<Alpha4>(SmoothCircle({2, 3}, 0.5, color::Black),

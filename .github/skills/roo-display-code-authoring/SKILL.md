@@ -33,6 +33,23 @@ API work, tests, documentation updates, and validation.
 - Code comments should be sparse and should explain the why or the overall
   what of a complex block, not restate the mechanics line by line.
 
+## Design-Stage Commits
+
+- When the implemented change maps to a single stage or phase from a design
+  doc, include a proposed commit message in the completion note even if no
+  commit is created.
+- Keep the proposed message to at most one paragraph. A single subject line or
+  a subject with a short body are both acceptable.
+- Describe the concrete slice that landed in that stage, not the whole
+  feature. Name the API, helper, tests, docs, or validation added by the
+  change.
+- Reference the relevant design doc path or title so the commit preserves the
+  stage context.
+- When the design doc includes a `Proposed commit message` hint for that
+  stage, treat it as the starting point and keep its intent unless the
+  implemented slice differs. If it differs, adjust the message to match the
+  actual code.
+
 ## Validation Commands
 
 - `roo_display` is often used from a parent workspace under `lib/roo_display`.
@@ -55,3 +72,6 @@ API work, tests, documentation updates, and validation.
 - User-facing docs are updated when behavior or recommended usage changes.
 - Complex implementation comments explain intent, not mechanics.
 - The change does not add avoidable per-instance RAM cost.
+- If the change implements a design-doc stage, the response includes a
+  proposed commit message that references the design doc and reflects any
+  stage-specific commit-message hint.

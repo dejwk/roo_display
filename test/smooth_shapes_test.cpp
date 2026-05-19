@@ -355,6 +355,95 @@ TEST(SmoothShapes, ThickRoundRectWithCollapsedInnerRegionFoldsToFilledOuter) {
   EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
 }
 
+// Verifies a one-pixel outline renders the expected smooth ring raster for the
+// less-common case where the round-rect centerline sits between pixels.
+TEST(SmoothShapes, ThickRoundRectWithUnitOutlineRendersExpectedAlpha4Raster) {
+  EXPECT_THAT(
+      CoercedTo<Alpha4>(SmoothThickRoundRect(0.5f, 0.5f, 4.5f, 4.5f, 1.0f, 1.0f,
+                                             color::Black, color::Transparent),
+                        Alpha4(color::Black)),
+      MatchesContent(Alpha4(color::Black), Box(0, 0, 5, 5),
+                     "067760"
+                     "6A77A6"
+                     "770077"
+                     "770077"
+                     "6A77A6"
+                     "067760"));
+}
+
+// Verifies a half-pixel outline on integer-aligned bounds paints end-to-end
+// while staying pale instead of becoming fully opaque.
+TEST(SmoothShapes, ThickRoundRectWithHalfOutlineRendersPaleAlpha4Raster) {
+  EXPECT_THAT(
+      CoercedTo<Alpha4>(SmoothThickRoundRect(0.0f, 0.0f, 5.0f, 5.0f, 1.0f, 0.5f,
+                                             color::Black, color::Transparent),
+                        Alpha4(color::Black)),
+      MatchesContent(Alpha4(color::Black), Box(0, 0, 5, 5),
+                     "577775"
+                     "700007"
+                     "700007"
+                     "700007"
+                     "700007"
+                     "577775"));
+}
+
+// Verifies zero outline thickness renders the same raster as the equivalent
+// filled round rect instead of tinting the outer antialiasing fringe.
+TEST(SmoothShapes, ThickRoundRectWithZeroOutlineMatchesFilledRoundRect) {
+  Color outline = color::Black;
+  Color interior(0x95E07A5F);
+
+  const FakeOffscreen<Argb8888> actual =
+      CoercedTo<Argb8888>(SmoothThickRoundRect(0.5f, 0.5f, 4.5f, 4.5f, 1.0f,
+                                               0.0f, outline, interior),
+                          Argb8888(), color::Transparent, FillMode::kVisible,
+                          BlendingMode::kSourceOver, color::Transparent);
+  const FakeOffscreen<Argb8888> expected = CoercedTo<Argb8888>(
+      SmoothFilledRoundRect(0.5f, 0.5f, 4.5f, 4.5f, 1.0f, interior), Argb8888(),
+      color::Transparent, FillMode::kVisible, BlendingMode::kSourceOver,
+      color::Transparent);
+
+  EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
+}
+
+// Verifies the round-rect draw fast path blends translucent outline-only spans
+// against the background rather than against the interior.
+TEST(SmoothShapes, ThickRoundRectWithTranslucentOutlineMatchesReadColorsPath) {
+  Color outline = color::Black.withA(0x95);
+  Color interior(0xFFF3EFE7);
+  const SmoothShape shape = SmoothThickRoundRect(0.5f, 0.5f, 16.5f, 16.5f, 3.0f,
+                                                 2.0f, outline, interior);
+  const ForcedRasterizable reference(&shape);
+
+  const FakeOffscreen<Argb8888> actual = CoercedTo<Argb8888>(
+      shape, Argb8888(), color::Transparent, FillMode::kVisible,
+      BlendingMode::kSourceOver, color::Transparent);
+  const FakeOffscreen<Argb8888> expected = CoercedTo<Argb8888>(
+      reference, Argb8888(), color::Transparent, FillMode::kVisible,
+      BlendingMode::kSourceOver, color::Transparent);
+
+  EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
+}
+
+// Verifies overlarge radii render the same as the half-width clamp value.
+TEST(SmoothShapes, ThickRoundRectClampsRadiusBeforeRendering) {
+  Color outline = color::Black;
+  Color interior(0xFFF3EFE7);
+
+  const FakeOffscreen<Argb8888> actual =
+      CoercedTo<Argb8888>(SmoothThickRoundRect(0.5f, 0.5f, 4.5f, 8.5f, 5.0f,
+                                               1.0f, outline, interior),
+                          Argb8888(), color::Transparent, FillMode::kVisible,
+                          BlendingMode::kSourceOver, color::Transparent);
+  const FakeOffscreen<Argb8888> expected =
+      CoercedTo<Argb8888>(SmoothThickRoundRect(0.5f, 0.5f, 4.5f, 8.5f, 2.0f,
+                                               1.0f, outline, interior),
+                          Argb8888(), color::Transparent, FillMode::kVisible,
+                          BlendingMode::kSourceOver, color::Transparent);
+
+  EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
+}
+
 // Verifies the rectangular-inner mode keeps shrinking the interior once delta
 // exceeds the centerline radius.
 TEST(SmoothShapes, ThickRoundRectWithRectInnerShrinksInteriorBounds) {
@@ -373,20 +462,34 @@ TEST(SmoothShapes, ThickRoundRectWithRectInnerShrinksInteriorBounds) {
   EXPECT_EQ(edge_color, PixelAt(rendered, 9, 3));
 }
 
-// Verifies the zero-inner-radius case still preserves interior-color pixels.
-TEST(SmoothShapes, ThickRoundRectWithZeroInnerRadiusKeepsInteriorOpaque) {
+// Verifies thickness == 2 * radius keeps the rectangular inner region instead
+// of collapsing to a filled outer round rect.
+TEST(SmoothShapes,
+     ThickRoundRectWithDoubleRadiusOutlineKeepsInteriorDistinctFromFilled) {
   Color outline = color::Black;
   Color interior(0xFFF3EFE7);
-  const SmoothShape shape = SmoothThickRoundRect(0.5f, 0.5f, 16.5f, 16.5f, 1.0f,
-                                                 2.0f, outline, interior);
+  const internal::NormalizedSingleRadiusRoundRect normalized =
+      internal::NormalizeSingleRadiusRoundRect(0.5f, 0.5f, 16.5f, 16.5f, 1.0f,
+                                               2.0f);
+  ASSERT_EQ(internal::NormalizedRoundRectKind::kRectInner, normalized.kind);
 
-  const FakeOffscreen<Argb8888> rendered = CoercedTo<Argb8888>(
-      shape, Argb8888(), color::Transparent, FillMode::kVisible,
+  const FakeOffscreen<Argb8888> rendered =
+      CoercedTo<Argb8888>(SmoothThickRoundRect(0.5f, 0.5f, 16.5f, 16.5f, 1.0f,
+                                               2.0f, outline, interior),
+                          Argb8888(), color::Transparent, FillMode::kVisible,
+                          BlendingMode::kSourceOver, color::Transparent);
+  const FakeOffscreen<Argb8888> filled = CoercedTo<Argb8888>(
+      SmoothFilledRoundRect(normalized.outer_x0, normalized.outer_y0,
+                            normalized.outer_x1, normalized.outer_y1,
+                            normalized.outer_radius, outline),
+      Argb8888(), color::Transparent, FillMode::kVisible,
       BlendingMode::kSourceOver, color::Transparent);
 
   EXPECT_EQ(interior, PixelAt(rendered, 3, 3));
   EXPECT_EQ(interior, PixelAt(rendered, 3, 9));
   EXPECT_EQ(interior, PixelAt(rendered, 9, 3));
+  EXPECT_EQ(outline, PixelAt(filled, 3, 3));
+  EXPECT_NE(PixelAt(filled, 3, 3), PixelAt(rendered, 3, 3));
 }
 
 }  // namespace roo_display

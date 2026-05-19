@@ -150,6 +150,9 @@ SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
     thickness = 0.0f;
     interior_color = color;
   }
+  if (thickness == 0.0f) {
+    color = interior_color;
+  }
 
   x0 = normalized.outer_x0;
   y0 = normalized.outer_y0;
@@ -1425,8 +1428,7 @@ void DrawRoundRect(SmoothShape::RoundRect rect, const Surface& s,
       .fill_mode = s.fill_mode(),
       .blending_mode = s.blending_mode(),
       .bgcolor = s.bgcolor(),
-      .pre_blended_outline = AlphaBlend(
-          AlphaBlend(s.bgcolor(), rect.interior_color), rect.outline_color),
+      .pre_blended_outline = AlphaBlend(s.bgcolor(), rect.outline_color),
       .pre_blended_interior = AlphaBlend(s.bgcolor(), rect.interior_color),
   };
   if (s.dx() != 0 || s.dy() != 0) {

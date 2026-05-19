@@ -99,7 +99,7 @@ separate.
 
 The unequal-radius variant uses the available union headroom for values that
 are used by the hot geometry tests. It stores outer boundary extents, four
-outer radii, the outline width, per-corner adjusted squared radii for both the
+outer radii, outline thickness, per-corner adjusted squared radii for both the
 outer and derived inner boundaries, two colors, and five guaranteed-interior
 helper boxes. It intentionally does not store the four inner radii: each inner
 radius is always `max(0, outer_radius - thickness)`, and deriving that value is
@@ -192,17 +192,35 @@ existing implementation.
 Add a new `SmoothShape` kind for unequal corner radii, for example
 `ROUND_RECT_CORNERS`, together with a separate payload struct.
 
-The new payload stores:
+#### Selected Stored Radius Representation
+
+The unequal-radius payload uses this stored representation:
 
 - outer boundary extents after thickness expansion,
 - 4 outer radii,
-- outline width,
+- outline thickness,
 - 4 precomputed outer adjusted squared radii,
 - 4 precomputed inner adjusted squared radii,
 - outline and interior colors,
 - and 5 precomputed maximal interior helper boxes.
 
-One practical layout is:
+This mirrors the equal-radius `RoundRect` payload's philosophy. The current
+equal-radius path stores `ro`, `ri`, `ro_sq_adj`, and `ri_sq_adj` because the
+same values are reused by every corner. The unequal-radius path stores the
+per-corner values that are expensive to recompute (`ro_sq_adj[4]` and
+`ri_sq_adj[4]`) and reconstructs only the raw inner radius:
+
+```text
+ri_q = max(0, ro_q - thickness)
+```
+
+The rejected radius layouts are recorded in Caveats. The selected layout is
+the only one that fits inside the current `Arc` ceiling while caching adjusted
+squared radii for every corner.
+
+#### Payload Layout
+
+The payload layout is:
 
 - 4 floats for outer boundary extents: 16 bytes,
 - 4 floats for outer radii: 16 bytes,
@@ -210,8 +228,8 @@ One practical layout is:
 - 4 floats for outer adjusted squared radii: 16 bytes,
 - 4 floats for inner adjusted squared radii: 16 bytes,
 - 2 colors: 8 bytes,
-- 5 helper boxes (`inner_core`, `inner_top`, `inner_bottom`, `inner_left`,
-  `inner_right`): 40 bytes.
+- 5 helper boxes (`inner_core`, `top_slab`, `bottom_slab`, `left_slab`,
+  `right_slab`): 40 bytes.
 
 Estimated total: 116 bytes, matching the current `SmoothShape::Arc` estimate.
 
@@ -230,6 +248,40 @@ ri_sq_adj_q = ri_q * ri_q + 0.25
 
 Only `ro_q`, `thickness`, `ro_sq_adj_q`, and `ri_sq_adj_q` are stored. The
 derived `ri_q` is reconstructed as a local when a corner or row needs it.
+
+#### Cost Analysis
+
+The equal-radius evaluator performs the canonical anti-aliased boundary tests:
+
+```text
+d_sq <= ro_sq_adj - ro          // fully inside outer
+d_sq >= ro_sq_adj + ro          // fully outside outer
+d_sq <= ri_sq_adj - ri          // fully inside inner, when ri >= 0.5
+d_sq >= ri_sq_adj + ri          // fully outside inner
+```
+
+The unequal-radius evaluator uses the same tests after selecting the relevant
+corner. Caching `ro_sq_adj_q` and `ri_sq_adj_q` means that a corner AA pixel
+does not recompute `ro_q * ro_q + 0.25` and `ri_q * ri_q + 0.25`. Compared
+with storing raw inner radii and recomputing adjusted squares, the selected
+layout removes two floating-point multiplies per corner AA pixel and adds one
+subtract plus one clamp to reconstruct `ri_q`.
+
+That tradeoff is intentionally not based only on the original Xtensa ESP32
+with a single-precision FPU. The code can run on other ESP32-family chips,
+RISC-V variants, and non-ESP targets, and some builds may have no hardware
+floating-point unit. On FPU targets, avoiding repeated multiplies shortens the
+hot AA path. On soft-float targets, a floating-point multiply can expand to
+software helper code, so replacing repeated multiplies with cached loads and a
+subtract/clamp is an even stronger win. On targets where memory loads dominate,
+the selected layout still does not increase `sizeof(SmoothShape)`, and it
+matches the existing equal-radius choice to cache adjusted squared radii.
+
+The selected storage does not reduce the number of square roots needed for
+anti-aliased boundary blending. That cost is controlled by the method-specific
+algorithms below: `readColorRect()` and `drawTo()` isolate boundary regions,
+and `createStream()` amortizes row crossings in the stream object rather than
+adding persistent shape fields.
 
 ### Footprint Delta Discussion
 
@@ -263,11 +315,10 @@ static_assert(sizeof(SmoothShape::RoundRectCorners) <=
               sizeof(SmoothShape::Arc));
 ```
 
-The storage decision does not require a microbenchmark gate. The chosen cache
-values feed the same threshold comparisons used by the current equal-radius
-implementation, and the derived inner radii are reconstructed locally from the
-stored outer radii and thickness. Caveats records the rejected storage
-alternatives.
+The storage decision does not require a microbenchmark gate. It is selected by
+object-size accounting plus the operation-count analysis above. Benchmarks are
+still useful for validating the final stream and draw implementations, but not
+for choosing whether to store raw inner radii.
 
 ### Interior Slabs And Helper Boxes
 
@@ -351,18 +402,25 @@ The intended layout is illustrated here:
 
 ![Helper slab layout](images/smooth_round_rect_corner_slabs.svg)
 
-### Pixel Evaluator And Rendering Strategy
+### Method-Specific Geometry Paths
 
 The unequal-radius implementation uses a separate helper family from the
-current equal-radius round-rect helpers.
+current equal-radius round-rect helpers. The helpers are organized around the
+public `Rasterizable`/`Drawable` methods they serve.
 
-The per-pixel evaluator uses this fixed decision order:
+#### `readColors()`: Point Samples
+
+`readColors()` is the point-sampling path. It mirrors the equal-radius
+`ReadRoundRectColors()` flow: test guaranteed-interior helper boxes first, then
+fall through to a per-pixel evaluator.
+
+The unequal-radius evaluator uses this fixed decision order:
 
 1. If the pixel is in any precomputed interior helper box, return the interior
    color.
 2. If the pixel is outside the outer boundary extents by at least the AA margin,
    return transparent.
-3. If the pixel lies in exactly one corner quadrant, evaluate that corner's
+3. If the pixel lies in a corner quadrant, evaluate that corner's
    quarter-annulus using the selected corner center, stored outer radius,
    derived inner radius, and cached adjusted-square values.
 4. Otherwise evaluate the nearest straight edge band using the corresponding
@@ -384,43 +442,18 @@ Only pixels that are not classified by these comparisons compute `sqrt(d_sq)`
 for anti-aliasing. The straight-edge path uses signed distance to the outer and
 inner horizontal or vertical edge, so it does not need a square root.
 
-The draw helper follows the current round-rect structure: classify the requested
-box, fill uniform boxes directly, and subdivide unresolved boxes into 8x8 tiles
-before falling back to per-pixel evaluation. The equal-radius draw helper stays
-unchanged and remains exclusive to the existing `ROUND_RECT` kind.
+#### `readUniformColorRect()`: Conservative Rect Classification
 
-Geometrically, the shape is treated as:
+`readUniformColorRect()` is the allocation-free uniform-color probe. It plays
+the same role as the equal-radius `DetermineRectColorForRoundRect()` call used
+by the current `readUniformColorRect()` implementation: return a color only
+when the rectangle is provably transparent, interior, or outline; otherwise
+return non-uniform.
 
-- a guaranteed interior core,
-- four maximal overlapping helper slabs,
-- four straight edge regions between adjacent corner centers,
-- and four quarter-annulus corners with independent radii.
-
-Only the AA transition zones need expensive per-pixel evaluation.
-
-### Readback And Rectangle Classification
-
-The unequal-radius kind must implement all three readback paths:
-
-- `readColors()` checks the helper boxes first, then calls the same per-pixel
-  evaluator used by drawing.
-- `readUniformColorRect()` uses a conservative classifier and never scans the
-  rectangle. It returns a color only when the rectangle is guaranteed to be
-  fully transparent, fully interior, or fully outline.
-- `readColorRect()` uses the same classifier, but when a rectangle is mixed it
-  fills the output by subdividing into slabs and 8x8 tiles, so only unresolved
-  boundary tiles degrade to per-pixel evaluation.
-
-This matters for composition. `RasterizableStack::readColorRect()` asks each
-layer for a rectangle, blends uniform layers cheaply, and otherwise allocates a
-full rectangle buffer. A good unequal-radius implementation must therefore
-return uniform results for the common transparent, interior, and outline
-rectangles, and keep mixed buffers limited to the true edge area.
-
-The rectangle classifier uses this order:
+The classifier uses this order:
 
 1. Test containment in the five precomputed interior helper boxes.
-2. Test transparent rectangles outside the outer edge or fully outside one
+2. Test transparent rectangles outside the outer extents or fully outside one
    corner quadrant.
 3. Test rectangles wholly inside a straight edge band.
 4. Test rectangles wholly inside one corner quadrant with corner-local squared
@@ -439,68 +472,82 @@ rectangle corner. Then:
   `nearest_sq >= ri_sq_adj + ri` means fully outline,
 - otherwise the rectangle is mixed.
 
-No square root is required for these rectangle decisions. The cached
-`ro_sq_adj` and `ri_sq_adj` values are what keep the corner classifier cheap
-enough for repeated stack composition and draw subdivision calls.
+No square root is required for these rectangle decisions. This is deliberately
+similar to the equal-radius classifier, but generalized from one radius and one
+corner-center rectangle to four independent corner centers and thresholds.
 
-For `readColorRect()`, mixed rectangles are split first by the precomputed
-interior slabs and by the corner-center lines that separate top, bottom, left,
-right, and corner regions. Fully classified subrectangles are filled directly.
-Remaining subrectangles are subdivided into 8x8 tiles, matching the existing
-round-rect draw strategy; only tiles whose classifier remains non-uniform are
-evaluated pixel by pixel.
+#### `readColorRect()`: Rectangle Readback For Composition
 
-Approximate per-pixel degradation is proportional to boundary length, not
-rectangle area. For a query rectangle `Q` and 8x8 tile size `S = 8`, the number
-of pixels that fall back to per-pixel evaluation is approximately:
+`readColorRect()` is the rectangle readback path used by rasterizable
+composition. `RasterizableStack::readColorRect()` asks each layer for a
+rectangle, blends uniform layers cheaply, and otherwise allocates and blends a
+full rectangle buffer. The unequal-radius implementation must therefore return
+uniform results for common transparent, interior, and outline rectangles. For
+mixed rectangles, the first implementation keeps the fallback simple because
+composition usually asks for small rectangles, commonly no larger than 8x8.
 
-```text
-slow_pixels(Q) ~= min(area(Q), S * (length(Q intersect outer_boundary) +
-                                   length(Q intersect inner_boundary)))
-```
+The equal-radius implementation first calls `DetermineRectColorForRoundRect()`;
+when that returns non-uniform, it evaluates every pixel in the requested
+rectangle. The unequal-radius path follows that same readback shape after the
+whole-rectangle classifier: if the rectangle is not uniform, evaluate exactly
+the requested pixels with the unequal-radius point evaluator. This keeps
+composition behavior predictable and bounds the worst common fallback to the
+small readback rectangle size rather than adding a second subdivision system to
+the initial implementation.
 
-plus a small constant number of tiles where a boundary enters or exits a slab.
-For a full outlined unequal round rect with outer width `W`, outer height `H`,
-outer radii `ro_i`, and inner radii `ri_i`, the boundary lengths are
-approximately:
+#### `drawTo()`: Nine Semantic Regions And Tile Filling
 
-```text
-P_outer = 2W + 2H - (2 - pi / 2) * sum(ro_i)
-P_inner = 2(W - 2t) + 2(H - 2t) - (2 - pi / 2) * sum(ri_i)
-```
-
-The full-shape readback slow-pixel budget is therefore roughly
-`8 * (P_outer + P_inner)` for outlined shapes, and roughly `8 * P_outer` for
-filled shapes. For small query rectangles the `min(area(Q), ...)` term keeps
-the estimate bounded by the requested rectangle size.
-
-### Streaming Strategy
-
-The equal-radius `RoundRectStream` remains unchanged and exclusive to the
-existing equal-radius kind.
-
-For the new unequal-radius kind, the design includes a dedicated stream
-override rather than relying on the generic `Rasterizable::createStream()`
+`drawTo()` owns the shape subdivision used for direct rendering. The same
+region splitter is not required by `readColorRect()` in the initial design;
+readback uses its whole-rectangle classifier and small-rectangle per-pixel
 fallback.
 
-Reasons:
+Geometrically, the shape is treated as nine semantic regions:
 
-- it keeps the common equal-radius stream path untouched,
-- it avoids regressing a common background and tiling use case,
-- and it keeps stream behavior aligned with the specialized equal-radius path.
+- four corner annulus regions,
+- four straight edge band regions,
+- and one interior region covered by `inner_core` and the overlapping slabs.
 
-The unequal-radius stream provides a shape-specific row-major emission path
-that classifies transparent, interior, outline, and slow runs without per-pixel
-virtual fallback for the whole surface. Each scanline is split at the relevant
-corner-center x positions for that row, then each segment is classified with
-the same straight-edge and corner-threshold logic used by the rectangle
-classifier. The stream keeps row-local boundary trackers in the stream object,
-not in `SmoothShape`, so stream optimization does not consume persistent shape
-payload.
+![Nine-region draw partition](images/smooth_round_rect_corner_regions.svg)
+
+For equal radii, the current draw path splits around `inner_mid`, fills that
+interior directly, and subdivides the remaining top/left/right/bottom bands
+into 8x8 tiles. The unequal-radius path keeps that classify-fill-subdivide
+shape, but the split is based on corner transition coordinates and helper
+slabs instead of a single symmetric `inner_mid` box.
+
+The nine regions are semantic, not always exactly nine physical rectangles.
+When opposite-side radii differ, transition coordinates such as `ctl.x` and
+`cbl.x` or `ctr.y` and `cbr.y` differ. The implementation splits the requested
+draw box at the distinct relevant corner-center x and y coordinates,
+then routes each resulting cell to one of the nine semantic region types.
+Cells that are fully interior, transparent, or outline are filled directly;
+unresolved cells are tiled at 8x8 and evaluated only where the tile classifier
+remains non-uniform.
+
+#### `createStream()`: Row-Major Streaming
+
+The equal-radius `RoundRectStream` remains unchanged and exclusive to the
+existing equal-radius kind. For the new unequal-radius kind, the design includes
+a dedicated stream override rather than relying on the generic
+`Rasterizable::createStream()` fallback.
+
+The equal-radius stream classifies each scanline into left cap, center span,
+and right cap, maintaining doubled-coordinate threshold trackers so it avoids a
+square root on every row. The unequal-radius stream follows the same principle
+with per-corner row trackers stored in the stream object, not in `SmoothShape`.
+For each scanline, only the active top or bottom corner pair participates in
+the arc crossings; straight middle rows reduce to edge/interior spans.
+
+Helper slabs are not consulted by the row classifier. Once the row-local arc
+crossing intervals are known, interior and outline spans are already classified,
+and slab containment tests add work without improving the result. Slabs are
+owned by the rectangle-bounded paths (`drawTo()` and `readColorRect()`), where
+2D containment is the useful short-circuit.
 
 The implementation target is the best shape-specific stream the stored geometry
-supports: obvious runs should be emitted as fills, and per-pixel work should be
-limited to AA boundary segments and genuinely mixed corner spans.
+supports: obvious runs are emitted as fills, and per-pixel work is limited to
+AA boundary segments and genuinely mixed corner spans.
 
 ### Helper Reuse Boundaries
 
@@ -628,8 +675,9 @@ Work:
   `readUniformColorRect()`,
 - implement conservative rectangle classification using helper boxes,
   straight-edge checks, and corner-local squared-distance checks,
-- optimize `readColorRect()` for composition by filling classified slabs and
-  subdividing only mixed boundary regions into 8x8 tiles,
+- implement `readColorRect()` as a whole-rectangle classifier followed by
+  per-pixel fallback for mixed rectangles, matching the current equal-radius
+  readback shape and the small rectangles normally requested by composition,
 - and keep `readUniformColorRect()` conservative and allocation-free.
 
 Validation:
@@ -637,7 +685,7 @@ Validation:
 - `//:read_uniform_color_rect_test` for guaranteed interior, guaranteed
   transparent, and boundary-adjacent regions,
 - add a focused `//:read_color_rect_test` target for stack-sized rectangles
-  that hit slabs, corner quadrants, and mixed AA tiles,
+  that hit slabs, corner quadrants, and mixed AA pixels,
 - and regression checks that mixed-color regions still correctly report
   non-uniform.
 
@@ -648,8 +696,12 @@ Work:
 - add the new unequal-radius draw helper,
 - wire `drawTo()` through the new shape kind,
 - preserve the current equal-radius draw path unchanged,
+- implement the nine-semantic-region splitter shown in
+  `docs/images/smooth_round_rect_corner_regions.svg`, mapping physical cells
+  to corner, edge, or interior region types,
 - and use subdivision logic analogous to the current round-rect path, but with
-  the new helper-box classification and corner evaluation.
+  helper-box fills, straight-edge classification, corner classification, and
+  8x8 fallback for unresolved cells.
 
 Validation:
 
@@ -664,9 +716,11 @@ Work:
 
 - add a shape-specific `PixelStream` for the unequal-radius kind,
 - keep the current equal-radius stream intact,
-- classify each row into obvious transparent, interior, outline, and slow
-  segments using the new helper boxes, straight-edge thresholds, and
-  corner-local adjusted-square thresholds,
+- classify each row into transparent, interior, outline, and slow segments
+  using per-corner row trackers in the stream object, generalized from the
+  equal-radius doubled-coordinate threshold trackers,
+- do not consult helper slabs in the stream row classifier; slabs are owned by
+  `drawTo()` and `readColorRect()` where 2D containment is useful,
 - and route `createStream()` to the new stream for the unequal-radius kind.
 
 Validation:
@@ -675,9 +729,11 @@ Validation:
   helpers,
 - correctness checks against the non-stream draw/readback path for the same
   shapes,
-- and a focused benchmark or profiling comparison that confirms the dedicated
+- a focused benchmark or profiling comparison that confirms the dedicated
   stream reduces per-pixel fallback versus generic `Rasterizable::createStream()`
-  on representative filled and outlined asymmetric shapes.
+  on representative filled and outlined asymmetric shapes,
+- and a matched-shape comparison against the equal-radius `RoundRectStream` so
+  any remaining gap is visible before the phase ships.
 
 ### Phase 7: Documentation And Examples
 
@@ -718,17 +774,52 @@ visually reviewed in the usual documentation workflow.
   positional aggregate initialization.
 - This proposal covers smooth shapes only. It does not extend the basic
   non-smooth round-rect API or shadow helpers.
-- Rejected alternative: storing four inner radii in the payload. The inner
-  radii are always derivable as `max(0, outer_radius - thickness)`. Storing
-  them saves at most one subtract and one clamp after a corner is selected,
-  while adjusted-square caches avoid repeated radius multiplication and feed
-  the geometry tests described in New Internal Shape Kind and Readback And
-  Rectangle Classification.
-- Rejected alternative: adding coarse global caches such as maximum outer or
-  minimum inner adjusted squared radius. The selected payload already reaches
-  the `Arc` ceiling, and the helper boxes plus per-corner adjusted-square
-  caches provide the needed fast accepts without increasing `sizeof(SmoothShape)`.
-- Rejected alternative: using only the generic rasterizable stream for the
-  unequal-radius kind. The streaming API is important for backgrounds, tiling,
-  and composition, so the design includes a dedicated stream from the first
-  complete implementation.
+
+### Rejected Alternatives
+
+#### Store Raw Inner Radii And Recompute Adjusted Squares
+
+Storing `ro[4]` plus `ri[4]` and recomputing adjusted squared radii is rejected.
+The raw inner radii are always derivable as
+`max(0, outer_radius - thickness)`. Storing them saves at most one subtract and
+one clamp after a corner is selected, while adjusted-square caches avoid
+repeated radius multiplication and feed the geometry tests described in New
+Internal Shape Kind and Method-Specific Geometry Paths.
+
+#### Store Only Outer Radii And Thickness
+
+Storing only `ro[4]` plus `thickness` is rejected. This saves three floats
+versus `ro[4]` plus `ri[4]`, but three floats cannot be spent symmetrically
+across four corners on either `ro_sq_adj` or `ri_sq_adj`; it also makes the AA
+path strictly more arithmetic-heavy than the selected layout.
+
+#### Store Raw And Adjusted Radii For Both Boundaries
+
+Storing `ro[4]`, `ri[4]`, `ro_sq_adj[4]`, and `ri_sq_adj[4]` is rejected. That
+removes the `ri` reconstruction but needs 16 radius floats and pushes the
+payload past the current `Arc` ceiling.
+
+#### Add Coarse Global Radius Caches
+
+Adding coarse global caches such as maximum outer or minimum inner adjusted
+squared radius is rejected. The selected payload already reaches the `Arc`
+ceiling, and the helper boxes plus per-corner adjusted-square caches provide
+the needed fast accepts without increasing `sizeof(SmoothShape)`.
+
+#### Use Only The Generic Rasterizable Stream
+
+Using only the generic rasterizable stream for the unequal-radius kind is
+rejected. The streaming API is important for backgrounds, tiling, and
+composition, so the design includes a dedicated stream from the first complete
+implementation.
+
+## Future Work
+
+- Investigate whether `readColorRect()` should reuse the `drawTo()` semantic
+  region splitter for large readback rectangles. Current composition callers
+  usually request small rectangles, commonly up to 8x8, so subdivision is left
+  out of the initial implementation.
+- Investigate whether `drawTo()` should be refactored to draw through the
+  dedicated unequal-radius stream, or whether the block-based implementation
+  remains better because it interacts more directly with the background fill
+  optimizer and clipping paths.

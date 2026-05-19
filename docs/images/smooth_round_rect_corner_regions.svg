@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="520" viewBox="0 0 920 520">
+  <rect x="1" y="1" width="918" height="518" fill="#ffffff" stroke="#d0d0d0" stroke-width="2"/>
+
+  <g transform="translate(52,42)" font-family="Arial, Helvetica, sans-serif">
+    <text x="0" y="0" font-size="24" fill="#2c2a28">
+      Nine Semantic Regions For drawTo()
+    </text>
+    <text x="0" y="28" font-size="14" fill="#5b564f">
+      Dashed split lines are generated from the four corner centers used by the algorithm.
+    </text>
+
+    <g transform="translate(26,66)">
+      <defs>
+        <!--
+          Example geometry: x0=0, y0=0, x1=560, y1=360;
+          r_tl=70, r_tr=80, r_bl=130, r_br=95.
+          Centers: ctl=(x0+r_tl,y0+r_tl), ctr=(x1-r_tr,y0+r_tr),
+          cbl=(x0+r_bl,y1-r_bl), cbr=(x1-r_br,y1-r_br).
+        -->
+        <clipPath id="rounded-shape-clip">
+          <path d="M 70 0
+                   H 480
+                   A 80 80 0 0 1 560 80
+                   V 265
+                   A 95 95 0 0 1 465 360
+                   H 130
+                   A 130 130 0 0 1 0 230
+                   V 70
+                   A 70 70 0 0 1 70 0 Z"/>
+        </clipPath>
+      </defs>
+
+      <path d="M 70 0
+               H 480
+               A 80 80 0 0 1 560 80
+               V 265
+               A 95 95 0 0 1 465 360
+               H 130
+               A 130 130 0 0 1 0 230
+               V 70
+               A 70 70 0 0 1 70 0 Z"
+        fill="#ffffff" stroke="#26221d" stroke-width="3"/>
+
+      <g clip-path="url(#rounded-shape-clip)" font-size="15" fill="#2c2a28">
+        <rect x="0" y="0" width="70" height="70" fill="#f2a36b" fill-opacity="0.42"/>
+        <rect x="70" y="0" width="410" height="70" fill="#f7d36b" fill-opacity="0.46"/>
+        <rect x="480" y="0" width="80" height="80" fill="#f2a36b" fill-opacity="0.42"/>
+
+        <rect x="0" y="70" width="70" height="10" fill="#8fd0a9" fill-opacity="0.44"/>
+        <rect x="70" y="70" width="410" height="10" fill="#f7d36b" fill-opacity="0.46"/>
+
+        <rect x="0" y="80" width="130" height="150" fill="#8fd0a9" fill-opacity="0.44"/>
+        <rect x="130" y="80" width="335" height="150" fill="#9fc6ee" fill-opacity="0.50"/>
+        <rect x="465" y="80" width="95" height="185" fill="#8fd0a9" fill-opacity="0.44"/>
+
+        <rect x="0" y="230" width="130" height="130" fill="#f2a36b" fill-opacity="0.42"/>
+        <rect x="130" y="230" width="335" height="130" fill="#f7d36b" fill-opacity="0.46"/>
+        <rect x="465" y="265" width="95" height="95" fill="#f2a36b" fill-opacity="0.42"/>
+
+        <g fill="#2c2a28" text-anchor="middle" dominant-baseline="middle">
+          <text x="36" y="38">corner</text>
+          <text x="276" y="38">top edge</text>
+          <text x="520" y="42">corner</text>
+          <text x="64" y="158">left edge</text>
+          <text x="300" y="154">interior</text>
+          <text x="512" y="172">right edge</text>
+          <text x="66" y="304">corner</text>
+          <text x="300" y="306">bottom edge</text>
+          <text x="512" y="314">corner</text>
+        </g>
+      </g>
+
+      <g clip-path="url(#rounded-shape-clip)" stroke="#6d655c" stroke-width="2" stroke-dasharray="8 6">
+        <line x1="70" y1="0" x2="70" y2="360"/>
+        <line x1="130" y1="0" x2="130" y2="360"/>
+        <line x1="465" y1="0" x2="465" y2="360"/>
+        <line x1="480" y1="0" x2="480" y2="360"/>
+        <line x1="0" y1="70" x2="560" y2="70"/>
+        <line x1="0" y1="80" x2="560" y2="80"/>
+        <line x1="0" y1="230" x2="560" y2="230"/>
+        <line x1="0" y1="265" x2="560" y2="265"/>
+      </g>
+
+      <g stroke="#8d8277" stroke-width="2" stroke-dasharray="4 4" fill="none">
+        <circle cx="70" cy="70" r="70"/>
+        <circle cx="480" cy="80" r="80"/>
+        <circle cx="130" cy="230" r="130"/>
+        <circle cx="465" cy="265" r="95"/>
+      </g>
+
+      <path d="M 70 0
+               H 480
+               A 80 80 0 0 1 560 80
+               V 265
+               A 95 95 0 0 1 465 360
+               H 130
+               A 130 130 0 0 1 0 230
+               V 70
+               A 70 70 0 0 1 70 0 Z"
+        fill="none" stroke="#26221d" stroke-width="3"/>
+
+      <g fill="#2c2a28">
+        <circle cx="70" cy="70" r="4"/>
+        <circle cx="480" cy="80" r="4"/>
+        <circle cx="130" cy="230" r="4"/>
+        <circle cx="465" cy="265" r="4"/>
+      </g>
+
+      <g fill="#5b564f" font-size="13">
+        <text x="38" y="66">ctl</text>
+        <text x="488" y="86">ctr</text>
+        <text x="100" y="250">cbl</text>
+        <text x="474" y="286">cbr</text>
+        <text x="52" y="384">x=70</text>
+        <text x="112" y="384">x=130</text>
+        <text x="444" y="384">x=465</text>
+        <text x="484" y="384">x=480</text>
+        <text x="-48" y="74">y=70</text>
+        <text x="-48" y="88">y=80</text>
+        <text x="-54" y="234">y=230</text>
+        <text x="-54" y="269">y=265</text>
+      </g>
+    </g>
+
+    <g transform="translate(628,94)" font-size="14" fill="#2c2a28">
+      <rect x="0" y="0" width="18" height="18" fill="#f2a36b" fill-opacity="0.60" stroke="#8d4e24" stroke-width="1.5"/>
+      <text x="28" y="14">corner annulus regions</text>
+      <rect x="0" y="34" width="18" height="18" fill="#f7d36b" fill-opacity="0.70" stroke="#9c7a1b" stroke-width="1.5"/>
+      <text x="28" y="48">top and bottom edge bands</text>
+      <rect x="0" y="68" width="18" height="18" fill="#8fd0a9" fill-opacity="0.70" stroke="#326f4d" stroke-width="1.5"/>
+      <text x="28" y="82">left and right edge bands</text>
+      <rect x="0" y="102" width="18" height="18" fill="#9fc6ee" fill-opacity="0.75" stroke="#3d6f9f" stroke-width="1.5"/>
+      <text x="28" y="116">interior fill region</text>
+
+      <text x="0" y="164" font-size="13" fill="#5b564f">Exact split coordinates:</text>
+      <text x="0" y="184" font-size="13" fill="#5b564f">x = 70, 130, 465, 480</text>
+      <text x="0" y="202" font-size="13" fill="#5b564f">y = 70, 80, 230, 265</text>
+      <text x="0" y="238" font-size="13" fill="#5b564f">Each physical cell is classified</text>
+      <text x="0" y="256" font-size="13" fill="#5b564f">as corner, edge, or interior.</text>
+      <text x="0" y="292" font-size="13" fill="#5b564f">drawTo() fills classified cells</text>
+      <text x="0" y="310" font-size="13" fill="#5b564f">and tiles unresolved boundaries.</text>
+    </g>
+  </g>
+</svg>

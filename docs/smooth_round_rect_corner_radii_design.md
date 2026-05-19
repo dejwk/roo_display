@@ -412,6 +412,15 @@ The unequal-radius implementation uses a separate helper family from the
 current equal-radius round-rect helpers. The helpers are organized around the
 public `Rasterizable`/`Drawable` methods they serve.
 
+The `Rasterizable` contract is important for the hot paths. `readColors()`,
+`readColorRect()`, and `readUniformColorRect()` are called with points or
+rectangles already inside `extents()`. The explicit out-of-bounds API is
+`readColorsMaybeOutOfBounds()`, which filters coordinates before delegating to
+`readColors()`. The unequal-radius helpers therefore do not re-check the
+integer extents in their normal method paths. They still classify transparent
+pixels and rectangles inside those extents, especially in the rounded corner
+areas where the rectangular bounds include pixels outside the curved shape.
+
 #### `readColors()`: Point Samples
 
 `readColors()` is the point-sampling path. It mirrors the equal-radius
@@ -422,12 +431,10 @@ The unequal-radius evaluator uses this fixed decision order:
 
 1. If the pixel is in any precomputed interior helper box, return the interior
    color.
-2. If the pixel is outside the outer boundary extents by at least the AA margin,
-   return transparent.
-3. If the pixel lies in a corner quadrant, evaluate that corner's
+2. If the pixel lies in a corner quadrant, evaluate that corner's
    quarter-annulus using the selected corner center, stored outer radius,
    derived inner radius, and cached adjusted-square values.
-4. Otherwise evaluate the nearest straight edge band using the corresponding
+3. Otherwise evaluate the nearest straight edge band using the corresponding
    outer edge and the inner edge offset by `thickness`.
 
 The corner path mirrors the current equal-radius tests:
@@ -457,12 +464,10 @@ return non-uniform.
 The classifier uses this order:
 
 1. Test containment in the five precomputed interior helper boxes.
-2. Test transparent rectangles outside the outer extents or fully outside one
-   corner quadrant.
+2. Test rectangles wholly inside one corner quadrant with corner-local squared
+   distance bounds, including fully transparent corner rectangles.
 3. Test rectangles wholly inside a straight edge band.
-4. Test rectangles wholly inside one corner quadrant with corner-local squared
-   distance bounds.
-5. Return non-uniform for rectangles that cross multiple curved boundaries or
+4. Return non-uniform for rectangles that cross multiple curved boundaries or
    intersect an AA transition.
 
 For a rectangle wholly in one corner quadrant, classification is constant-time.
@@ -666,8 +671,9 @@ Work:
 
 - compute the corner centers, support functions, and maximal helper boxes,
 - implement the unequal-radius per-pixel color evaluator,
-- implement the fixed evaluator order: helper-box accept, outer-extents
-  rejection, corner quarter-annulus evaluation, then straight-edge evaluation,
+- implement the fixed evaluator order: helper-box accept, corner
+  quarter-annulus evaluation, then straight-edge evaluation, relying on the
+  `Rasterizable` in-bounds contract instead of re-checking integer extents,
 - and use the precomputed overlapping boxes to keep the common interior queries
   cheap.
 
@@ -684,7 +690,8 @@ Work:
 - add unequal-radius helpers for `readColors()`, `readColorRect()`, and
   `readUniformColorRect()`,
 - implement conservative rectangle classification using helper boxes,
-  straight-edge checks, and corner-local squared-distance checks,
+  straight-edge checks, and corner-local squared-distance checks, assuming the
+  input rectangle is within `extents()` as required by `Rasterizable`,
 - implement `readColorRect()` as a whole-rectangle classifier followed by
   per-pixel fallback for mixed rectangles, matching the current equal-radius
   readback shape and the small rectangles normally requested by composition,

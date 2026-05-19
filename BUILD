@@ -99,6 +99,15 @@ cc_test(
 )
 
 cc_test(
+    name = "color_interpolation_test",
+    srcs = [
+        "test/color_interpolation_test.cpp",
+    ],
+    linkstatic = 1,
+    deps = UNIT_TEST_DEPS,
+)
+
+cc_test(
     name = "clip_mask_test",
     srcs = [
         "test/clip_mask_test.cpp",

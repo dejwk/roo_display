@@ -58,11 +58,17 @@ Use this section order unless a narrower document genuinely needs less:
   that are intentionally left out of scope. Do not use Future Work to defer a
   decision required by the current proposal.
 - When Design Overview or Design Details discuss geometry, consider adding an
-  illustration. Prefer SVG, use a white background, and use a sans font.
-  Make geometry precise: derive coordinates from the formulas in the design,
-  or simulate the algorithm used by the design doc to calculate them. Write a
-  small helper script when that prevents hand-calculation drift. Check the SVG
-  viewBox and bounds so labels, strokes, and content are not clipped.
+  illustration. Prefer hand-authored SVG over vectorized graphics when the
+  important thing to communicate is geometry, layout, or formula-derived
+  coordinates. Use a white background and a sans font. Make geometry precise:
+  derive coordinates from the formulas in the design, or simulate the
+  algorithm used by the design doc to calculate them. Write a small helper
+  script when that prevents hand-calculation drift. Check the SVG viewBox and
+  bounds so labels, strokes, and content are not clipped.
+- When the important thing to communicate is raster output or pixel color,
+  prefer PNG. Use PNG for expected raster output of drawing algorithms,
+  antialiasing behavior, per-pixel coverage, or any case where exact pixel
+  colors matter more than geometric construction.
 
 ## Closing On Decisions
 
@@ -128,9 +134,11 @@ Rules:
   alternative.
 - Future Work, when present, appears after Caveats and contains only
   intentionally out-of-scope improvements.
-- Geometry illustrations, when present, are SVGs with a white background,
-  sans-font labels, exact or algorithm-derived coordinates, and no clipped
-  content.
+- Geometry-driven illustrations, when present, prefer hand-authored SVG over
+  vectorized graphics and use a white background, sans-font labels, exact or
+  algorithm-derived coordinates, and no clipped content.
+- Pixel-output illustrations, when present, prefer PNG when exact raster color
+  or antialiasing behavior is the point of the figure.
 - No hedged language ("may", "could", "should consider", "depending on")
   hides an unresolved choice.
 - Testing Plan summarizes validation coverage without repeating per-step test

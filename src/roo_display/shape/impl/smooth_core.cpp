@@ -172,13 +172,13 @@ bool SmoothShape::readUniformColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
     case ROUND_RECT: {
       Box box(xMin, yMin, xMax, yMax);
       switch (internal::DetermineRectColorForRoundRect(round_rect_, box)) {
-        case internal::TRANSPARENT:
+        case internal::round_rect::AreaType::kExterior:
           *result = color::Transparent;
           return true;
-        case internal::INTERIOR:
+        case internal::round_rect::AreaType::kInterior:
           *result = round_rect_.interior_color;
           return true;
-        case internal::OUTLINE_ACTIVE:
+        case internal::round_rect::AreaType::kOutline:
           *result = round_rect_.outline_color;
           return true;
         default:
@@ -188,16 +188,16 @@ bool SmoothShape::readUniformColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
     case ARC: {
       Box box(xMin, yMin, xMax, yMax);
       switch (internal::DetermineRectColorForArc(arc_, box)) {
-        case internal::TRANSPARENT:
+        case internal::arc::AreaType::kExterior:
           *result = color::Transparent;
           return true;
-        case internal::INTERIOR:
+        case internal::arc::AreaType::kInterior:
           *result = arc_.interior_color;
           return true;
-        case internal::OUTLINE_ACTIVE:
+        case internal::arc::AreaType::kOutlineActive:
           *result = arc_.outline_active_color;
           return true;
-        case internal::OUTLINE_INACTIVE:
+        case internal::arc::AreaType::kOutlineInactive:
           *result = arc_.outline_inactive_color;
           return true;
         default:
@@ -207,10 +207,10 @@ bool SmoothShape::readUniformColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
     case TRIANGLE: {
       Box box(xMin, yMin, xMax, yMax);
       switch (internal::DetermineRectColorForTriangle(triangle_, box)) {
-        case internal::TRANSPARENT:
+        case internal::triangle::AreaType::kExterior:
           *result = color::Transparent;
           return true;
-        case internal::INTERIOR:
+        case internal::triangle::AreaType::kInterior:
           *result = triangle_.color;
           return true;
         default:

@@ -94,16 +94,16 @@ inline bool IsRectOutsideTriangle(const SmoothShape::Triangle& t,
 }
 
 // Called for rects with area <= 64 pixels.
-internal::RectColor DetermineRectColorForTriangleImpl(
+internal::triangle::AreaType DetermineRectColorForTriangleImpl(
     const SmoothShape::Triangle& triangle, const Box& box) {
   // First, let's see if the rect is entirely within the triangle.
   if (IsRectWithinTriangle(triangle, box)) {
-    return internal::INTERIOR;
+    return internal::triangle::AreaType::kInterior;
   }
   if (IsRectOutsideTriangle(triangle, box)) {
-    return internal::TRANSPARENT;
+    return internal::triangle::AreaType::kExterior;
   }
-  return internal::NON_UNIFORM;
+  return internal::triangle::AreaType::kMixed;
 }
 
 // Called for arcs with area <= 64 pixels.
@@ -111,13 +111,13 @@ void FillSubrectOfTriangle(const SmoothShape::Triangle& triangle,
                            const TriangleDrawSpec& spec, const Box& box) {
   Color interior = triangle.color;
   switch (DetermineRectColorForTriangleImpl(triangle, box)) {
-    case internal::TRANSPARENT: {
+    case internal::triangle::AreaType::kExterior: {
       if (spec.fill_mode == FillMode::kExtents) {
         spec.out->fillRect(spec.blending_mode, box, spec.bgcolor);
       }
       return;
     }
-    case internal::INTERIOR: {
+    case internal::triangle::AreaType::kInterior: {
       if (spec.fill_mode == FillMode::kExtents ||
           interior != color::Transparent) {
         spec.out->fillRect(spec.blending_mode, box, spec.pre_blended_interior);
@@ -203,8 +203,8 @@ void DrawTriangleImpl(SmoothShape::Triangle triangle, const Surface& s,
 
 namespace internal {
 
-RectColor DetermineRectColorForTriangle(const SmoothShape::Triangle& triangle,
-                                        const Box& box) {
+triangle::AreaType DetermineRectColorForTriangle(
+    const SmoothShape::Triangle& triangle, const Box& box) {
   return DetermineRectColorForTriangleImpl(triangle, box);
 }
 
@@ -213,11 +213,11 @@ bool ReadColorRectOfTriangle(const SmoothShape::Triangle& triangle,
                              int16_t yMax, Color* result) {
   Box box(xMin, yMin, xMax, yMax);
   switch (DetermineRectColorForTriangleImpl(triangle, box)) {
-    case TRANSPARENT: {
+    case triangle::AreaType::kExterior: {
       *result = color::Transparent;
       return true;
     }
-    case INTERIOR: {
+    case triangle::AreaType::kInterior: {
       *result = triangle.color;
       return true;
     }

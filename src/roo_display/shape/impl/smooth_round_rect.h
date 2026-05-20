@@ -1,10 +1,20 @@
 #pragma once
 
-#include "roo_display/shape/impl/smooth_rect_color.h"
 #include "roo_display/shape/smooth.h"
 
 namespace roo_display {
 namespace internal {
+
+namespace round_rect {
+
+enum class AreaType {
+  kMixed = 0,
+  kExterior = 1,
+  kInterior = 2,
+  kOutline = 3,
+};
+
+}  // namespace round_rect
 
 std::unique_ptr<PixelStream> CreateRoundRectStream(
     const SmoothShape::RoundRect& rect, const Box& bounds);
@@ -13,8 +23,8 @@ bool ReadColorRectOfRoundRect(const SmoothShape::RoundRect& rect, int16_t xMin,
                               int16_t yMin, int16_t xMax, int16_t yMax,
                               Color* result);
 
-RectColor DetermineRectColorForRoundRect(const SmoothShape::RoundRect& rect,
-                                         const Box& box);
+round_rect::AreaType DetermineRectColorForRoundRect(
+    const SmoothShape::RoundRect& rect, const Box& box);
 
 void ReadRoundRectColors(const SmoothShape::RoundRect& rect, const int16_t* x,
                          const int16_t* y, uint32_t count, Color* result);

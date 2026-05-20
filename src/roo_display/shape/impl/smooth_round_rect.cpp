@@ -302,10 +302,10 @@ inline bool BoxFullyOutsideRectInnerBoundary(const SmoothShape::RoundRect& rect,
 }
 
 // Called for rectangles with area <= 64 pixels.
-internal::RectColor DetermineRectColorForRoundRectImpl(
+internal::round_rect::AreaType DetermineRectColorForRoundRectImpl(
     const SmoothShape::RoundRect& rect, const Box& box) {
   if (BoxInsideRoundRectInteriorHelper(rect, box)) {
-    return internal::INTERIOR;
+    return internal::round_rect::AreaType::kInterior;
   }
   const bool uses_rect_inner = UsesRectInnerBoundary(rect);
   float xMin = box.xMin() - 0.5f;
@@ -321,7 +321,7 @@ internal::RectColor DetermineRectColorForRoundRectImpl(
   // Check if the rect falls entirely inside the interior boundary.
   if (!uses_rect_inner && dtl < r_min_sq && dtr < r_min_sq && dbl < r_min_sq &&
       dbr < r_min_sq) {
-    return internal::INTERIOR;
+    return internal::round_rect::AreaType::kInterior;
   }
 
   float r_max_sq = rect.ro_sq_adj + rect.ro;
@@ -330,56 +330,56 @@ internal::RectColor DetermineRectColorForRoundRectImpl(
   if (xMax < rect.x0) {
     if (yMax < rect.y0) {
       if (dbr >= r_max_sq) {
-        return internal::TRANSPARENT;
+        return internal::round_rect::AreaType::kExterior;
       }
     } else if (yMin > rect.y1) {
       if (dtr >= r_max_sq) {
-        return internal::TRANSPARENT;
+        return internal::round_rect::AreaType::kExterior;
       }
     }
   } else if (xMin > rect.x1) {
     if (yMax < rect.y0) {
       if (dbl >= r_max_sq) {
-        return internal::TRANSPARENT;
+        return internal::round_rect::AreaType::kExterior;
       }
     } else if (yMin > rect.y1) {
       if (dtl >= r_max_sq) {
-        return internal::TRANSPARENT;
+        return internal::round_rect::AreaType::kExterior;
       }
     }
   }
   if (uses_rect_inner) {
     if (!BoxFullyOutsideRectInnerBoundary(rect, xMin, yMin, xMax, yMax)) {
-      return internal::NON_UNIFORM;
+      return internal::round_rect::AreaType::kMixed;
     }
     if (xMin >= rect.x0 && xMax <= rect.x1 && yMin >= rect.y0 &&
         yMax <= rect.y1) {
-      return internal::OUTLINE_ACTIVE;
+      return internal::round_rect::AreaType::kOutline;
     }
 
     float outer_full_sq = rect.ro_sq_adj - rect.ro;
     if (xMax <= rect.x1) {
       if (yMax <= rect.y1) {
         if (dtl < outer_full_sq && dbr < outer_full_sq) {
-          return internal::OUTLINE_ACTIVE;
+          return internal::round_rect::AreaType::kOutline;
         }
       } else if (yMin >= rect.y0) {
         if (dtr < outer_full_sq && dbl < outer_full_sq) {
-          return internal::OUTLINE_ACTIVE;
+          return internal::round_rect::AreaType::kOutline;
         }
       }
     } else if (xMin >= rect.x0) {
       if (yMax <= rect.y1) {
         if (dtr < outer_full_sq && dbl < outer_full_sq) {
-          return internal::OUTLINE_ACTIVE;
+          return internal::round_rect::AreaType::kOutline;
         }
       } else if (yMin >= rect.y0) {
         if (dtl < outer_full_sq && dbr < outer_full_sq) {
-          return internal::OUTLINE_ACTIVE;
+          return internal::round_rect::AreaType::kOutline;
         }
       }
     }
-    return internal::NON_UNIFORM;
+    return internal::round_rect::AreaType::kMixed;
   }
   // If all corners are in the same quadrant, and all corners are within the
   // ring, then the rect is also within the ring.
@@ -389,14 +389,14 @@ internal::RectColor DetermineRectColorForRoundRectImpl(
       float r_ring_min_sq = rect.ri_sq_adj + rect.ri;
       if (dtl < r_ring_max_sq && dtl > r_ring_min_sq && dbr < r_ring_max_sq &&
           dbr > r_ring_min_sq) {
-        return internal::OUTLINE_ACTIVE;
+        return internal::round_rect::AreaType::kOutline;
       }
     } else if (yMin >= rect.y0) {
       float r_ring_max_sq = rect.ro_sq_adj - rect.ro;
       float r_ring_min_sq = rect.ri_sq_adj + rect.ri;
       if (dtr < r_ring_max_sq && dtr > r_ring_min_sq && dbl < r_ring_max_sq &&
           dbl > r_ring_min_sq) {
-        return internal::OUTLINE_ACTIVE;
+        return internal::round_rect::AreaType::kOutline;
       }
     }
   } else if (xMin >= rect.x0) {
@@ -405,19 +405,19 @@ internal::RectColor DetermineRectColorForRoundRectImpl(
       float r_ring_min_sq = rect.ri_sq_adj + rect.ri;
       if (dtr < r_ring_max_sq && dtr > r_ring_min_sq && dbl < r_ring_max_sq &&
           dbl > r_ring_min_sq) {
-        return internal::OUTLINE_ACTIVE;
+        return internal::round_rect::AreaType::kOutline;
       }
     } else if (yMin >= rect.y0) {
       float r_ring_max_sq = rect.ro_sq_adj - rect.ro;
       float r_ring_min_sq = rect.ri_sq_adj + rect.ri;
       if (dtl < r_ring_max_sq && dtl > r_ring_min_sq && dbr < r_ring_max_sq &&
           dbr > r_ring_min_sq) {
-        return internal::OUTLINE_ACTIVE;
+        return internal::round_rect::AreaType::kOutline;
       }
     }
   }
   // Slow case; evaluate every pixel from the rectangle.
-  return internal::NON_UNIFORM;
+  return internal::round_rect::AreaType::kMixed;
 }
 
 class RoundRectStream : public PixelStream {
@@ -990,20 +990,20 @@ inline void FillSubrectOfRoundRect(const SmoothShape::RoundRect& rect,
   Color interior = rect.interior_color;
   Color outline = rect.outline_color;
   switch (DetermineRectColorForRoundRectImpl(rect, box)) {
-    case internal::TRANSPARENT: {
+    case internal::round_rect::AreaType::kExterior: {
       if (spec.fill_mode == FillMode::kExtents) {
         spec.out->fillRect(spec.blending_mode, box, spec.bgcolor);
       }
       return;
     }
-    case internal::INTERIOR: {
+    case internal::round_rect::AreaType::kInterior: {
       if (spec.fill_mode == FillMode::kExtents ||
           interior != color::Transparent) {
         spec.out->fillRect(spec.blending_mode, box, spec.pre_blended_interior);
       }
       return;
     }
-    case internal::OUTLINE_ACTIVE: {
+    case internal::round_rect::AreaType::kOutline: {
       if (spec.fill_mode == FillMode::kExtents ||
           outline != color::Transparent) {
         spec.out->fillRect(spec.blending_mode, box, spec.pre_blended_outline);
@@ -1128,8 +1128,8 @@ void DrawRoundRectImpl(SmoothShape::RoundRect rect, const Surface& s,
 
 namespace internal {
 
-RectColor DetermineRectColorForRoundRect(const SmoothShape::RoundRect& rect,
-                                         const Box& box) {
+round_rect::AreaType DetermineRectColorForRoundRect(
+    const SmoothShape::RoundRect& rect, const Box& box) {
   return DetermineRectColorForRoundRectImpl(rect, box);
 }
 
@@ -1138,15 +1138,15 @@ bool ReadColorRectOfRoundRect(const SmoothShape::RoundRect& rect, int16_t xMin,
                               Color* result) {
   Box box(xMin, yMin, xMax, yMax);
   switch (DetermineRectColorForRoundRectImpl(rect, box)) {
-    case TRANSPARENT: {
+    case round_rect::AreaType::kExterior: {
       *result = color::Transparent;
       return true;
     }
-    case INTERIOR: {
+    case round_rect::AreaType::kInterior: {
       *result = rect.interior_color;
       return true;
     }
-    case OUTLINE_ACTIVE: {
+    case round_rect::AreaType::kOutline: {
       *result = rect.outline_color;
       return true;
     }

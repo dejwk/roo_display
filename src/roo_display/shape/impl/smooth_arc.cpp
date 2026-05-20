@@ -470,10 +470,10 @@ inline bool IsRectWithinCircle(float cx, float cy, float r_sq, const Box& box) {
 }
 
 // Called for arcs with area <= 64 pixels.
-internal::RectColor DetermineRectColorForArcImpl(const SmoothShape::Arc& arc,
-                                                 const Box& box) {
+internal::arc::AreaType DetermineRectColorForArcImpl(
+    const SmoothShape::Arc& arc, const Box& box) {
   if (arc.inner_mid.contains(box)) {
-    return internal::INTERIOR;
+    return internal::arc::AreaType::kInterior;
   }
   int16_t xMin = box.xMin();
   int16_t yMin = box.yMin();
@@ -487,7 +487,7 @@ internal::RectColor DetermineRectColorForArcImpl(const SmoothShape::Arc& arc,
   float r_min_sq = arc.ri_sq_adj - arc.ri;
   // Check if the rect falls entirely inside the interior boundary.
   if (dtl < r_min_sq && dtr < r_min_sq && dbl < r_min_sq && dbr < r_min_sq) {
-    return internal::INTERIOR;
+    return internal::arc::AreaType::kInterior;
   }
 
   float r_max_sq = arc.ro_sq_adj + arc.ro;
@@ -496,21 +496,21 @@ internal::RectColor DetermineRectColorForArcImpl(const SmoothShape::Arc& arc,
   if (xMax < arc.xc) {
     if (yMax < arc.yc) {
       if (dbr >= r_max_sq) {
-        return internal::TRANSPARENT;
+        return internal::arc::AreaType::kExterior;
       }
     } else if (yMin > arc.yc) {
       if (dtr >= r_max_sq) {
-        return internal::TRANSPARENT;
+        return internal::arc::AreaType::kExterior;
       }
     }
   } else if (xMin > arc.xc) {
     if (yMax < arc.yc) {
       if (dbl >= r_max_sq) {
-        return internal::TRANSPARENT;
+        return internal::arc::AreaType::kExterior;
       }
     } else if (yMin > arc.yc) {
       if (dtl >= r_max_sq) {
-        return internal::TRANSPARENT;
+        return internal::arc::AreaType::kExterior;
       }
     }
   }
@@ -527,46 +527,46 @@ internal::RectColor DetermineRectColorForArcImpl(const SmoothShape::Arc& arc,
       float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
       if (dtl > r_ring_max_sq || dtl < r_ring_min_sq || dbr > r_ring_max_sq ||
           dbr < r_ring_min_sq) {
-        return internal::NON_UNIFORM;
+        return internal::arc::AreaType::kMixed;
       }
       // Fast-path for the case when the arc contains the entire quadrant.
       if ((arc.quadrants_ & 1) && xMax <= arc.xc - 0.5f &&
           yMax <= arc.yc - 0.5f) {
-        return internal::OUTLINE_ACTIVE;
+        return internal::arc::AreaType::kOutlineActive;
       }
       if ((arc.quadrants_ & 0x10) && xMax <= arc.xc - 0.5f &&
           yMax <= arc.yc - 0.5f) {
-        return internal::OUTLINE_INACTIVE;
+        return internal::arc::AreaType::kOutlineInactive;
       }
     } else if (yMin >= arc.yc) {
       float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
       float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
       if (dtr > r_ring_max_sq || dtr < r_ring_min_sq || dbl > r_ring_max_sq ||
           dbl < r_ring_min_sq) {
-        return internal::NON_UNIFORM;
+        return internal::arc::AreaType::kMixed;
       }
       // Fast-path for the case when the arc contains the entire quadrant.
       if (arc.quadrants_ & 4 && xMax <= arc.xc - 0.5f &&
           yMin >= arc.yc + 0.5f) {
-        return internal::OUTLINE_ACTIVE;
+        return internal::arc::AreaType::kOutlineActive;
       }
       if (arc.quadrants_ & 0x40 && xMax <= arc.xc - 0.5f &&
           yMin >= arc.yc + 0.5f) {
-        return internal::OUTLINE_INACTIVE;
+        return internal::arc::AreaType::kOutlineInactive;
       }
     } else if (xMax <= arc.xc - arc.ri - 0.5f) {
       float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
       float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
       if (dtl > r_ring_max_sq || dtl < r_ring_min_sq || dbl > r_ring_max_sq ||
           dbl < r_ring_min_sq) {
-        return internal::NON_UNIFORM;
+        return internal::arc::AreaType::kMixed;
         // Fast-path for the case when the arc contains the entire half-circle.
         if ((arc.quadrants_ & 0b0101) == 0b0101) {
-          return internal::OUTLINE_ACTIVE;
+          return internal::arc::AreaType::kOutlineActive;
         }
       }
     } else {
-      return internal::NON_UNIFORM;
+      return internal::arc::AreaType::kMixed;
     }
   } else if (xMin >= arc.xc) {
     if (yMax <= arc.yc) {
@@ -574,71 +574,71 @@ internal::RectColor DetermineRectColorForArcImpl(const SmoothShape::Arc& arc,
       float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
       if (dtr > r_ring_max_sq || dtr < r_ring_min_sq || dbl > r_ring_max_sq ||
           dbl < r_ring_min_sq) {
-        return internal::NON_UNIFORM;
+        return internal::arc::AreaType::kMixed;
       }
       // Fast-path for the case when the arc contains the entire quadrant.
       if (arc.quadrants_ & 2 && xMin >= arc.xc + 0.5f &&
           yMax <= arc.yc - 0.5f) {
-        return internal::OUTLINE_ACTIVE;
+        return internal::arc::AreaType::kOutlineActive;
       }
       if (arc.quadrants_ & 0x20 && xMin >= arc.xc + 0.5f &&
           yMax <= arc.yc - 0.5f) {
-        return internal::OUTLINE_INACTIVE;
+        return internal::arc::AreaType::kOutlineInactive;
       }
     } else if (yMin >= arc.yc) {
       float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
       float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
       if (dtl > r_ring_max_sq || dtl < r_ring_min_sq || dbr > r_ring_max_sq ||
           dbr < r_ring_min_sq) {
-        return internal::NON_UNIFORM;
+        return internal::arc::AreaType::kMixed;
       }
       // Fast-path for the case when the arc contains the entire quadrant.
       if (arc.quadrants_ & 8 && xMin >= arc.xc + 0.5f &&
           yMin >= arc.yc + 0.5f) {
-        return internal::OUTLINE_ACTIVE;
+        return internal::arc::AreaType::kOutlineActive;
       }
       if (arc.quadrants_ & 0x80 && xMin >= arc.xc + 0.5f &&
           yMin >= arc.yc + 0.5f) {
-        return internal::OUTLINE_INACTIVE;
+        return internal::arc::AreaType::kOutlineInactive;
       }
     } else if (xMin >= arc.xc + arc.ri + 0.5f) {
       float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
       float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
       if (dtr > r_ring_max_sq || dtr < r_ring_min_sq || dbr > r_ring_max_sq ||
           dbr < r_ring_min_sq) {
-        return internal::NON_UNIFORM;
+        return internal::arc::AreaType::kMixed;
       }
       // Fast-path for the case when the arc contains the entire half-circle.
       if ((arc.quadrants_ & 0b1010) == 0b1010) {
-        return internal::OUTLINE_ACTIVE;
+        return internal::arc::AreaType::kOutlineActive;
       }
     } else {
-      return internal::NON_UNIFORM;
+      return internal::arc::AreaType::kMixed;
     }
   } else if (yMax <= arc.yc - arc.ri - 0.5f) {
     float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
     float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
     if (dtl > r_ring_max_sq || dtl < r_ring_min_sq || dtr > r_ring_max_sq ||
         dtr < r_ring_min_sq) {
-      return internal::NON_UNIFORM;
+      return internal::arc::AreaType::kMixed;
     }
     // Fast-path for the case when the arc contains the entire half-circle.
     if ((arc.quadrants_ & 0b0011) == 0b0011) {
-      return internal::OUTLINE_ACTIVE;
+      return internal::arc::AreaType::kOutlineActive;
     }
   } else if (yMin >= arc.yc + arc.ri + 0.5f) {
     float r_ring_max_sq = arc.ro_sq_adj - arc.ro;
     float r_ring_min_sq = arc.ri_sq_adj + arc.ri;
     if (dbl > r_ring_max_sq || dbl < r_ring_min_sq || dbr > r_ring_max_sq ||
         dbr < r_ring_min_sq) {
-      return internal::NON_UNIFORM;
+      return internal::arc::AreaType::kMixed;
     }
     // // Fast-path for the case when the arc contains the entire half-circle.
     if ((arc.quadrants_ & 0b1100) == 0b1100) {
-      return internal::OUTLINE_ACTIVE;
+      return internal::arc::AreaType::kOutlineActive;
     }
   } else {
-    return internal::NON_UNIFORM;
+    return internal::arc::AreaType::kMixed;
   }
   // The rectangle is entirely inside the ring. Let's check if it is actually
   // single-color.
@@ -647,7 +647,7 @@ internal::RectColor DetermineRectColorForArcImpl(const SmoothShape::Arc& arc,
   if (IsRectWithinAngle(arc.start_x_slope, arc.start_y_slope, arc.end_x_slope,
                         arc.end_y_slope, arc.range_angle_sharp, arc.xc, arc.yc,
                         box)) {
-    return internal::OUTLINE_ACTIVE;
+    return internal::arc::AreaType::kOutlineActive;
   }
 
   // Now, let's see if the rect is perhaps entirely inside the 'inactive' angle.
@@ -655,7 +655,7 @@ internal::RectColor DetermineRectColorForArcImpl(const SmoothShape::Arc& arc,
       IsRectWithinAngle(arc.end_cutoff_x_slope, arc.end_cutoff_y_slope,
                         arc.start_cutoff_x_slope, arc.start_cutoff_y_slope,
                         !arc.cutoff_angle_sharp, arc.xc, arc.yc, box)) {
-    return internal::OUTLINE_INACTIVE;
+    return internal::arc::AreaType::kOutlineInactive;
   }
 
   // Finally, check if maybe the rect is entirely within one of the round
@@ -665,12 +665,12 @@ internal::RectColor DetermineRectColorForArcImpl(const SmoothShape::Arc& arc,
                            arc.rm_sq_adj - arc.rm, box) ||
         IsRectWithinCircle(arc.xc + arc.end_x_rc, arc.yc + arc.end_y_rc,
                            arc.rm_sq_adj - arc.rm, box)) {
-      return internal::OUTLINE_ACTIVE;
+      return internal::arc::AreaType::kOutlineActive;
     }
   }
 
   // Slow case; evaluate every pixel from the rectangle.
-  return internal::NON_UNIFORM;
+  return internal::arc::AreaType::kMixed;
 }
 
 // Called for arcs with area <= 64 pixels.
@@ -680,20 +680,20 @@ void FillSubrectOfArc(const SmoothShape::Arc& arc, const ArcDrawSpec& spec,
   Color outline_active = arc.outline_active_color;
   Color outline_inactive = arc.outline_inactive_color;
   switch (DetermineRectColorForArcImpl(arc, box)) {
-    case internal::TRANSPARENT: {
+    case internal::arc::AreaType::kExterior: {
       if (spec.fill_mode == FillMode::kExtents) {
         spec.out->fillRect(spec.blending_mode, box, spec.bgcolor);
       }
       return;
     }
-    case internal::INTERIOR: {
+    case internal::arc::AreaType::kInterior: {
       if (spec.fill_mode == FillMode::kExtents ||
           interior != color::Transparent) {
         spec.out->fillRect(spec.blending_mode, box, spec.pre_blended_interior);
       }
       return;
     }
-    case internal::OUTLINE_ACTIVE: {
+    case internal::arc::AreaType::kOutlineActive: {
       if (spec.fill_mode == FillMode::kExtents ||
           outline_active != color::Transparent) {
         spec.out->fillRect(spec.blending_mode, box,
@@ -701,7 +701,7 @@ void FillSubrectOfArc(const SmoothShape::Arc& arc, const ArcDrawSpec& spec,
       }
       return;
     }
-    case internal::OUTLINE_INACTIVE: {
+    case internal::arc::AreaType::kOutlineInactive: {
       if (spec.fill_mode == FillMode::kExtents ||
           outline_inactive != color::Transparent) {
         spec.out->fillRect(spec.blending_mode, box,
@@ -797,8 +797,8 @@ void DrawArcImpl(SmoothShape::Arc arc, const Surface& s, const Box& box) {
 
 namespace internal {
 
-RectColor DetermineRectColorForArc(const SmoothShape::Arc& arc,
-                                   const Box& box) {
+arc::AreaType DetermineRectColorForArc(const SmoothShape::Arc& arc,
+                                       const Box& box) {
   return DetermineRectColorForArcImpl(arc, box);
 }
 
@@ -806,19 +806,19 @@ bool ReadColorRectOfArc(const SmoothShape::Arc& arc, int16_t xMin, int16_t yMin,
                         int16_t xMax, int16_t yMax, Color* result) {
   Box box(xMin, yMin, xMax, yMax);
   switch (DetermineRectColorForArcImpl(arc, box)) {
-    case TRANSPARENT: {
+    case arc::AreaType::kExterior: {
       *result = color::Transparent;
       return true;
     }
-    case INTERIOR: {
+    case arc::AreaType::kInterior: {
       *result = arc.interior_color;
       return true;
     }
-    case OUTLINE_ACTIVE: {
+    case arc::AreaType::kOutlineActive: {
       *result = arc.outline_active_color;
       return true;
     }
-    case OUTLINE_INACTIVE: {
+    case arc::AreaType::kOutlineInactive: {
       *result = arc.outline_inactive_color;
       return true;
     }

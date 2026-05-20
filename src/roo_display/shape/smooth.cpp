@@ -877,6 +877,7 @@ inline RectColor DetermineRectColorForRoundRect(
   if (BoxInsideRoundRectInteriorHelper(rect, box)) {
     return INTERIOR;
   }
+  const bool uses_rect_inner = UsesRectInnerBoundary(rect);
   float xMin = box.xMin() - 0.5f;
   float yMin = box.yMin() - 0.5f;
   float xMax = box.xMax() + 0.5f;
@@ -888,7 +889,8 @@ inline RectColor DetermineRectColorForRoundRect(
 
   float r_min_sq = rect.ri_sq_adj - rect.ri;
   // Check if the rect falls entirely inside the interior boundary.
-  if (dtl < r_min_sq && dtr < r_min_sq && dbl < r_min_sq && dbr < r_min_sq) {
+  if (!uses_rect_inner && dtl < r_min_sq && dtr < r_min_sq && dbl < r_min_sq &&
+      dbr < r_min_sq) {
     return INTERIOR;
   }
 
@@ -916,7 +918,7 @@ inline RectColor DetermineRectColorForRoundRect(
       }
     }
   }
-  if (UsesRectInnerBoundary(rect)) {
+  if (uses_rect_inner) {
     if (!BoxFullyOutsideRectInnerBoundary(rect, xMin, yMin, xMax, yMax)) {
       return NON_UNIFORM;
     }
@@ -1435,6 +1437,10 @@ void DrawRoundRect(SmoothShape::RoundRect rect, const Surface& s,
     rect.y0 += s.dy();
     rect.x1 += s.dx();
     rect.y1 += s.dy();
+    rect.inner_x0 += s.dx();
+    rect.inner_y0 += s.dy();
+    rect.inner_x1 += s.dx();
+    rect.inner_y1 += s.dy();
     rect.inner_wide = rect.inner_wide.translate(s.dx(), s.dy());
     rect.inner_mid = rect.inner_mid.translate(s.dx(), s.dy());
     rect.inner_tall = rect.inner_tall.translate(s.dx(), s.dy());

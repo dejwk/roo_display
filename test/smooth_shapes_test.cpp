@@ -39,6 +39,21 @@ struct ThinOutlineAlphaContrastReproCase {
   const char* expected_raster;
 };
 
+struct RoundRectStreamParityCase {
+  const char* basename;
+  float x0;
+  float y0;
+  float x1;
+  float y1;
+  float radius;
+  float thickness;
+  Color outline;
+  Color interior;
+  Color background;
+  internal::NormalizedRoundRectKind expected_kind;
+  bool expect_inner_shrunk_below_center_rect;
+};
+
 const std::array<ThinOutlineReproCase, 4> kThinOutlineReproCases = {{
     {0.25f, color::Black, "smooth_roundrect_thin_outline_025_opaque_repro"},
     {0.5f, color::Black, "smooth_roundrect_thin_outline_050_opaque_repro"},
@@ -85,6 +100,24 @@ const std::array<ThinOutlineAlphaContrastReproCase, 4>
          "00000000 0AFF3B30 10FF3B30 10FF3B30 0AFF3B30 00000000"},
     }};
 
+const std::array<RoundRectStreamParityCase, 5> kRoundRectStreamParityCases = {{
+    {"rounded_inner_large_opaque", 0.5f, 0.5f, 32.5f, 24.5f, 4.0f, 2.0f,
+     color::Black, Color(0xFFF3EFE7), color::Transparent,
+     internal::NormalizedRoundRectKind::kRoundInner, false},
+    {"rounded_inner_translucent_on_opaque_bg", 0.5f, 0.5f, 16.5f, 16.5f, 3.0f,
+     2.0f, color::Black.withA(0x95), Color(0x80F3EFE7), color::White,
+     internal::NormalizedRoundRectKind::kRoundInner, false},
+    {"filled_fold_outline_only", 4.0f, 4.0f, 14.0f, 10.0f, 2.0f, 6.0f,
+     color::Black, Color(0xFFF3EFE7), color::Transparent,
+     internal::NormalizedRoundRectKind::kFilled, false},
+    {"rect_inner_medium", 0.5f, 0.5f, 16.5f, 16.5f, 1.0f, 3.0f, color::Black,
+     Color(0xFFF3EFE7), color::Transparent,
+     internal::NormalizedRoundRectKind::kRectInner, false},
+    {"rect_inner_very_thick", 2.5f, 2.5f, 12.5f, 12.5f, 2.0f, 5.0f,
+     color::Black, color::Transparent, color::Transparent,
+     internal::NormalizedRoundRectKind::kRectInner, true},
+}};
+
 Color PixelAt(const FakeOffscreen<Argb8888>& offscreen, int16_t x, int16_t y) {
   return offscreen.buffer()[y * offscreen.raw_width() + x];
 }
@@ -116,6 +149,16 @@ FakeOffscreen<Argb8888> RenderThinOutlineRepro(
     Color background = color::White) {
   return RenderThinOutlineRepro(thickness, outline, kThinOutlineReproInterior,
                                 scale, background);
+}
+
+template <typename ColorMode>
+FakeOffscreen<ColorMode> CoercedToViaStreaming(
+    const Streamable& streamable, ColorMode color_mode = ColorMode(),
+    Color fill = color::Transparent, FillMode fill_mode = FillMode::kVisible,
+    BlendingMode blending_mode = BlendingMode::kSourceOver,
+    Color bgcolor = color::Transparent) {
+  return CoercedTo<ColorMode>(ForcedStreamable(&streamable), color_mode, fill,
+                              fill_mode, blending_mode, bgcolor);
 }
 
 Color AveragedPixel(const FakeOffscreen<Argb8888>& offscreen, int x0, int y0,
@@ -636,6 +679,52 @@ TEST(SmoothShapes, ThickRoundRectWithTranslucentOutlineMatchesReadColorsPath) {
       BlendingMode::kSourceOver, color::Transparent);
 
   EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
+}
+
+// Verifies the round-rect streaming path matches the regular draw path across
+// rounded-inner, filled-fold, and rectangular-inner geometry, including the
+// very-thick rectangular-inner case where the inner rect shrinks past the
+// frozen center rect.
+TEST(SmoothShapes,
+     ThickRoundRectStreamingMatchesRegularPathAcrossInterestingCases) {
+  for (const RoundRectStreamParityCase& test_case :
+       kRoundRectStreamParityCases) {
+    SCOPED_TRACE(test_case.basename);
+    const internal::NormalizedSingleRadiusRoundRect normalized =
+        internal::NormalizeSingleRadiusRoundRect(
+            test_case.x0, test_case.y0, test_case.x1, test_case.y1,
+            test_case.radius, test_case.thickness);
+    ASSERT_EQ(test_case.expected_kind, normalized.kind);
+    if (test_case.expect_inner_shrunk_below_center_rect) {
+      float left = test_case.x0 < test_case.x1 ? test_case.x0 : test_case.x1;
+      float right = test_case.x0 < test_case.x1 ? test_case.x1 : test_case.x0;
+      float top = test_case.y0 < test_case.y1 ? test_case.y0 : test_case.y1;
+      float bottom = test_case.y0 < test_case.y1 ? test_case.y1 : test_case.y0;
+      float width = right - left;
+      float height = bottom - top;
+      float clamped_radius = test_case.radius;
+      float max_radius = ((width < height) ? width : height) * 0.5f;
+      if (clamped_radius > max_radius) clamped_radius = max_radius;
+
+      EXPECT_GT(normalized.inner_x0, left + clamped_radius);
+      EXPECT_GT(normalized.inner_y0, top + clamped_radius);
+      EXPECT_LT(normalized.inner_x1, right - clamped_radius);
+      EXPECT_LT(normalized.inner_y1, bottom - clamped_radius);
+    }
+
+    const SmoothShape shape = SmoothThickRoundRect(
+        test_case.x0, test_case.y0, test_case.x1, test_case.y1,
+        test_case.radius, test_case.thickness, test_case.outline,
+        test_case.interior);
+    const FakeOffscreen<Argb8888> actual = CoercedToViaStreaming(
+        shape, Argb8888(), test_case.background, FillMode::kVisible,
+        BlendingMode::kSourceOver, test_case.background);
+    const FakeOffscreen<Argb8888> expected = CoercedTo<Argb8888>(
+        shape, Argb8888(), test_case.background, FillMode::kVisible,
+        BlendingMode::kSourceOver, test_case.background);
+
+    EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
+  }
 }
 
 // Verifies overlarge radii render the same as the half-width clamp value.

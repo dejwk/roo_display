@@ -36,6 +36,7 @@ struct ThinOutlineAlphaContrastReproCase {
   Color outline;
   Color interior;
   const char* basename;
+  const char* expected_raster;
 };
 
 const std::array<ThinOutlineReproCase, 4> kThinOutlineReproCases = {{
@@ -50,23 +51,47 @@ const std::array<ThinOutlineReproCase, 4> kThinOutlineReproCases = {{
 const std::array<ThinOutlineAlphaContrastReproCase, 4>
     kThinOutlineAlphaContrastReproCases = {{
         {kAlphaContrastOutlineOpaque, kAlphaContrastInteriorOpaque,
-         "smooth_roundrect_thin_outline_050_outline100_interior100_repro"},
+         "smooth_roundrect_thin_outline_050_outline100_interior100_repro",
+         "00000000 2BFF3B30 3FFF3B30 3FFF3B30 2BFF3B30 00000000"
+         "2BFF3B30 FF75878C FF40A4AF FF40A4AF FF75878C 2BFF3B30"
+         "3FFF3B30 FF40A4AF FF00C7D9 FF00C7D9 FF40A4AF 3FFF3B30"
+         "3FFF3B30 FF40A4AF FF00C7D9 FF00C7D9 FF40A4AF 3FFF3B30"
+         "2BFF3B30 FF75878C FF40A4AF FF40A4AF FF75878C 2BFF3B30"
+         "00000000 2BFF3B30 3FFF3B30 3FFF3B30 2BFF3B30 00000000"},
         {kAlphaContrastOutlineOpaque, kAlphaContrastInteriorOpaque.withA(0x40),
-         "smooth_roundrect_thin_outline_050_outline100_interior025_repro"},
+         "smooth_roundrect_thin_outline_050_outline100_interior025_repro",
+         "00000000 2BFF3B30 3FFF3B30 3FFF3B30 2BFF3B30 00000000"
+         "2BFF3B30 97C45B57 6F917779 6F917779 97C45B57 2BFF3B30"
+         "3FFF3B30 6F917779 4000C7D9 4000C7D9 6F917779 3FFF3B30"
+         "3FFF3B30 6F917779 4000C7D9 4000C7D9 6F917779 3FFF3B30"
+         "2BFF3B30 97C45B57 6F917779 6F917779 97C45B57 2BFF3B30"
+         "00000000 2BFF3B30 3FFF3B30 3FFF3B30 2BFF3B30 00000000"},
         {kAlphaContrastOutlineOpaque.withA(0x40), kAlphaContrastInteriorOpaque,
-         "smooth_roundrect_thin_outline_050_outline025_interior100_repro"},
+         "smooth_roundrect_thin_outline_050_outline025_interior100_repro",
+         "00000000 0AFF3B30 10FF3B30 10FF3B30 0AFF3B30 00000000"
+         "0AFF3B30 A72CAFBC CF13BDCC CF13BDCC A72CAFBC 0AFF3B30"
+         "10FF3B30 CF13BDCC FF00C7D9 FF00C7D9 CF13BDCC 10FF3B30"
+         "10FF3B30 CF13BDCC FF00C7D9 FF00C7D9 CF13BDCC 10FF3B30"
+         "0AFF3B30 A72CAFBC CF13BDCC CF13BDCC A72CAFBC 0AFF3B30"
+         "00000000 0AFF3B30 10FF3B30 10FF3B30 0AFF3B30 00000000"},
         {kAlphaContrastOutlineOpaque.withA(0x40),
          kAlphaContrastInteriorOpaque.withA(0x40),
-         "smooth_roundrect_thin_outline_050_outline025_interior025_repro"},
+         "smooth_roundrect_thin_outline_050_outline025_interior025_repro",
+         "00000000 0AFF3B30 10FF3B30 10FF3B30 0AFF3B30 00000000"
+         "0AFF3B30 4075878C 4040A4AF 4040A4AF 4075878C 0AFF3B30"
+         "10FF3B30 4040A4AF 4000C7D9 4000C7D9 4040A4AF 10FF3B30"
+         "10FF3B30 4040A4AF 4000C7D9 4000C7D9 4040A4AF 10FF3B30"
+         "0AFF3B30 4075878C 4040A4AF 4040A4AF 4075878C 0AFF3B30"
+         "00000000 0AFF3B30 10FF3B30 10FF3B30 0AFF3B30 00000000"},
     }};
 
 Color PixelAt(const FakeOffscreen<Argb8888>& offscreen, int16_t x, int16_t y) {
   return offscreen.buffer()[y * offscreen.raw_width() + x];
 }
 
-FakeOffscreen<Argb8888> RenderThinOutlineRepro(float thickness, Color outline,
-                                               Color interior, int scale,
-                                               Color background = color::White) {
+FakeOffscreen<Argb8888> RenderThinOutlineRepro(
+    float thickness, Color outline, Color interior, int scale,
+    Color background = color::White) {
   const float coordinate_offset = 0.5f * (scale - 1);
   const SmoothShape shape = SmoothThickRoundRect(
       0.5f * scale + coordinate_offset, 0.5f * scale + coordinate_offset,
@@ -86,9 +111,9 @@ FakeOffscreen<Argb8888> RenderThinOutlineRepro(float thickness, Color outline,
   return result;
 }
 
-FakeOffscreen<Argb8888> RenderThinOutlineRepro(float thickness, Color outline,
-                                               int scale,
-                                               Color background = color::White) {
+FakeOffscreen<Argb8888> RenderThinOutlineRepro(
+    float thickness, Color outline, int scale,
+    Color background = color::White) {
   return RenderThinOutlineRepro(thickness, outline, kThinOutlineReproInterior,
                                 scale, background);
 }
@@ -171,10 +196,9 @@ FakeOffscreen<Argb8888> DownsampleByPremultipliedAveraging(
                                  color::Transparent);
   for (int16_t y = 0; y < height; ++y) {
     for (int16_t x = 0; x < width; ++x) {
-      result.writePixel(
-          BlendingMode::kSource, x, y,
-          PremultipliedAveragedPixel(offscreen, x * factor, y * factor,
-                                     factor));
+      result.writePixel(BlendingMode::kSource, x, y,
+                        PremultipliedAveragedPixel(offscreen, x * factor,
+                                                   y * factor, factor));
     }
   }
   result.resetPixelDrawCount();
@@ -200,59 +224,6 @@ float NormalizedRmse(const FakeOffscreen<Argb8888>& actual,
   }
   return sqrt(static_cast<double>(sum_sq) /
               (pixel_count * 4.0 * 255.0 * 255.0));
-}
-
-void WriteRgb(std::ofstream& out, Color color) {
-  const char rgb[3] = {static_cast<char>(color.r()),
-                       static_cast<char>(color.g()),
-                       static_cast<char>(color.b())};
-  out.write(rgb, sizeof(rgb));
-}
-
-bool WriteThinOutlineReproPpm(const FakeOffscreen<Argb8888>& actual,
-                              const FakeOffscreen<Argb8888>& expected,
-                              const std::string& path) {
-  const int width = actual.raw_width();
-  const int height = actual.raw_height();
-  const int gap = kThinOutlineReproGapPixels;
-  const int pixel_size = kThinOutlineReproPixelSize;
-  std::ofstream out(path, std::ios::binary);
-  if (!out.is_open()) return false;
-  out << "P6\n"
-      << (width * 3 + gap * 2) * pixel_size << " " << height * pixel_size
-      << "\n255\n";
-
-  for (int y = 0; y < height; ++y) {
-    for (int py = 0; py < pixel_size; ++py) {
-      for (int x = 0; x < width; ++x) {
-        Color color = PixelAt(actual, x, y);
-        for (int px = 0; px < pixel_size; ++px) {
-          WriteRgb(out, color);
-        }
-      }
-      for (int gx = 0; gx < gap * pixel_size; ++gx) {
-        WriteRgb(out, color::White);
-      }
-      for (int x = 0; x < width; ++x) {
-        Color color = PixelAt(expected, x, y);
-        for (int px = 0; px < pixel_size; ++px) {
-          WriteRgb(out, color);
-        }
-      }
-      for (int gx = 0; gx < gap * pixel_size; ++gx) {
-        WriteRgb(out, color::White);
-      }
-      for (int x = 0; x < width; ++x) {
-        Color color = PixelAt(actual, x, y) == PixelAt(expected, x, y)
-                          ? color::White
-                          : color::Magenta;
-        for (int px = 0; px < pixel_size; ++px) {
-          WriteRgb(out, color);
-        }
-      }
-    }
-  }
-  return true;
 }
 
 }  // namespace
@@ -754,82 +725,19 @@ TEST(SmoothShapes,
 // Verifies the thin half-width round-rect path returns the expected raw ARGB
 // on a transparent target across the outline/interior alpha matrix.
 TEST(SmoothShapes,
-     ThickRoundRectWithThinOutlineTracksTransparentSupersampledReference) {
-  for (const ThinOutlineAlphaContrastReproCase& repro_case :
-       kThinOutlineAlphaContrastReproCases) {
-    SCOPED_TRACE(repro_case.basename);
-    const FakeOffscreen<Argb8888> actual = RenderThinOutlineRepro(
-        kAlphaContrastReproThickness, repro_case.outline, repro_case.interior,
-        1, color::Transparent);
-    const FakeOffscreen<Argb8888> supersampled = RenderThinOutlineRepro(
-        kAlphaContrastReproThickness, repro_case.outline, repro_case.interior,
-        kThinOutlineReproScale, color::Transparent);
-
-    ASSERT_EQ(0, supersampled.raw_width() % actual.raw_width());
-    ASSERT_EQ(0, supersampled.raw_height() % actual.raw_height());
-    ASSERT_EQ(supersampled.raw_width() / actual.raw_width(),
-              supersampled.raw_height() / actual.raw_height());
-
-    const int factor = supersampled.raw_width() / actual.raw_width();
-    const FakeOffscreen<Argb8888> expected =
-        DownsampleByPremultipliedAveraging(supersampled, factor);
-
-    EXPECT_LT(NormalizedRmse(actual, expected), 0.04f);
-  }
-}
-
-// Generates manual-inspection repro images comparing the current thin-outline
-// raster against a supersampled reference.
-TEST(SmoothShapes, DISABLED_GenerateThinOutlineRoundRectRepros) {
-  for (const ThinOutlineReproCase& repro_case : kThinOutlineReproCases) {
-    SCOPED_TRACE(repro_case.basename);
-    const FakeOffscreen<Argb8888> actual =
-        RenderThinOutlineRepro(repro_case.thickness, repro_case.outline, 1);
-    const FakeOffscreen<Argb8888> supersampled = RenderThinOutlineRepro(
-        repro_case.thickness, repro_case.outline, kThinOutlineReproScale);
-
-    ASSERT_EQ(0, supersampled.raw_width() % actual.raw_width());
-    ASSERT_EQ(0, supersampled.raw_height() % actual.raw_height());
-    ASSERT_EQ(supersampled.raw_width() / actual.raw_width(),
-              supersampled.raw_height() / actual.raw_height());
-
-    const int factor = supersampled.raw_width() / actual.raw_width();
-    const FakeOffscreen<Argb8888> expected =
-        DownsampleByAveraging(supersampled, factor);
-    const std::string ppm_path =
-        std::string("test/") + repro_case.basename + ".ppm";
-
-    ASSERT_TRUE(WriteThinOutlineReproPpm(actual, expected, ppm_path));
-    std::cout << "Wrote " << ppm_path << "\n";
-  }
-}
-
-// Generates manual-inspection repro images for contrasting outline/interior
-// colors across the opaque/translucent alpha matrix.
-TEST(SmoothShapes, DISABLED_GenerateThinOutlineAlphaContrastRepros) {
+     ThickRoundRectWithThinOutlineRendersExpectedTransparentArgb8888Raster) {
   for (const ThinOutlineAlphaContrastReproCase& repro_case :
        kThinOutlineAlphaContrastReproCases) {
     SCOPED_TRACE(repro_case.basename);
     const FakeOffscreen<Argb8888> actual =
         RenderThinOutlineRepro(kAlphaContrastReproThickness, repro_case.outline,
-                               repro_case.interior, 1);
-    const FakeOffscreen<Argb8888> supersampled =
-        RenderThinOutlineRepro(kAlphaContrastReproThickness, repro_case.outline,
-                               repro_case.interior, kThinOutlineReproScale);
+                               repro_case.interior, 1, color::Transparent);
 
-    ASSERT_EQ(0, supersampled.raw_width() % actual.raw_width());
-    ASSERT_EQ(0, supersampled.raw_height() % actual.raw_height());
-    ASSERT_EQ(supersampled.raw_width() / actual.raw_width(),
-              supersampled.raw_height() / actual.raw_height());
-
-    const int factor = supersampled.raw_width() / actual.raw_width();
-    const FakeOffscreen<Argb8888> expected =
-        DownsampleByAveraging(supersampled, factor);
-    const std::string ppm_path =
-        std::string("test/") + repro_case.basename + ".ppm";
-
-    ASSERT_TRUE(WriteThinOutlineReproPpm(actual, expected, ppm_path));
-    std::cout << "Wrote " << ppm_path << "\n";
+    EXPECT_THAT(RasterOf(actual),
+                MatchesContent(Argb8888(),
+                               Box(0, 0, kThinOutlineReproWidth - 1,
+                                   kThinOutlineReproHeight - 1),
+                               repro_case.expected_raster));
   }
 }
 

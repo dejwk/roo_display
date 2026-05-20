@@ -770,69 +770,6 @@ inline float CalcDistSqRoundRectInnerBoundary(
                                      : outer_d_squared;
 }
 
-inline uint16_t CoverageFraction256(float coverage) {
-  return static_cast<uint16_t>(coverage * 256.0f);
-}
-
-inline Color MixColorsByNormalizedCoverage(Color c1, Color c2,
-                                           uint16_t c2_fraction) {
-  if (c2_fraction == 0) return c1;
-  if (c2_fraction == 256) return c2;
-  if (c1 == c2) return c1;
-
-  uint16_t c1_a = c1.a();
-  uint16_t c2_a = c2.a();
-  uint16_t c1_fraction = 256 - c2_fraction;
-  uint8_t alpha;
-  if (c1_a == c2_a) {
-    alpha = c1_a;
-  } else {
-    uint16_t alpha_mult = c1_a * c1_fraction + c2_a * c2_fraction;
-    alpha = alpha_mult >> 8;
-    if (c1_a == 0) {
-      c1_fraction = 0;
-      c2_fraction = 256;
-    } else if (c2_a == 0) {
-      c1_fraction = 256;
-      c2_fraction = 0;
-    } else {
-      c2_fraction =
-          (static_cast<uint32_t>(256) * c2_fraction * c2_a) / alpha_mult;
-      c1_fraction = 256 - c2_fraction;
-    }
-  }
-  uint32_t mask1 = 0x00FF00FF;
-  uint32_t mask2 = 0x0000FF00;
-  uint32_t rgb = (((((c1.asArgb() & mask1) * c1_fraction) +
-                    ((c2.asArgb() & mask1) * c2_fraction)) >>
-                   8) &
-                  mask1) |
-                 (((((c1.asArgb() & mask2) * c1_fraction) +
-                    ((c2.asArgb() & mask2) * c2_fraction)) >>
-                   8) &
-                  mask2);
-  return Color(alpha << 24 | rgb);
-}
-
-inline Color MixColorsByCoverage(Color c1, uint16_t c1_fraction, Color c2,
-                                 uint16_t c2_fraction) {
-  uint16_t c1_alpha_mult = c1.a() * c1_fraction;
-  uint16_t c2_alpha_mult = c2.a() * c2_fraction;
-  uint16_t alpha_mult = c1_alpha_mult + c2_alpha_mult;
-  if (alpha_mult == 0) return color::Transparent;
-
-  uint8_t alpha = alpha_mult >> 8;
-  if (alpha == 0) return color::Transparent;
-
-  uint16_t visible_c2_fraction =
-      (static_cast<uint32_t>(256) * c2_alpha_mult) / alpha_mult;
-  const uint32_t rgb_mask = 0x00FFFFFF;
-  return MixColorsByNormalizedCoverage(
-             Color(0xFF000000 | (c1.asArgb() & rgb_mask)),
-             Color(0xFF000000 | (c2.asArgb() & rgb_mask)), visible_c2_fraction)
-      .withA(alpha);
-}
-
 inline Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& rect,
                                           int16_t x, int16_t y) {
   const bool uses_rect_inner = UsesRectInnerBoundary(rect);
@@ -896,15 +833,14 @@ inline Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& rect,
       // Pesky corner case: the interior is hair-thin. Approximate.
       outline_coverage = std::min(1.0f, outline_coverage * 2.0f);
     }
-    const uint16_t outline_fraction = CoverageFraction256(outline_coverage);
-    return MixColorsByNormalizedCoverage(interior, outline, outline_fraction);
+    const uint16_t outline_fraction = outline_coverage * 256;
+    return InterpolateColors(interior, outline, outline_fraction);
   }
   // On both bounderies (e.g. the band is very thin).
-  const uint16_t outer_fraction = CoverageFraction256(ro - outer_d + 0.5f);
-  const uint16_t interior_fraction = CoverageFraction256(ri - inner_d + 0.5f);
+  const uint16_t outer_fraction = (ro - outer_d + 0.5f) * 256;
+  const uint16_t interior_fraction = (ri - inner_d + 0.5f) * 256;
   const uint16_t outline_fraction = outer_fraction - interior_fraction;
-  return MixColorsByCoverage(interior, interior_fraction, outline,
-                             outline_fraction);
+  return MixColors(interior, interior_fraction, outline, outline_fraction);
 }
 
 enum RectColor {

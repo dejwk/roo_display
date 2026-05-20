@@ -1059,6 +1059,34 @@ inline uint64_t Square(int32_t value) {
   return (uint64_t)value * (uint64_t)value;
 }
 
+inline void UpdateMaxDx(uint64_t dy_sq4, uint64_t limit_sq4, int32_t* dx) {
+  if (dy_sq4 > limit_sq4) {
+    *dx = -1;
+    return;
+  }
+  if (*dx < 0) *dx = 0;
+  while (*dx > 0 && Square(*dx) + dy_sq4 > limit_sq4) {
+    --*dx;
+  }
+  while (Square(*dx + 1) + dy_sq4 <= limit_sq4) {
+    ++*dx;
+  }
+}
+
+inline void UpdateMinDx(uint64_t dy_sq4, uint64_t limit_sq4, int32_t* dx) {
+  if (dy_sq4 >= limit_sq4) {
+    *dx = 0;
+    return;
+  }
+  if (*dx < 0) *dx = 0;
+  while (*dx > 0 && Square(*dx - 1) + dy_sq4 >= limit_sq4) {
+    --*dx;
+  }
+  while (Square(*dx) + dy_sq4 < limit_sq4) {
+    ++*dx;
+  }
+}
+
 class RoundRectStream : public PixelStream {
  public:
   // Emits a round-rect in row-major order without buffering the whole row.
@@ -1152,37 +1180,6 @@ class RoundRectStream : public PixelStream {
     int16_t end_x;
     SegmentKind kind;
   };
-
-  // Maintains the integer x extent for a given doubled-radius threshold as the
-  // doubled y distance changes from one scanline to the next. This avoids the
-  // sqrt previously used on every row.
-  void UpdateMaxDx(uint64_t dy_sq4, uint64_t limit_sq4, int32_t* dx) {
-    if (dy_sq4 > limit_sq4) {
-      *dx = -1;
-      return;
-    }
-    if (*dx < 0) *dx = 0;
-    while (*dx > 0 && Square(*dx) + dy_sq4 > limit_sq4) {
-      --*dx;
-    }
-    while (Square(*dx + 1) + dy_sq4 <= limit_sq4) {
-      ++*dx;
-    }
-  }
-
-  void UpdateMinDx(uint64_t dy_sq4, uint64_t limit_sq4, int32_t* dx) {
-    if (dy_sq4 >= limit_sq4) {
-      *dx = 0;
-      return;
-    }
-    if (*dx < 0) *dx = 0;
-    while (*dx > 0 && Square(*dx - 1) + dy_sq4 >= limit_sq4) {
-      --*dx;
-    }
-    while (Square(*dx) + dy_sq4 < limit_sq4) {
-      ++*dx;
-    }
-  }
 
   void UpdateThresholds(uint64_t dy_sq4) {
     UpdateMaxDx(dy_sq4, outer_full_sq4_, &outer_dx_max_);
@@ -1333,6 +1330,235 @@ class RoundRectStream : public PixelStream {
   int32_t trans_dx_min_;
   int32_t inner_dx_max_;
   int32_t inner_out_dx_min_;
+};
+
+// Rectangular-inner round rects share the same rounded outer boundary but keep
+// the inner geometry axis-aligned, so the stream can recover long uniform runs
+// without touching the rounded-inner hot path.
+class RectInnerRoundRectStream : public PixelStream {
+ public:
+  RectInnerRoundRectStream(const SmoothShape::RoundRect& rect, Box bounds)
+      : rect_(rect),
+        bounds_(std::move(bounds)),
+        x_(bounds_.xMin()),
+        y_(bounds_.yMin()),
+        segment_count_(0),
+        segment_index_(0),
+        row_ready_(false),
+        x0x2_(lroundf(2 * rect.x0)),
+        y0x2_(lroundf(2 * rect.y0)),
+        x1x2_(lroundf(2 * rect.x1)),
+        y1x2_(lroundf(2 * rect.y1)),
+        rox2_(lroundf(2 * rect.ro)),
+        outer_full_sq4_(Square(std::max<int32_t>(0, rox2_ - 1))),
+        outer_trans_sq4_(Square(rox2_ + 1)),
+        outer_dx_max_(std::max<int32_t>(-1, rox2_ - 1)),
+        trans_dx_min_(rox2_ + 1),
+        inner_inside_start_((int16_t)ceilf(rect.inner_x0)),
+        inner_inside_end_((int16_t)floorf(rect.inner_x1)),
+        inner_outside_left_end_((int16_t)floorf(rect.inner_x0 - 0.5f)),
+        inner_outside_right_start_((int16_t)ceilf(rect.inner_x1 + 0.5f)) {}
+
+  void Read(Color* buf, uint16_t count) override {
+    while (count > 0) {
+      if (!row_ready_) PrepareRow();
+      if (segment_index_ >= segment_count_) return;
+      const Segment& segment = segments_[segment_index_];
+      uint16_t batch = segment.end_x - x_ + 1;
+      if (batch > count) batch = count;
+      switch (segment.kind) {
+        case SegmentKind::kSolid:
+          FillColor(buf, batch, segment.color);
+          break;
+        case SegmentKind::kSlow:
+          for (uint16_t i = 0; i < batch; ++i) {
+            buf[i] = GetSmoothRoundRectPixelColor(rect_, x_ + i, y_);
+          }
+          break;
+      }
+      buf += batch;
+      count -= batch;
+      x_ += batch;
+      if (x_ > segment.end_x) {
+        ++segment_index_;
+      }
+      if (x_ > bounds_.xMax()) {
+        x_ = bounds_.xMin();
+        ++y_;
+        row_ready_ = false;
+      }
+    }
+  }
+
+  void Skip(uint32_t count) override {
+    uint16_t width = bounds_.width();
+    y_ += count / width;
+    x_ += count % width;
+    if (x_ > bounds_.xMax()) {
+      x_ -= width;
+      ++y_;
+    }
+    row_ready_ = false;
+    segment_count_ = 0;
+    segment_index_ = 0;
+  }
+
+ private:
+  enum class SegmentKind : uint8_t {
+    kSolid,
+    kSlow,
+  };
+
+  struct Segment {
+    int16_t start_x;
+    int16_t end_x;
+    SegmentKind kind;
+    Color color;
+  };
+
+  void AddSolidSegment(int16_t start_x, int16_t end_x, Color color) {
+    if (start_x > end_x) return;
+    if (segment_count_ > 0) {
+      Segment& prev = segments_[segment_count_ - 1];
+      if (prev.kind == SegmentKind::kSolid && prev.color == color &&
+          prev.end_x + 1 == start_x) {
+        prev.end_x = end_x;
+        return;
+      }
+    }
+    segments_[segment_count_++] =
+        Segment{start_x, end_x, SegmentKind::kSolid, color};
+  }
+
+  void AddSlowSegment(int16_t start_x, int16_t end_x) {
+    if (start_x > end_x) return;
+    if (segment_count_ > 0) {
+      Segment& prev = segments_[segment_count_ - 1];
+      if (prev.kind == SegmentKind::kSlow && prev.end_x + 1 == start_x) {
+        prev.end_x = end_x;
+        return;
+      }
+    }
+    segments_[segment_count_++] =
+        Segment{start_x, end_x, SegmentKind::kSlow, color::Transparent};
+  }
+
+  void AddSampledSolidSegment(int16_t start_x, int16_t end_x) {
+    if (start_x > end_x) return;
+    AddSolidSegment(start_x, end_x,
+                    GetSmoothRoundRectPixelColor(rect_, start_x, y_));
+  }
+
+  void AddFullOuterSegments(int16_t start_x, int16_t end_x) {
+    if (start_x > end_x) return;
+
+    const float row_y = y_;
+    if (row_y <= rect_.inner_y0 - 0.5f || row_y >= rect_.inner_y1 + 0.5f) {
+      AddSolidSegment(start_x, end_x, rect_.outline_color);
+      return;
+    }
+
+    AddSolidSegment(start_x, std::min(end_x, inner_outside_left_end_),
+                    rect_.outline_color);
+    AddSlowSegment(std::max(start_x, (int16_t)(inner_outside_left_end_ + 1)),
+                   std::min(end_x, (int16_t)(inner_inside_start_ - 1)));
+
+    const int16_t inside_start = std::max(start_x, inner_inside_start_);
+    const int16_t inside_end = std::min(end_x, inner_inside_end_);
+    if (inside_start <= inside_end) {
+      const bool has_full_interior = !rect_.inner_mid.empty() &&
+                                     y_ >= rect_.inner_mid.yMin() &&
+                                     y_ <= rect_.inner_mid.yMax();
+      if (has_full_interior) {
+        AddSampledSolidSegment(
+            inside_start,
+            std::min(inside_end, (int16_t)(rect_.inner_mid.xMin() - 1)));
+        AddSolidSegment(std::max(inside_start, rect_.inner_mid.xMin()),
+                        std::min(inside_end, rect_.inner_mid.xMax()),
+                        rect_.interior_color);
+        AddSampledSolidSegment(
+            std::max(inside_start, (int16_t)(rect_.inner_mid.xMax() + 1)),
+            inside_end);
+      } else {
+        AddSampledSolidSegment(inside_start, inside_end);
+      }
+    }
+
+    AddSlowSegment(std::max(start_x, (int16_t)(inner_inside_end_ + 1)),
+                   std::min(end_x, (int16_t)(inner_outside_right_start_ - 1)));
+    AddSolidSegment(std::max(start_x, inner_outside_right_start_), end_x,
+                    rect_.outline_color);
+  }
+
+  void PrepareRow() {
+    segment_count_ = 0;
+    segment_index_ = 0;
+    row_ready_ = true;
+    if (y_ > bounds_.yMax()) return;
+
+    int32_t yx2 = 2 * y_;
+    int32_t ref_yx2 = std::min(std::max(yx2, y0x2_), y1x2_);
+    uint64_t dyx2 = (uint64_t)std::abs(yx2 - ref_yx2);
+    uint64_t dy_sq4 = dyx2 * dyx2;
+
+    UpdateMaxDx(dy_sq4, outer_full_sq4_, &outer_dx_max_);
+    UpdateMinDx(dy_sq4, outer_trans_sq4_, &trans_dx_min_);
+
+    if (trans_dx_min_ == 0) {
+      AddSolidSegment(bounds_.xMin(), bounds_.xMax(), color::Transparent);
+      return;
+    }
+
+    int16_t transparent_end = FloorDiv2(x0x2_ - trans_dx_min_);
+    int16_t transparent_start = CeilDiv2(x1x2_ + trans_dx_min_);
+
+    AddSolidSegment(bounds_.xMin(), std::min(bounds_.xMax(), transparent_end),
+                    color::Transparent);
+
+    if (outer_dx_max_ < 0) {
+      AddSlowSegment(
+          std::max(bounds_.xMin(), (int16_t)(transparent_end + 1)),
+          std::min(bounds_.xMax(), (int16_t)(transparent_start - 1)));
+    } else {
+      int16_t outer_full_start = CeilDiv2(x0x2_ - outer_dx_max_);
+      int16_t outer_full_end = FloorDiv2(x1x2_ + outer_dx_max_);
+      AddSlowSegment(std::max(bounds_.xMin(), (int16_t)(transparent_end + 1)),
+                     std::min(bounds_.xMax(), (int16_t)(outer_full_start - 1)));
+      AddFullOuterSegments(std::max(bounds_.xMin(), outer_full_start),
+                           std::min(bounds_.xMax(), outer_full_end));
+      AddSlowSegment(
+          std::max(bounds_.xMin(), (int16_t)(outer_full_end + 1)),
+          std::min(bounds_.xMax(), (int16_t)(transparent_start - 1)));
+    }
+
+    AddSolidSegment(std::max(bounds_.xMin(), transparent_start), bounds_.xMax(),
+                    color::Transparent);
+  }
+
+  const SmoothShape::RoundRect& rect_;
+  Box bounds_;
+  int16_t x_;
+  int16_t y_;
+  Segment segments_[11];
+  uint8_t segment_count_;
+  uint8_t segment_index_;
+  bool row_ready_;
+
+  const int32_t x0x2_;
+  const int32_t y0x2_;
+  const int32_t x1x2_;
+  const int32_t y1x2_;
+  const int32_t rox2_;
+
+  const uint64_t outer_full_sq4_;
+  const uint64_t outer_trans_sq4_;
+  int32_t outer_dx_max_;
+  int32_t trans_dx_min_;
+
+  const int16_t inner_inside_start_;
+  const int16_t inner_inside_end_;
+  const int16_t inner_outside_left_end_;
+  const int16_t inner_outside_right_start_;
 };
 
 struct RoundRectDrawSpec {
@@ -2301,7 +2527,8 @@ std::unique_ptr<PixelStream> SmoothShape::createStream(
   switch (kind_) {
     case ROUND_RECT:
       if (UsesRectInnerBoundary(round_rect_)) {
-        return Rasterizable::createStream(bounds);
+        return std::unique_ptr<PixelStream>(
+            new RectInnerRoundRectStream(round_rect_, bounds));
       }
       return std::unique_ptr<PixelStream>(
           new RoundRectStream(round_rect_, bounds));

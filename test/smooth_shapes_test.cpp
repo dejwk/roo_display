@@ -161,6 +161,26 @@ FakeOffscreen<ColorMode> CoercedToViaStreaming(
                               fill_mode, blending_mode, bgcolor);
 }
 
+template <typename ColorMode>
+FakeOffscreen<ColorMode> CoercedToClipped(
+    const Drawable& drawable, const Box& clip_box,
+    ColorMode color_mode = ColorMode(), Color fill = color::Transparent,
+    FillMode fill_mode = FillMode::kVisible,
+    BlendingMode blending_mode = BlendingMode::kSourceOver,
+    Color bgcolor = color::Transparent) {
+  FakeOffscreen<ColorMode> result(drawable.extents(), fill, color_mode);
+  result.begin();
+  Box extents = drawable.extents();
+  Box translated_clip =
+      Box::Intersect(clip_box.translate(-extents.xMin(), -extents.yMin()),
+                     Box(0, 0, extents.width() - 1, extents.height() - 1));
+  Surface s(result, -extents.xMin(), -extents.yMin(), translated_clip, false,
+            bgcolor, fill_mode, blending_mode);
+  s.drawObject(drawable);
+  result.end();
+  return result;
+}
+
 Color AveragedPixel(const FakeOffscreen<Argb8888>& offscreen, int x0, int y0,
                     int factor) {
   uint32_t a = 0;
@@ -725,6 +745,30 @@ TEST(SmoothShapes,
 
     EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
   }
+}
+
+// Verifies the dedicated rectangular-inner stream matches the readColors path
+// when clipped to a sub-rectangle that begins and ends mid-row.
+TEST(SmoothShapes,
+     ThickRoundRectRectInnerStreamingMatchesRegularPathWhenClipped) {
+  const internal::NormalizedSingleRadiusRoundRect normalized =
+      internal::NormalizeSingleRadiusRoundRect(1.25f, 1.75f, 17.75f, 13.25f,
+                                               1.25f, 3.0f);
+  ASSERT_EQ(internal::NormalizedRoundRectKind::kRectInner, normalized.kind);
+
+  const SmoothShape shape =
+      SmoothThickRoundRect(1.25f, 1.75f, 17.75f, 13.25f, 1.25f, 3.0f,
+                           color::Black.withA(0x95), Color(0x80F3EFE7));
+  const Box clip_box(3, 3, 16, 12);
+
+  const FakeOffscreen<Argb8888> actual = CoercedToClipped(
+      ForcedStreamable(&shape), clip_box, Argb8888(), color::Transparent,
+      FillMode::kVisible, BlendingMode::kSourceOver, color::White);
+  const FakeOffscreen<Argb8888> expected = CoercedToClipped(
+      ForcedRasterizable(&shape), clip_box, Argb8888(), color::Transparent,
+      FillMode::kVisible, BlendingMode::kSourceOver, color::White);
+
+  EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
 }
 
 // Verifies overlarge radii render the same as the half-width clamp value.

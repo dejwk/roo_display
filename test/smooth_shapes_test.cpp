@@ -289,7 +289,8 @@ TEST(SmoothShapes,
   EXPECT_FLOAT_EQ(0.0f, normalized.inner_radius);
 }
 
-// Verifies collapsed inner bounds normalize to the filled outer-shape case.
+// Verifies thickness greater than twice the radius folds collapsed inner
+// bounds to the filled outer-shape case.
 TEST(SmoothShapes,
      NormalizeSingleRadiusRoundRectFoldsCollapsedInnerRegionToFilled) {
   const internal::NormalizedSingleRadiusRoundRect normalized =
@@ -654,6 +655,33 @@ TEST(SmoothShapes, ThickRoundRectClampsRadiusBeforeRendering) {
                           BlendingMode::kSourceOver, color::Transparent);
 
   EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
+}
+
+// Verifies outlines thicker than the centerline radius keep a stable shrunken
+// inner round rect before the shape reaches the filled fold.
+TEST(SmoothShapes,
+     ThickRoundRectWithOutlineThickerThanRadiusRendersExpectedAlpha4Raster) {
+  EXPECT_THAT(CoercedTo<Alpha4>(
+                  SmoothThickRoundRect(2.5f, 2.5f, 12.5f, 12.5f, 2.0f, 5.0f,
+                                       color::Black, color::Transparent),
+                  Alpha4(color::Black)),
+              MatchesContent(Alpha4(color::Black), Box(0, 0, 15, 15),
+                             "0003777777773000"
+                             "00AFFFFFFFFFFA00"
+                             "0AFFFFFFFFFFFFA0"
+                             "3FFFFFFFFFFFFFF3"
+                             "7FFFFFFFFFFFFFF7"
+                             "7FFFF777777FFFF7"
+                             "7FFFF700007FFFF7"
+                             "7FFFF700007FFFF7"
+                             "7FFFF700007FFFF7"
+                             "7FFFF700007FFFF7"
+                             "7FFFF777777FFFF7"
+                             "7FFFFFFFFFFFFFF7"
+                             "3FFFFFFFFFFFFFF3"
+                             "0AFFFFFFFFFFFFA0"
+                             "00AFFFFFFFFFFA00"
+                             "0003777777773000"));
 }
 
 // Verifies the rectangular-inner mode keeps shrinking the interior once delta

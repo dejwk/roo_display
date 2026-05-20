@@ -3,8 +3,8 @@
 Primary references:
 [smooth_round_rect_corner_radii_design.md](smooth_round_rect_corner_radii_design.md)
 [src/roo_display/shape/smooth.h](../src/roo_display/shape/smooth.h)
-[src/roo_display/shape/smooth.cpp](../src/roo_display/shape/smooth.cpp)
-[src/roo_display/shape/smooth_internal.h](../src/roo_display/shape/smooth_internal.h)
+[src/roo_display/shape/impl/smooth_round_rect.cpp](../src/roo_display/shape/impl/smooth_round_rect.cpp)
+[src/roo_display/shape/impl/smooth_internal.h](../src/roo_display/shape/impl/smooth_internal.h)
 [doc/programming_guide.md](../doc/programming_guide.md)
 
 ## Objective
@@ -125,7 +125,7 @@ match the derived coordinates.
 ## Design Overview
 
 Add an internal normalization helper in
-[src/roo_display/shape/smooth_internal.h](../src/roo_display/shape/smooth_internal.h)
+[src/roo_display/shape/impl/smooth_internal.h](../src/roo_display/shape/impl/smooth_internal.h)
 that works from centerline geometry.
 
 The helper will:
@@ -203,7 +203,7 @@ shrinking the inner span by `t` until it disappears.
 No public API changes are required.
 
 Add a new internal header,
-[src/roo_display/shape/smooth_internal.h](../src/roo_display/shape/smooth_internal.h),
+[src/roo_display/shape/impl/smooth_internal.h](../src/roo_display/shape/impl/smooth_internal.h),
 with:
 
 ```cpp
@@ -238,7 +238,7 @@ NormalizedSingleRadiusRoundRect NormalizeSingleRadiusRoundRect(
 ```
 
 The function is declared in the internal header and defined in
-[src/roo_display/shape/smooth.cpp](../src/roo_display/shape/smooth.cpp).
+[src/roo_display/shape/impl/smooth_round_rect.cpp](../src/roo_display/shape/impl/smooth_round_rect.cpp).
 Tests include the header and link against `:roo_display`, so they can assert
 normalized kinds and coordinates directly.
 
@@ -456,7 +456,7 @@ equal-radius math.
 Public API: no change.
 
 Internal API added in
-[src/roo_display/shape/smooth_internal.h](../src/roo_display/shape/smooth_internal.h):
+[src/roo_display/shape/impl/smooth_internal.h](../src/roo_display/shape/impl/smooth_internal.h):
 
 ```cpp
 namespace roo_display {
@@ -502,7 +502,7 @@ Proposed commit message:
 
 Work:
 
-- add [src/roo_display/shape/smooth_internal.h](../src/roo_display/shape/smooth_internal.h),
+- add [src/roo_display/shape/impl/smooth_internal.h](../src/roo_display/shape/impl/smooth_internal.h),
 - add `internal::NormalizedRoundRectKind` and
   `internal::NormalizedSingleRadiusRoundRect`,
 - move single-radius ordering, radius clamp, `delta` computation, outer-bound
@@ -620,7 +620,7 @@ retain rounded inner geometry while others collapse.
 #### Keep `ROUND_RECT` But Add A Parallel Classifier Or Evaluator Family
 
 Rejected because the helper families in
-[src/roo_display/shape/smooth.cpp](../src/roo_display/shape/smooth.cpp)
+[src/roo_display/shape/impl/smooth_round_rect.cpp](../src/roo_display/shape/impl/smooth_round_rect.cpp)
 are already organized by top-level shape kind. Keeping `ROUND_RECT` while
 adding a second evaluator or rectangle-classification entry point for the same
 kind would split behavior that is better expressed as one helper family with

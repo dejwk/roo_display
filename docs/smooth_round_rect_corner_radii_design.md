@@ -3,7 +3,7 @@
 Primary references:
 [smooth_round_rect_inner_boundary_design.md](smooth_round_rect_inner_boundary_design.md)
 [src/roo_display/shape/smooth.h](../src/roo_display/shape/smooth.h)
-[src/roo_display/shape/smooth.cpp](../src/roo_display/shape/smooth.cpp)
+[src/roo_display/shape/impl/smooth_round_rect.cpp](../src/roo_display/shape/impl/smooth_round_rect.cpp)
 [doc/programming_guide.md](../doc/programming_guide.md)
 [images/smooth_round_rect_corner_slabs.svg](images/smooth_round_rect_corner_slabs.svg)
 [images/smooth_round_rect_corner_center_fill.svg](images/smooth_round_rect_corner_center_fill.svg)
@@ -38,7 +38,7 @@ to four independent centerline radii.
 
 Smooth round rects are currently implemented as a dedicated `SmoothShape`
 variant in [src/roo_display/shape/smooth.h](../src/roo_display/shape/smooth.h)
-and [src/roo_display/shape/smooth.cpp](../src/roo_display/shape/smooth.cpp).
+and [src/roo_display/shape/impl/smooth_round_rect.cpp](../src/roo_display/shape/impl/smooth_round_rect.cpp).
 The equal-radius path has specialized support for:
 
 - construction and geometry normalization,

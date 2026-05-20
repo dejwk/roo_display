@@ -7,7 +7,7 @@
 
 #include "roo_display/color/color.h"
 #include "roo_display/shape/smooth.h"
-#include "roo_display/shape/smooth_internal.h"
+#include "roo_display/shape/impl/smooth_internal.h"
 #include "testing.h"
 
 using namespace testing;

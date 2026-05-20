@@ -2,8 +2,30 @@
 
 namespace roo_display {
 
+namespace {
+
+inline __attribute__((always_inline)) Color Mix(uint8_t a, Color c1,
+                                                uint16_t f1, Color c2,
+                                                uint16_t f2) {
+  uint32_t mask1 = 0x00FF00FF;
+  uint32_t mask2 = 0x0000FF00;
+  uint32_t rgb =
+      ((((((c1.asArgb() & mask1) * f1) + ((c2.asArgb() & mask1) * f2)) +
+         0x00800080) /
+        256) &
+       mask1) |
+      (((((c1.asArgb() & mask2) * f1) + ((c2.asArgb() & mask2) * f2) +
+         0x00008000) /
+        256) &
+       mask2);
+  return Color(a << 24 | rgb);
+}
+
+}  // namespace
+
 Color InterpolateColors(Color c1, Color c2, int16_t fraction) {
   if (c1 == c2) return c1;
+
   uint16_t c1_a = c1.a();
   uint16_t c2_a = c2.a();
   int16_t f2 = fraction;
@@ -26,32 +48,30 @@ Color InterpolateColors(Color c1, Color c2, int16_t fraction) {
       f1 = 256 - f2;
     }
   }
-  uint32_t mask1 = 0x00FF00FF;
-  uint32_t mask2 = 0x0000FF00;
-  uint32_t rgb =
-      (((((c1.asArgb() & mask1) * f1) + ((c2.asArgb() & mask1) * f2)) / 256) &
-       mask1) |
-      (((((c1.asArgb() & mask2) * f1) + ((c2.asArgb() & mask2) * f2)) / 256) &
-       mask2);
-  return Color(a << 24 | rgb);
+  return Mix(a, c1, f1, c2, f2);
 }
 
 Color InterpolateOpaqueColors(Color c1, Color c2, int16_t fraction) {
   if (c1 == c2) return c1;
-  int16_t f2 = fraction;
-  int16_t f1 = 256 - fraction;
-  uint32_t mask1 = 0x00FF00FF;
-  uint32_t mask2 = 0x0000FF00;
-  uint32_t rgb =
-      (((((c1.asArgb() & mask1) * f1) + ((c2.asArgb() & mask1) * f2)) / 256) &
-       mask1) |
-      (((((c1.asArgb() & mask2) * f1) + ((c2.asArgb() & mask2) * f2)) / 256) &
-       mask2);
-  return Color(0xFF000000 | rgb);
+  return Mix(0xFF, c1, 256 - fraction, c2, fraction);
 }
 
 Color InterpolateColorWithTransparency(Color c, int16_t fraction_color) {
   return c.withA(c.a() * fraction_color / 256);
+}
+
+Color MixColors(Color c1, uint16_t c1_fraction, Color c2,
+                uint16_t c2_fraction) {
+  uint16_t c1_a_mult = c1.a() * c1_fraction;
+  uint16_t c2_a_mult = c2.a() * c2_fraction;
+  uint16_t a_mult = c1_a_mult + c2_a_mult;
+  uint8_t a = a_mult / 256;
+  if (a == 0) return color::Transparent;
+
+  uint16_t f2 = (static_cast<uint32_t>(256) * c2_a_mult) / a_mult;
+  uint16_t f1 = 256 - f2;
+
+  return Mix(a, c1, f1, c2, f2);
 }
 
 }  // namespace roo_display

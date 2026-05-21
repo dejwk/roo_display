@@ -10,7 +10,7 @@ Primary references:
 
 ## Status
 
-In progress. Phases 1 and 2 have landed:
+In progress. Phases 1 through 5 have landed:
 
 - `RoundRectRadii` and the three public overloads exist,
 - `internal::NormalizeFourRadiiRoundRect()` normalizes ordered centerline
@@ -18,8 +18,11 @@ In progress. Phases 1 and 2 have landed:
 - equal effective radii reuse the corrected single-radius builder,
 - unequal effective radii now build a dedicated `SmoothShape` payload with the
   stored radii caches and helper boxes,
-- and rendering currently flows through the generic `Rasterizable` fallback
-  until the dedicated unequal-radius helper family and stream land.
+- point samples, rectangle readback, uniform-rect checks, and direct drawing
+  now use dedicated unequal-radius helpers that reuse the stored helper boxes,
+- direct drawing now uses the asymmetric center-fill partition and tiled
+  perimeter classifier,
+- and only the dedicated unequal-radius stream override remains pending.
 
 ## Objective
 

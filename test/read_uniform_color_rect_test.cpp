@@ -92,6 +92,35 @@ TEST(ReadUniformColorRect, SmoothFilledRoundRectEdge) {
   EXPECT_FALSE(shape.readUniformColorRect(8, 20, 12, 30, &result));
 }
 
+// Verifies unequal-radius uniform-rect classification proves transparent,
+// outline, and interior regions without per-pixel fallback.
+TEST(ReadUniformColorRect, SmoothThickRoundRectUnequalRegions) {
+  auto shape = SmoothThickRoundRect(0.0f, 0.0f, 12.0f, 10.0f,
+                                    RoundRectRadii{4.0f, 2.0f, 4.0f, 2.0f},
+                                    2.0f, color::Black, color::Red);
+  Color result;
+
+  EXPECT_TRUE(shape.readUniformColorRect(-1, -1, -1, -1, &result));
+  EXPECT_EQ(result, color::Transparent);
+
+  EXPECT_TRUE(shape.readUniformColorRect(5, 0, 7, 0, &result));
+  EXPECT_EQ(result, color::Black);
+
+  EXPECT_TRUE(shape.readUniformColorRect(5, 4, 7, 6, &result));
+  EXPECT_EQ(result, color::Red);
+}
+
+// Verifies unequal-radius uniform-rect classification stays conservative on
+// AA tiles that straddle a curved outer corner.
+TEST(ReadUniformColorRect, SmoothThickRoundRectUnequalMixedCornerTile) {
+  auto shape = SmoothThickRoundRect(0.0f, 0.0f, 12.0f, 10.0f,
+                                    RoundRectRadii{4.0f, 2.0f, 4.0f, 2.0f},
+                                    2.0f, color::Black, color::Red);
+  Color result;
+
+  EXPECT_FALSE(shape.readUniformColorRect(-1, -1, 1, 1, &result));
+}
+
 TEST(ReadUniformColorRect, SmoothFilledTriangleInterior) {
   // Large triangle (CCW vertex order) for a well-defined interior region.
   auto shape =

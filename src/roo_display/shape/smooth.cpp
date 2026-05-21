@@ -83,7 +83,7 @@ void SmoothShape::drawTo(const Surface& s) const {
       break;
     }
     case ROUND_RECT_CORNERS: {
-      Rasterizable::drawTo(s);
+      internal::DrawRoundRectCorners(round_rect_corners_, s, box);
       break;
     }
     case ARC: {
@@ -153,7 +153,8 @@ bool SmoothShape::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
                                                 yMax, result);
     }
     case ROUND_RECT_CORNERS: {
-      return Rasterizable::readColorRect(xMin, yMin, xMax, yMax, result);
+      return internal::ReadColorRectOfRoundRectCorners(
+          round_rect_corners_, xMin, yMin, xMax, yMax, result);
     }
     case ARC: {
       return internal::ReadColorRectOfArc(arc_, xMin, yMin, xMax, yMax, result);
@@ -203,7 +204,21 @@ bool SmoothShape::readUniformColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
       }
     }
     case ROUND_RECT_CORNERS: {
-      return false;
+      Box box(xMin, yMin, xMax, yMax);
+      switch (internal::DetermineRectColorForRoundRectCorners(
+          round_rect_corners_, box)) {
+        case internal::round_rect::AreaType::kExterior:
+          *result = color::Transparent;
+          return true;
+        case internal::round_rect::AreaType::kInterior:
+          *result = round_rect_corners_.interior_color;
+          return true;
+        case internal::round_rect::AreaType::kOutline:
+          *result = round_rect_corners_.outline_color;
+          return true;
+        default:
+          return false;
+      }
     }
     case ARC: {
       Box box(xMin, yMin, xMax, yMax);

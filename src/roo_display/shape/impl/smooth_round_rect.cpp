@@ -1,11 +1,12 @@
 #include "roo_display/shape/impl/smooth_round_rect.h"
 
-#include <algorithm>
 #include <math.h>
 
-#include "roo_logging.h"
+#include <algorithm>
+
 #include "roo_display/core/buffered_drawing.h"
 #include "roo_display/shape/impl/smooth_internal.h"
+#include "roo_logging.h"
 
 namespace roo_display {
 
@@ -25,22 +26,19 @@ RoundRectRadii ScaleRoundRectRadii(const RoundRectRadii& radii, float scale) {
           radii.br * scale};
 }
 
-RoundRectRadii ExpandRoundRectRadii(const RoundRectRadii& radii,
-                                    float delta) {
+RoundRectRadii ExpandRoundRectRadii(const RoundRectRadii& radii, float delta) {
   return {radii.tl + delta, radii.tr + delta, radii.bl + delta,
           radii.br + delta};
 }
 
 RoundRectRadii InsetRoundRectRadii(const RoundRectRadii& radii, float delta) {
-  return {ClampNonNegative(radii.tl - delta),
-          ClampNonNegative(radii.tr - delta),
-          ClampNonNegative(radii.bl - delta),
-          ClampNonNegative(radii.br - delta)};
+  return {
+      ClampNonNegative(radii.tl - delta), ClampNonNegative(radii.tr - delta),
+      ClampNonNegative(radii.bl - delta), ClampNonNegative(radii.br - delta)};
 }
 
 bool RoundRectRadiiAreEqual(const RoundRectRadii& radii) {
-  return radii.tl == radii.tr && radii.tl == radii.bl &&
-         radii.tl == radii.br;
+  return radii.tl == radii.tr && radii.tl == radii.bl && radii.tl == radii.br;
 }
 
 void TightenScaleLimit(float available, float required, float* scale) {
@@ -134,14 +132,12 @@ RoundRectCornersBuildResult BuildRoundRectCornersSpec(
   const auto top_inside = [&](float x) {
     float result = inner_y0;
     if (x < ctl_x && ri[kTopLeftCorner] > 0.0f) {
-      result = std::max(result, ctl_y -
-                                    SafeCircularOffset(ri[kTopLeftCorner],
-                                                       x - ctl_x));
+      result = std::max(
+          result, ctl_y - SafeCircularOffset(ri[kTopLeftCorner], x - ctl_x));
     }
     if (x > ctr_x && ri[kTopRightCorner] > 0.0f) {
-      result = std::max(result, ctr_y -
-                                    SafeCircularOffset(ri[kTopRightCorner],
-                                                       x - ctr_x));
+      result = std::max(
+          result, ctr_y - SafeCircularOffset(ri[kTopRightCorner], x - ctr_x));
     }
     return result;
   };
@@ -149,14 +145,12 @@ RoundRectCornersBuildResult BuildRoundRectCornersSpec(
   const auto bottom_inside = [&](float x) {
     float result = inner_y1;
     if (x < cbl_x && ri[kBottomLeftCorner] > 0.0f) {
-      result = std::min(result, cbl_y +
-                                    SafeCircularOffset(ri[kBottomLeftCorner],
-                                                       x - cbl_x));
+      result = std::min(
+          result, cbl_y + SafeCircularOffset(ri[kBottomLeftCorner], x - cbl_x));
     }
     if (x > cbr_x && ri[kBottomRightCorner] > 0.0f) {
-      result = std::min(result, cbr_y +
-                                    SafeCircularOffset(ri[kBottomRightCorner],
-                                                       x - cbr_x));
+      result = std::min(result, cbr_y + SafeCircularOffset(
+                                            ri[kBottomRightCorner], x - cbr_x));
     }
     return result;
   };
@@ -164,14 +158,12 @@ RoundRectCornersBuildResult BuildRoundRectCornersSpec(
   const auto left_inside = [&](float y) {
     float result = inner_x0;
     if (y < ctl_y && ri[kTopLeftCorner] > 0.0f) {
-      result = std::max(result, ctl_x -
-                                    SafeCircularOffset(ri[kTopLeftCorner],
-                                                       y - ctl_y));
+      result = std::max(
+          result, ctl_x - SafeCircularOffset(ri[kTopLeftCorner], y - ctl_y));
     }
     if (y > cbl_y && ri[kBottomLeftCorner] > 0.0f) {
-      result = std::max(result, cbl_x -
-                                    SafeCircularOffset(ri[kBottomLeftCorner],
-                                                       y - cbl_y));
+      result = std::max(
+          result, cbl_x - SafeCircularOffset(ri[kBottomLeftCorner], y - cbl_y));
     }
     return result;
   };
@@ -179,14 +171,12 @@ RoundRectCornersBuildResult BuildRoundRectCornersSpec(
   const auto right_inside = [&](float y) {
     float result = inner_x1;
     if (y < ctr_y && ri[kTopRightCorner] > 0.0f) {
-      result = std::min(result, ctr_x +
-                                    SafeCircularOffset(ri[kTopRightCorner],
-                                                       y - ctr_y));
+      result = std::min(
+          result, ctr_x + SafeCircularOffset(ri[kTopRightCorner], y - ctr_y));
     }
     if (y > cbr_y && ri[kBottomRightCorner] > 0.0f) {
-      result = std::min(result, cbr_x +
-                                    SafeCircularOffset(ri[kBottomRightCorner],
-                                                       y - cbr_y));
+      result = std::min(result, cbr_x + SafeCircularOffset(
+                                            ri[kBottomRightCorner], y - cbr_y));
     }
     return result;
   };
@@ -205,37 +195,32 @@ RoundRectCornersBuildResult BuildRoundRectCornersSpec(
       inner_x0, ctl_y, std::min(right_inside(ctl_y), right_inside(cbl_y)),
       cbl_y);
   const Box right_slab = ToInteriorHelperBox(
-      std::max(left_inside(ctr_y), left_inside(cbr_y)), ctr_y, inner_x1,
-      cbr_y);
-  const Box inner_core = ToInteriorHelperBox(
-      inner_x0 + std::max(diag_tl, diag_bl),
-      inner_y0 + std::max(diag_tl, diag_tr),
-      inner_x1 - std::max(diag_tr, diag_br),
-      inner_y1 - std::max(diag_bl, diag_br));
+      std::max(left_inside(ctr_y), left_inside(cbr_y)), ctr_y, inner_x1, cbr_y);
+  const Box inner_core =
+      ToInteriorHelperBox(inner_x0 + std::max(diag_tl, diag_bl),
+                          inner_y0 + std::max(diag_tl, diag_tr),
+                          inner_x1 - std::max(diag_tr, diag_br),
+                          inner_y1 - std::max(diag_bl, diag_br));
 
-  SmoothShape::RoundRectCorners spec{x0,
-                                     y0,
-                                     x1,
-                                     y1,
-                                     {ro[kTopLeftCorner], ro[kTopRightCorner],
-                                      ro[kBottomLeftCorner],
-                                      ro[kBottomRightCorner]},
-                                     thickness,
-                                     {ro_sq_adj[kTopLeftCorner],
-                                      ro_sq_adj[kTopRightCorner],
-                                      ro_sq_adj[kBottomLeftCorner],
-                                      ro_sq_adj[kBottomRightCorner]},
-                                     {ri_sq_adj[kTopLeftCorner],
-                                      ri_sq_adj[kTopRightCorner],
-                                      ri_sq_adj[kBottomLeftCorner],
-                                      ri_sq_adj[kBottomRightCorner]},
-                                     outline_color,
-                                     interior_color,
-                                     inner_core,
-                                     top_slab,
-                                     bottom_slab,
-                                     left_slab,
-                                     right_slab};
+  SmoothShape::RoundRectCorners spec{
+      x0,
+      y0,
+      x1,
+      y1,
+      {ro[kTopLeftCorner], ro[kTopRightCorner], ro[kBottomLeftCorner],
+       ro[kBottomRightCorner]},
+      thickness,
+      {ro_sq_adj[kTopLeftCorner], ro_sq_adj[kTopRightCorner],
+       ro_sq_adj[kBottomLeftCorner], ro_sq_adj[kBottomRightCorner]},
+      {ri_sq_adj[kTopLeftCorner], ri_sq_adj[kTopRightCorner],
+       ri_sq_adj[kBottomLeftCorner], ri_sq_adj[kBottomRightCorner]},
+      outline_color,
+      interior_color,
+      inner_core,
+      top_slab,
+      bottom_slab,
+      left_slab,
+      right_slab};
   return {std::move(extents), std::move(spec)};
 }
 
@@ -441,9 +426,8 @@ SmoothShape SmoothFilledRoundRect(float x0, float y0, float x1, float y1,
 }
 
 SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
-                                 const RoundRectRadii& radii,
-                                 float thickness, Color color,
-                                 Color interior_color) {
+                                 const RoundRectRadii& radii, float thickness,
+                                 Color color, Color interior_color) {
   const internal::NormalizedFourRadiiRoundRect normalized =
       internal::NormalizeFourRadiiRoundRect(x0, y0, x1, y1, radii, thickness);
   if (normalized.filled) {
@@ -529,11 +513,18 @@ inline bool BoxInsideRoundRectInteriorHelper(const SmoothShape::RoundRect& rect,
          rect.inner_tall.contains(box);
 }
 
+inline bool BoxInsideRoundRectCornersInteriorHelper(
+    const SmoothShape::RoundRectCorners& rect, const Box& box) {
+  return rect.inner_core.contains(box) || rect.top_slab.contains(box) ||
+         rect.bottom_slab.contains(box) || rect.left_slab.contains(box) ||
+         rect.right_slab.contains(box);
+}
+
 inline bool PointInsideRoundRectCornersInteriorHelper(
     const SmoothShape::RoundRectCorners& rect, int16_t x, int16_t y) {
   return rect.inner_core.contains(x, y) || rect.top_slab.contains(x, y) ||
-    rect.bottom_slab.contains(x, y) || rect.left_slab.contains(x, y) ||
-    rect.right_slab.contains(x, y);
+         rect.bottom_slab.contains(x, y) || rect.left_slab.contains(x, y) ||
+         rect.right_slab.contains(x, y);
 }
 
 inline float CalcDistSqRectInnerBoundary(const SmoothShape::RoundRect& rect,
@@ -638,11 +629,24 @@ inline bool PointInsideRect(float x0, float y0, float x1, float y1, float xt,
   return xt >= x0 && xt <= x1 && yt >= y0 && yt <= y1;
 }
 
+// Continuous-box proofs against an axis-aligned edge use the tile expanded by
+// +/- 0.5 pixels, matching the AA thresholds used by the per-pixel evaluator.
+inline bool BoxFullyInsideRect(float x0, float y0, float x1, float y1,
+                               float x_min, float y_min, float x_max,
+                               float y_max) {
+  return x_min >= x0 && x_max <= x1 && y_min >= y0 && y_max <= y1;
+}
+
+inline bool BoxFullyOutsideRect(float x0, float y0, float x1, float y1,
+                                float x_min, float y_min, float x_max,
+                                float y_max) {
+  return x_max <= x0 || x_min >= x1 || y_max <= y0 || y_min >= y1;
+}
+
 // Minimum inset from a point already known to be inside the rectangle.
 inline float DistToNearestRectEdgeFromInside(float x0, float y0, float x1,
                                              float y1, float xt, float yt) {
-  return std::min(std::min(xt - x0, x1 - xt),
-                  std::min(yt - y0, y1 - yt));
+  return std::min(std::min(xt - x0, x1 - xt), std::min(yt - y0, y1 - yt));
 }
 
 // Signed distance to the straight slab of the round rect. Positive means the
@@ -659,8 +663,8 @@ inline float SignedDistanceToRectStraightEdge(float x0, float y0, float x1,
 // Returns the rounded-corner quadrant that owns this pixel. A `-1` result
 // means the pixel lies on one of the straight slabs, so the corner-circle math
 // can be skipped entirely.
-inline int SelectRoundedCorner(float xt, float yt, float x0, float y0,
-                               float x1, float y1, const float radii[4]) {
+inline int SelectRoundedCorner(float xt, float yt, float x0, float y0, float x1,
+                               float y1, const float radii[4]) {
   if (radii[kTopLeftCorner] > 0.0f && xt < x0 + radii[kTopLeftCorner] &&
       yt < y0 + radii[kTopLeftCorner]) {
     return kTopLeftCorner;
@@ -678,6 +682,62 @@ inline int SelectRoundedCorner(float xt, float yt, float x0, float y0,
     return kBottomRightCorner;
   }
   return -1;
+}
+
+// Whole-tile version of `SelectRoundedCorner()`. A non-negative result proves
+// the entire tile lives in one corner quadrant, which lets the classifier use
+// only corner-local squared-distance bounds.
+inline int SelectRoundedCornerBox(float x_min, float y_min, float x_max,
+                                  float y_max, float x0, float y0, float x1,
+                                  float y1, const float radii[4]) {
+  if (radii[kTopLeftCorner] > 0.0f && x_max <= x0 + radii[kTopLeftCorner] &&
+      y_max <= y0 + radii[kTopLeftCorner]) {
+    return kTopLeftCorner;
+  }
+  if (radii[kTopRightCorner] > 0.0f && x_min >= x1 - radii[kTopRightCorner] &&
+      y_max <= y0 + radii[kTopRightCorner]) {
+    return kTopRightCorner;
+  }
+  if (radii[kBottomLeftCorner] > 0.0f &&
+      x_max <= x0 + radii[kBottomLeftCorner] &&
+      y_min >= y1 - radii[kBottomLeftCorner]) {
+    return kBottomLeftCorner;
+  }
+  if (radii[kBottomRightCorner] > 0.0f &&
+      x_min >= x1 - radii[kBottomRightCorner] &&
+      y_min >= y1 - radii[kBottomRightCorner]) {
+    return kBottomRightCorner;
+  }
+  return -1;
+}
+
+struct CornerDistanceSqRange {
+  float nearest_sq;
+  float farthest_sq;
+};
+
+// In a single quadrant, the nearest and farthest distances occur at opposite
+// rectangle corners, so the classifier can bound the whole tile with two
+// squared-distance checks.
+inline CornerDistanceSqRange CalcCornerDistanceSqRange(float x_min, float y_min,
+                                                       float x_max, float y_max,
+                                                       float cx, float cy,
+                                                       int corner) {
+  const float near_x =
+      corner == kTopLeftCorner || corner == kBottomLeftCorner ? x_max : x_min;
+  const float far_x =
+      corner == kTopLeftCorner || corner == kBottomLeftCorner ? x_min : x_max;
+  const float near_y =
+      corner == kTopLeftCorner || corner == kTopRightCorner ? y_max : y_min;
+  const float far_y =
+      corner == kTopLeftCorner || corner == kTopRightCorner ? y_min : y_max;
+
+  const float near_dx = near_x - cx;
+  const float near_dy = near_y - cy;
+  const float far_dx = far_x - cx;
+  const float far_dy = far_y - cy;
+  return {near_dx * near_dx + near_dy * near_dy,
+          far_dx * far_dx + far_dy * far_dy};
 }
 
 // Converts coverage in pixel units to the 0..256 blending fractions expected
@@ -715,10 +775,10 @@ inline Color GetSmoothRoundRectCornersPixelColor(
     // Away from the rounded corners, the extents contract means this can only
     // be the straight-edge body or its AA fringe. Clamp keeps the helper
     // benign if a caller ever violates that contract.
-    outer_coverage = ClampNonNegative(
-        SignedDistanceToRectStraightEdge(rect.x0, rect.y0, rect.x1, rect.y1,
-                                        xt, yt) +
-        0.5f);
+    outer_coverage =
+        ClampNonNegative(SignedDistanceToRectStraightEdge(
+                             rect.x0, rect.y0, rect.x1, rect.y1, xt, yt) +
+                         0.5f);
     fully_within_outer = outer_coverage >= 1.0f;
   } else {
     // Rounded corner: use the cached `r^2 + 0.25` thresholds so most pixels
@@ -749,16 +809,16 @@ inline Color GetSmoothRoundRectCornersPixelColor(
     // rounded boundary is either the same corner or it has collapsed away.
     inner_radius = inner_radii[outer_corner];
     const float inner_dx =
-      xt - CornerCenterX(inner_x0, inner_x1, inner_radii, outer_corner);
+        xt - CornerCenterX(inner_x0, inner_x1, inner_radii, outer_corner);
     const float inner_dy =
-      yt - CornerCenterY(inner_y0, inner_y1, inner_radii, outer_corner);
+        yt - CornerCenterY(inner_y0, inner_y1, inner_radii, outer_corner);
     inner_d_squared = inner_dx * inner_dx + inner_dy * inner_dy;
     if (inner_radius >= 0.5f &&
-      inner_d_squared <= rect.ri_sq_adj[outer_corner] - inner_radius) {
+        inner_d_squared <= rect.ri_sq_adj[outer_corner] - inner_radius) {
       return rect.interior_color;
     }
     fully_outside_inner =
-      inner_d_squared >= rect.ri_sq_adj[outer_corner] + inner_radius;
+        inner_d_squared >= rect.ri_sq_adj[outer_corner] + inner_radius;
   } else {
     // Once an inner corner collapses, the inner boundary in that quadrant is a
     // sharp rectangle corner, so switch to the straight-edge proof.
@@ -767,8 +827,8 @@ inline Color GetSmoothRoundRectCornersPixelColor(
                                         xt, yt) >= 0.5f) {
       return rect.interior_color;
     }
-    inner_d_squared = CalcDistSqRect(inner_x0, inner_y0, inner_x1, inner_y1,
-                                     xt, yt);
+    inner_d_squared =
+        CalcDistSqRect(inner_x0, inner_y0, inner_x1, inner_y1, xt, yt);
     fully_outside_inner = inner_d_squared >= 0.25f;
   }
 
@@ -797,8 +857,8 @@ inline Color GetSmoothRoundRectCornersPixelColor(
   }
   if (fully_within_outer) {
     // Only the inner boundary is antialiased here.
-    const uint16_t outline_fraction = CoverageToFraction(
-        1.0f - (inner_radius - inner_distance + 0.5f));
+    const uint16_t outline_fraction =
+        CoverageToFraction(1.0f - (inner_radius - inner_distance + 0.5f));
     return InterpolateColors(rect.interior_color, rect.outline_color,
                              outline_fraction);
   }
@@ -806,11 +866,156 @@ inline Color GetSmoothRoundRectCornersPixelColor(
   // interior and outline fractions.
   const uint16_t outer_fraction = CoverageToFraction(outer_coverage);
   const uint16_t interior_fraction = std::min<uint16_t>(
-      outer_fraction,
-      CoverageToFraction(inner_radius - inner_distance + 0.5f));
+      outer_fraction, CoverageToFraction(inner_radius - inner_distance + 0.5f));
   const uint16_t outline_fraction = outer_fraction - interior_fraction;
-  return MixColors(rect.interior_color, interior_fraction,
-                   rect.outline_color, outline_fraction);
+  return MixColors(rect.interior_color, interior_fraction, rect.outline_color,
+                   outline_fraction);
+}
+
+// Corner tiles mirror the point evaluator's early returns: helper-box accept,
+// then outer-corner reject/full-cover proof, then the inner-boundary proof for
+// the same owning corner or its collapsed rectangular replacement.
+inline internal::round_rect::AreaType
+DetermineRectColorForRoundRectCornersInCorner(
+    const SmoothShape::RoundRectCorners& rect, float x_min, float y_min,
+    float x_max, float y_max, float inner_x0, float inner_y0, float inner_x1,
+    float inner_y1, const float inner_radii[4], int outer_corner) {
+  const float outer_radius = rect.ro[outer_corner];
+  const CornerDistanceSqRange outer_range = CalcCornerDistanceSqRange(
+      x_min, y_min, x_max, y_max,
+      CornerCenterX(rect.x0, rect.x1, rect.ro, outer_corner),
+      CornerCenterY(rect.y0, rect.y1, rect.ro, outer_corner), outer_corner);
+  if (outer_range.nearest_sq >= rect.ro_sq_adj[outer_corner] + outer_radius) {
+    return internal::round_rect::AreaType::kExterior;
+  }
+  if (outer_range.farthest_sq > rect.ro_sq_adj[outer_corner] - outer_radius) {
+    return internal::round_rect::AreaType::kMixed;
+  }
+
+  const float inner_radius = inner_radii[outer_corner];
+  if (inner_radius <= 0.0f) {
+    if (BoxFullyInsideRect(inner_x0, inner_y0, inner_x1, inner_y1, x_min, y_min,
+                           x_max, y_max)) {
+      return internal::round_rect::AreaType::kInterior;
+    }
+    if (BoxFullyOutsideRect(inner_x0, inner_y0, inner_x1, inner_y1, x_min,
+                            y_min, x_max, y_max)) {
+      return internal::round_rect::AreaType::kOutline;
+    }
+    return internal::round_rect::AreaType::kMixed;
+  }
+
+  const CornerDistanceSqRange inner_range = CalcCornerDistanceSqRange(
+      x_min, y_min, x_max, y_max,
+      CornerCenterX(inner_x0, inner_x1, inner_radii, outer_corner),
+      CornerCenterY(inner_y0, inner_y1, inner_radii, outer_corner),
+      outer_corner);
+  if (inner_radius >= 0.5f &&
+      inner_range.farthest_sq <= rect.ri_sq_adj[outer_corner] - inner_radius) {
+    return internal::round_rect::AreaType::kInterior;
+  }
+  if (inner_range.nearest_sq >= rect.ri_sq_adj[outer_corner] + inner_radius) {
+    return internal::round_rect::AreaType::kOutline;
+  }
+  return internal::round_rect::AreaType::kMixed;
+}
+
+// Straight-edge tiles use the same early-return shape as the point evaluator:
+// first prove the tile fully inside the outer edge, then prove it stays clear
+// of the inner edge. Anything that reaches a curved transition remains mixed.
+inline internal::round_rect::AreaType
+DetermineRectColorForRoundRectCornersStraightBand(
+    const SmoothShape::RoundRectCorners& rect, float x_min, float y_min,
+    float x_max, float y_max, float inner_x0, float inner_y0, float inner_x1,
+    float inner_y1, const float inner_radii[4]) {
+  const float outer_top_x0 = rect.x0 + rect.ro[kTopLeftCorner];
+  const float outer_top_x1 = rect.x1 - rect.ro[kTopRightCorner];
+  if (x_min >= outer_top_x0 && x_max <= outer_top_x1) {
+    if (y_min < rect.y0) return internal::round_rect::AreaType::kMixed;
+    const float inner_top_x0 = inner_x0 + inner_radii[kTopLeftCorner];
+    const float inner_top_x1 = inner_x1 - inner_radii[kTopRightCorner];
+    if (x_min < inner_top_x0 || x_max > inner_top_x1) {
+      return internal::round_rect::AreaType::kMixed;
+    }
+    if (y_max <= inner_y0) return internal::round_rect::AreaType::kOutline;
+    return internal::round_rect::AreaType::kMixed;
+  }
+
+  const float outer_bottom_x0 = rect.x0 + rect.ro[kBottomLeftCorner];
+  const float outer_bottom_x1 = rect.x1 - rect.ro[kBottomRightCorner];
+  if (x_min >= outer_bottom_x0 && x_max <= outer_bottom_x1) {
+    if (y_max > rect.y1) return internal::round_rect::AreaType::kMixed;
+    const float inner_bottom_x0 = inner_x0 + inner_radii[kBottomLeftCorner];
+    const float inner_bottom_x1 = inner_x1 - inner_radii[kBottomRightCorner];
+    if (x_min < inner_bottom_x0 || x_max > inner_bottom_x1) {
+      return internal::round_rect::AreaType::kMixed;
+    }
+    if (y_min >= inner_y1) return internal::round_rect::AreaType::kOutline;
+    return internal::round_rect::AreaType::kMixed;
+  }
+
+  const float outer_left_y0 = rect.y0 + rect.ro[kTopLeftCorner];
+  const float outer_left_y1 = rect.y1 - rect.ro[kBottomLeftCorner];
+  if (y_min >= outer_left_y0 && y_max <= outer_left_y1) {
+    if (x_min < rect.x0) return internal::round_rect::AreaType::kMixed;
+    const float inner_left_y0 = inner_y0 + inner_radii[kTopLeftCorner];
+    const float inner_left_y1 = inner_y1 - inner_radii[kBottomLeftCorner];
+    if (y_min < inner_left_y0 || y_max > inner_left_y1) {
+      return internal::round_rect::AreaType::kMixed;
+    }
+    if (x_max <= inner_x0) return internal::round_rect::AreaType::kOutline;
+    return internal::round_rect::AreaType::kMixed;
+  }
+
+  const float outer_right_y0 = rect.y0 + rect.ro[kTopRightCorner];
+  const float outer_right_y1 = rect.y1 - rect.ro[kBottomRightCorner];
+  if (y_min >= outer_right_y0 && y_max <= outer_right_y1) {
+    if (x_max > rect.x1) return internal::round_rect::AreaType::kMixed;
+    const float inner_right_y0 = inner_y0 + inner_radii[kTopRightCorner];
+    const float inner_right_y1 = inner_y1 - inner_radii[kBottomRightCorner];
+    if (y_min < inner_right_y0 || y_max > inner_right_y1) {
+      return internal::round_rect::AreaType::kMixed;
+    }
+    if (x_min >= inner_x1) return internal::round_rect::AreaType::kOutline;
+    return internal::round_rect::AreaType::kMixed;
+  }
+
+  return internal::round_rect::AreaType::kMixed;
+}
+
+// Called for rectangles with area <= 64 pixels.
+internal::round_rect::AreaType DetermineRectColorForRoundRectCornersImpl(
+    const SmoothShape::RoundRectCorners& rect, const Box& box) {
+  if (BoxInsideRoundRectCornersInteriorHelper(rect, box)) {
+    return internal::round_rect::AreaType::kInterior;
+  }
+
+  const float x_min = box.xMin() - 0.5f;
+  const float y_min = box.yMin() - 0.5f;
+  const float x_max = box.xMax() + 0.5f;
+  const float y_max = box.yMax() + 0.5f;
+  const float inner_x0 = rect.x0 + rect.thickness;
+  const float inner_y0 = rect.y0 + rect.thickness;
+  const float inner_x1 = rect.x1 - rect.thickness;
+  const float inner_y1 = rect.y1 - rect.thickness;
+  const float inner_radii[4] = {
+      ClampNonNegative(rect.ro[kTopLeftCorner] - rect.thickness),
+      ClampNonNegative(rect.ro[kTopRightCorner] - rect.thickness),
+      ClampNonNegative(rect.ro[kBottomLeftCorner] - rect.thickness),
+      ClampNonNegative(rect.ro[kBottomRightCorner] - rect.thickness),
+  };
+
+  const int outer_corner = SelectRoundedCornerBox(
+      x_min, y_min, x_max, y_max, rect.x0, rect.y0, rect.x1, rect.y1, rect.ro);
+  if (outer_corner >= 0) {
+    return DetermineRectColorForRoundRectCornersInCorner(
+        rect, x_min, y_min, x_max, y_max, inner_x0, inner_y0, inner_x1,
+        inner_y1, inner_radii, outer_corner);
+  }
+
+  return DetermineRectColorForRoundRectCornersStraightBand(
+      rect, x_min, y_min, x_max, y_max, inner_x0, inner_y0, inner_x1, inner_y1,
+      inner_radii);
 }
 
 inline float CalcDistSqRectInnerBoundary(const SmoothShape::RoundRect& rect,
@@ -994,8 +1199,8 @@ inline int32_t CeilSqrt(uint32_t value) {
 // fully inside the band and the smallest doubled-x fully outside it.
 class CircleBandDxTracker {
  public:
-  CircleBandDxTracker(uint32_t full_sq4, uint32_t out_sq4,
-                      bool has_full = true, uint32_t initial_dy_sq4 = 0)
+  CircleBandDxTracker(uint32_t full_sq4, uint32_t out_sq4, bool has_full = true,
+                      uint32_t initial_dy_sq4 = 0)
       : full_sq4_(full_sq4),
         out_sq4_(out_sq4),
         has_full_(has_full),
@@ -1030,17 +1235,16 @@ class CircleBandDxTracker {
       out_error_ = (int32_t)dy_sq4 - (int32_t)out_sq4_;
     } else {
       out_dx_min_ = CeilSqrt(out_sq4_ - dy_sq4);
-      out_error_ =
-          (int32_t)(Square(out_dx_min_) + dy_sq4) - (int32_t)out_sq4_;
+      out_error_ = (int32_t)(Square(out_dx_min_) + dy_sq4) - (int32_t)out_sq4_;
     }
   }
 
   void Update(uint32_t dy_sq4) {
     // Adjacent rows only change dy, so keep the previous error term and nudge
     // the x thresholds just far enough to reestablish the invariants.
-    const int32_t delta_dy_sq4 =
-        dy_sq4 >= last_dy_sq4_ ? (int32_t)(dy_sq4 - last_dy_sq4_)
-                               : -(int32_t)(last_dy_sq4_ - dy_sq4);
+    const int32_t delta_dy_sq4 = dy_sq4 >= last_dy_sq4_
+                                     ? (int32_t)(dy_sq4 - last_dy_sq4_)
+                                     : -(int32_t)(last_dy_sq4_ - dy_sq4);
     last_dy_sq4_ = dy_sq4;
     if (has_full_) {
       UpdateFullDxMax(dy_sq4, delta_dy_sq4);
@@ -1146,8 +1350,7 @@ class RoundRectStream : public PixelStream {
                        Square(rox2_ + 1), true,
                        RowDySq4(bounds_.yMin(), y0x2_, y1x2_)),
         inner_tracker_(rix2_ > 0 ? Square(rix2_ - 1) : 0, Square(rix2_ + 1),
-                       rix2_ > 0,
-                       RowDySq4(bounds_.yMin(), y0x2_, y1x2_)) {}
+                       rix2_ > 0, RowDySq4(bounds_.yMin(), y0x2_, y1x2_)) {}
 
   void Read(Color* buf, uint16_t count) override {
     while (count > 0) {
@@ -1684,6 +1887,88 @@ void FillSubrectangle(const SmoothShape::RoundRect& rect,
   }
 }
 
+// Called for rectangles with area <= 64 pixels.
+inline void FillSubrectOfRoundRectCorners(
+    const SmoothShape::RoundRectCorners& rect, const RoundRectDrawSpec& spec,
+    const Box& box) {
+  Color interior = rect.interior_color;
+  Color outline = rect.outline_color;
+  switch (DetermineRectColorForRoundRectCornersImpl(rect, box)) {
+    case internal::round_rect::AreaType::kExterior: {
+      if (spec.fill_mode == FillMode::kExtents) {
+        spec.out->fillRect(spec.blending_mode, box, spec.bgcolor);
+      }
+      return;
+    }
+    case internal::round_rect::AreaType::kInterior: {
+      if (spec.fill_mode == FillMode::kExtents ||
+          interior != color::Transparent) {
+        spec.out->fillRect(spec.blending_mode, box, spec.pre_blended_interior);
+      }
+      return;
+    }
+    case internal::round_rect::AreaType::kOutline: {
+      if (spec.fill_mode == FillMode::kExtents ||
+          outline != color::Transparent) {
+        spec.out->fillRect(spec.blending_mode, box, spec.pre_blended_outline);
+      }
+      return;
+    }
+    default:
+      break;
+  }
+
+  if (spec.fill_mode == FillMode::kVisible) {
+    BufferedPixelWriter writer(*spec.out, spec.blending_mode);
+    for (int16_t y = box.yMin(); y <= box.yMax(); ++y) {
+      for (int16_t x = box.xMin(); x <= box.xMax(); ++x) {
+        Color c = PointInsideRoundRectCornersInteriorHelper(rect, x, y)
+                      ? interior
+                      : GetSmoothRoundRectCornersPixelColor(rect, x, y);
+        if (c == color::Transparent) continue;
+        writer.writePixel(x, y,
+                          c == interior  ? spec.pre_blended_interior
+                          : c == outline ? spec.pre_blended_outline
+                                         : AlphaBlend(spec.bgcolor, c));
+      }
+    }
+    return;
+  }
+
+  Color color[64];
+  int cnt = 0;
+  for (int16_t y = box.yMin(); y <= box.yMax(); ++y) {
+    for (int16_t x = box.xMin(); x <= box.xMax(); ++x) {
+      Color c = PointInsideRoundRectCornersInteriorHelper(rect, x, y)
+                    ? interior
+                    : GetSmoothRoundRectCornersPixelColor(rect, x, y);
+      color[cnt++] = c.a() == 0      ? spec.bgcolor
+                     : c == interior ? spec.pre_blended_interior
+                     : c == outline  ? spec.pre_blended_outline
+                                     : AlphaBlend(spec.bgcolor, c);
+    }
+  }
+  spec.out->setAddress(box, spec.blending_mode);
+  spec.out->write(color, cnt);
+}
+
+void FillSubrectangle(const SmoothShape::RoundRectCorners& rect,
+                      const RoundRectDrawSpec& spec, const Box& box) {
+  const int16_t xMinOuter = (box.xMin() / 8) * 8;
+  const int16_t yMinOuter = (box.yMin() / 8) * 8;
+  const int16_t xMaxOuter = (box.xMax() / 8) * 8 + 7;
+  const int16_t yMaxOuter = (box.yMax() / 8) * 8 + 7;
+  for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
+    for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
+      FillSubrectOfRoundRectCorners(
+          rect, spec,
+          Box(std::max(x, box.xMin()), std::max(y, box.yMin()),
+              std::min((int16_t)(x + 7), box.xMax()),
+              std::min((int16_t)(y + 7), box.yMax())));
+    }
+  }
+}
+
 void DrawRoundRectImpl(SmoothShape::RoundRect rect, const Surface& s,
                        const Box& box) {
   RoundRectDrawSpec spec{
@@ -1749,6 +2034,65 @@ void DrawRoundRectImpl(SmoothShape::RoundRect rect, const Surface& s,
   }
 }
 
+void DrawRoundRectCorners(SmoothShape::RoundRectCorners rect, const Surface& s,
+                          const Box& box) {
+  RoundRectDrawSpec spec{
+      .out = &s.out(),
+      .fill_mode = s.fill_mode(),
+      .blending_mode = s.blending_mode(),
+      .bgcolor = s.bgcolor(),
+      .pre_blended_outline = AlphaBlend(s.bgcolor(), rect.outline_color),
+      .pre_blended_interior = AlphaBlend(s.bgcolor(), rect.interior_color),
+  };
+  if (s.dx() != 0 || s.dy() != 0) {
+    rect.x0 += s.dx();
+    rect.y0 += s.dy();
+    rect.x1 += s.dx();
+    rect.y1 += s.dy();
+    rect.inner_core = rect.inner_core.translate(s.dx(), s.dy());
+    rect.top_slab = rect.top_slab.translate(s.dx(), s.dy());
+    rect.bottom_slab = rect.bottom_slab.translate(s.dx(), s.dy());
+    rect.left_slab = rect.left_slab.translate(s.dx(), s.dy());
+    rect.right_slab = rect.right_slab.translate(s.dx(), s.dy());
+  }
+  if (box.area() <= 64) {
+    FillSubrectOfRoundRectCorners(rect, spec, box);
+    return;
+  }
+  if (rect.inner_core.empty() || rect.inner_core.width() <= 16) {
+    FillSubrectangle(rect, spec, box);
+    return;
+  }
+
+  const Box& inner = rect.inner_core;
+  const Box top = Box::Intersect(
+      Box(box.xMin(), box.yMin(), box.xMax(), inner.yMin() - 1), box);
+  const Box left = Box::Intersect(
+      Box(box.xMin(), inner.yMin(), inner.xMin() - 1, inner.yMax()), box);
+  const Box clipped_inner = Box::Intersect(inner, box);
+  const Box right = Box::Intersect(
+      Box(inner.xMax() + 1, inner.yMin(), box.xMax(), inner.yMax()), box);
+  const Box bottom = Box::Intersect(
+      Box(box.xMin(), inner.yMax() + 1, box.xMax(), box.yMax()), box);
+  if (!top.empty()) {
+    FillSubrectangle(rect, spec, top);
+  }
+  if (!left.empty()) {
+    FillSubrectangle(rect, spec, left);
+  }
+  if (!clipped_inner.empty() && (s.fill_mode() == FillMode::kExtents ||
+                                 rect.interior_color != color::Transparent)) {
+    s.out().fillRect(s.blending_mode(), clipped_inner,
+                     spec.pre_blended_interior);
+  }
+  if (!right.empty()) {
+    FillSubrectangle(rect, spec, right);
+  }
+  if (!bottom.empty()) {
+    FillSubrectangle(rect, spec, bottom);
+  }
+}
+
 }  // namespace
 
 namespace internal {
@@ -1756,6 +2100,11 @@ namespace internal {
 round_rect::AreaType DetermineRectColorForRoundRect(
     const SmoothShape::RoundRect& rect, const Box& box) {
   return DetermineRectColorForRoundRectImpl(rect, box);
+}
+
+round_rect::AreaType DetermineRectColorForRoundRectCorners(
+    const SmoothShape::RoundRectCorners& rect, const Box& box) {
+  return DetermineRectColorForRoundRectCornersImpl(rect, box);
 }
 
 bool ReadColorRectOfRoundRect(const SmoothShape::RoundRect& rect, int16_t xMin,
@@ -1794,6 +2143,44 @@ bool ReadColorRectOfRoundRect(const SmoothShape::RoundRect& rect, int16_t xMin,
   // }
   // return true;
   return false;
+}
+
+bool ReadColorRectOfRoundRectCorners(const SmoothShape::RoundRectCorners& rect,
+                                     int16_t xMin, int16_t yMin, int16_t xMax,
+                                     int16_t yMax, Color* result) {
+  Box box(xMin, yMin, xMax, yMax);
+  switch (DetermineRectColorForRoundRectCornersImpl(rect, box)) {
+    case round_rect::AreaType::kExterior: {
+      *result = color::Transparent;
+      return true;
+    }
+    case round_rect::AreaType::kInterior: {
+      *result = rect.interior_color;
+      return true;
+    }
+    case round_rect::AreaType::kOutline: {
+      *result = rect.outline_color;
+      return true;
+    }
+    default:
+      break;
+  }
+  Color* out = result;
+  for (int16_t y = yMin; y <= yMax; ++y) {
+    for (int16_t x = xMin; x <= xMax; ++x) {
+      *out++ = PointInsideRoundRectCornersInteriorHelper(rect, x, y)
+                   ? rect.interior_color
+                   : GetSmoothRoundRectCornersPixelColor(rect, x, y);
+    }
+  }
+  // Preserve the `readColorRect()` contract even on the mixed fallback path:
+  // a single pixel or an accidentally uniform tile should still report true.
+  const uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
+  Color c = result[0];
+  for (uint32_t i = 1; i < pixel_count; ++i) {
+    if (result[i] != c) return false;
+  }
+  return true;
 }
 
 void ReadRoundRectColors(const SmoothShape::RoundRect& rect, const int16_t* x,
@@ -1839,6 +2226,11 @@ std::unique_ptr<PixelStream> CreateRoundRectStream(
 void DrawRoundRect(SmoothShape::RoundRect rect, const Surface& s,
                    const Box& box) {
   DrawRoundRectImpl(rect, s, box);
+}
+
+void DrawRoundRectCorners(SmoothShape::RoundRectCorners rect, const Surface& s,
+                          const Box& box) {
+  ::roo_display::DrawRoundRectCorners(rect, s, box);
 }
 
 }  // namespace internal

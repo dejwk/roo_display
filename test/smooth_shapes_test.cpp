@@ -6,8 +6,8 @@
 #include <string>
 
 #include "roo_display/color/color.h"
-#include "roo_display/shape/smooth.h"
 #include "roo_display/shape/impl/smooth_internal.h"
+#include "roo_display/shape/smooth.h"
 #include "testing.h"
 
 using namespace testing;
@@ -400,8 +400,7 @@ TEST(SmoothShapes, NormalizeFourRadiiRoundRectMatchesSingleRadiusWhenEqual) {
 
 // Verifies one global scale factor is applied to all corner radii before the
 // thick outer and inner radii are derived.
-TEST(SmoothShapes,
-     NormalizeFourRadiiRoundRectGloballyScalesRadiiToFitBounds) {
+TEST(SmoothShapes, NormalizeFourRadiiRoundRectGloballyScalesRadiiToFitBounds) {
   const RoundRectRadii radii{8.0f, 4.0f, 8.0f, 4.0f};
   const internal::NormalizedFourRadiiRoundRect normalized =
       internal::NormalizeFourRadiiRoundRect(0.0f, 0.0f, 10.0f, 10.0f, radii,
@@ -449,16 +448,16 @@ TEST(SmoothShapes,
   const Color outline = color::Black.withA(0x95);
   const Color interior(0xFFF3EFE7);
 
-  const FakeOffscreen<Argb8888> actual = CoercedTo<Argb8888>(
-      SmoothThickRoundRect(0.5f, 0.5f, 16.5f, 12.5f, radii, 2.0f, outline,
-                           interior),
-      Argb8888(), color::Transparent, FillMode::kVisible,
-      BlendingMode::kSourceOver, color::Transparent);
-  const FakeOffscreen<Argb8888> expected = CoercedTo<Argb8888>(
-      SmoothThickRoundRect(0.5f, 0.5f, 16.5f, 12.5f, 3.0f, 2.0f, outline,
-                           interior),
-      Argb8888(), color::Transparent, FillMode::kVisible,
-      BlendingMode::kSourceOver, color::Transparent);
+  const FakeOffscreen<Argb8888> actual =
+      CoercedTo<Argb8888>(SmoothThickRoundRect(0.5f, 0.5f, 16.5f, 12.5f, radii,
+                                               2.0f, outline, interior),
+                          Argb8888(), color::Transparent, FillMode::kVisible,
+                          BlendingMode::kSourceOver, color::Transparent);
+  const FakeOffscreen<Argb8888> expected =
+      CoercedTo<Argb8888>(SmoothThickRoundRect(0.5f, 0.5f, 16.5f, 12.5f, 3.0f,
+                                               2.0f, outline, interior),
+                          Argb8888(), color::Transparent, FillMode::kVisible,
+                          BlendingMode::kSourceOver, color::Transparent);
 
   EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
 }
@@ -471,16 +470,16 @@ TEST(SmoothShapes,
   const Color outline = color::Black.withA(0x95);
   const Color interior(0xFFF3EFE7);
 
-  const FakeOffscreen<Argb8888> actual = CoercedTo<Argb8888>(
-      SmoothThickRoundRect(0.0f, 0.0f, 12.0f, 8.0f, radii, 2.0f, outline,
-                           interior),
-      Argb8888(), color::Transparent, FillMode::kVisible,
-      BlendingMode::kSourceOver, color::Transparent);
-  const FakeOffscreen<Argb8888> expected = CoercedTo<Argb8888>(
-      SmoothThickRoundRect(0.0f, 0.0f, 12.0f, 8.0f, 0.0f, 2.0f, outline,
-                           interior),
-      Argb8888(), color::Transparent, FillMode::kVisible,
-      BlendingMode::kSourceOver, color::Transparent);
+  const FakeOffscreen<Argb8888> actual =
+      CoercedTo<Argb8888>(SmoothThickRoundRect(0.0f, 0.0f, 12.0f, 8.0f, radii,
+                                               2.0f, outline, interior),
+                          Argb8888(), color::Transparent, FillMode::kVisible,
+                          BlendingMode::kSourceOver, color::Transparent);
+  const FakeOffscreen<Argb8888> expected =
+      CoercedTo<Argb8888>(SmoothThickRoundRect(0.0f, 0.0f, 12.0f, 8.0f, 0.0f,
+                                               2.0f, outline, interior),
+                          Argb8888(), color::Transparent, FillMode::kVisible,
+                          BlendingMode::kSourceOver, color::Transparent);
 
   EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
 }
@@ -504,6 +503,44 @@ TEST(SmoothShapes, ThickRoundRectCornerRadiiReadsUnequalPayloadColors) {
   EXPECT_EQ(outline, sample);
   EXPECT_TRUE(shape.readColorRect(6, 5, 6, 5, &sample));
   EXPECT_EQ(interior, sample);
+}
+
+// Verifies unequal-radius readback reuses the dedicated rectangle classifier
+// for uniform outline tiles and still reports mixed AA tiles as non-uniform.
+TEST(SmoothShapes, ThickRoundRectCornerRadiiReadColorRectUsesClassifier) {
+  const Color outline = color::Black;
+  const Color interior(0xFFF3EFE7);
+  const SmoothShape shape = SmoothThickRoundRect(
+      0.0f, 0.0f, 12.0f, 10.0f, RoundRectRadii{4.0f, 2.0f, 4.0f, 2.0f}, 2.0f,
+      outline, interior);
+
+  Color sample[4];
+  EXPECT_TRUE(shape.readColorRect(5, 0, 7, 0, sample));
+  EXPECT_EQ(outline, sample[0]);
+
+  EXPECT_FALSE(shape.readColorRect(-1, -1, 1, 1, sample));
+}
+
+// Verifies the dedicated unequal-radius draw path matches the streaming path,
+// including the clipped center-fill partition and tiled perimeter bands.
+TEST(SmoothShapes, ThickRoundRectCornerRadiiClippedDrawMatchesStreaming) {
+  const Color outline = color::Black.withA(0x95);
+  const Color interior(0x80F3EFE7);
+  const SmoothShape shape = SmoothThickRoundRect(
+      0.0f, 0.0f, 20.0f, 14.0f, RoundRectRadii{5.0f, 2.0f, 4.0f, 3.0f}, 2.0f,
+      outline, interior);
+  const Box clip(shape.extents().xMin() + 1, shape.extents().yMin() + 2,
+                 shape.extents().xMax() - 2, shape.extents().yMax() - 1);
+  const ForcedStreamable forced(&shape);
+
+  const FakeOffscreen<Argb8888> actual = CoercedToClipped<Argb8888>(
+      shape, clip, Argb8888(), color::Transparent, FillMode::kVisible,
+      BlendingMode::kSourceOver, color::White);
+  const FakeOffscreen<Argb8888> expected = CoercedToClipped<Argb8888>(
+      forced, clip, Argb8888(), color::Transparent, FillMode::kVisible,
+      BlendingMode::kSourceOver, color::White);
+
+  EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
 }
 
 TEST(SmoothShapes, DrawSmallCirclesCenterWhole) {

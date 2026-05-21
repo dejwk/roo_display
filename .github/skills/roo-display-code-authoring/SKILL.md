@@ -18,6 +18,10 @@ API work, tests, documentation updates, and validation.
   more naturally, matching the spelling of the underlying field.
 - Favor readability. Avoid redundant branches, repeated explanations, and
   unnecessary line count when the code can stay clear without them.
+- When extending an existing implementation in a file, prefer the prevailing
+  local style for branch ordering, early returns, helper factoring, naming,
+  and comment density unless there is a clear reason to refactor the broader
+  surrounding code.
 - Avoid long lambdas. When logic is substantial, prefer an unnamed-namespace
   helper over a large local lambda, and define that helper close to the place
   where it is used.
@@ -86,6 +90,8 @@ API work, tests, documentation updates, and validation.
 - Complex implementation comments explain intent, not mechanics.
 - Complex algorithms explain their main strategy and important branches.
 - Non-trivial helper functions and methods are documented.
+- Extensions stay consistent with the established local style in the same
+  file unless the change intentionally refactors that surrounding code.
 - The change does not add avoidable per-instance RAM cost.
 - If the change implements a design-doc stage, the response includes a
   proposed commit message with a standalone summary sentence followed by a

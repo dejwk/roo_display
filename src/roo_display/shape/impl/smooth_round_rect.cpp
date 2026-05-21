@@ -432,23 +432,78 @@ inline uint32_t Square(int32_t value) {
   return (uint32_t)value * (uint32_t)value;
 }
 
+inline uint32_t RowDySq4(int16_t y, int32_t y0x2, int32_t y1x2) {
+  int32_t yx2 = 2 * y;
+  int32_t ref_yx2 = std::min<int32_t>(std::max<int32_t>(yx2, y0x2), y1x2);
+  uint32_t dyx2 = (uint32_t)std::abs(yx2 - ref_yx2);
+  return dyx2 * dyx2;
+}
+
+inline int32_t FloorSqrt(uint32_t value) {
+  // `sqrtf` gives a fast initial estimate, but `value` can be larger than the
+  // range of integers represented exactly by float. The fixup loops restore
+  // the exact integer floor; in practice they are usually no-ops.
+  int32_t root = (int32_t)sqrtf((float)value);
+  while ((uint64_t)(root + 1) * (uint64_t)(root + 1) <= value) {
+    ++root;
+  }
+  while ((uint64_t)root * (uint64_t)root > value) {
+    --root;
+  }
+  return root;
+}
+
+inline int32_t CeilSqrt(uint32_t value) {
+  // Build the exact ceil from the corrected floor result so Reset() can seed
+  // the outside threshold conservatively.
+  int32_t root = FloorSqrt(value);
+  return (uint64_t)root * (uint64_t)root == value ? root : root + 1;
+}
+
 // Tracks both x thresholds for one rounded boundary band: the largest doubled-x
 // fully inside the band and the smallest doubled-x fully outside it.
 class CircleBandDxTracker {
  public:
   CircleBandDxTracker(uint32_t full_sq4, uint32_t out_sq4,
-                      int32_t initial_full_dx_max, int32_t initial_out_dx_min,
-                      bool has_full = true)
+                      bool has_full = true, uint32_t initial_dy_sq4 = 0)
       : full_sq4_(full_sq4),
         out_sq4_(out_sq4),
         has_full_(has_full),
-        full_dx_max_(initial_full_dx_max),
-        out_dx_min_(initial_out_dx_min),
+        full_dx_max_(-1),
+        out_dx_min_(0),
         last_dy_sq4_(0),
-        full_error_(has_full ? (int32_t)Square(initial_full_dx_max) -
-                                  (int32_t)full_sq4
-                            : 0),
-        out_error_((int32_t)Square(initial_out_dx_min) - (int32_t)out_sq4) {}
+        full_error_(0),
+        out_error_(0) {
+    Reset(initial_dy_sq4);
+  }
+
+  // Seeds the tracker directly for one scanline distance. The full threshold
+  // starts from a known-inside x bound, and the outside threshold starts from
+  // a known-outside x bound; Update() can then tighten them incrementally.
+  void Reset(uint32_t dy_sq4) {
+    last_dy_sq4_ = dy_sq4;
+    if (has_full_) {
+      if (dy_sq4 > full_sq4_) {
+        full_dx_max_ = -1;
+        full_error_ = (int32_t)dy_sq4 - (int32_t)full_sq4_;
+      } else {
+        full_dx_max_ = FloorSqrt(full_sq4_ - dy_sq4);
+        full_error_ =
+            (int32_t)(Square(full_dx_max_) + dy_sq4) - (int32_t)full_sq4_;
+      }
+    } else {
+      full_dx_max_ = -1;
+      full_error_ = 0;
+    }
+    if (dy_sq4 >= out_sq4_) {
+      out_dx_min_ = 0;
+      out_error_ = (int32_t)dy_sq4 - (int32_t)out_sq4_;
+    } else {
+      out_dx_min_ = CeilSqrt(out_sq4_ - dy_sq4);
+      out_error_ =
+          (int32_t)(Square(out_dx_min_) + dy_sq4) - (int32_t)out_sq4_;
+    }
+  }
 
   void Update(uint32_t dy_sq4) {
     const int32_t delta_dy_sq4 =
@@ -556,11 +611,11 @@ class RoundRectStream : public PixelStream {
         rox2_(ToDoubledCoord(rect.ro)),
         rix2_(ToDoubledCoord(rect.ri)),
         outer_tracker_(Square(std::max<int32_t>(0, rox2_ - 1)),
-                       Square(rox2_ + 1), std::max<int32_t>(-1, rox2_ - 1),
-                       rox2_ + 1),
+                       Square(rox2_ + 1), true,
+                       RowDySq4(bounds_.yMin(), y0x2_, y1x2_)),
         inner_tracker_(rix2_ > 0 ? Square(rix2_ - 1) : 0, Square(rix2_ + 1),
-                       rix2_ > 0 ? std::max<int32_t>(-1, rix2_ - 1) : -1,
-                       rix2_ + 1, rix2_ > 0) {}
+                       rix2_ > 0,
+                       RowDySq4(bounds_.yMin(), y0x2_, y1x2_)) {}
 
   void Read(Color* buf, uint16_t count) override {
     while (count > 0) {
@@ -719,10 +774,7 @@ class RoundRectStream : public PixelStream {
     // used by the anti-aliased round-rect tests become exact integer
     // thresholds. For the current row we reduce the shape to three zones:
     // left cap, center slab, right cap.
-    int32_t yx2 = 2 * y_;
-    int32_t ref_yx2 = std::min<int32_t>(std::max<int32_t>(yx2, y0x2_), y1x2_);
-    uint32_t dyx2 = (uint32_t)std::abs(yx2 - ref_yx2);
-    uint32_t dy_sq4 = dyx2 * dyx2;
+    uint32_t dy_sq4 = RowDySq4(y_, y0x2_, y1x2_);
 
     UpdateThresholds(dy_sq4);
 
@@ -791,8 +843,8 @@ class RectInnerRoundRectStream : public PixelStream {
         y1x2_(ToDoubledCoord(rect.y1)),
         rox2_(ToDoubledCoord(rect.ro)),
         outer_tracker_(Square(std::max<int32_t>(0, rox2_ - 1)),
-                       Square(rox2_ + 1), std::max<int32_t>(-1, rox2_ - 1),
-                       rox2_ + 1),
+                       Square(rox2_ + 1), true,
+                       RowDySq4(bounds_.yMin(), y0x2_, y1x2_)),
         inner_inside_start_((int16_t)ceilf(rect.inner_x0)),
         inner_inside_end_((int16_t)floorf(rect.inner_x1)),
         inner_outside_left_end_((int16_t)floorf(rect.inner_x0 - 0.5f)),
@@ -943,10 +995,7 @@ class RectInnerRoundRectStream : public PixelStream {
     row_ready_ = true;
     if (y_ > bounds_.yMax()) return;
 
-    int32_t yx2 = 2 * y_;
-    int32_t ref_yx2 = std::min<int32_t>(std::max<int32_t>(yx2, y0x2_), y1x2_);
-    uint32_t dyx2 = (uint32_t)std::abs(yx2 - ref_yx2);
-    uint32_t dy_sq4 = dyx2 * dyx2;
+    uint32_t dy_sq4 = RowDySq4(y_, y0x2_, y1x2_);
 
     outer_tracker_.Update(dy_sq4);
 

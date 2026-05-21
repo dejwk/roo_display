@@ -420,6 +420,66 @@ internal::round_rect::AreaType DetermineRectColorForRoundRectImpl(
   return internal::round_rect::AreaType::kMixed;
 }
 
+  inline uint64_t Square(int32_t value) {
+    return (uint64_t)value * (uint64_t)value;
+  }
+
+  // Tracks the largest doubled-x still inside a fixed squared-radius threshold
+  // as successive scanlines move across the rounded cap.
+  class MaxCircleDxTracker {
+   public:
+    MaxCircleDxTracker(uint64_t limit_sq4, int32_t initial_dx)
+        : limit_sq4_(limit_sq4), dx_(initial_dx) {}
+
+    void Update(uint64_t dy_sq4) {
+      if (dy_sq4 > limit_sq4_) {
+        dx_ = -1;
+        return;
+      }
+      if (dx_ < 0) dx_ = 0;
+      while (dx_ > 0 && Square(dx_) + dy_sq4 > limit_sq4_) {
+        --dx_;
+      }
+      while (Square(dx_ + 1) + dy_sq4 <= limit_sq4_) {
+        ++dx_;
+      }
+    }
+
+    int32_t dx() const { return dx_; }
+
+   private:
+    const uint64_t limit_sq4_;
+    int32_t dx_;
+  };
+
+  // Tracks the smallest doubled-x already outside a fixed squared-radius
+  // threshold as successive scanlines move across the rounded cap.
+  class MinCircleDxTracker {
+   public:
+    MinCircleDxTracker(uint64_t limit_sq4, int32_t initial_dx)
+        : limit_sq4_(limit_sq4), dx_(initial_dx) {}
+
+    void Update(uint64_t dy_sq4) {
+      if (dy_sq4 >= limit_sq4_) {
+        dx_ = 0;
+        return;
+      }
+      if (dx_ < 0) dx_ = 0;
+      while (dx_ > 0 && Square(dx_ - 1) + dy_sq4 >= limit_sq4_) {
+        --dx_;
+      }
+      while (Square(dx_) + dy_sq4 < limit_sq4_) {
+        ++dx_;
+      }
+    }
+
+    int32_t dx() const { return dx_; }
+
+   private:
+    const uint64_t limit_sq4_;
+    int32_t dx_;
+  };
+
 class RoundRectStream : public PixelStream {
  public:
   // Emits a round-rect in row-major order without buffering the whole row.
@@ -445,10 +505,12 @@ class RoundRectStream : public PixelStream {
         has_inner_full_(rix2_ > 0),
         inner_full_sq4_(has_inner_full_ ? Square(rix2_ - 1) : 0),
         inner_out_sq4_(Square(rix2_ + 1)),
-        outer_dx_max_(std::max<int32_t>(-1, rox2_ - 1)),
-        trans_dx_min_(rox2_ + 1),
-        inner_dx_max_(has_inner_full_ ? std::max<int32_t>(-1, rix2_ - 1) : -1),
-        inner_out_dx_min_(rix2_ + 1) {}
+        outer_full_tracker_(outer_full_sq4_, std::max<int32_t>(-1, rox2_ - 1)),
+        outer_trans_tracker_(outer_trans_sq4_, rox2_ + 1),
+        inner_full_tracker_(
+          inner_full_sq4_,
+          has_inner_full_ ? std::max<int32_t>(-1, rix2_ - 1) : -1),
+        inner_out_tracker_(inner_out_sq4_, rix2_ + 1) {}
 
   void Read(Color* buf, uint16_t count) override {
     while (count > 0) {
@@ -522,47 +584,13 @@ class RoundRectStream : public PixelStream {
     return value >= 0 ? (value + 1) / 2 : -((-value) / 2);
   }
 
-  inline uint64_t Square(int32_t value) {
-    return (uint64_t)value * (uint64_t)value;
-  }
-
-  inline void UpdateMaxDx(uint64_t dy_sq4, uint64_t limit_sq4, int32_t* dx) {
-    if (dy_sq4 > limit_sq4) {
-      *dx = -1;
-      return;
-    }
-    if (*dx < 0) *dx = 0;
-    while (*dx > 0 && Square(*dx) + dy_sq4 > limit_sq4) {
-      --*dx;
-    }
-    while (Square(*dx + 1) + dy_sq4 <= limit_sq4) {
-      ++*dx;
-    }
-  }
-
-  inline void UpdateMinDx(uint64_t dy_sq4, uint64_t limit_sq4, int32_t* dx) {
-    if (dy_sq4 >= limit_sq4) {
-      *dx = 0;
-      return;
-    }
-    if (*dx < 0) *dx = 0;
-    while (*dx > 0 && Square(*dx - 1) + dy_sq4 >= limit_sq4) {
-      --*dx;
-    }
-    while (Square(*dx) + dy_sq4 < limit_sq4) {
-      ++*dx;
-    }
-  }
-
   void UpdateThresholds(uint64_t dy_sq4) {
-    UpdateMaxDx(dy_sq4, outer_full_sq4_, &outer_dx_max_);
-    UpdateMinDx(dy_sq4, outer_trans_sq4_, &trans_dx_min_);
+    outer_full_tracker_.Update(dy_sq4);
+    outer_trans_tracker_.Update(dy_sq4);
     if (has_inner_full_) {
-      UpdateMaxDx(dy_sq4, inner_full_sq4_, &inner_dx_max_);
-    } else {
-      inner_dx_max_ = -1;
+      inner_full_tracker_.Update(dy_sq4);
     }
-    UpdateMinDx(dy_sq4, inner_out_sq4_, &inner_out_dx_min_);
+    inner_out_tracker_.Update(dy_sq4);
   }
 
   void AddSegment(int16_t start_x, int16_t end_x, SegmentKind kind) {
@@ -657,7 +685,8 @@ class RoundRectStream : public PixelStream {
 
     PrepareLeftSide(
         bounds_.xMin(), std::min(bounds_.xMax(), (int16_t)(zero_start - 1)),
-        trans_dx_min_, outer_dx_max_, inner_out_dx_min_, inner_dx_max_);
+        outer_trans_tracker_.dx(), outer_full_tracker_.dx(),
+        inner_out_tracker_.dx(), inner_full_tracker_.dx());
 
     int16_t center_start = std::max(bounds_.xMin(), zero_start);
     int16_t center_end = std::min(bounds_.xMax(), zero_end);
@@ -666,8 +695,9 @@ class RoundRectStream : public PixelStream {
     }
 
     PrepareRightSide(std::max(bounds_.xMin(), (int16_t)(zero_end + 1)),
-                     bounds_.xMax(), trans_dx_min_, outer_dx_max_,
-                     inner_out_dx_min_, inner_dx_max_);
+                     bounds_.xMax(), outer_trans_tracker_.dx(),
+                     outer_full_tracker_.dx(), inner_out_tracker_.dx(),
+                     inner_full_tracker_.dx());
   }
 
   const SmoothShape::RoundRect& rect_;
@@ -699,10 +729,10 @@ class RoundRectStream : public PixelStream {
   const uint64_t inner_out_sq4_;
 
   // Current scanline state for the incremental circle trackers.
-  int32_t outer_dx_max_;
-  int32_t trans_dx_min_;
-  int32_t inner_dx_max_;
-  int32_t inner_out_dx_min_;
+  MaxCircleDxTracker outer_full_tracker_;
+  MinCircleDxTracker outer_trans_tracker_;
+  MaxCircleDxTracker inner_full_tracker_;
+  MinCircleDxTracker inner_out_tracker_;
 };
 
 // Rectangular-inner round rects share the same rounded outer boundary but keep
@@ -725,8 +755,8 @@ class RectInnerRoundRectStream : public PixelStream {
         rox2_(lroundf(2 * rect.ro)),
         outer_full_sq4_(Square(std::max<int32_t>(0, rox2_ - 1))),
         outer_trans_sq4_(Square(rox2_ + 1)),
-        outer_dx_max_(std::max<int32_t>(-1, rox2_ - 1)),
-        trans_dx_min_(rox2_ + 1),
+        outer_full_tracker_(outer_full_sq4_, std::max<int32_t>(-1, rox2_ - 1)),
+        outer_trans_tracker_(outer_trans_sq4_, rox2_ + 1),
         inner_inside_start_((int16_t)ceilf(rect.inner_x0)),
         inner_inside_end_((int16_t)floorf(rect.inner_x1)),
         inner_outside_left_end_((int16_t)floorf(rect.inner_x0 - 0.5f)),
@@ -789,44 +819,12 @@ class RectInnerRoundRectStream : public PixelStream {
     Color color;
   };
 
-  inline uint64_t Square(int32_t value) {
-    return (uint64_t)value * (uint64_t)value;
-  }
-
   inline int16_t FloorDiv2(int32_t value) {
     return value >= 0 ? value / 2 : -(((-value) + 1) / 2);
   }
 
   inline int16_t CeilDiv2(int32_t value) {
     return value >= 0 ? (value + 1) / 2 : -((-value) / 2);
-  }
-
-  inline void UpdateMaxDx(uint64_t dy_sq4, uint64_t limit_sq4, int32_t* dx) {
-    if (dy_sq4 > limit_sq4) {
-      *dx = -1;
-      return;
-    }
-    if (*dx < 0) *dx = 0;
-    while (*dx > 0 && Square(*dx) + dy_sq4 > limit_sq4) {
-      --*dx;
-    }
-    while (Square(*dx + 1) + dy_sq4 <= limit_sq4) {
-      ++*dx;
-    }
-  }
-
-  inline void UpdateMinDx(uint64_t dy_sq4, uint64_t limit_sq4, int32_t* dx) {
-    if (dy_sq4 >= limit_sq4) {
-      *dx = 0;
-      return;
-    }
-    if (*dx < 0) *dx = 0;
-    while (*dx > 0 && Square(*dx - 1) + dy_sq4 >= limit_sq4) {
-      --*dx;
-    }
-    while (Square(*dx) + dy_sq4 < limit_sq4) {
-      ++*dx;
-    }
   }
 
   void AddSolidSegment(int16_t start_x, int16_t end_x, Color color) {
@@ -914,27 +912,27 @@ class RectInnerRoundRectStream : public PixelStream {
     uint64_t dyx2 = (uint64_t)std::abs(yx2 - ref_yx2);
     uint64_t dy_sq4 = dyx2 * dyx2;
 
-    UpdateMaxDx(dy_sq4, outer_full_sq4_, &outer_dx_max_);
-    UpdateMinDx(dy_sq4, outer_trans_sq4_, &trans_dx_min_);
+    outer_full_tracker_.Update(dy_sq4);
+    outer_trans_tracker_.Update(dy_sq4);
 
-    if (trans_dx_min_ == 0) {
+    if (outer_trans_tracker_.dx() == 0) {
       AddSolidSegment(bounds_.xMin(), bounds_.xMax(), color::Transparent);
       return;
     }
 
-    int16_t transparent_end = FloorDiv2(x0x2_ - trans_dx_min_);
-    int16_t transparent_start = CeilDiv2(x1x2_ + trans_dx_min_);
+    int16_t transparent_end = FloorDiv2(x0x2_ - outer_trans_tracker_.dx());
+    int16_t transparent_start = CeilDiv2(x1x2_ + outer_trans_tracker_.dx());
 
     AddSolidSegment(bounds_.xMin(), std::min(bounds_.xMax(), transparent_end),
                     color::Transparent);
 
-    if (outer_dx_max_ < 0) {
+    if (outer_full_tracker_.dx() < 0) {
       AddSlowSegment(
           std::max(bounds_.xMin(), (int16_t)(transparent_end + 1)),
           std::min(bounds_.xMax(), (int16_t)(transparent_start - 1)));
     } else {
-      int16_t outer_full_start = CeilDiv2(x0x2_ - outer_dx_max_);
-      int16_t outer_full_end = FloorDiv2(x1x2_ + outer_dx_max_);
+      int16_t outer_full_start = CeilDiv2(x0x2_ - outer_full_tracker_.dx());
+      int16_t outer_full_end = FloorDiv2(x1x2_ + outer_full_tracker_.dx());
       AddSlowSegment(std::max(bounds_.xMin(), (int16_t)(transparent_end + 1)),
                      std::min(bounds_.xMax(), (int16_t)(outer_full_start - 1)));
       AddFullOuterSegments(std::max(bounds_.xMin(), outer_full_start),
@@ -965,8 +963,8 @@ class RectInnerRoundRectStream : public PixelStream {
 
   const uint64_t outer_full_sq4_;
   const uint64_t outer_trans_sq4_;
-  int32_t outer_dx_max_;
-  int32_t trans_dx_min_;
+  MaxCircleDxTracker outer_full_tracker_;
+  MinCircleDxTracker outer_trans_tracker_;
 
   const int16_t inner_inside_start_;
   const int16_t inner_inside_end_;

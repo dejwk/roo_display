@@ -37,8 +37,11 @@ API work, tests, documentation updates, and validation.
   test case and appear immediately before the test declaration.
 - When a change affects user-visible behavior or recommended usage, update
   `doc/programming_guide.md` or other relevant user-facing docs.
-- Code comments should be sparse and should explain the why or the overall
-  what of a complex block, not restate the mechanics line by line.
+- Code comments should be sparse, but complex algorithms should include brief
+  comments that explain the main concepts, major decisions, and why key
+  branches exist, not just the mechanics line by line.
+- Non-trivial helper functions and methods should carry a short comment or
+  Doxygen summary stating what they compute, classify, or guarantee.
 
 ## Design-Stage Commits
 
@@ -81,6 +84,8 @@ API work, tests, documentation updates, and validation.
 - Compile-coverage checks use `products_compile_test` when relevant.
 - User-facing docs are updated when behavior or recommended usage changes.
 - Complex implementation comments explain intent, not mechanics.
+- Complex algorithms explain their main strategy and important branches.
+- Non-trivial helper functions and methods are documented.
 - The change does not add avoidable per-instance RAM cost.
 - If the change implements a design-doc stage, the response includes a
   proposed commit message with a standalone summary sentence followed by a

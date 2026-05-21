@@ -435,15 +435,24 @@ class CircleBandDxTracker {
         out_sq4_(out_sq4),
         has_full_(has_full),
         full_dx_max_(initial_full_dx_max),
-        out_dx_min_(initial_out_dx_min) {}
+        out_dx_min_(initial_out_dx_min),
+        last_dy_sq4_(0),
+        full_error_(has_full ? (int64_t)Square(initial_full_dx_max) -
+                                  (int64_t)full_sq4
+                            : 0),
+        out_error_((int64_t)Square(initial_out_dx_min) - (int64_t)out_sq4) {}
 
   void Update(uint64_t dy_sq4) {
+    const int64_t delta_dy_sq4 =
+        dy_sq4 >= last_dy_sq4_ ? (int64_t)(dy_sq4 - last_dy_sq4_)
+                               : -(int64_t)(last_dy_sq4_ - dy_sq4);
+    last_dy_sq4_ = dy_sq4;
     if (has_full_) {
-      UpdateFullDxMax(dy_sq4);
+      UpdateFullDxMax(dy_sq4, delta_dy_sq4);
     } else {
       full_dx_max_ = -1;
     }
-    UpdateOutDxMin(dy_sq4);
+    UpdateOutDxMin(dy_sq4, delta_dy_sq4);
   }
 
   bool has_full() const { return has_full_; }
@@ -457,31 +466,54 @@ class CircleBandDxTracker {
   int32_t out_dx_min() const { return out_dx_min_; }
 
  private:
-  void UpdateFullDxMax(uint64_t dy_sq4) {
+  void UpdateFullDxMax(uint64_t dy_sq4, int64_t delta_dy_sq4) {
     if (dy_sq4 > full_sq4_) {
       full_dx_max_ = -1;
+      full_error_ = (int64_t)dy_sq4 - (int64_t)full_sq4_;
       return;
     }
-    if (full_dx_max_ < 0) full_dx_max_ = 0;
-    while (full_dx_max_ > 0 && Square(full_dx_max_) + dy_sq4 > full_sq4_) {
-      --full_dx_max_;
+    if (full_dx_max_ < 0) {
+      full_dx_max_ = 0;
+      full_error_ = (int64_t)dy_sq4 - (int64_t)full_sq4_;
+    } else {
+      full_error_ += delta_dy_sq4;
     }
-    while (Square(full_dx_max_ + 1) + dy_sq4 <= full_sq4_) {
-      ++full_dx_max_;
+    if (full_error_ > 0) {
+      while (full_dx_max_ > 0 && full_error_ > 0) {
+        full_error_ -= (int64_t)(2 * full_dx_max_ - 1);
+        --full_dx_max_;
+      }
+    } else {
+      while (full_error_ + (int64_t)(2 * full_dx_max_ + 1) <= 0) {
+        full_error_ += (int64_t)(2 * full_dx_max_ + 1);
+        ++full_dx_max_;
+      }
     }
   }
 
-  void UpdateOutDxMin(uint64_t dy_sq4) {
+  void UpdateOutDxMin(uint64_t dy_sq4, int64_t delta_dy_sq4) {
     if (dy_sq4 >= out_sq4_) {
       out_dx_min_ = 0;
+      out_error_ = (int64_t)dy_sq4 - (int64_t)out_sq4_;
       return;
     }
-    if (out_dx_min_ < 0) out_dx_min_ = 0;
-    while (out_dx_min_ > 0 && Square(out_dx_min_ - 1) + dy_sq4 >= out_sq4_) {
-      --out_dx_min_;
+    if (out_dx_min_ < 0) {
+      out_dx_min_ = 0;
+      out_error_ = (int64_t)dy_sq4 - (int64_t)out_sq4_;
+    } else {
+      out_error_ += delta_dy_sq4;
     }
-    while (Square(out_dx_min_) + dy_sq4 < out_sq4_) {
-      ++out_dx_min_;
+    if (out_error_ < 0) {
+      while (out_error_ < 0) {
+        out_error_ += (int64_t)(2 * out_dx_min_ + 1);
+        ++out_dx_min_;
+      }
+    } else {
+      while (out_dx_min_ > 0 &&
+             out_error_ - (int64_t)(2 * out_dx_min_ - 1) >= 0) {
+        out_error_ -= (int64_t)(2 * out_dx_min_ - 1);
+        --out_dx_min_;
+      }
     }
   }
 
@@ -490,6 +522,9 @@ class CircleBandDxTracker {
   const bool has_full_;
   int32_t full_dx_max_;
   int32_t out_dx_min_;
+  uint64_t last_dy_sq4_;
+  int64_t full_error_;
+  int64_t out_error_;
 };
 
 class RoundRectStream : public PixelStream {

@@ -10,7 +10,7 @@ Primary references:
 
 ## Status
 
-Implemented. Phases 1 through 6 have landed:
+Implemented. Phases 1 through 7 have landed:
 
 - `RoundRectRadii` and the three public overloads exist,
 - `internal::NormalizeFourRadiiRoundRect()` normalizes ordered centerline
@@ -24,6 +24,10 @@ Implemented. Phases 1 through 6 have landed:
   perimeter classifier,
 - `createStream()` now routes unequal shapes through a dedicated row-major
   stream with per-corner row trackers and slow AA spans,
+- the programming guide documents the struct-based API together with the
+  designated-initializer portability caveat,
+- and the mirrored programming-guide example sketch includes a dedicated
+  `RoundRectRadii` demo,
 - and the staged implementation plan in this document is complete.
 
 ## Objective

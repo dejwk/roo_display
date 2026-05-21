@@ -78,6 +78,20 @@ void antialiased() {
   delay(2000);
 }
 
+void corner_radii() {
+  display.clear();
+
+  DrawingContext dc(display);
+
+  dc.draw(SmoothFilledRoundRect(16.5, 16.5, 120.5, 72.5,
+                                RoundRectRadii{14, 14, 3, 3}, color::Teal));
+  dc.draw(SmoothThickRoundRect(140.0, 20.0, 240.0, 84.0,
+                               RoundRectRadii{18, 6, 18, 6}, 4.0,
+                               color::Black, color::White));
+
+  delay(2000);
+}
+
 void small_circles() {
   display.clear();
 
@@ -340,6 +354,7 @@ void pies() {
 void loop() {
   basic();
   antialiased();
+  corner_radii();
   small_circles();
   circle_thickness();
   interiors();

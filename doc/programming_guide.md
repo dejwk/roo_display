@@ -1085,6 +1085,12 @@ dc.draw(SmoothThickRoundRect(140.0, 20.0, 240.0, 84.0,
                              color::Black, color::White));
 ```
 
+The `RoundRectRadii` fields are ordered as top-left, top-right, bottom-left,
+and bottom-right. Prefer the positional aggregate form shown above in portable
+code. Some newer toolchains also accept designated initialization, for example
+`RoundRectRadii{.tl = 14, .tr = 14, .bl = 3, .br = 3}`, but that syntax is
+not portable across older Arduino toolchains.
+
 ![img40](images/img40.png)
 
 Note that the coordinates of smooth shapes are floating-point. It allows defing the shapes with sub-pixel precision, for example to implement extremely smooth animations (we will see examples of that [later](#advanced-example-animated-analog-gauge)). But it also requires that we begin thinking of pixels as 'squares'. The integer values of the coordinates not correspond to the _centers_ of the pixels. Consequently, a pixel with integer coordinates (x, y) now has the floating-point bounds of (x - 0.5, y - 0.5, x + 0.5, y + 0.5). The top-left corner of a display with resolution (width x height) is at (-0.5, -0.5), and the bottom-right corner is at (width - 0.5, height - 0.5).

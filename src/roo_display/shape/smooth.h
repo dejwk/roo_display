@@ -12,6 +12,17 @@ enum EndingStyle {
   ENDING_FLAT = 1,
 };
 
+/// Centerline corner radii for a smooth round-rect.
+///
+/// The fields are ordered top-left, top-right, bottom-left, bottom-right so
+/// the type stays usable with aggregate initialization.
+struct RoundRectRadii {
+  float tl;
+  float tr;
+  float bl;
+  float br;
+};
+
 /// Represents one of the supported smooth shapes.
 ///
 /// A common representation is used because shapes overlap (e.g., many reduce
@@ -35,14 +46,35 @@ SmoothShape SmoothRoundRect(float x0, float y0, float x1, float y1,
                             float radius, Color color,
                             Color interior_color = color::Transparent);
 
+/// Create an outlined round-rect with per-corner centerline radii.
+/// Unequal effective radii currently log a warning and return an empty shape
+/// until the dedicated corner-radii payload lands.
+SmoothShape SmoothRoundRect(float x0, float y0, float x1, float y1,
+                            const RoundRectRadii& radii, Color color,
+                            Color interior_color = color::Transparent);
+
 /// Create an outlined round-rect with thickness.
 SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
                                  float radius, float thickness, Color color,
                                  Color interior_color = color::Transparent);
 
+/// Create an outlined round-rect with per-corner radii and thickness.
+/// Unequal effective radii currently log a warning and return an empty shape
+/// until the dedicated corner-radii payload lands.
+SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
+                                 const RoundRectRadii& radii,
+                                 float thickness, Color color,
+                                 Color interior_color = color::Transparent);
+
 /// Create a filled round-rect.
 SmoothShape SmoothFilledRoundRect(float x0, float y0, float x1, float y1,
                                   float radius, Color color);
+
+/// Create a filled round-rect with per-corner centerline radii.
+/// Unequal effective radii currently log a warning and return an empty shape
+/// until the dedicated corner-radii payload lands.
+SmoothShape SmoothFilledRoundRect(float x0, float y0, float x1, float y1,
+                                  const RoundRectRadii& radii, Color color);
 
 // SmoothShape SmoothFilledRect(float x0, float y0, float x1, float y1,
 //                                   Color color);

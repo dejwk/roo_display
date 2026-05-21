@@ -1,5 +1,6 @@
 #include "roo_display/shape/impl/smooth_round_rect.h"
 
+#include <algorithm>
 #include <math.h>
 
 #include "roo_logging.h"
@@ -7,6 +8,50 @@
 #include "roo_display/shape/impl/smooth_internal.h"
 
 namespace roo_display {
+
+namespace {
+
+inline float ClampNonNegative(float value) {
+  return value < 0.0f ? 0.0f : value;
+}
+
+RoundRectRadii ClampRoundRectRadiiNonNegative(const RoundRectRadii& radii) {
+  return {ClampNonNegative(radii.tl), ClampNonNegative(radii.tr),
+          ClampNonNegative(radii.bl), ClampNonNegative(radii.br)};
+}
+
+RoundRectRadii ScaleRoundRectRadii(const RoundRectRadii& radii, float scale) {
+  return {radii.tl * scale, radii.tr * scale, radii.bl * scale,
+          radii.br * scale};
+}
+
+RoundRectRadii ExpandRoundRectRadii(const RoundRectRadii& radii,
+                                    float delta) {
+  return {radii.tl + delta, radii.tr + delta, radii.bl + delta,
+          radii.br + delta};
+}
+
+RoundRectRadii InsetRoundRectRadii(const RoundRectRadii& radii, float delta) {
+  return {ClampNonNegative(radii.tl - delta),
+          ClampNonNegative(radii.tr - delta),
+          ClampNonNegative(radii.bl - delta),
+          ClampNonNegative(radii.br - delta)};
+}
+
+bool RoundRectRadiiAreEqual(const RoundRectRadii& radii) {
+  return radii.tl == radii.tr && radii.tl == radii.bl &&
+         radii.tl == radii.br;
+}
+
+void TightenScaleLimit(float available, float required, float* scale) {
+  if (required <= 0.0f) return;
+  const float axis_scale = available / required;
+  if (axis_scale < *scale) {
+    *scale = axis_scale;
+  }
+}
+
+}  // namespace
 
 namespace internal {
 
@@ -41,6 +86,50 @@ NormalizedSingleRadiusRoundRect NormalizeSingleRadiusRoundRect(
   return {kind,       x0 - delta,     y0 - delta,  x1 + delta,
           y1 + delta, radius + delta, inner_x0,    inner_y0,
           inner_x1,   inner_y1,       inner_radius};
+}
+
+NormalizedFourRadiiRoundRect NormalizeFourRadiiRoundRect(
+    float x0, float y0, float x1, float y1, const RoundRectRadii& radii,
+    float thickness) {
+  thickness = ClampNonNegative(thickness);
+  if (x1 < x0) std::swap(x0, x1);
+  if (y1 < y0) std::swap(y0, y1);
+
+  const RoundRectRadii clamped_radii = ClampRoundRectRadiiNonNegative(radii);
+  const float width = x1 - x0;
+  const float height = y1 - y0;
+  float scale = 1.0f;
+  TightenScaleLimit(width, clamped_radii.tl + clamped_radii.tr, &scale);
+  TightenScaleLimit(width, clamped_radii.bl + clamped_radii.br, &scale);
+  TightenScaleLimit(height, clamped_radii.tl + clamped_radii.bl, &scale);
+  TightenScaleLimit(height, clamped_radii.tr + clamped_radii.br, &scale);
+
+  const RoundRectRadii centerline_radii =
+      ScaleRoundRectRadii(clamped_radii, scale);
+  const float delta = thickness * 0.5f;
+  const float inner_x0 = x0 + delta;
+  const float inner_y0 = y0 + delta;
+  const float inner_x1 = x1 - delta;
+  const float inner_y1 = y1 - delta;
+
+  return {inner_x0 >= inner_x1 || inner_y0 >= inner_y1,
+          RoundRectRadiiAreEqual(centerline_radii),
+          x0,
+          y0,
+          x1,
+          y1,
+          thickness,
+          x0 - delta,
+          y0 - delta,
+          x1 + delta,
+          y1 + delta,
+          inner_x0,
+          inner_y0,
+          inner_x1,
+          inner_y1,
+          centerline_radii,
+          ExpandRoundRectRadii(centerline_radii, delta),
+          InsetRoundRectRadii(centerline_radii, delta)};
 }
 
 }  // namespace internal
@@ -161,6 +250,36 @@ SmoothShape SmoothRoundRect(float x0, float y0, float x1, float y1,
 SmoothShape SmoothFilledRoundRect(float x0, float y0, float x1, float y1,
                                   float radius, Color color) {
   return SmoothThickRoundRect(x0, y0, x1, y1, radius, 0, color, color);
+}
+
+SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
+                                 const RoundRectRadii& radii,
+                                 float thickness, Color color,
+                                 Color interior_color) {
+  const internal::NormalizedFourRadiiRoundRect normalized =
+      internal::NormalizeFourRadiiRoundRect(x0, y0, x1, y1, radii, thickness);
+  if (normalized.has_equal_centerline_radii) {
+    return SmoothThickRoundRect(
+        normalized.centerline_x0, normalized.centerline_y0,
+        normalized.centerline_x1, normalized.centerline_y1,
+        normalized.centerline_radii.tl, normalized.thickness, color,
+        interior_color);
+  }
+
+  LOG(WARNING) << "Unimplemented: unequal smooth round-rect radii";
+  return SmoothShape();
+}
+
+SmoothShape SmoothRoundRect(float x0, float y0, float x1, float y1,
+                            const RoundRectRadii& radii, Color color,
+                            Color interior_color) {
+  return SmoothThickRoundRect(x0, y0, x1, y1, radii, 1.0f, color,
+                              interior_color);
+}
+
+SmoothShape SmoothFilledRoundRect(float x0, float y0, float x1, float y1,
+                                  const RoundRectRadii& radii, Color color) {
+  return SmoothThickRoundRect(x0, y0, x1, y1, radii, 0.0f, color, color);
 }
 
 // SmoothShape SmoothFilledRect(float x0, float y0, float x1, float y1,

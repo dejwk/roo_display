@@ -8,6 +8,17 @@ Primary references:
 [images/smooth_round_rect_corner_slabs.svg](images/smooth_round_rect_corner_slabs.svg)
 [images/smooth_round_rect_corner_center_fill.svg](images/smooth_round_rect_corner_center_fill.svg)
 
+## Status
+
+In progress. Phase 1 has landed:
+
+- `RoundRectRadii` and the three public overloads exist,
+- `internal::NormalizeFourRadiiRoundRect()` normalizes ordered centerline
+  bounds, globally scaled radii, and corrected inner/outer bounds,
+- equal effective radii reuse the corrected single-radius builder,
+- and unequal effective radii still log a warning and return an empty shape
+  until Phase 2 lands.
+
 ## Objective
 
 Add a new smooth rounded-rectangle API in

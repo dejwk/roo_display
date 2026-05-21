@@ -365,6 +365,114 @@ TEST(SmoothShapes,
   EXPECT_FLOAT_EQ(3.0f, normalized.inner_y1);
 }
 
+// Verifies equal effective corner radii normalize to the same geometry as the
+// single-radius helper.
+TEST(SmoothShapes, NormalizeFourRadiiRoundRectMatchesSingleRadiusWhenEqual) {
+  const RoundRectRadii radii{3.0f, 3.0f, 3.0f, 3.0f};
+  const internal::NormalizedFourRadiiRoundRect normalized =
+      internal::NormalizeFourRadiiRoundRect(10.0f, 8.0f, 0.0f, 0.0f, radii,
+                                            2.0f);
+  const internal::NormalizedSingleRadiusRoundRect single =
+      internal::NormalizeSingleRadiusRoundRect(10.0f, 8.0f, 0.0f, 0.0f, 3.0f,
+                                               2.0f);
+
+  EXPECT_FALSE(normalized.filled);
+  EXPECT_TRUE(normalized.has_equal_centerline_radii);
+  EXPECT_FLOAT_EQ(0.0f, normalized.centerline_x0);
+  EXPECT_FLOAT_EQ(0.0f, normalized.centerline_y0);
+  EXPECT_FLOAT_EQ(10.0f, normalized.centerline_x1);
+  EXPECT_FLOAT_EQ(8.0f, normalized.centerline_y1);
+  EXPECT_FLOAT_EQ(single.outer_x0, normalized.outer_x0);
+  EXPECT_FLOAT_EQ(single.outer_y0, normalized.outer_y0);
+  EXPECT_FLOAT_EQ(single.outer_x1, normalized.outer_x1);
+  EXPECT_FLOAT_EQ(single.outer_y1, normalized.outer_y1);
+  EXPECT_FLOAT_EQ(single.inner_x0, normalized.inner_x0);
+  EXPECT_FLOAT_EQ(single.inner_y0, normalized.inner_y0);
+  EXPECT_FLOAT_EQ(single.inner_x1, normalized.inner_x1);
+  EXPECT_FLOAT_EQ(single.inner_y1, normalized.inner_y1);
+  EXPECT_FLOAT_EQ(3.0f, normalized.centerline_radii.tl);
+  EXPECT_FLOAT_EQ(3.0f, normalized.centerline_radii.br);
+  EXPECT_FLOAT_EQ(4.0f, normalized.outer_radii.tl);
+  EXPECT_FLOAT_EQ(4.0f, normalized.outer_radii.br);
+  EXPECT_FLOAT_EQ(2.0f, normalized.inner_radii.tl);
+  EXPECT_FLOAT_EQ(2.0f, normalized.inner_radii.br);
+}
+
+// Verifies one global scale factor is applied to all corner radii before the
+// thick outer and inner radii are derived.
+TEST(SmoothShapes,
+     NormalizeFourRadiiRoundRectGloballyScalesRadiiToFitBounds) {
+  const RoundRectRadii radii{8.0f, 4.0f, 8.0f, 4.0f};
+  const internal::NormalizedFourRadiiRoundRect normalized =
+      internal::NormalizeFourRadiiRoundRect(0.0f, 0.0f, 10.0f, 10.0f, radii,
+                                            2.0f);
+
+  EXPECT_FALSE(normalized.filled);
+  EXPECT_FALSE(normalized.has_equal_centerline_radii);
+  EXPECT_FLOAT_EQ(-1.0f, normalized.outer_x0);
+  EXPECT_FLOAT_EQ(-1.0f, normalized.outer_y0);
+  EXPECT_FLOAT_EQ(11.0f, normalized.outer_x1);
+  EXPECT_FLOAT_EQ(11.0f, normalized.outer_y1);
+  EXPECT_FLOAT_EQ(1.0f, normalized.inner_x0);
+  EXPECT_FLOAT_EQ(1.0f, normalized.inner_y0);
+  EXPECT_FLOAT_EQ(9.0f, normalized.inner_x1);
+  EXPECT_FLOAT_EQ(9.0f, normalized.inner_y1);
+  EXPECT_FLOAT_EQ(5.0f, normalized.centerline_radii.tl);
+  EXPECT_FLOAT_EQ(2.5f, normalized.centerline_radii.tr);
+  EXPECT_FLOAT_EQ(5.0f, normalized.centerline_radii.bl);
+  EXPECT_FLOAT_EQ(2.5f, normalized.centerline_radii.br);
+  EXPECT_FLOAT_EQ(6.0f, normalized.outer_radii.tl);
+  EXPECT_FLOAT_EQ(3.5f, normalized.outer_radii.tr);
+  EXPECT_FLOAT_EQ(4.0f, normalized.inner_radii.tl);
+  EXPECT_FLOAT_EQ(1.5f, normalized.inner_radii.tr);
+}
+
+// Verifies the four-radii helper reports the filled fold as soon as the
+// corrected inner bounds collapse in either axis.
+TEST(SmoothShapes, NormalizeFourRadiiRoundRectDetectsFilledFold) {
+  const RoundRectRadii radii{2.0f, 1.0f, 2.0f, 1.0f};
+  const internal::NormalizedFourRadiiRoundRect normalized =
+      internal::NormalizeFourRadiiRoundRect(0.0f, 0.0f, 10.0f, 6.0f, radii,
+                                            6.0f);
+
+  EXPECT_TRUE(normalized.filled);
+  EXPECT_FALSE(normalized.has_equal_centerline_radii);
+  EXPECT_FLOAT_EQ(3.0f, normalized.inner_y0);
+  EXPECT_FLOAT_EQ(3.0f, normalized.inner_y1);
+}
+
+// Verifies the per-corner API delegates equal effective radii to the corrected
+// single-radius renderer.
+TEST(SmoothShapes,
+     ThickRoundRectCornerRadiiMatchesSingleRadiusRasterWhenEqual) {
+  const RoundRectRadii radii{3.0f, 3.0f, 3.0f, 3.0f};
+  const Color outline = color::Black.withA(0x95);
+  const Color interior(0xFFF3EFE7);
+
+  const FakeOffscreen<Argb8888> actual = CoercedTo<Argb8888>(
+      SmoothThickRoundRect(0.5f, 0.5f, 16.5f, 12.5f, radii, 2.0f, outline,
+                           interior),
+      Argb8888(), color::Transparent, FillMode::kVisible,
+      BlendingMode::kSourceOver, color::Transparent);
+  const FakeOffscreen<Argb8888> expected = CoercedTo<Argb8888>(
+      SmoothThickRoundRect(0.5f, 0.5f, 16.5f, 12.5f, 3.0f, 2.0f, outline,
+                           interior),
+      Argb8888(), color::Transparent, FillMode::kVisible,
+      BlendingMode::kSourceOver, color::Transparent);
+
+  EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
+}
+
+// Verifies genuinely unequal effective radii keep the explicit phase-1 empty
+// fallback until the dedicated corner payload lands.
+TEST(SmoothShapes, ThickRoundRectCornerRadiiReturnsEmptyShapeWhenUnequal) {
+  const SmoothShape shape = SmoothThickRoundRect(
+      0.0f, 0.0f, 10.0f, 8.0f, RoundRectRadii{4.0f, 2.0f, 4.0f, 2.0f}, 2.0f,
+      color::Black, color::Transparent);
+
+  EXPECT_TRUE(shape.extents().empty());
+}
+
 TEST(SmoothShapes, DrawSmallCirclesCenterWhole) {
   EXPECT_THAT(CoercedTo<Alpha4>(SmoothCircle({2, 3}, 0.5, color::Black),
                                 Alpha4(color::Black)),

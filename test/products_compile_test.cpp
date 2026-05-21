@@ -1,6 +1,7 @@
 #include <type_traits>
 
 #include "gtest/gtest.h"
+#include "roo_display/shape/smooth.h"
 #include "roo_display/products/noname/ili9341_red/kmrtm32032_spi.h"
 #include "roo_display/products/noname/ili9341_red/tjctm24024_spi.h"
 #include "roo_display/products/noname/st7735_red/tft_module_128x128_144_in.h"
@@ -87,6 +88,28 @@ TEST(ProductsCompileTest, InstantiateProductTypes) {
 #endif
 
   SUCCEED();
+}
+
+TEST(ProductsCompileTest, SmoothRoundRectCornerRadiiApiCompiles) {
+    static_assert(std::is_aggregate<roo_display::RoundRectRadii>::value,
+                                "RoundRectRadii should stay an aggregate");
+
+    const roo_display::RoundRectRadii radii{2.0f, 3.0f, 4.0f, 5.0f};
+    EXPECT_FLOAT_EQ(2.0f, radii.tl);
+    EXPECT_FLOAT_EQ(5.0f, radii.br);
+
+    const roo_display::SmoothShape outline = roo_display::SmoothRoundRect(
+            0.0f, 0.0f, 10.0f, 12.0f, radii, roo_display::color::Black);
+    const roo_display::SmoothShape thick = roo_display::SmoothThickRoundRect(
+            0.0f, 0.0f, 10.0f, 12.0f, radii, 2.0f, roo_display::color::Black,
+            roo_display::color::Transparent);
+    const roo_display::SmoothShape filled = roo_display::SmoothFilledRoundRect(
+            0.0f, 0.0f, 10.0f, 12.0f, radii, roo_display::color::Black);
+
+    (void)outline;
+    (void)thick;
+    (void)filled;
+    SUCCEED();
 }
 
 }  // namespace

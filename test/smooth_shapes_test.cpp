@@ -463,14 +463,47 @@ TEST(SmoothShapes,
   EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
 }
 
-// Verifies genuinely unequal effective radii keep the explicit phase-1 empty
-// fallback until the dedicated corner payload lands.
-TEST(SmoothShapes, ThickRoundRectCornerRadiiReturnsEmptyShapeWhenUnequal) {
-  const SmoothShape shape = SmoothThickRoundRect(
-      0.0f, 0.0f, 10.0f, 8.0f, RoundRectRadii{4.0f, 2.0f, 4.0f, 2.0f}, 2.0f,
-      color::Black, color::Transparent);
+// Verifies raw unequal radii that clamp to the same effective value still fold
+// into the corrected single-radius path.
+TEST(SmoothShapes,
+     ThickRoundRectCornerRadiiMatchesSingleRadiusAfterClampToEqual) {
+  const RoundRectRadii radii{-1.0f, 0.0f, 0.0f, 0.0f};
+  const Color outline = color::Black.withA(0x95);
+  const Color interior(0xFFF3EFE7);
 
-  EXPECT_TRUE(shape.extents().empty());
+  const FakeOffscreen<Argb8888> actual = CoercedTo<Argb8888>(
+      SmoothThickRoundRect(0.0f, 0.0f, 12.0f, 8.0f, radii, 2.0f, outline,
+                           interior),
+      Argb8888(), color::Transparent, FillMode::kVisible,
+      BlendingMode::kSourceOver, color::Transparent);
+  const FakeOffscreen<Argb8888> expected = CoercedTo<Argb8888>(
+      SmoothThickRoundRect(0.0f, 0.0f, 12.0f, 8.0f, 0.0f, 2.0f, outline,
+                           interior),
+      Argb8888(), color::Transparent, FillMode::kVisible,
+      BlendingMode::kSourceOver, color::Transparent);
+
+  EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
+}
+
+// Verifies genuinely unequal radii sample transparent, straight-edge AA,
+// outline, and interior pixels correctly through the unequal-radius evaluator.
+TEST(SmoothShapes, ThickRoundRectCornerRadiiReadsUnequalPayloadColors) {
+  const Color outline = color::Black;
+  const Color interior(0xFFF3EFE7);
+  const SmoothShape shape = SmoothThickRoundRect(
+      0.0f, 0.0f, 12.0f, 10.0f, RoundRectRadii{4.0f, 2.0f, 4.0f, 2.0f}, 2.0f,
+      outline, interior);
+
+  ASSERT_FALSE(shape.extents().empty());
+  Color sample;
+  EXPECT_TRUE(shape.readColorRect(-1, -1, -1, -1, &sample));
+  EXPECT_EQ(color::Transparent, sample);
+  EXPECT_TRUE(shape.readColorRect(6, -1, 6, -1, &sample));
+  EXPECT_EQ(outline.withA(0x7F), sample);
+  EXPECT_TRUE(shape.readColorRect(6, 0, 6, 0, &sample));
+  EXPECT_EQ(outline, sample);
+  EXPECT_TRUE(shape.readColorRect(6, 5, 6, 5, &sample));
+  EXPECT_EQ(interior, sample);
 }
 
 TEST(SmoothShapes, DrawSmallCirclesCenterWhole) {

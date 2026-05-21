@@ -30,6 +30,11 @@ SmoothShape::SmoothShape(Box extents, RoundRect round_rect)
       extents_(std::move(extents)),
       round_rect_(std::move(round_rect)) {}
 
+SmoothShape::SmoothShape(Box extents, RoundRectCorners round_rect_corners)
+    : kind_(SmoothShape::ROUND_RECT_CORNERS),
+      extents_(std::move(extents)),
+      round_rect_corners_(std::move(round_rect_corners)) {}
+
 SmoothShape::SmoothShape(Box extents, Arc arc)
     : kind_(SmoothShape::ARC),
       extents_(std::move(extents)),
@@ -77,6 +82,10 @@ void SmoothShape::drawTo(const Surface& s) const {
       internal::DrawRoundRect(round_rect_, s, box);
       break;
     }
+    case ROUND_RECT_CORNERS: {
+      Rasterizable::drawTo(s);
+      break;
+    }
     case ARC: {
       internal::DrawArc(arc_, s, box);
       break;
@@ -103,6 +112,11 @@ void SmoothShape::readColors(const int16_t* x, const int16_t* y, uint32_t count,
     }
     case ROUND_RECT: {
       internal::ReadRoundRectColors(round_rect_, x, y, count, result);
+      break;
+    }
+    case ROUND_RECT_CORNERS: {
+      internal::ReadRoundRectCornersColors(round_rect_corners_, x, y, count,
+                                           result);
       break;
     }
     case ARC: {
@@ -137,6 +151,9 @@ bool SmoothShape::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
     case ROUND_RECT: {
       return internal::ReadColorRectOfRoundRect(round_rect_, xMin, yMin, xMax,
                                                 yMax, result);
+    }
+    case ROUND_RECT_CORNERS: {
+      return Rasterizable::readColorRect(xMin, yMin, xMax, yMax, result);
     }
     case ARC: {
       return internal::ReadColorRectOfArc(arc_, xMin, yMin, xMax, yMax, result);
@@ -184,6 +201,9 @@ bool SmoothShape::readUniformColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
         default:
           return false;
       }
+    }
+    case ROUND_RECT_CORNERS: {
+      return false;
     }
     case ARC: {
       Box box(xMin, yMin, xMax, yMax);

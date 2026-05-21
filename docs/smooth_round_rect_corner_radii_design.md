@@ -10,14 +10,16 @@ Primary references:
 
 ## Status
 
-In progress. Phase 1 has landed:
+In progress. Phases 1 and 2 have landed:
 
 - `RoundRectRadii` and the three public overloads exist,
 - `internal::NormalizeFourRadiiRoundRect()` normalizes ordered centerline
   bounds, globally scaled radii, and corrected inner/outer bounds,
 - equal effective radii reuse the corrected single-radius builder,
-- and unequal effective radii still log a warning and return an empty shape
-  until Phase 2 lands.
+- unequal effective radii now build a dedicated `SmoothShape` payload with the
+  stored radii caches and helper boxes,
+- and rendering currently flows through the generic `Rasterizable` fallback
+  until the dedicated unequal-radius helper family and stream land.
 
 ## Objective
 
@@ -130,10 +132,9 @@ state without checking the union ceiling.
 - The design must avoid increasing `sizeof(SmoothShape)`.
 - The design must document RAM impact and rendering-cost tradeoffs.
 - Public documentation must be updated when the feature is implemented.
-- Until the unequal-radius payload is implemented, the public radii overloads
-  must not silently drop unsupported unequal inputs. The interim behavior is to
-  emit `LOG(WARNING) << "Unimplemented: unequal smooth round-rect radii"` and
-  return an empty shape for unequal effective radii.
+- Phase 1 used an explicit warning-and-empty fallback for genuinely unequal
+  effective radii. Phase 2 replaces that fallback with the dedicated unequal-
+  radius payload described below.
 
 ## Design Overview
 

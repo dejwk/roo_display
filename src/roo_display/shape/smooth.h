@@ -205,8 +205,28 @@ class SmoothShape : public Rasterizable {
     uint8_t quadrants_;
   };
 
+  struct RoundRectCorners {
+    float x0;
+    float y0;
+    float x1;
+    float y1;
+    float ro[4];
+    float thickness;
+    float ro_sq_adj[4];
+    float ri_sq_adj[4];
+    Color outline_color;
+    Color interior_color;
+    Box inner_core;
+    Box top_slab;
+    Box bottom_slab;
+    Box left_slab;
+    Box right_slab;
+  };
+
   static_assert(sizeof(RoundRect) <= sizeof(Arc),
                 "RoundRect payload must stay within Arc storage");
+  static_assert(sizeof(RoundRectCorners) <= sizeof(Arc),
+                "RoundRectCorners payload must stay within Arc storage");
 
   struct Triangle {
     float x1;
@@ -255,6 +275,12 @@ class SmoothShape : public Rasterizable {
                                           float thickness, Color color,
                                           Color interior_color);
 
+  friend SmoothShape SmoothThickRoundRect(float x0, float y0, float x1,
+                                          float y1,
+                                          const RoundRectRadii& radii,
+                                          float thickness, Color color,
+                                          Color interior_color);
+
   friend SmoothShape SmoothRotatedFilledRect(FpPoint center, float width,
                                              float height, float angle,
                                              Color color);
@@ -273,13 +299,15 @@ class SmoothShape : public Rasterizable {
     EMPTY = 0,
     WEDGE = 1,
     ROUND_RECT = 2,
-    ARC = 3,
-    TRIANGLE = 4,
-    PIXEL = 5
+    ROUND_RECT_CORNERS = 3,
+    ARC = 4,
+    TRIANGLE = 5,
+    PIXEL = 6
   };
 
   SmoothShape(Box extents, Wedge wedge);
   SmoothShape(Box extents, RoundRect round_rect);
+  SmoothShape(Box extents, RoundRectCorners round_rect_corners);
   SmoothShape(Box extents, Arc arc);
   SmoothShape(Box extents, Triangle triangle);
   SmoothShape(int16_t x, int16_t y, Pixel pixel);
@@ -289,6 +317,7 @@ class SmoothShape : public Rasterizable {
   union {
     Wedge wedge_;
     RoundRect round_rect_;
+    RoundRectCorners round_rect_corners_;
     Arc arc_;
     Triangle triangle_;
     Pixel pixel_;

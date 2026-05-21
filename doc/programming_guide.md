@@ -1074,6 +1074,17 @@ void loop() {
 }
 ```
 
+If you need different curvature at each corner, the same header also exposes
+`RoundRectRadii` overloads:
+
+```cpp
+dc.draw(SmoothFilledRoundRect(16.5, 16.5, 120.5, 72.5,
+                              RoundRectRadii{14, 14, 3, 3}, color::Teal));
+dc.draw(SmoothThickRoundRect(140.0, 20.0, 240.0, 84.0,
+                             RoundRectRadii{18, 6, 18, 6}, 4.0,
+                             color::Black, color::White));
+```
+
 ![img40](images/img40.png)
 
 Note that the coordinates of smooth shapes are floating-point. It allows defing the shapes with sub-pixel precision, for example to implement extremely smooth animations (we will see examples of that [later](#advanced-example-animated-analog-gauge)). But it also requires that we begin thinking of pixels as 'squares'. The integer values of the coordinates not correspond to the _centers_ of the pixels. Consequently, a pixel with integer coordinates (x, y) now has the floating-point bounds of (x - 0.5, y - 0.5, x + 0.5, y + 0.5). The top-left corner of a display with resolution (width x height) is at (-0.5, -0.5), and the bottom-right corner is at (width - 0.5, height - 0.5).

@@ -93,6 +93,9 @@ TEST(ProductsCompileTest, InstantiateProductTypes) {
 TEST(ProductsCompileTest, SmoothRoundRectCornerRadiiApiCompiles) {
     static_assert(std::is_aggregate<roo_display::RoundRectRadii>::value,
                                 "RoundRectRadii should stay an aggregate");
+    static_assert(sizeof(roo_display::SmoothShape::RoundRectCorners) <=
+                                        sizeof(roo_display::SmoothShape::Arc),
+                                "RoundRectCorners must fit within SmoothShape::Arc storage");
 
     const roo_display::RoundRectRadii radii{2.0f, 3.0f, 4.0f, 5.0f};
     EXPECT_FLOAT_EQ(2.0f, radii.tl);

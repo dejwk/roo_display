@@ -51,6 +51,194 @@ void TightenScaleLimit(float available, float required, float* scale) {
   }
 }
 
+constexpr int kTopLeftCorner = 0;
+constexpr int kTopRightCorner = 1;
+constexpr int kBottomLeftCorner = 2;
+constexpr int kBottomRightCorner = 3;
+constexpr float kDiagInsetFactor = 1.0f - 0.7071067811865476f;
+
+inline float ClampUnitInterval(float value) {
+  if (value <= 0.0f) return 0.0f;
+  if (value >= 1.0f) return 1.0f;
+  return value;
+}
+
+void CopyRoundRectRadii(const RoundRectRadii& radii, float out[4]) {
+  out[kTopLeftCorner] = radii.tl;
+  out[kTopRightCorner] = radii.tr;
+  out[kBottomLeftCorner] = radii.bl;
+  out[kBottomRightCorner] = radii.br;
+}
+
+inline float CornerCenterX(float x0, float x1, const float radii[4],
+                           int corner) {
+  return corner == kTopLeftCorner || corner == kBottomLeftCorner
+             ? x0 + radii[corner]
+             : x1 - radii[corner];
+}
+
+inline float CornerCenterY(float y0, float y1, const float radii[4],
+                           int corner) {
+  return corner == kTopLeftCorner || corner == kTopRightCorner
+             ? y0 + radii[corner]
+             : y1 - radii[corner];
+}
+
+inline float SafeCircularOffset(float radius, float delta) {
+  if (radius <= 0.0f) return 0.0f;
+  const float remainder = radius * radius - delta * delta;
+  return remainder <= 0.0f ? 0.0f : sqrtf(remainder);
+}
+
+Box ToInteriorHelperBox(float x0, float y0, float x1, float y1) {
+  return Box((int16_t)ceilf(x0 + 0.5f), (int16_t)ceilf(y0 + 0.5f),
+             (int16_t)floorf(x1 - 0.5f), (int16_t)floorf(y1 - 0.5f));
+}
+
+struct RoundRectCornersBuildResult {
+  Box extents;
+  SmoothShape::RoundRectCorners spec;
+};
+
+RoundRectCornersBuildResult BuildRoundRectCornersSpec(
+    float x0, float y0, float x1, float y1, const RoundRectRadii& outer_radii,
+    float thickness, Color outline_color, Color interior_color) {
+  Box extents((int16_t)floorf(x0 + 0.5f), (int16_t)floorf(y0 + 0.5f),
+              (int16_t)ceilf(x1 - 0.5f), (int16_t)ceilf(y1 - 0.5f));
+
+  float ro[4];
+  float ri[4];
+  float ro_sq_adj[4];
+  float ri_sq_adj[4];
+  CopyRoundRectRadii(outer_radii, ro);
+  for (int corner = 0; corner < 4; ++corner) {
+    ri[corner] = ClampNonNegative(ro[corner] - thickness);
+    ro_sq_adj[corner] = ro[corner] * ro[corner] + 0.25f;
+    ri_sq_adj[corner] = ri[corner] * ri[corner] + 0.25f;
+  }
+
+  const float inner_x0 = x0 + thickness;
+  const float inner_y0 = y0 + thickness;
+  const float inner_x1 = x1 - thickness;
+  const float inner_y1 = y1 - thickness;
+
+  const float ctl_x = inner_x0 + ri[kTopLeftCorner];
+  const float ctl_y = inner_y0 + ri[kTopLeftCorner];
+  const float ctr_x = inner_x1 - ri[kTopRightCorner];
+  const float ctr_y = inner_y0 + ri[kTopRightCorner];
+  const float cbl_x = inner_x0 + ri[kBottomLeftCorner];
+  const float cbl_y = inner_y1 - ri[kBottomLeftCorner];
+  const float cbr_x = inner_x1 - ri[kBottomRightCorner];
+  const float cbr_y = inner_y1 - ri[kBottomRightCorner];
+
+  const auto top_inside = [&](float x) {
+    float result = inner_y0;
+    if (x < ctl_x && ri[kTopLeftCorner] > 0.0f) {
+      result = std::max(result, ctl_y -
+                                    SafeCircularOffset(ri[kTopLeftCorner],
+                                                       x - ctl_x));
+    }
+    if (x > ctr_x && ri[kTopRightCorner] > 0.0f) {
+      result = std::max(result, ctr_y -
+                                    SafeCircularOffset(ri[kTopRightCorner],
+                                                       x - ctr_x));
+    }
+    return result;
+  };
+
+  const auto bottom_inside = [&](float x) {
+    float result = inner_y1;
+    if (x < cbl_x && ri[kBottomLeftCorner] > 0.0f) {
+      result = std::min(result, cbl_y +
+                                    SafeCircularOffset(ri[kBottomLeftCorner],
+                                                       x - cbl_x));
+    }
+    if (x > cbr_x && ri[kBottomRightCorner] > 0.0f) {
+      result = std::min(result, cbr_y +
+                                    SafeCircularOffset(ri[kBottomRightCorner],
+                                                       x - cbr_x));
+    }
+    return result;
+  };
+
+  const auto left_inside = [&](float y) {
+    float result = inner_x0;
+    if (y < ctl_y && ri[kTopLeftCorner] > 0.0f) {
+      result = std::max(result, ctl_x -
+                                    SafeCircularOffset(ri[kTopLeftCorner],
+                                                       y - ctl_y));
+    }
+    if (y > cbl_y && ri[kBottomLeftCorner] > 0.0f) {
+      result = std::max(result, cbl_x -
+                                    SafeCircularOffset(ri[kBottomLeftCorner],
+                                                       y - cbl_y));
+    }
+    return result;
+  };
+
+  const auto right_inside = [&](float y) {
+    float result = inner_x1;
+    if (y < ctr_y && ri[kTopRightCorner] > 0.0f) {
+      result = std::min(result, ctr_x +
+                                    SafeCircularOffset(ri[kTopRightCorner],
+                                                       y - ctr_y));
+    }
+    if (y > cbr_y && ri[kBottomRightCorner] > 0.0f) {
+      result = std::min(result, cbr_x +
+                                    SafeCircularOffset(ri[kBottomRightCorner],
+                                                       y - cbr_y));
+    }
+    return result;
+  };
+
+  const float diag_tl = ri[kTopLeftCorner] * kDiagInsetFactor;
+  const float diag_tr = ri[kTopRightCorner] * kDiagInsetFactor;
+  const float diag_bl = ri[kBottomLeftCorner] * kDiagInsetFactor;
+  const float diag_br = ri[kBottomRightCorner] * kDiagInsetFactor;
+
+  const Box top_slab =
+      ToInteriorHelperBox(ctl_x, inner_y0, ctr_x,
+                          std::min(bottom_inside(ctl_x), bottom_inside(ctr_x)));
+  const Box bottom_slab = ToInteriorHelperBox(
+      cbl_x, std::max(top_inside(cbl_x), top_inside(cbr_x)), cbr_x, inner_y1);
+  const Box left_slab = ToInteriorHelperBox(
+      inner_x0, ctl_y, std::min(right_inside(ctl_y), right_inside(cbl_y)),
+      cbl_y);
+  const Box right_slab = ToInteriorHelperBox(
+      std::max(left_inside(ctr_y), left_inside(cbr_y)), ctr_y, inner_x1,
+      cbr_y);
+  const Box inner_core = ToInteriorHelperBox(
+      inner_x0 + std::max(diag_tl, diag_bl),
+      inner_y0 + std::max(diag_tl, diag_tr),
+      inner_x1 - std::max(diag_tr, diag_br),
+      inner_y1 - std::max(diag_bl, diag_br));
+
+  SmoothShape::RoundRectCorners spec{x0,
+                                     y0,
+                                     x1,
+                                     y1,
+                                     {ro[kTopLeftCorner], ro[kTopRightCorner],
+                                      ro[kBottomLeftCorner],
+                                      ro[kBottomRightCorner]},
+                                     thickness,
+                                     {ro_sq_adj[kTopLeftCorner],
+                                      ro_sq_adj[kTopRightCorner],
+                                      ro_sq_adj[kBottomLeftCorner],
+                                      ro_sq_adj[kBottomRightCorner]},
+                                     {ri_sq_adj[kTopLeftCorner],
+                                      ri_sq_adj[kTopRightCorner],
+                                      ri_sq_adj[kBottomLeftCorner],
+                                      ri_sq_adj[kBottomRightCorner]},
+                                     outline_color,
+                                     interior_color,
+                                     inner_core,
+                                     top_slab,
+                                     bottom_slab,
+                                     left_slab,
+                                     right_slab};
+  return {std::move(extents), std::move(spec)};
+}
+
 }  // namespace
 
 namespace internal {
@@ -258,6 +446,20 @@ SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
                                  Color interior_color) {
   const internal::NormalizedFourRadiiRoundRect normalized =
       internal::NormalizeFourRadiiRoundRect(x0, y0, x1, y1, radii, thickness);
+  if (normalized.filled) {
+    if (normalized.has_equal_centerline_radii) {
+      return SmoothFilledRoundRect(normalized.outer_x0, normalized.outer_y0,
+                                   normalized.outer_x1, normalized.outer_y1,
+                                   normalized.outer_radii.tl, color);
+    }
+    RoundRectCornersBuildResult built = BuildRoundRectCornersSpec(
+        normalized.outer_x0, normalized.outer_y0, normalized.outer_x1,
+        normalized.outer_y1, normalized.outer_radii, 0.0f, color, color);
+    if (built.extents.empty()) {
+      return SmoothShape();
+    }
+    return SmoothShape(std::move(built.extents), std::move(built.spec));
+  }
   if (normalized.has_equal_centerline_radii) {
     return SmoothThickRoundRect(
         normalized.centerline_x0, normalized.centerline_y0,
@@ -265,9 +467,14 @@ SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
         normalized.centerline_radii.tl, normalized.thickness, color,
         interior_color);
   }
-
-  LOG(WARNING) << "Unimplemented: unequal smooth round-rect radii";
-  return SmoothShape();
+  RoundRectCornersBuildResult built = BuildRoundRectCornersSpec(
+      normalized.outer_x0, normalized.outer_y0, normalized.outer_x1,
+      normalized.outer_y1, normalized.outer_radii, normalized.thickness, color,
+      interior_color);
+  if (built.extents.empty()) {
+    return SmoothShape();
+  }
+  return SmoothShape(std::move(built.extents), std::move(built.spec));
 }
 
 SmoothShape SmoothRoundRect(float x0, float y0, float x1, float y1,
@@ -320,6 +527,13 @@ inline bool BoxInsideRoundRectInteriorHelper(const SmoothShape::RoundRect& rect,
                                              const Box& box) {
   return rect.inner_mid.contains(box) || rect.inner_wide.contains(box) ||
          rect.inner_tall.contains(box);
+}
+
+inline bool PointInsideRoundRectCornersInteriorHelper(
+    const SmoothShape::RoundRectCorners& rect, int16_t x, int16_t y) {
+  return rect.inner_core.contains(x, y) || rect.top_slab.contains(x, y) ||
+    rect.bottom_slab.contains(x, y) || rect.left_slab.contains(x, y) ||
+    rect.right_slab.contains(x, y);
 }
 
 inline float CalcDistSqRectInnerBoundary(const SmoothShape::RoundRect& rect,
@@ -409,11 +623,194 @@ inline Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& rect,
   return MixColors(interior, interior_fraction, outline, outline_fraction);
 }
 
+// Squared distance to an axis-aligned rectangle. This is the cheap no-sqrt
+// primitive used by the straight-edge inner-boundary checks.
 inline float CalcDistSqRect(float x0, float y0, float x1, float y1, float xt,
                             float yt) {
   float dx = (xt <= x0 ? xt - x0 : xt >= x1 ? xt - x1 : 0.0f);
   float dy = (yt <= y0 ? yt - y0 : yt >= y1 ? yt - y1 : 0.0f);
   return dx * dx + dy * dy;
+}
+
+// Fast containment check for the straight-edged portion of the inner boundary.
+inline bool PointInsideRect(float x0, float y0, float x1, float y1, float xt,
+                            float yt) {
+  return xt >= x0 && xt <= x1 && yt >= y0 && yt <= y1;
+}
+
+// Minimum inset from a point already known to be inside the rectangle.
+inline float DistToNearestRectEdgeFromInside(float x0, float y0, float x1,
+                                             float y1, float xt, float yt) {
+  return std::min(std::min(xt - x0, x1 - xt),
+                  std::min(yt - y0, y1 - yt));
+}
+
+// Signed distance to the straight slab of the round rect. Positive means the
+// pixel center is inside the slab, negative means it lies outside it.
+inline float SignedDistanceToRectStraightEdge(float x0, float y0, float x1,
+                                              float y1, float xt, float yt) {
+  if (xt < x0) return xt - x0;
+  if (xt > x1) return x1 - xt;
+  if (yt < y0) return yt - y0;
+  if (yt > y1) return y1 - yt;
+  return DistToNearestRectEdgeFromInside(x0, y0, x1, y1, xt, yt);
+}
+
+// Returns the rounded-corner quadrant that owns this pixel. A `-1` result
+// means the pixel lies on one of the straight slabs, so the corner-circle math
+// can be skipped entirely.
+inline int SelectRoundedCorner(float xt, float yt, float x0, float y0,
+                               float x1, float y1, const float radii[4]) {
+  if (radii[kTopLeftCorner] > 0.0f && xt < x0 + radii[kTopLeftCorner] &&
+      yt < y0 + radii[kTopLeftCorner]) {
+    return kTopLeftCorner;
+  }
+  if (radii[kTopRightCorner] > 0.0f && xt > x1 - radii[kTopRightCorner] &&
+      yt < y0 + radii[kTopRightCorner]) {
+    return kTopRightCorner;
+  }
+  if (radii[kBottomLeftCorner] > 0.0f && xt < x0 + radii[kBottomLeftCorner] &&
+      yt > y1 - radii[kBottomLeftCorner]) {
+    return kBottomLeftCorner;
+  }
+  if (radii[kBottomRightCorner] > 0.0f && xt > x1 - radii[kBottomRightCorner] &&
+      yt > y1 - radii[kBottomRightCorner]) {
+    return kBottomRightCorner;
+  }
+  return -1;
+}
+
+// Converts coverage in pixel units to the 0..256 blending fractions expected
+// by `InterpolateColors()` and `MixColors()`.
+inline uint16_t CoverageToFraction(float coverage) {
+  return ClampUnitInterval(coverage) * 256.0f;
+}
+
+// Mirrors the single-radius evaluator's strategy: prove the obvious cases with
+// cheap slab tests and cached squared-radius thresholds first, then fall back
+// to sqrt only for pixels that land in the antialiased fringe.
+inline Color GetSmoothRoundRectCornersPixelColor(
+    const SmoothShape::RoundRectCorners& rect, int16_t x, int16_t y) {
+  const float xt = x;
+  const float yt = y;
+  const float inner_x0 = rect.x0 + rect.thickness;
+  const float inner_y0 = rect.y0 + rect.thickness;
+  const float inner_x1 = rect.x1 - rect.thickness;
+  const float inner_y1 = rect.y1 - rect.thickness;
+  const float inner_radii[4] = {
+      ClampNonNegative(rect.ro[kTopLeftCorner] - rect.thickness),
+      ClampNonNegative(rect.ro[kTopRightCorner] - rect.thickness),
+      ClampNonNegative(rect.ro[kBottomLeftCorner] - rect.thickness),
+      ClampNonNegative(rect.ro[kBottomRightCorner] - rect.thickness),
+  };
+
+  const int outer_corner =
+      SelectRoundedCorner(xt, yt, rect.x0, rect.y0, rect.x1, rect.y1, rect.ro);
+  bool fully_within_outer;
+  float outer_d_squared = 0.0f;
+  float outer_distance = 0.0f;
+  float outer_radius = 0.0f;
+  float outer_coverage = 1.0f;
+  if (outer_corner < 0) {
+    // Away from the rounded corners, the extents contract means this can only
+    // be the straight-edge body or its AA fringe. Clamp keeps the helper
+    // benign if a caller ever violates that contract.
+    outer_coverage = ClampNonNegative(
+        SignedDistanceToRectStraightEdge(rect.x0, rect.y0, rect.x1, rect.y1,
+                                        xt, yt) +
+        0.5f);
+    fully_within_outer = outer_coverage >= 1.0f;
+  } else {
+    // Rounded corner: use the cached `r^2 + 0.25` thresholds so most pixels
+    // classify without taking a square root.
+    outer_radius = rect.ro[outer_corner];
+    const float outer_dx =
+        xt - CornerCenterX(rect.x0, rect.x1, rect.ro, outer_corner);
+    const float outer_dy =
+        yt - CornerCenterY(rect.y0, rect.y1, rect.ro, outer_corner);
+    outer_d_squared = outer_dx * outer_dx + outer_dy * outer_dy;
+    if (outer_d_squared >= rect.ro_sq_adj[outer_corner] + outer_radius) {
+      return color::Transparent;
+    }
+    fully_within_outer =
+        outer_d_squared <= rect.ro_sq_adj[outer_corner] - outer_radius;
+  }
+
+  const bool rounded_inner_corner =
+      outer_corner >= 0 && inner_radii[outer_corner] > 0.0f;
+  float inner_d_squared = 0.0f;
+  float inner_distance = 0.0f;
+  float inner_radius = 0.0f;
+  bool fully_outside_inner;
+
+  if (rounded_inner_corner) {
+    // Insetting by the outline thickness preserves the owning corner: once the
+    // outer boundary classified this pixel into a corner quadrant, the inner
+    // rounded boundary is either the same corner or it has collapsed away.
+    inner_radius = inner_radii[outer_corner];
+    const float inner_dx =
+      xt - CornerCenterX(inner_x0, inner_x1, inner_radii, outer_corner);
+    const float inner_dy =
+      yt - CornerCenterY(inner_y0, inner_y1, inner_radii, outer_corner);
+    inner_d_squared = inner_dx * inner_dx + inner_dy * inner_dy;
+    if (inner_radius >= 0.5f &&
+      inner_d_squared <= rect.ri_sq_adj[outer_corner] - inner_radius) {
+      return rect.interior_color;
+    }
+    fully_outside_inner =
+      inner_d_squared >= rect.ri_sq_adj[outer_corner] + inner_radius;
+  } else {
+    // Once an inner corner collapses, the inner boundary in that quadrant is a
+    // sharp rectangle corner, so switch to the straight-edge proof.
+    if (PointInsideRect(inner_x0, inner_y0, inner_x1, inner_y1, xt, yt) &&
+        DistToNearestRectEdgeFromInside(inner_x0, inner_y0, inner_x1, inner_y1,
+                                        xt, yt) >= 0.5f) {
+      return rect.interior_color;
+    }
+    inner_d_squared = CalcDistSqRect(inner_x0, inner_y0, inner_x1, inner_y1,
+                                     xt, yt);
+    fully_outside_inner = inner_d_squared >= 0.25f;
+  }
+
+  if (fully_within_outer && fully_outside_inner) {
+    // The pixel is cleanly inside the outline band.
+    return rect.outline_color;
+  }
+
+  if (!fully_within_outer) {
+    if (outer_corner >= 0) {
+      // We only pay for sqrt on the outer edge when the cheap tests could not
+      // prove the pixel fully inside or fully outside that boundary.
+      outer_distance = sqrtf(outer_d_squared);
+      outer_coverage = outer_radius - outer_distance + 0.5f;
+    }
+    if (fully_outside_inner) {
+      // Only the outer AA fringe contributes.
+      return rect.outline_color.withA(rect.outline_color.a() * outer_coverage);
+    }
+  }
+
+  if (inner_d_squared > 0.0f) {
+    // Inner sqrt is likewise reserved for the narrow AA band around the inner
+    // boundary.
+    inner_distance = sqrtf(inner_d_squared);
+  }
+  if (fully_within_outer) {
+    // Only the inner boundary is antialiased here.
+    const uint16_t outline_fraction = CoverageToFraction(
+        1.0f - (inner_radius - inner_distance + 0.5f));
+    return InterpolateColors(rect.interior_color, rect.outline_color,
+                             outline_fraction);
+  }
+  // Both boundaries are partially covering the pixel; mix the surviving
+  // interior and outline fractions.
+  const uint16_t outer_fraction = CoverageToFraction(outer_coverage);
+  const uint16_t interior_fraction = std::min<uint16_t>(
+      outer_fraction,
+      CoverageToFraction(inner_radius - inner_distance + 0.5f));
+  const uint16_t outline_fraction = outer_fraction - interior_fraction;
+  return MixColors(rect.interior_color, interior_fraction,
+                   rect.outline_color, outline_fraction);
 }
 
 inline float CalcDistSqRectInnerBoundary(const SmoothShape::RoundRect& rect,
@@ -1406,6 +1803,21 @@ void ReadRoundRectColors(const SmoothShape::RoundRect& rect, const int16_t* x,
       *result = rect.interior_color;
     } else {
       *result = GetSmoothRoundRectPixelColor(rect, *x, *y);
+    }
+    ++x;
+    ++y;
+    ++result;
+  }
+}
+
+void ReadRoundRectCornersColors(const SmoothShape::RoundRectCorners& rect,
+                                const int16_t* x, const int16_t* y,
+                                uint32_t count, Color* result) {
+  while (count-- > 0) {
+    if (PointInsideRoundRectCornersInteriorHelper(rect, *x, *y)) {
+      *result = rect.interior_color;
+    } else {
+      *result = GetSmoothRoundRectCornersPixelColor(rect, *x, *y);
     }
     ++x;
     ++y;

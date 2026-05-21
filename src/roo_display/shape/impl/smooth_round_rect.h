@@ -29,6 +29,10 @@ round_rect::AreaType DetermineRectColorForRoundRect(
 void ReadRoundRectColors(const SmoothShape::RoundRect& rect, const int16_t* x,
                          const int16_t* y, uint32_t count, Color* result);
 
+void ReadRoundRectCornersColors(const SmoothShape::RoundRectCorners& rect,
+                                const int16_t* x, const int16_t* y,
+                                uint32_t count, Color* result);
+
 void DrawRoundRect(SmoothShape::RoundRect rect, const Surface& s,
                    const Box& box);
 

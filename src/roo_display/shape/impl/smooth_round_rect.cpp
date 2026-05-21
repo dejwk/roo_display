@@ -2,6 +2,7 @@
 
 #include <math.h>
 
+#include "roo_logging.h"
 #include "roo_display/core/buffered_drawing.h"
 #include "roo_display/shape/impl/smooth_internal.h"
 
@@ -420,15 +421,22 @@ internal::round_rect::AreaType DetermineRectColorForRoundRectImpl(
   return internal::round_rect::AreaType::kMixed;
 }
 
-inline uint64_t Square(int32_t value) {
-  return (uint64_t)value * (uint64_t)value;
+inline int16_t ToDoubledCoord(float value) {
+  long doubled = lroundf(2 * value);
+  DCHECK_GE(doubled, -32768);
+  DCHECK_LE(doubled, 32767);
+  return (int16_t)doubled;
+}
+
+inline uint32_t Square(int32_t value) {
+  return (uint32_t)value * (uint32_t)value;
 }
 
 // Tracks both x thresholds for one rounded boundary band: the largest doubled-x
 // fully inside the band and the smallest doubled-x fully outside it.
 class CircleBandDxTracker {
  public:
-  CircleBandDxTracker(uint64_t full_sq4, uint64_t out_sq4,
+  CircleBandDxTracker(uint32_t full_sq4, uint32_t out_sq4,
                       int32_t initial_full_dx_max, int32_t initial_out_dx_min,
                       bool has_full = true)
       : full_sq4_(full_sq4),
@@ -437,15 +445,15 @@ class CircleBandDxTracker {
         full_dx_max_(initial_full_dx_max),
         out_dx_min_(initial_out_dx_min),
         last_dy_sq4_(0),
-        full_error_(has_full ? (int64_t)Square(initial_full_dx_max) -
-                                  (int64_t)full_sq4
+        full_error_(has_full ? (int32_t)Square(initial_full_dx_max) -
+                                  (int32_t)full_sq4
                             : 0),
-        out_error_((int64_t)Square(initial_out_dx_min) - (int64_t)out_sq4) {}
+        out_error_((int32_t)Square(initial_out_dx_min) - (int32_t)out_sq4) {}
 
-  void Update(uint64_t dy_sq4) {
-    const int64_t delta_dy_sq4 =
-        dy_sq4 >= last_dy_sq4_ ? (int64_t)(dy_sq4 - last_dy_sq4_)
-                               : -(int64_t)(last_dy_sq4_ - dy_sq4);
+  void Update(uint32_t dy_sq4) {
+    const int32_t delta_dy_sq4 =
+        dy_sq4 >= last_dy_sq4_ ? (int32_t)(dy_sq4 - last_dy_sq4_)
+                               : -(int32_t)(last_dy_sq4_ - dy_sq4);
     last_dy_sq4_ = dy_sq4;
     if (has_full_) {
       UpdateFullDxMax(dy_sq4, delta_dy_sq4);
@@ -457,74 +465,74 @@ class CircleBandDxTracker {
 
   bool has_full() const { return has_full_; }
 
-  uint64_t full_sq4() const { return full_sq4_; }
+  uint32_t full_sq4() const { return full_sq4_; }
 
-  uint64_t out_sq4() const { return out_sq4_; }
+  uint32_t out_sq4() const { return out_sq4_; }
 
   int32_t full_dx_max() const { return full_dx_max_; }
 
   int32_t out_dx_min() const { return out_dx_min_; }
 
  private:
-  void UpdateFullDxMax(uint64_t dy_sq4, int64_t delta_dy_sq4) {
+  void UpdateFullDxMax(uint32_t dy_sq4, int32_t delta_dy_sq4) {
     if (dy_sq4 > full_sq4_) {
       full_dx_max_ = -1;
-      full_error_ = (int64_t)dy_sq4 - (int64_t)full_sq4_;
+      full_error_ = (int32_t)dy_sq4 - (int32_t)full_sq4_;
       return;
     }
     if (full_dx_max_ < 0) {
       full_dx_max_ = 0;
-      full_error_ = (int64_t)dy_sq4 - (int64_t)full_sq4_;
+      full_error_ = (int32_t)dy_sq4 - (int32_t)full_sq4_;
     } else {
       full_error_ += delta_dy_sq4;
     }
     if (full_error_ > 0) {
       while (full_dx_max_ > 0 && full_error_ > 0) {
-        full_error_ -= (int64_t)(2 * full_dx_max_ - 1);
+        full_error_ -= (int32_t)(2 * full_dx_max_ - 1);
         --full_dx_max_;
       }
     } else {
-      while (full_error_ + (int64_t)(2 * full_dx_max_ + 1) <= 0) {
-        full_error_ += (int64_t)(2 * full_dx_max_ + 1);
+      while (full_error_ + (int32_t)(2 * full_dx_max_ + 1) <= 0) {
+        full_error_ += (int32_t)(2 * full_dx_max_ + 1);
         ++full_dx_max_;
       }
     }
   }
 
-  void UpdateOutDxMin(uint64_t dy_sq4, int64_t delta_dy_sq4) {
+  void UpdateOutDxMin(uint32_t dy_sq4, int32_t delta_dy_sq4) {
     if (dy_sq4 >= out_sq4_) {
       out_dx_min_ = 0;
-      out_error_ = (int64_t)dy_sq4 - (int64_t)out_sq4_;
+      out_error_ = (int32_t)dy_sq4 - (int32_t)out_sq4_;
       return;
     }
     if (out_dx_min_ < 0) {
       out_dx_min_ = 0;
-      out_error_ = (int64_t)dy_sq4 - (int64_t)out_sq4_;
+      out_error_ = (int32_t)dy_sq4 - (int32_t)out_sq4_;
     } else {
       out_error_ += delta_dy_sq4;
     }
     if (out_error_ < 0) {
       while (out_error_ < 0) {
-        out_error_ += (int64_t)(2 * out_dx_min_ + 1);
+        out_error_ += (int32_t)(2 * out_dx_min_ + 1);
         ++out_dx_min_;
       }
     } else {
       while (out_dx_min_ > 0 &&
-             out_error_ - (int64_t)(2 * out_dx_min_ - 1) >= 0) {
-        out_error_ -= (int64_t)(2 * out_dx_min_ - 1);
+             out_error_ - (int32_t)(2 * out_dx_min_ - 1) >= 0) {
+        out_error_ -= (int32_t)(2 * out_dx_min_ - 1);
         --out_dx_min_;
       }
     }
   }
 
-  const uint64_t full_sq4_;
-  const uint64_t out_sq4_;
+  const uint32_t full_sq4_;
+  const uint32_t out_sq4_;
   const bool has_full_;
   int32_t full_dx_max_;
   int32_t out_dx_min_;
-  uint64_t last_dy_sq4_;
-  int64_t full_error_;
-  int64_t out_error_;
+  uint32_t last_dy_sq4_;
+  int32_t full_error_;
+  int32_t out_error_;
 };
 
 class RoundRectStream : public PixelStream {
@@ -541,12 +549,12 @@ class RoundRectStream : public PixelStream {
         segment_count_(0),
         segment_index_(0),
         row_ready_(false),
-        x0x2_(lroundf(2 * rect.x0)),
-        y0x2_(lroundf(2 * rect.y0)),
-        x1x2_(lroundf(2 * rect.x1)),
-        y1x2_(lroundf(2 * rect.y1)),
-        rox2_(lroundf(2 * rect.ro)),
-        rix2_(lroundf(2 * rect.ri)),
+        x0x2_(ToDoubledCoord(rect.x0)),
+        y0x2_(ToDoubledCoord(rect.y0)),
+        x1x2_(ToDoubledCoord(rect.x1)),
+        y1x2_(ToDoubledCoord(rect.y1)),
+        rox2_(ToDoubledCoord(rect.ro)),
+        rix2_(ToDoubledCoord(rect.ri)),
         outer_tracker_(Square(std::max<int32_t>(0, rox2_ - 1)),
                        Square(rox2_ + 1), std::max<int32_t>(-1, rox2_ - 1),
                        rox2_ + 1),
@@ -626,7 +634,7 @@ class RoundRectStream : public PixelStream {
     return value >= 0 ? (value + 1) / 2 : -((-value) / 2);
   }
 
-  void UpdateThresholds(uint64_t dy_sq4) {
+  void UpdateThresholds(uint32_t dy_sq4) {
     outer_tracker_.Update(dy_sq4);
     inner_tracker_.Update(dy_sq4);
   }
@@ -643,7 +651,7 @@ class RoundRectStream : public PixelStream {
     segments_[segment_count_++] = Segment{start_x, end_x, kind};
   }
 
-  SegmentKind ClassifyZeroDx(uint64_t dy_sq4) const {
+  SegmentKind ClassifyZeroDx(uint32_t dy_sq4) const {
     if (inner_tracker_.has_full() && dy_sq4 <= inner_tracker_.full_sq4()) {
       return SegmentKind::kInterior;
     }
@@ -712,9 +720,9 @@ class RoundRectStream : public PixelStream {
     // thresholds. For the current row we reduce the shape to three zones:
     // left cap, center slab, right cap.
     int32_t yx2 = 2 * y_;
-    int32_t ref_yx2 = std::min(std::max(yx2, y0x2_), y1x2_);
-    uint64_t dyx2 = (uint64_t)std::abs(yx2 - ref_yx2);
-    uint64_t dy_sq4 = dyx2 * dyx2;
+    int32_t ref_yx2 = std::min<int32_t>(std::max<int32_t>(yx2, y0x2_), y1x2_);
+    uint32_t dyx2 = (uint32_t)std::abs(yx2 - ref_yx2);
+    uint32_t dy_sq4 = dyx2 * dyx2;
 
     UpdateThresholds(dy_sq4);
 
@@ -750,12 +758,14 @@ class RoundRectStream : public PixelStream {
   bool row_ready_;
 
   // Stored in doubled coordinates so half-pixel AA thresholds stay integral.
-  const int32_t x0x2_;
-  const int32_t y0x2_;
-  const int32_t x1x2_;
-  const int32_t y1x2_;
-  const int32_t rox2_;
-  const int32_t rix2_;
+  // Under the practical Box coordinate bounds, the doubled values fit in
+  // int16_t even though combined expressions still need wider temporaries.
+  const int16_t x0x2_;
+  const int16_t y0x2_;
+  const int16_t x1x2_;
+  const int16_t y1x2_;
+  const int16_t rox2_;
+  const int16_t rix2_;
 
   // Current scanline state for the incremental circle trackers.
   CircleBandDxTracker outer_tracker_;
@@ -775,11 +785,11 @@ class RectInnerRoundRectStream : public PixelStream {
         segment_count_(0),
         segment_index_(0),
         row_ready_(false),
-        x0x2_(lroundf(2 * rect.x0)),
-        y0x2_(lroundf(2 * rect.y0)),
-        x1x2_(lroundf(2 * rect.x1)),
-        y1x2_(lroundf(2 * rect.y1)),
-        rox2_(lroundf(2 * rect.ro)),
+        x0x2_(ToDoubledCoord(rect.x0)),
+        y0x2_(ToDoubledCoord(rect.y0)),
+        x1x2_(ToDoubledCoord(rect.x1)),
+        y1x2_(ToDoubledCoord(rect.y1)),
+        rox2_(ToDoubledCoord(rect.ro)),
         outer_tracker_(Square(std::max<int32_t>(0, rox2_ - 1)),
                        Square(rox2_ + 1), std::max<int32_t>(-1, rox2_ - 1),
                        rox2_ + 1),
@@ -934,9 +944,9 @@ class RectInnerRoundRectStream : public PixelStream {
     if (y_ > bounds_.yMax()) return;
 
     int32_t yx2 = 2 * y_;
-    int32_t ref_yx2 = std::min(std::max(yx2, y0x2_), y1x2_);
-    uint64_t dyx2 = (uint64_t)std::abs(yx2 - ref_yx2);
-    uint64_t dy_sq4 = dyx2 * dyx2;
+    int32_t ref_yx2 = std::min<int32_t>(std::max<int32_t>(yx2, y0x2_), y1x2_);
+    uint32_t dyx2 = (uint32_t)std::abs(yx2 - ref_yx2);
+    uint32_t dy_sq4 = dyx2 * dyx2;
 
     outer_tracker_.Update(dy_sq4);
 
@@ -980,11 +990,11 @@ class RectInnerRoundRectStream : public PixelStream {
   uint8_t segment_index_;
   bool row_ready_;
 
-  const int32_t x0x2_;
-  const int32_t y0x2_;
-  const int32_t x1x2_;
-  const int32_t y1x2_;
-  const int32_t rox2_;
+  const int16_t x0x2_;
+  const int16_t y0x2_;
+  const int16_t x1x2_;
+  const int16_t y1x2_;
+  const int16_t rox2_;
 
   CircleBandDxTracker outer_tracker_;
 

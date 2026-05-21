@@ -22,6 +22,8 @@ NormalizedSingleRadiusRoundRect NormalizeSingleRadiusRoundRect(
   float max_radius = ((width < height) ? width : height) * 0.5f;
   if (radius > max_radius) radius = max_radius;
 
+  // Normalize everything up front so later code can assume canonical ordering,
+  // non-negative thickness, and a valid inner boundary description.
   float delta = thickness * 0.5f;
   float inner_x0 = x0 + delta;
   float inner_y0 = y0 + delta;
@@ -106,6 +108,8 @@ SmoothShape SmoothThickRoundRect(float x0, float y0, float x1, float y1,
   Box inner_mid;
   Box inner_wide;
   Box inner_tall;
+  // Precompute conservative interior boxes so the pixel, tile, and readback
+  // paths can recognize obvious interior regions without distance math.
   if (rectangular_inner) {
     const Box inner_rect_interior((int16_t)ceilf(normalized.inner_x0 + 0.5f),
                                   (int16_t)ceilf(normalized.inner_y0 + 0.5f),
@@ -220,6 +224,8 @@ inline Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& rect,
       return rect.interior_color;
     }
   }
+  // Project the pixel onto the rectangle's center slab first; only the corner
+  // residual contributes to the circular distance checks.
   float ref_x = std::min(std::max((float)x, rect.x0), rect.x1);
   float ref_y = std::min(std::max((float)y, rect.y0), rect.y1);
   float dx = x - ref_x;
@@ -235,6 +241,8 @@ inline Color GetSmoothRoundRectPixelColor(const SmoothShape::RoundRect& rect,
   float ri = rect.ri;
   Color outline = rect.outline_color;
 
+  // Most pixels fall cleanly into one of these three buckets, so check the
+  // no-sqrt cases first and leave anti-aliasing for the narrow boundary band.
   if (!uses_rect_inner && d_squared <= rect.ri_sq_adj - ri && ri >= 0.5f) {
     // Point fully within the interior.
     return interior;
@@ -350,6 +358,9 @@ internal::round_rect::AreaType DetermineRectColorForRoundRectImpl(
     }
   }
   if (uses_rect_inner) {
+    // In rectangular-inner mode, the inner hole can cut through a tile even
+    // when the outer circle fully covers it, so prove the tile stays clear of
+    // the hole before classifying it as outline.
     if (!BoxFullyOutsideRectInnerBoundary(rect, xMin, yMin, xMax, yMax)) {
       return internal::round_rect::AreaType::kMixed;
     }
@@ -384,6 +395,9 @@ internal::round_rect::AreaType DetermineRectColorForRoundRectImpl(
   }
   // If all corners are in the same quadrant, and all corners are within the
   // ring, then the rect is also within the ring.
+  // Once the tile is confined to one corner quadrant, the annulus is convex in
+  // that slice, so checking the two diagonal corners is enough to prove the
+  // whole tile stays inside the outline band.
   if (xMax <= rect.x1) {
     if (yMax <= rect.y1) {
       float r_ring_max_sq = rect.ro_sq_adj - rect.ro;
@@ -506,6 +520,8 @@ class CircleBandDxTracker {
   }
 
   void Update(uint32_t dy_sq4) {
+    // Adjacent rows only change dy, so keep the previous error term and nudge
+    // the x thresholds just far enough to reestablish the invariants.
     const int32_t delta_dy_sq4 =
         dy_sq4 >= last_dy_sq4_ ? (int32_t)(dy_sq4 - last_dy_sq4_)
                                : -(int32_t)(last_dy_sq4_ - dy_sq4);
@@ -707,6 +723,8 @@ class RoundRectStream : public PixelStream {
   }
 
   SegmentKind ClassifyZeroDx(uint32_t dy_sq4) const {
+    // The center slab has dx = 0, so this row segment only depends on how far
+    // the scanline sits from the vertical span of the rounded rectangle.
     if (inner_tracker_.has_full() && dy_sq4 <= inner_tracker_.full_sq4()) {
       return SegmentKind::kInterior;
     }
@@ -724,6 +742,8 @@ class RoundRectStream : public PixelStream {
                        int32_t outer_dx_max, int32_t inner_out_dx_min,
                        int32_t inner_dx_max) {
     if (start_x > end_x) return;
+    // Each rounded cap breaks into at most five monotonic regions:
+    // transparent, slow edge, outline, slow edge, interior.
     int16_t transparent_end = FloorDiv2(x0x2_ - trans_dx_min);
     int16_t outer_start = CeilDiv2(x0x2_ - outer_dx_max);
     int16_t outline_end = FloorDiv2(x0x2_ - inner_out_dx_min);
@@ -951,6 +971,8 @@ class RectInnerRoundRectStream : public PixelStream {
   void AddFullOuterSegments(int16_t start_x, int16_t end_x) {
     if (start_x > end_x) return;
 
+    // Once the rounded outer boundary fully covers this span, only the
+    // axis-aligned inner rectangle can introduce color changes.
     const float row_y = y_;
     if (row_y <= rect_.inner_y0 - 0.5f || row_y >= rect_.inner_y1 + 0.5f) {
       AddSolidSegment(start_x, end_x, rect_.outline_color);
@@ -995,6 +1017,8 @@ class RectInnerRoundRectStream : public PixelStream {
     row_ready_ = true;
     if (y_ > bounds_.yMax()) return;
 
+    // This stream only tracks the rounded outer edge. After that, the inner
+    // rectangle turns the fully covered span into a few axis-aligned runs.
     uint32_t dy_sq4 = RowDySq4(y_, y0x2_, y1x2_);
 
     outer_tracker_.Update(dy_sq4);
@@ -1068,6 +1092,8 @@ inline void FillSubrectOfRoundRect(const SmoothShape::RoundRect& rect,
                                    const Box& box) {
   Color interior = rect.interior_color;
   Color outline = rect.outline_color;
+  // Small tiles still go through the same classifier first so uniform regions
+  // collapse to a single fillRect and only genuinely mixed tiles sample pixels.
   switch (DetermineRectColorForRoundRectImpl(rect, box)) {
     case internal::round_rect::AreaType::kExterior: {
       if (spec.fill_mode == FillMode::kExtents) {
@@ -1125,6 +1151,8 @@ inline void FillSubrectOfRoundRect(const SmoothShape::RoundRect& rect,
 
 void FillSubrectangle(const SmoothShape::RoundRect& rect,
                       const RoundRectDrawSpec& spec, const Box& box) {
+  // Tile into 8x8 blocks so the rectangle classifier gets repeated chances to
+  // prove uniform fill regions without allocating a full temporary buffer.
   const int16_t xMinOuter = (box.xMin() / 8) * 8;
   const int16_t yMinOuter = (box.yMin() / 8) * 8;
   const int16_t xMaxOuter = (box.xMax() / 8) * 8 + 7;
@@ -1173,6 +1201,8 @@ void DrawRoundRectImpl(SmoothShape::RoundRect rect, const Surface& s,
   if (rect.inner_mid.width() <= 16) {
     FillSubrectangle(rect, spec, box);
   } else {
+    // For large center slabs, split the draw into perimeter bands plus the
+    // rectangular interior so the middle can be emitted as one fillRect.
     const Box& inner = rect.inner_mid;
     const Box top = Box::Intersect(
         Box(box.xMin(), box.yMin(), box.xMax(), inner.yMin() - 1), box);
@@ -1216,6 +1246,8 @@ bool ReadColorRectOfRoundRect(const SmoothShape::RoundRect& rect, int16_t xMin,
                               int16_t yMin, int16_t xMax, int16_t yMax,
                               Color* result) {
   Box box(xMin, yMin, xMax, yMax);
+  // Readback mirrors the draw classifier: return one uniform color whenever a
+  // tile can be proven exterior, interior, or outline without sampling.
   switch (DetermineRectColorForRoundRectImpl(rect, box)) {
     case round_rect::AreaType::kExterior: {
       *result = color::Transparent;
@@ -1264,6 +1296,8 @@ void ReadRoundRectColors(const SmoothShape::RoundRect& rect, const int16_t* x,
 
 std::unique_ptr<PixelStream> CreateRoundRectStream(
     const SmoothShape::RoundRect& rect, const Box& bounds) {
+  // Keep the top-level stream selection simple; the specialization lives in
+  // the stream implementation, not in the call sites.
   if (UsesRectInnerBoundary(rect)) {
     return std::unique_ptr<PixelStream>(
         new RectInnerRoundRectStream(rect, bounds));

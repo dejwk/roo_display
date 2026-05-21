@@ -63,6 +63,8 @@ std::unique_ptr<PixelStream> SmoothShape::createStream(
   switch (kind_) {
     case ROUND_RECT:
       return internal::CreateRoundRectStream(round_rect_, bounds);
+    case ROUND_RECT_CORNERS:
+      return internal::CreateRoundRectStream(round_rect_corners_, bounds);
     default:
       return Rasterizable::createStream(bounds);
   }

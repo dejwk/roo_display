@@ -3,6 +3,7 @@
 #include <math.h>
 
 #include <algorithm>
+#include <array>
 
 #include "roo_display/core/buffered_drawing.h"
 #include "roo_display/shape/impl/smooth_internal.h"
@@ -1174,6 +1175,11 @@ inline uint32_t RowDySq4(int16_t y, int32_t y0x2, int32_t y1x2) {
   return dyx2 * dyx2;
 }
 
+inline uint32_t CenterDySq4(int16_t y, int32_t cyx2) {
+  uint32_t dyx2 = (uint32_t)std::abs(2 * y - cyx2);
+  return dyx2 * dyx2;
+}
+
 inline int32_t FloorSqrt(uint32_t value) {
   // `sqrtf` gives a fast initial estimate, but `value` can be larger than the
   // range of integers represented exactly by float. The fixup loops restore
@@ -1796,6 +1802,412 @@ class RectInnerRoundRectStream : public PixelStream {
   const int16_t inner_outside_right_start_;
 };
 
+// Unequal-radius round rects still stream row-by-row, but each side can now
+// switch independently between a top corner, a straight edge, and a bottom
+// corner. The stream keeps one tracker per corner and only falls back to the
+// pixel evaluator for rows or spans that remain in an AA fringe.
+class RoundRectCornersStream : public PixelStream {
+ public:
+  RoundRectCornersStream(const SmoothShape::RoundRectCorners& rect, Box bounds)
+      : rect_(rect),
+        bounds_(std::move(bounds)),
+        x_(bounds_.xMin()),
+        y_(bounds_.yMin()),
+        segment_count_(0),
+        segment_index_(0),
+        row_ready_(false),
+        inner_x0_(rect.x0 + rect.thickness),
+        inner_y0_(rect.y0 + rect.thickness),
+        inner_x1_(rect.x1 - rect.thickness),
+        inner_y1_(rect.y1 - rect.thickness),
+        inner_radii_{
+            ClampNonNegative(rect.ro[kTopLeftCorner] - rect.thickness),
+            ClampNonNegative(rect.ro[kTopRightCorner] - rect.thickness),
+            ClampNonNegative(rect.ro[kBottomLeftCorner] - rect.thickness),
+            ClampNonNegative(rect.ro[kBottomRightCorner] - rect.thickness)},
+        outer_trackers_{
+            CornerTracker(rect.x0 + rect.ro[kTopLeftCorner],
+                          rect.y0 + rect.ro[kTopLeftCorner],
+                          rect.ro[kTopLeftCorner], bounds_.yMin()),
+            CornerTracker(rect.x1 - rect.ro[kTopRightCorner],
+                          rect.y0 + rect.ro[kTopRightCorner],
+                          rect.ro[kTopRightCorner], bounds_.yMin()),
+            CornerTracker(rect.x0 + rect.ro[kBottomLeftCorner],
+                          rect.y1 - rect.ro[kBottomLeftCorner],
+                          rect.ro[kBottomLeftCorner], bounds_.yMin()),
+            CornerTracker(rect.x1 - rect.ro[kBottomRightCorner],
+                          rect.y1 - rect.ro[kBottomRightCorner],
+                          rect.ro[kBottomRightCorner], bounds_.yMin())},
+        inner_trackers_{
+            CornerTracker(inner_x0_ + inner_radii_[kTopLeftCorner],
+                          inner_y0_ + inner_radii_[kTopLeftCorner],
+                          inner_radii_[kTopLeftCorner], bounds_.yMin()),
+            CornerTracker(inner_x1_ - inner_radii_[kTopRightCorner],
+                          inner_y0_ + inner_radii_[kTopRightCorner],
+                          inner_radii_[kTopRightCorner], bounds_.yMin()),
+            CornerTracker(inner_x0_ + inner_radii_[kBottomLeftCorner],
+                          inner_y1_ - inner_radii_[kBottomLeftCorner],
+                          inner_radii_[kBottomLeftCorner], bounds_.yMin()),
+            CornerTracker(inner_x1_ - inner_radii_[kBottomRightCorner],
+                          inner_y1_ - inner_radii_[kBottomRightCorner],
+                          inner_radii_[kBottomRightCorner], bounds_.yMin())},
+        outer_inside_top_((int16_t)ceilf(rect.y0 + 0.5f)),
+        outer_inside_bottom_((int16_t)floorf(rect.y1 - 0.5f)),
+        outer_outside_left_end_((int16_t)floorf(rect.x0 - 0.5f)),
+        outer_inside_left_start_((int16_t)ceilf(rect.x0 + 0.5f)),
+        outer_inside_right_end_((int16_t)floorf(rect.x1 - 0.5f)),
+        outer_outside_right_start_((int16_t)ceilf(rect.x1 + 0.5f)),
+        inner_outside_top_end_((int16_t)floorf(inner_y0_ - 0.5f)),
+        inner_inside_top_start_((int16_t)ceilf(inner_y0_ + 0.5f)),
+        inner_inside_bottom_end_((int16_t)floorf(inner_y1_ - 0.5f)),
+        inner_outside_bottom_start_((int16_t)ceilf(inner_y1_ + 0.5f)),
+        inner_outside_left_end_((int16_t)floorf(inner_x0_ - 0.5f)),
+        inner_inside_left_start_((int16_t)ceilf(inner_x0_ + 0.5f)),
+        inner_inside_right_end_((int16_t)floorf(inner_x1_ - 0.5f)),
+        inner_outside_right_start_((int16_t)ceilf(inner_x1_ + 0.5f)) {}
+
+  void Read(Color* buf, uint16_t count) override {
+    while (count > 0) {
+      if (!row_ready_) PrepareRow();
+      if (segment_index_ >= segment_count_) return;
+      const Segment& segment = segments_[segment_index_];
+      uint16_t batch = segment.end_x - x_ + 1;
+      if (batch > count) batch = count;
+      switch (segment.kind) {
+        case SegmentKind::kSolid:
+          FillColor(buf, batch, segment.color);
+          break;
+        case SegmentKind::kSlow:
+          for (uint16_t i = 0; i < batch; ++i) {
+            buf[i] = GetSmoothRoundRectCornersPixelColor(rect_, x_ + i, y_);
+          }
+          break;
+      }
+      buf += batch;
+      count -= batch;
+      x_ += batch;
+      if (x_ > segment.end_x) {
+        ++segment_index_;
+      }
+      if (x_ > bounds_.xMax()) {
+        x_ = bounds_.xMin();
+        ++y_;
+        row_ready_ = false;
+      }
+    }
+  }
+
+  void Skip(uint32_t count) override {
+    uint16_t width = bounds_.width();
+    y_ += count / width;
+    x_ += count % width;
+    if (x_ > bounds_.xMax()) {
+      x_ -= width;
+      ++y_;
+    }
+    row_ready_ = false;
+    segment_count_ = 0;
+    segment_index_ = 0;
+  }
+
+ private:
+  struct CornerTracker {
+    CornerTracker(float center_x, float center_y, float radius, int16_t y)
+        : center_x(center_x),
+          center_y(center_y),
+          full_sq(radius * radius - radius + 0.25f),
+          out_sq(radius * radius + radius + 0.25f),
+          has_full(radius >= 0.5f),
+          full_dx(-1.0f),
+          out_dx(0.0f) {
+      Update(y);
+    }
+
+    void Update(int16_t y) {
+      const float dy = y - center_y;
+      const float dy_sq = dy * dy;
+      if (has_full && dy_sq <= full_sq) {
+        full_dx = sqrtf(full_sq - dy_sq);
+      } else {
+        full_dx = -1.0f;
+      }
+      if (dy_sq < out_sq) {
+        out_dx = sqrtf(out_sq - dy_sq);
+      } else {
+        out_dx = 0.0f;
+      }
+    }
+
+    float center_x;
+    float center_y;
+    float full_sq;
+    float out_sq;
+    bool has_full;
+    float full_dx;
+    float out_dx;
+  };
+
+  enum class SegmentKind : uint8_t {
+    kSolid,
+    kSlow,
+  };
+
+  struct Segment {
+    int16_t start_x;
+    int16_t end_x;
+    SegmentKind kind;
+    Color color;
+  };
+
+  inline int16_t FloorDiv2(int32_t value) {
+    return value >= 0 ? value / 2 : -(((-value) + 1) / 2);
+  }
+
+  inline int16_t CeilDiv2(int32_t value) {
+    return value >= 0 ? (value + 1) / 2 : -((-value) / 2);
+  }
+
+  void AddSolidSegment(int16_t start_x, int16_t end_x, Color color) {
+    if (start_x > end_x) return;
+    if (segment_count_ > 0) {
+      Segment& prev = segments_[segment_count_ - 1];
+      if (prev.kind == SegmentKind::kSolid && prev.color == color &&
+          prev.end_x + 1 == start_x) {
+        prev.end_x = end_x;
+        return;
+      }
+    }
+    segments_[segment_count_++] =
+        Segment{start_x, end_x, SegmentKind::kSolid, color};
+  }
+
+  void AddSlowSegment(int16_t start_x, int16_t end_x) {
+    if (start_x > end_x) return;
+    if (segment_count_ > 0) {
+      Segment& prev = segments_[segment_count_ - 1];
+      if (prev.kind == SegmentKind::kSlow && prev.end_x + 1 == start_x) {
+        prev.end_x = end_x;
+        return;
+      }
+    }
+    segments_[segment_count_++] =
+        Segment{start_x, end_x, SegmentKind::kSlow, color::Transparent};
+  }
+
+  void UpdateTrackers() {
+    for (CornerTracker& tracker : outer_trackers_) {
+      tracker.Update(y_);
+    }
+    for (CornerTracker& tracker : inner_trackers_) {
+      tracker.Update(y_);
+    }
+  }
+
+  bool RowHasFullOuterCoverage() const {
+    return y_ >= outer_inside_top_ && y_ <= outer_inside_bottom_;
+  }
+
+  bool RowFullyOutsideInner() const {
+    return y_ <= inner_outside_top_end_ || y_ >= inner_outside_bottom_start_;
+  }
+
+  bool RowHasFullInteriorCoverage() const {
+    return y_ >= inner_inside_top_start_ && y_ <= inner_inside_bottom_end_;
+  }
+
+  void LeftOuterThresholds(int16_t* transparent_end, int16_t* full_start) {
+    if (rect_.ro[kTopLeftCorner] > 0.0f &&
+        y_ < rect_.y0 + rect_.ro[kTopLeftCorner]) {
+      const CornerTracker& corner = outer_trackers_[kTopLeftCorner];
+      *transparent_end = (int16_t)floorf(corner.center_x - corner.out_dx);
+      *full_start = corner.full_dx >= 0.0f
+                        ? (int16_t)ceilf(corner.center_x - corner.full_dx)
+                        : (int16_t)ceilf(corner.center_x + 1.0f);
+      return;
+    }
+    if (rect_.ro[kBottomLeftCorner] > 0.0f &&
+        y_ > rect_.y1 - rect_.ro[kBottomLeftCorner]) {
+      const CornerTracker& corner = outer_trackers_[kBottomLeftCorner];
+      *transparent_end = (int16_t)floorf(corner.center_x - corner.out_dx);
+      *full_start = corner.full_dx >= 0.0f
+                        ? (int16_t)ceilf(corner.center_x - corner.full_dx)
+                        : (int16_t)ceilf(corner.center_x + 1.0f);
+      return;
+    }
+    *transparent_end = outer_outside_left_end_;
+    *full_start = outer_inside_left_start_;
+  }
+
+  void RightOuterThresholds(int16_t* full_end, int16_t* transparent_start) {
+    if (rect_.ro[kTopRightCorner] > 0.0f &&
+        y_ < rect_.y0 + rect_.ro[kTopRightCorner]) {
+      const CornerTracker& corner = outer_trackers_[kTopRightCorner];
+      *full_end = corner.full_dx >= 0.0f
+                      ? (int16_t)floorf(corner.center_x + corner.full_dx)
+                      : (int16_t)floorf(corner.center_x - 1.0f);
+      *transparent_start = (int16_t)ceilf(corner.center_x + corner.out_dx);
+      return;
+    }
+    if (rect_.ro[kBottomRightCorner] > 0.0f &&
+        y_ > rect_.y1 - rect_.ro[kBottomRightCorner]) {
+      const CornerTracker& corner = outer_trackers_[kBottomRightCorner];
+      *full_end = corner.full_dx >= 0.0f
+                      ? (int16_t)floorf(corner.center_x + corner.full_dx)
+                      : (int16_t)floorf(corner.center_x - 1.0f);
+      *transparent_start = (int16_t)ceilf(corner.center_x + corner.out_dx);
+      return;
+    }
+    *full_end = outer_inside_right_end_;
+    *transparent_start = outer_outside_right_start_;
+  }
+
+  void LeftInnerThresholds(int16_t* outside_end, int16_t* inside_start) {
+    if (inner_radii_[kTopLeftCorner] > 0.0f &&
+        y_ < inner_y0_ + inner_radii_[kTopLeftCorner]) {
+      const CornerTracker& corner = inner_trackers_[kTopLeftCorner];
+      *outside_end = (int16_t)floorf(corner.center_x - corner.out_dx);
+      *inside_start = corner.full_dx >= 0.0f
+                          ? (int16_t)ceilf(corner.center_x - corner.full_dx)
+                          : (int16_t)ceilf(corner.center_x + 1.0f);
+      return;
+    }
+    if (inner_radii_[kBottomLeftCorner] > 0.0f &&
+        y_ > inner_y1_ - inner_radii_[kBottomLeftCorner]) {
+      const CornerTracker& corner = inner_trackers_[kBottomLeftCorner];
+      *outside_end = (int16_t)floorf(corner.center_x - corner.out_dx);
+      *inside_start = corner.full_dx >= 0.0f
+                          ? (int16_t)ceilf(corner.center_x - corner.full_dx)
+                          : (int16_t)ceilf(corner.center_x + 1.0f);
+      return;
+    }
+    *outside_end = inner_outside_left_end_;
+    *inside_start = inner_inside_left_start_;
+  }
+
+  void RightInnerThresholds(int16_t* inside_end, int16_t* outside_start) {
+    if (inner_radii_[kTopRightCorner] > 0.0f &&
+        y_ < inner_y0_ + inner_radii_[kTopRightCorner]) {
+      const CornerTracker& corner = inner_trackers_[kTopRightCorner];
+      *inside_end = corner.full_dx >= 0.0f
+                        ? (int16_t)floorf(corner.center_x + corner.full_dx)
+                        : (int16_t)floorf(corner.center_x - 1.0f);
+      *outside_start = (int16_t)ceilf(corner.center_x + corner.out_dx);
+      return;
+    }
+    if (inner_radii_[kBottomRightCorner] > 0.0f &&
+        y_ > inner_y1_ - inner_radii_[kBottomRightCorner]) {
+      const CornerTracker& corner = inner_trackers_[kBottomRightCorner];
+      *inside_end = corner.full_dx >= 0.0f
+                        ? (int16_t)floorf(corner.center_x + corner.full_dx)
+                        : (int16_t)floorf(corner.center_x - 1.0f);
+      *outside_start = (int16_t)ceilf(corner.center_x + corner.out_dx);
+      return;
+    }
+    *inside_end = inner_inside_right_end_;
+    *outside_start = inner_outside_right_start_;
+  }
+
+  void AddFullOuterSegments(int16_t start_x, int16_t end_x) {
+    if (start_x > end_x) return;
+    if (RowFullyOutsideInner()) {
+      AddSolidSegment(start_x, end_x, rect_.outline_color);
+      return;
+    }
+    if (!RowHasFullInteriorCoverage()) {
+      AddSlowSegment(start_x, end_x);
+      return;
+    }
+
+    int16_t outline_left_end;
+    int16_t interior_start;
+    int16_t interior_end;
+    int16_t outline_right_start;
+    LeftInnerThresholds(&outline_left_end, &interior_start);
+    RightInnerThresholds(&interior_end, &outline_right_start);
+
+    AddSolidSegment(start_x, std::min(end_x, outline_left_end),
+                    rect_.outline_color);
+    AddSlowSegment(std::max(start_x, (int16_t)(outline_left_end + 1)),
+                   std::min(end_x, (int16_t)(interior_start - 1)));
+    AddSolidSegment(std::max(start_x, interior_start),
+                    std::min(end_x, interior_end), rect_.interior_color);
+    AddSlowSegment(std::max(start_x, (int16_t)(interior_end + 1)),
+                   std::min(end_x, (int16_t)(outline_right_start - 1)));
+    AddSolidSegment(std::max(start_x, outline_right_start), end_x,
+                    rect_.outline_color);
+  }
+
+  void PrepareRow() {
+    segment_count_ = 0;
+    segment_index_ = 0;
+    row_ready_ = true;
+    if (y_ > bounds_.yMax()) return;
+
+    UpdateTrackers();
+
+    int16_t transparent_end;
+    int16_t outer_full_start;
+    int16_t outer_full_end;
+    int16_t transparent_start;
+    LeftOuterThresholds(&transparent_end, &outer_full_start);
+    RightOuterThresholds(&outer_full_end, &transparent_start);
+
+    AddSolidSegment(bounds_.xMin(), std::min(bounds_.xMax(), transparent_end),
+                    color::Transparent);
+
+    const int16_t slow_start =
+        std::max(bounds_.xMin(), (int16_t)(transparent_end + 1));
+    const int16_t slow_end =
+        std::min(bounds_.xMax(), (int16_t)(transparent_start - 1));
+    if (!RowHasFullOuterCoverage() || outer_full_start > outer_full_end) {
+      AddSlowSegment(slow_start, slow_end);
+    } else {
+      AddSlowSegment(slow_start,
+                     std::min(bounds_.xMax(), (int16_t)(outer_full_start - 1)));
+      AddFullOuterSegments(std::max(bounds_.xMin(), outer_full_start),
+                           std::min(bounds_.xMax(), outer_full_end));
+      AddSlowSegment(std::max(bounds_.xMin(), (int16_t)(outer_full_end + 1)),
+                     slow_end);
+    }
+
+    AddSolidSegment(std::max(bounds_.xMin(), transparent_start), bounds_.xMax(),
+                    color::Transparent);
+  }
+
+  const SmoothShape::RoundRectCorners& rect_;
+  Box bounds_;
+  int16_t x_;
+  int16_t y_;
+  Segment segments_[9];
+  uint8_t segment_count_;
+  uint8_t segment_index_;
+  bool row_ready_;
+
+  const float inner_x0_;
+  const float inner_y0_;
+  const float inner_x1_;
+  const float inner_y1_;
+  const float inner_radii_[4];
+  std::array<CornerTracker, 4> outer_trackers_;
+  std::array<CornerTracker, 4> inner_trackers_;
+
+  const int16_t outer_inside_top_;
+  const int16_t outer_inside_bottom_;
+  const int16_t outer_outside_left_end_;
+  const int16_t outer_inside_left_start_;
+  const int16_t outer_inside_right_end_;
+  const int16_t outer_outside_right_start_;
+
+  const int16_t inner_outside_top_end_;
+  const int16_t inner_inside_top_start_;
+  const int16_t inner_inside_bottom_end_;
+  const int16_t inner_outside_bottom_start_;
+  const int16_t inner_outside_left_end_;
+  const int16_t inner_inside_left_start_;
+  const int16_t inner_inside_right_end_;
+  const int16_t inner_outside_right_start_;
+};
+
 struct RoundRectDrawSpec {
   DisplayOutput* out;
   FillMode fill_mode;
@@ -2221,6 +2633,11 @@ std::unique_ptr<PixelStream> CreateRoundRectStream(
         new RectInnerRoundRectStream(rect, bounds));
   }
   return std::unique_ptr<PixelStream>(new RoundRectStream(rect, bounds));
+}
+
+std::unique_ptr<PixelStream> CreateRoundRectStream(
+    const SmoothShape::RoundRectCorners& rect, const Box& bounds) {
+  return std::unique_ptr<PixelStream>(new RoundRectCornersStream(rect, bounds));
 }
 
 void DrawRoundRect(SmoothShape::RoundRect rect, const Surface& s,

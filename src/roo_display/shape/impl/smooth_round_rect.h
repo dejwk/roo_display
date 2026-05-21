@@ -19,6 +19,9 @@ enum class AreaType {
 std::unique_ptr<PixelStream> CreateRoundRectStream(
     const SmoothShape::RoundRect& rect, const Box& bounds);
 
+std::unique_ptr<PixelStream> CreateRoundRectStream(
+    const SmoothShape::RoundRectCorners& rect, const Box& bounds);
+
 bool ReadColorRectOfRoundRect(const SmoothShape::RoundRect& rect, int16_t xMin,
                               int16_t yMin, int16_t xMax, int16_t yMax,
                               Color* result);

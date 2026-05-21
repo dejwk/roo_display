@@ -54,6 +54,19 @@ struct RoundRectStreamParityCase {
   bool expect_inner_shrunk_below_center_rect;
 };
 
+struct RoundRectCornersStreamParityCase {
+  const char* basename;
+  float x0;
+  float y0;
+  float x1;
+  float y1;
+  RoundRectRadii radii;
+  float thickness;
+  Color outline;
+  Color interior;
+  Color background;
+};
+
 const std::array<ThinOutlineReproCase, 4> kThinOutlineReproCases = {{
     {0.25f, color::Black, "smooth_roundrect_thin_outline_025_opaque_repro"},
     {0.5f, color::Black, "smooth_roundrect_thin_outline_050_opaque_repro"},
@@ -117,6 +130,22 @@ const std::array<RoundRectStreamParityCase, 5> kRoundRectStreamParityCases = {{
      color::Black, color::Transparent, color::Transparent,
      internal::NormalizedRoundRectKind::kRectInner, true},
 }};
+
+const std::array<RoundRectCornersStreamParityCase, 4>
+    kRoundRectCornersStreamParityCases = {{
+        {"outlined_asymmetric", 0.5f, 0.5f, 24.5f, 18.5f,
+         RoundRectRadii{5.0f, 2.0f, 4.0f, 3.0f}, 2.0f, color::Black.withA(0x95),
+         Color(0x80F3EFE7), color::White},
+        {"collapsed_inner_tr_right", 0.0f, 0.0f, 18.0f, 12.0f,
+         RoundRectRadii{3.0f, 1.0f, 3.0f, 1.0f}, 2.0f, color::Black,
+         Color(0xFFF3EFE7), color::Transparent},
+        {"filled_asymmetric", 0.5f, 0.5f, 20.5f, 14.5f,
+         RoundRectRadii{4.0f, 1.5f, 3.0f, 2.5f}, 0.0f, Color(0xFF4A7C59),
+         Color(0xFF4A7C59), color::Transparent},
+        {"translucent_outline_interior", 1.25f, 1.75f, 17.75f, 13.25f,
+         RoundRectRadii{4.0f, 2.5f, 1.5f, 3.5f}, 1.5f, color::Black.withA(0x95),
+         Color(0x40F3EFE7), color::White},
+    }};
 
 Color PixelAt(const FakeOffscreen<Argb8888>& offscreen, int16_t x, int16_t y) {
   return offscreen.buffer()[y * offscreen.raw_width() + x];
@@ -937,6 +966,48 @@ TEST(SmoothShapes,
   const SmoothShape shape =
       SmoothThickRoundRect(1.25f, 1.75f, 17.75f, 13.25f, 1.25f, 3.0f,
                            color::Black.withA(0x95), Color(0x80F3EFE7));
+  const Box clip_box(3, 3, 16, 12);
+
+  const FakeOffscreen<Argb8888> actual = CoercedToClipped(
+      ForcedStreamable(&shape), clip_box, Argb8888(), color::Transparent,
+      FillMode::kVisible, BlendingMode::kSourceOver, color::White);
+  const FakeOffscreen<Argb8888> expected = CoercedToClipped(
+      ForcedRasterizable(&shape), clip_box, Argb8888(), color::Transparent,
+      FillMode::kVisible, BlendingMode::kSourceOver, color::White);
+
+  EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
+}
+
+// Verifies the dedicated unequal-radius stream matches the regular draw path
+// across outlined, filled, and partially collapsed-inner asymmetric shapes.
+TEST(
+    SmoothShapes,
+    ThickRoundRectCornerRadiiStreamingMatchesRegularPathAcrossInterestingCases) {
+  for (const RoundRectCornersStreamParityCase& test_case :
+       kRoundRectCornersStreamParityCases) {
+    SCOPED_TRACE(test_case.basename);
+    const SmoothShape shape = SmoothThickRoundRect(
+        test_case.x0, test_case.y0, test_case.x1, test_case.y1, test_case.radii,
+        test_case.thickness, test_case.outline, test_case.interior);
+
+    const FakeOffscreen<Argb8888> actual = CoercedToViaStreaming(
+        shape, Argb8888(), test_case.background, FillMode::kVisible,
+        BlendingMode::kSourceOver, test_case.background);
+    const FakeOffscreen<Argb8888> expected = CoercedTo<Argb8888>(
+        shape, Argb8888(), test_case.background, FillMode::kVisible,
+        BlendingMode::kSourceOver, test_case.background);
+
+    EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
+  }
+}
+
+// Verifies the unequal-radius stream still matches point-sampled rasterization
+// when clipping begins and ends mid-row.
+TEST(SmoothShapes,
+     ThickRoundRectCornerRadiiStreamingMatchesRegularPathWhenClipped) {
+  const SmoothShape shape = SmoothThickRoundRect(
+      1.25f, 1.75f, 17.75f, 13.25f, RoundRectRadii{4.0f, 2.5f, 1.5f, 3.5f},
+      1.5f, color::Black.withA(0x95), Color(0x40F3EFE7));
   const Box clip_box(3, 3, 16, 12);
 
   const FakeOffscreen<Argb8888> actual = CoercedToClipped(

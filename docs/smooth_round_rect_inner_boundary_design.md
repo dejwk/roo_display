@@ -7,6 +7,12 @@ Primary references:
 [src/roo_display/shape/impl/smooth_internal.h](../src/roo_display/shape/impl/smooth_internal.h)
 [doc/programming_guide.md](../doc/programming_guide.md)
 
+## Status
+
+Implemented. The extracted normalization helper, the filled-fold dispatch, and
+the rectangular-inner `SmoothShape::RoundRect` path have all landed, so this
+document now describes the shipped single-radius behavior.
+
 ## Objective
 
 Correct the geometry semantics of thick smooth round rects once the inward

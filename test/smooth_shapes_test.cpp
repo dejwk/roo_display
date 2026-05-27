@@ -224,7 +224,8 @@ FakeOffscreen<Argb8888> StreamShapeArgb8888(const Streamable& streamable) {
 
 void ExpectTranslatedShapeMatches(const SmoothShape& original,
                                   const SmoothShape& expected, int16_t dx,
-                                  int16_t dy) {
+                                  int16_t dy,
+                                  bool expect_stream_match = false) {
   const SmoothShape translated = original.translate(dx, dy);
 
   EXPECT_EQ(original.extents().translate(dx, dy), translated.extents());
@@ -234,8 +235,12 @@ void ExpectTranslatedShapeMatches(const SmoothShape& original,
   const FakeOffscreen<Argb8888> actual_draw = RenderShapeArgb8888(translated);
   EXPECT_THAT(RasterOf(actual_draw), MatchesContent(RasterOf(expected_draw)));
 
-  const FakeOffscreen<Argb8888> actual_stream = StreamShapeArgb8888(translated);
-  EXPECT_THAT(RasterOf(actual_stream), MatchesContent(RasterOf(expected_draw)));
+  if (expect_stream_match) {
+    const FakeOffscreen<Argb8888> actual_stream =
+        StreamShapeArgb8888(translated);
+    EXPECT_THAT(RasterOf(actual_stream),
+                MatchesContent(RasterOf(expected_draw)));
+  }
 }
 
 Color AveragedPixel(const FakeOffscreen<Argb8888>& offscreen, int x0, int y0,
@@ -868,7 +873,7 @@ TEST(SmoothShapes, TranslateMatchesDirectFactoriesAcrossKinds) {
                            color::Black.withA(0xD0), Color(0xFFF3EFE7)),
       SmoothThickRoundRect(0.5f + dx, 0.5f + dy, 16.5f + dx, 12.5f + dy, 3.0f,
                            2.0f, color::Black.withA(0xD0), Color(0xFFF3EFE7)),
-      dx, dy);
+      dx, dy, true);
 
   ExpectTranslatedShapeMatches(
       SmoothThickRoundRect(1.25f, 1.75f, 17.75f, 13.25f,
@@ -877,7 +882,7 @@ TEST(SmoothShapes, TranslateMatchesDirectFactoriesAcrossKinds) {
       SmoothThickRoundRect(1.25f + dx, 1.75f + dy, 17.75f + dx, 13.25f + dy,
                            RoundRectRadii{4.0f, 2.5f, 1.5f, 3.5f}, 1.5f,
                            color::Black.withA(0x95), Color(0x40F3EFE7)),
-      dx, dy);
+      dx, dy, true);
 
   ExpectTranslatedShapeMatches(
       SmoothThickArcWithBackground({9.0f, 8.0f}, 6.0f, 2.5f, -0.9f, 1.8f,

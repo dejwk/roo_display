@@ -210,6 +210,34 @@ FakeOffscreen<ColorMode> CoercedToClipped(
   return result;
 }
 
+FakeOffscreen<Argb8888> RenderShapeArgb8888(const Drawable& drawable) {
+  return CoercedTo<Argb8888>(drawable, Argb8888(), color::Transparent,
+                             FillMode::kVisible, BlendingMode::kSourceOver,
+                             color::Transparent);
+}
+
+FakeOffscreen<Argb8888> StreamShapeArgb8888(const Streamable& streamable) {
+  return CoercedToViaStreaming<Argb8888>(
+      streamable, Argb8888(), color::Transparent, FillMode::kVisible,
+      BlendingMode::kSourceOver, color::Transparent);
+}
+
+void ExpectTranslatedShapeMatches(const SmoothShape& original,
+                                  const SmoothShape& expected, int16_t dx,
+                                  int16_t dy) {
+  const SmoothShape translated = original.translate(dx, dy);
+
+  EXPECT_EQ(original.extents().translate(dx, dy), translated.extents());
+  EXPECT_EQ(expected.extents(), translated.extents());
+
+  const FakeOffscreen<Argb8888> expected_draw = RenderShapeArgb8888(expected);
+  const FakeOffscreen<Argb8888> actual_draw = RenderShapeArgb8888(translated);
+  EXPECT_THAT(RasterOf(actual_draw), MatchesContent(RasterOf(expected_draw)));
+
+  const FakeOffscreen<Argb8888> actual_stream = StreamShapeArgb8888(translated);
+  EXPECT_THAT(RasterOf(actual_stream), MatchesContent(RasterOf(expected_draw)));
+}
+
 Color AveragedPixel(const FakeOffscreen<Argb8888>& offscreen, int x0, int y0,
                     int factor) {
   uint32_t a = 0;
@@ -811,6 +839,65 @@ TEST(SmoothShapes, DrawTinyShapes) {
   EXPECT_THAT(CoercedTo<Alpha8>(SmoothCircle({2, 3}, 0, color::Black),
                                 Alpha8(color::Black)),
               MatchesContent(Alpha8(color::Black), Box(2, 3, 2, 3), "C8"));
+}
+
+TEST(SmoothShapes, TranslateEmptyPreservesEmptyShape) {
+  const SmoothShape empty;
+  const SmoothShape translated = empty.translate(7, -5);
+
+  EXPECT_EQ(empty.extents(), translated.extents());
+
+  Color sample = color::Black;
+  EXPECT_TRUE(translated.readColorRect(10, 10, 10, 10, &sample));
+  EXPECT_EQ(color::Transparent, sample);
+}
+
+TEST(SmoothShapes, TranslateMatchesDirectFactoriesAcrossKinds) {
+  constexpr int16_t dx = 7;
+  constexpr int16_t dy = -4;
+
+  ExpectTranslatedShapeMatches(
+      SmoothWedgedLine({1.25f, 2.75f}, 3.0f, {10.5f, 8.25f}, 5.0f,
+                       Color(0xFF336699), ENDING_FLAT),
+      SmoothWedgedLine({1.25f + dx, 2.75f + dy}, 3.0f, {10.5f + dx, 8.25f + dy},
+                       5.0f, Color(0xFF336699), ENDING_FLAT),
+      dx, dy);
+
+  ExpectTranslatedShapeMatches(
+      SmoothThickRoundRect(0.5f, 0.5f, 16.5f, 12.5f, 3.0f, 2.0f,
+                           color::Black.withA(0xD0), Color(0xFFF3EFE7)),
+      SmoothThickRoundRect(0.5f + dx, 0.5f + dy, 16.5f + dx, 12.5f + dy, 3.0f,
+                           2.0f, color::Black.withA(0xD0), Color(0xFFF3EFE7)),
+      dx, dy);
+
+  ExpectTranslatedShapeMatches(
+      SmoothThickRoundRect(1.25f, 1.75f, 17.75f, 13.25f,
+                           RoundRectRadii{4.0f, 2.5f, 1.5f, 3.5f}, 1.5f,
+                           color::Black.withA(0x95), Color(0x40F3EFE7)),
+      SmoothThickRoundRect(1.25f + dx, 1.75f + dy, 17.75f + dx, 13.25f + dy,
+                           RoundRectRadii{4.0f, 2.5f, 1.5f, 3.5f}, 1.5f,
+                           color::Black.withA(0x95), Color(0x40F3EFE7)),
+      dx, dy);
+
+  ExpectTranslatedShapeMatches(
+      SmoothThickArcWithBackground({9.0f, 8.0f}, 6.0f, 2.5f, -0.9f, 1.8f,
+                                   Color(0xFF3B82F6), Color(0xFF94A3B8),
+                                   Color(0x804B5563), ENDING_ROUNDED),
+      SmoothThickArcWithBackground({9.0f + dx, 8.0f + dy}, 6.0f, 2.5f, -0.9f,
+                                   1.8f, Color(0xFF3B82F6), Color(0xFF94A3B8),
+                                   Color(0x804B5563), ENDING_ROUNDED),
+      dx, dy);
+
+  ExpectTranslatedShapeMatches(
+      SmoothFilledTriangle({0.5f, 1.0f}, {8.5f, 2.5f}, {3.0f, 10.0f},
+                           Color(0xFFC2410C)),
+      SmoothFilledTriangle({0.5f + dx, 1.0f + dy}, {8.5f + dx, 2.5f + dy},
+                           {3.0f + dx, 10.0f + dy}, Color(0xFFC2410C)),
+      dx, dy);
+
+  ExpectTranslatedShapeMatches(
+      SmoothCircle({2.0f, 3.0f}, 0.0f, color::Black),
+      SmoothCircle({2.0f + dx, 3.0f + dy}, 0.0f, color::Black), dx, dy);
 }
 
 // Verifies collapsed inner bounds render as the normalized outer filled round

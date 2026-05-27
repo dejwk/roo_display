@@ -50,6 +50,80 @@ SmoothShape::SmoothShape(int16_t x, int16_t y, Pixel pixel)
       extents_(x, y, x, y),
       pixel_(std::move(pixel)) {}
 
+SmoothShape SmoothShape::translate(int16_t dx, int16_t dy) const {
+  if (kind_ == EMPTY) {
+    return *this;
+  }
+
+  SmoothShape translated = *this;
+  translated.extents_ = extents_.translate(dx, dy);
+
+  switch (translated.kind_) {
+    case WEDGE: {
+      translated.wedge_.ax += dx;
+      translated.wedge_.ay += dy;
+      translated.wedge_.bx += dx;
+      translated.wedge_.by += dy;
+      break;
+    }
+    case ROUND_RECT: {
+      translated.round_rect_.x0 += dx;
+      translated.round_rect_.y0 += dy;
+      translated.round_rect_.x1 += dx;
+      translated.round_rect_.y1 += dy;
+      translated.round_rect_.inner_x0 += dx;
+      translated.round_rect_.inner_y0 += dy;
+      translated.round_rect_.inner_x1 += dx;
+      translated.round_rect_.inner_y1 += dy;
+      translated.round_rect_.inner_mid =
+          translated.round_rect_.inner_mid.translate(dx, dy);
+      translated.round_rect_.inner_wide =
+          translated.round_rect_.inner_wide.translate(dx, dy);
+      translated.round_rect_.inner_tall =
+          translated.round_rect_.inner_tall.translate(dx, dy);
+      break;
+    }
+    case ROUND_RECT_CORNERS: {
+      translated.round_rect_corners_.x0 += dx;
+      translated.round_rect_corners_.y0 += dy;
+      translated.round_rect_corners_.x1 += dx;
+      translated.round_rect_corners_.y1 += dy;
+      translated.round_rect_corners_.inner_core =
+          translated.round_rect_corners_.inner_core.translate(dx, dy);
+      translated.round_rect_corners_.top_slab =
+          translated.round_rect_corners_.top_slab.translate(dx, dy);
+      translated.round_rect_corners_.bottom_slab =
+          translated.round_rect_corners_.bottom_slab.translate(dx, dy);
+      translated.round_rect_corners_.left_slab =
+          translated.round_rect_corners_.left_slab.translate(dx, dy);
+      translated.round_rect_corners_.right_slab =
+          translated.round_rect_corners_.right_slab.translate(dx, dy);
+      break;
+    }
+    case ARC: {
+      translated.arc_.xc += dx;
+      translated.arc_.yc += dy;
+      translated.arc_.inner_mid = translated.arc_.inner_mid.translate(dx, dy);
+      break;
+    }
+    case TRIANGLE: {
+      translated.triangle_.x1 += dx;
+      translated.triangle_.y1 += dy;
+      translated.triangle_.x2 += dx;
+      translated.triangle_.y2 += dy;
+      translated.triangle_.x3 += dx;
+      translated.triangle_.y3 += dy;
+      break;
+    }
+    case PIXEL:
+    case EMPTY: {
+      break;
+    }
+  }
+
+  return translated;
+}
+
 std::unique_ptr<PixelStream> SmoothShape::createStream() const {
   return createStream(extents());
 }

@@ -61,6 +61,58 @@ TEST(StreamableStack, SingleUnclipped) {
                                           "          "));
 }
 
+TEST(StreamableStack, SingleNegativeOffset) {
+  auto input = MakeTestStreamable(Grayscale4(), Box(0, 0, 2, 1),
+                                  "123"
+                                  "456");
+  StreamableStack stack(Box(0, 0, 3, 4));
+  stack.addInput(&input, -1, 2);
+  EXPECT_EQ(stack.naturalExtents(), Box(-1, 2, 1, 3));
+  FakeOffscreen<Argb4444> test_screen(4, 5, color::Black);
+  Display display(test_screen);
+  {
+    DrawingContext dc(display);
+    dc.draw(stack);
+  }
+  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 4, 5,
+                                          "    "
+                                          "    "
+                                          "23  "
+                                          "56  "
+                                          "    "));
+}
+
+TEST(StreamableStack, UnsignedCallerVariables) {
+  auto input = MakeTestStreamable(Grayscale4(), Box(0, 0, 3, 3),
+                                  "1234"
+                                  "2345"
+                                  "3456"
+                                  "4567");
+  StreamableStack stack(Box(3, 4, 9, 10));
+  uint16_t dx = 5;
+  uint16_t dy = 6;
+  stack.addInput(&input, dx, dy);
+  EXPECT_EQ(stack.naturalExtents(), Box(5, 6, 8, 9));
+  FakeOffscreen<Argb4444> test_screen(10, 11, color::Black);
+  Display display(test_screen);
+  {
+    DrawingContext dc(display);
+    dc.draw(stack);
+  }
+  EXPECT_THAT(test_screen, MatchesContent(Grayscale4(), 10, 11,
+                                          "          "
+                                          "          "
+                                          "          "
+                                          "          "
+                                          "          "
+                                          "          "
+                                          "     1234 "
+                                          "     2345 "
+                                          "     3456 "
+                                          "     4567 "
+                                          "          "));
+}
+
 TEST(StreamableStack, SingleClipped) {
   auto input = MakeTestStreamable(Grayscale4(), Box(0, 0, 3, 3),
                                   "1234"

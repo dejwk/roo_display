@@ -22,8 +22,8 @@ class RasterizableStack : public Rasterizable {
           dy_(0),
           blending_mode_(BlendingMode::kSourceOver) {}
 
-    /// Create an input layer with an offset.
-    Input(const Rasterizable* obj, Box extents, uint16_t dx, uint16_t dy)
+    /// Create an input layer with a signed translation.
+    Input(const Rasterizable* obj, Box extents, int16_t dx, int16_t dy)
         : obj_(obj),
           extents_(extents.translate(dx, dy)),
           dx_(dx),
@@ -68,21 +68,21 @@ class RasterizableStack : public Rasterizable {
     return inputs_.back();
   }
 
-  /// Add an input clipped to `clip_box`.
+  /// Add an input clipped to `clip_box` in source coordinates.
   Input& addInput(const Rasterizable* input, Box clip_box) {
     inputs_.emplace_back(input, Box::Intersect(input->extents(), clip_box));
     return inputs_.back();
   }
 
   /// Add an input with an offset.
-  Input& addInput(const Rasterizable* input, uint16_t dx, uint16_t dy) {
+  Input& addInput(const Rasterizable* input, int16_t dx, int16_t dy) {
     inputs_.emplace_back(input, input->extents(), dx, dy);
     return inputs_.back();
   }
 
-  /// Add an input with an offset and clip box.
-  Input& addInput(const Rasterizable* input, Box clip_box, uint16_t dx,
-                  uint16_t dy) {
+  /// Add an input with a source-coordinate clip box and an offset.
+  Input& addInput(const Rasterizable* input, Box clip_box, int16_t dx,
+                  int16_t dy) {
     inputs_.emplace_back(input, Box::Intersect(input->extents(), clip_box), dx,
                          dy);
     return inputs_.back();

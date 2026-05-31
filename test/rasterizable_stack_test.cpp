@@ -9,6 +9,54 @@ using namespace testing;
 
 namespace roo_display {
 
+namespace {
+
+class TransparentUniformProbeRasterizable : public Rasterizable {
+ public:
+  explicit TransparentUniformProbeRasterizable(Box extents)
+      : extents_(extents) {}
+
+  Box extents() const override { return extents_; }
+
+  void readColors(const int16_t* x, const int16_t* y, uint32_t count,
+                  Color* result) const override {
+    for (uint32_t i = 0; i < count; ++i) {
+      result[i] = color::Transparent;
+    }
+  }
+
+  bool readColorRect(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax,
+                     Color* result) const override {
+    ++read_color_rect_calls_;
+    *result = color::Transparent;
+    return true;
+  }
+
+  bool readUniformColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
+                            int16_t yMax, Color* result) const override {
+    ++read_uniform_color_rect_calls_;
+    *result = color::Transparent;
+    return true;
+  }
+
+  TransparencyMode getTransparencyMode() const override {
+    return TransparencyMode::kFull;
+  }
+
+  int readColorRectCalls() const { return read_color_rect_calls_; }
+
+  int readUniformColorRectCalls() const {
+    return read_uniform_color_rect_calls_;
+  }
+
+ private:
+  Box extents_;
+  mutable int read_color_rect_calls_ = 0;
+  mutable int read_uniform_color_rect_calls_ = 0;
+};
+
+}  // namespace
+
 TEST(RasterizableStack, Empty) {
   RasterizableStack stack(Box(3, 4, 5, 7));
   EXPECT_EQ(stack.naturalExtents(), Box(0, 0, -1, -1));
@@ -368,6 +416,43 @@ TEST(RasterizableStack, TwoOverlapAlphaBlend) {
                                           "          "
                                           "          "
                                           "          "));
+}
+
+TEST(RasterizableStack, ReadColorRectSkipsTransparentPartialLayer) {
+  Fill red_fill(color::Red);
+  TransparentUniformProbeRasterizable transparent_overlay(Box(0, 0, 4, 4));
+
+  RasterizableStack stack(Box(0, 0, 9, 9));
+  stack.addInput(&red_fill, Box(0, 0, 9, 9));
+  stack.addInput(&transparent_overlay, Box(0, 0, 4, 4));
+
+  Color result;
+  EXPECT_TRUE(stack.readColorRect(0, 0, 9, 9, &result));
+  EXPECT_EQ(result, color::Red);
+  EXPECT_EQ(transparent_overlay.readUniformColorRectCalls(), 1);
+  EXPECT_EQ(transparent_overlay.readColorRectCalls(), 0);
+}
+
+TEST(RasterizableStack, ReadColorRectDoesNotSkipTransparentPartialClearLayer) {
+  Fill red_fill(color::Red);
+  TransparentUniformProbeRasterizable transparent_overlay(Box(0, 0, 1, 1));
+
+  RasterizableStack stack(Box(0, 0, 2, 2));
+  stack.addInput(&red_fill, Box(0, 0, 2, 2));
+  stack.addInput(&transparent_overlay, Box(0, 0, 1, 1))
+      .withMode(BlendingMode::kClear);
+
+  Color result[9];
+  EXPECT_FALSE(stack.readColorRect(0, 0, 2, 2, result));
+  EXPECT_EQ(result[0], color::Background);
+  EXPECT_EQ(result[1], color::Background);
+  EXPECT_EQ(result[2], color::Red);
+  EXPECT_EQ(result[3], color::Background);
+  EXPECT_EQ(result[4], color::Background);
+  EXPECT_EQ(result[5], color::Red);
+  EXPECT_EQ(result[6], color::Red);
+  EXPECT_EQ(result[7], color::Red);
+  EXPECT_EQ(result[8], color::Red);
 }
 
 }  // namespace roo_display

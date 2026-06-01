@@ -13,25 +13,32 @@ namespace internal {
 // row-major iteration order.
 class WindowedPixelStream {
  public:
-  WindowedPixelStream(std::unique_ptr<PixelStream> delegate,
-                      int16_t outer_width, const Box& inner)
-      : delegate_(std::move(delegate)),
-        skip_(inner.empty() ? 0
-                            : inner.xMin() + static_cast<int32_t>(outer_width) *
-                                                 inner.yMin()),
-        remaining_lines_(inner.empty() || inner.width() == outer_width
-                             ? 0
-                             : inner.height() - 1),
-        inner_width_(inner.empty() ? 0
-                                   : (inner.width() == outer_width
-                                          ? static_cast<int32_t>(outer_width) *
-                                                inner.height()
-                                          : inner.width())),
-        gap_(inner.empty() ? 0 : outer_width - inner.width()),
-        current_run_(skip_ > 0 ? skip_ : inner_width_),
-        current_run_is_delegate_(skip_ == 0 && inner_width_ > 0) {}
+  WindowedPixelStream() = default;
 
-  void Read(Color* buf, uint32_t count) {
+  void reset(std::unique_ptr<PixelStream> delegate, int16_t outer_width,
+             const Box& inner) {
+    delegate_ = std::move(delegate);
+    skip_ = inner.empty() ? 0
+                          : inner.xMin() + static_cast<int32_t>(outer_width) *
+                                               inner.yMin();
+    remaining_lines_ =
+        inner.empty() || inner.width() == outer_width ? 0 : inner.height() - 1;
+    inner_width_ =
+        inner.empty()
+            ? 0
+            : (inner.width() == outer_width
+                   ? static_cast<int32_t>(outer_width) * inner.height()
+                   : inner.width());
+    gap_ = inner.empty() ? 0 : outer_width - inner.width();
+    current_run_ = skip_ > 0 ? skip_ : inner_width_;
+    current_run_is_delegate_ = skip_ == 0 && inner_width_ > 0;
+  }
+
+  void reset() { delegate_.reset(); }
+
+  bool has_stream() const { return delegate_ != nullptr; }
+
+  void read(Color* buf, uint32_t count) {
     while (count > 0) {
       if (current_run_ == 0) {
         FillColor(buf, count, color::Transparent);
@@ -50,7 +57,7 @@ class WindowedPixelStream {
     }
   }
 
-  void Skip(uint32_t count) {
+  void skip(uint32_t count) {
     while (count > 0) {
       if (current_run_ == 0) {
         return;
@@ -177,10 +184,10 @@ class BlendingFilter : public DisplayOutput {
                    &addr_uniform_color_)) {
       addr_uniform_ = true;
     } else {
-      addr_stream_.reset(new internal::WindowedPixelStream(
-          raster_->createStream(inner_window), address_window_.width(),
-          inner_window.translate(-address_window_.xMin(),
-                                 -address_window_.yMin())));
+      addr_stream_.reset(raster_->createStream(inner_window),
+                         address_window_.width(),
+                         inner_window.translate(-address_window_.xMin(),
+                                                -address_window_.yMin()));
     }
     output_->setAddress(x0, y0, x1, y1, mode);
   }
@@ -212,7 +219,7 @@ class BlendingFilter : public DisplayOutput {
       return;
     }
 
-    if (addr_stream_ != nullptr) {
+    if (addr_stream_.has_stream()) {
       uint32_t processed = pixel_count;
       while (pixel_count > 0) {
         uint16_t batch = pixel_count > kPixelWritingBufferSize
@@ -220,7 +227,7 @@ class BlendingFilter : public DisplayOutput {
                              : pixel_count;
         Color raster_color[kPixelWritingBufferSize];
         Color newcolor[kPixelWritingBufferSize];
-        addr_stream_->Read(raster_color, batch);
+        addr_stream_.read(raster_color, batch);
         for (uint16_t i = 0; i < batch; ++i) {
           newcolor[i] = blender_.blend(raster_color[i], color[i]);
         }
@@ -274,7 +281,7 @@ class BlendingFilter : public DisplayOutput {
       return;
     }
 
-    if (addr_stream_ != nullptr) {
+    if (addr_stream_.has_stream()) {
       uint32_t processed = pixel_count;
       while (pixel_count > 0) {
         uint16_t batch = pixel_count > kPixelWritingBufferSize
@@ -282,7 +289,7 @@ class BlendingFilter : public DisplayOutput {
                              : pixel_count;
         Color raster_color[kPixelWritingBufferSize];
         Color newcolor[kPixelWritingBufferSize];
-        addr_stream_->Read(raster_color, batch);
+        addr_stream_.read(raster_color, batch);
         if (transparent_src) {
           for (uint16_t i = 0; i < batch; ++i) {
             newcolor[i] = blender_.blendTransparentSrc(raster_color[i], color);
@@ -615,7 +622,7 @@ class BlendingFilter : public DisplayOutput {
   Capabilities capabilities_;
   Blender blender_;
   const Rasterizable* raster_;
-  std::unique_ptr<internal::WindowedPixelStream> addr_stream_;
+  internal::WindowedPixelStream addr_stream_;
   Box address_window_;
   int16_t cursor_x_;
   int16_t cursor_y_;

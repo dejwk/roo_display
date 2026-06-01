@@ -225,8 +225,10 @@ inline void Composition::Compile(Program* prg) {
     // }
 
     // Emit the loop code.
-    code->push_back(LOOP);
-    code->push_back(block.height_);
+    if (block.height_ > 1) {
+      code->push_back(LOOP);
+      code->push_back(block.height_);
+    }
     // First, emit potential left skips.
     i = 0;
     for (const auto& input : input_extents_) {
@@ -321,7 +323,10 @@ inline void Composition::Compile(Program* prg) {
       }
       i++;
     }
-    code->push_back(RET);
+    if (block.height_ > 1) {
+      // We emitted the loop code, so we need to emit the RET.
+      code->push_back(RET);
+    }
   }
   code->push_back(EXIT);
 }

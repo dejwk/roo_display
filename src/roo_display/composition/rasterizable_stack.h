@@ -88,6 +88,15 @@ class RasterizableStack : public Rasterizable {
     return inputs_.back();
   }
 
+  /// Remove all inputs while preserving allocated storage for reuse.
+  void clearInputs() { inputs_.clear(); }
+
+  /// Reserve storage for at least `capacity` inputs.
+  void reserveInputs(size_t capacity) { inputs_.reserve(capacity); }
+
+  /// Return the current number of inputs.
+  size_t inputCount() const { return inputs_.size(); }
+
   /// Return the overall extents of the stack.
   Box extents() const override { return extents_; }
 

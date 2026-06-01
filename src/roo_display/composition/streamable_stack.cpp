@@ -496,8 +496,15 @@ void WriteRect(Engine* engine, const Box& bounds,
           // better to blend all inputs together, and only then blend the
           // results onto the background.
           if (s.bgcolor() != color::Transparent) {
-            for (int i = 0; i < batch; ++i) {
-              buf[i] = AlphaBlend(s.bgcolor(), buf[i]);
+            Color bg = s.bgcolor();
+            if (bg.isOpaque()) {
+              for (int i = 0; i < batch; ++i) {
+                buf[i] = AlphaBlendOverOpaque(bg, buf[i]);
+              }
+            } else {
+              for (int i = 0; i < batch; ++i) {
+                buf[i] = AlphaBlend(bg, buf[i]);
+              }
             }
           }
           writer.advance_buffer_ptr(batch);

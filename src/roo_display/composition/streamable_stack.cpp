@@ -178,51 +178,51 @@ inline void Composition::Compile(Program* prg) {
   }
   // Then, go block-by-block.
   for (const auto& block : data_) {
-    // if (block.chunks_.size() == 1) {
-    //   uint16_t mask = block.chunks_[0].input_mask_;
-    //   uint32_t total = (uint32_t)block.chunks_[0].width_ * block.height_;
-    //   if (total <= 65535) {
-    //     // Optimize fully empty blocks.
-    //     if (mask == 0) {
-    //       code->push_back(BLANK);
-    //       code->push_back(total);
-    //       continue;
-    //     }
-    //   }
-    //   // See if we can merge, which is OK if all affected inputs are
-    //   // non-extending.
-    //   int i = 0;
-    //   while (!(mask & 1)) {
-    //     ++i;
-    //     mask >>= 1;
-    //   }
-    //   int first = i;
-    //   while (true) {
-    //     const auto& input = input_extents_[i];
-    //     if (input.xMin() < bounds_.xMin() || input.xMax() > bounds_.xMax())
-    //       break;
-    //     mask >>= 1;
-    //     if (mask == 0) {
-    //       // Success. Merge.
-    //       if (i == first) {
-    //         code->push_back(WRITE_SINGLE);
-    //         code->push_back(first);
-    //         code->push_back(total);
-    //       } else {
-    //         code->push_back(WRITE);
-    //         code->push_back(block.chunks_[0].input_mask_);
-    //         code->push_back(total);
-    //       }
-    //       break;
-    //     }
-    //     while (true) {
-    //       ++i;
-    //       if (mask & 1) break;
-    //       mask >>= 1;
-    //     }
-    //   }
-    //   if (mask == 0) continue;
-    // }
+    if (block.chunks_.size() == 1) {
+      uint16_t mask = block.chunks_[0].input_mask_;
+      uint32_t total = (uint32_t)block.chunks_[0].width_ * block.height_;
+      if (total <= 65535) {
+        // Optimize fully empty blocks.
+        if (mask == 0) {
+          code->push_back(BLANK);
+          code->push_back(total);
+          continue;
+        }
+      }
+      // See if we can merge, which is OK if all affected inputs are
+      // non-extending.
+      int i = 0;
+      while (!(mask & 1)) {
+        ++i;
+        mask >>= 1;
+      }
+      int first = i;
+      while (true) {
+        const auto& input = input_extents_[i];
+        if (input.xMin() < bounds_.xMin() || input.xMax() > bounds_.xMax())
+          break;
+        mask >>= 1;
+        if (mask == 0) {
+          // Success. Merge.
+          if (i == first) {
+            code->push_back(WRITE_SINGLE);
+            code->push_back(first);
+            code->push_back(total);
+          } else {
+            code->push_back(WRITE);
+            code->push_back(block.chunks_[0].input_mask_);
+            code->push_back(total);
+          }
+          break;
+        }
+        while (true) {
+          ++i;
+          if (mask & 1) break;
+          mask >>= 1;
+        }
+      }
+      if (mask == 0) continue;
+    }
 
     // Emit the loop code.
     if (block.height_ > 1) {

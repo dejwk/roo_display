@@ -22,14 +22,17 @@ preserves destination, and `readUniformColorRect()` applies the same rule.
 Focused regression coverage in `rasterizable_stack_test` now covers both the
 source-over fast path and a non-no-op blend mode (`kClear`).
 
-Phases 3 and 4 remain pending.
+Phase 3 remains pending. Phase 4 is now only optional API follow-up if the
+descriptor-driven clipper migration exposes a reusable helper worth
+generalizing.
 
 ## Objective
 
 Bring `roo_windows` overlay composition closer to the general `roo_display`
 stack abstractions so that `roo_windows::OverlayStack` can eventually be
 replaced with `roo_display::RasterizableStack` without losing current behavior
-or important hot-path optimizations.
+or important hot-path optimizations, and without preserving
+`bounded_overlays_` or a wrapper-style `ClippedOverlay` as migration baggage.
 
 This design answers three questions:
 
@@ -55,14 +58,16 @@ The main reasons to converge on `RasterizableStack` are:
 - access to `RasterizableStack::createStream()`, which `OverlayStack` does not
   provide,
 - and a clearer split where `roo_windows` keeps only the widget-specific
-  concerns: bounds filtering, overlay ownership, and clip translation.
+  concerns: overlay ownership, bounds filtering, and device-clip translation
+  onto generic stack inputs.
 
 The remaining differences are real, but they are narrow:
 
 - clipper wants earlier-added overlays to stay above later-added overlays,
 - clipper clips in device space after translation,
-- and clipper currently compacts active overlays into a contiguous buffer only
-  because `OverlayStack` rebinds by range.
+- and clipper currently models each overlay as another `Rasterizable` even
+  though the converged path only needs source pointer, clip, and offset
+  metadata.
 
 ## Background
 
@@ -82,6 +87,11 @@ stores the intersecting subset in `bounded_overlays_`, and then rebinds
 That extra compacted vector exists to satisfy `OverlayStack`'s range-based
 `reset(begin, end)` API. It is an implementation detail of the current helper,
 not a semantic requirement of clipper ordering or clipping.
+
+For convergence, the design should not preserve either artifact as-is.
+`bounded_overlays_` exists only because of `OverlayStack`, and
+`ClippedOverlay` should shrink to plain per-overlay metadata that clipper uses
+when rebuilding `RasterizableStack`.
 
 The stack reads overlays in reverse vector order. For overlays added in the
 sequence `o0`, `o1`, `o2`, the final visual order is:
@@ -125,10 +135,14 @@ There are two viable ways to preserve clipper ordering with
 
 Clipper already rebuilds the active overlay set dynamically in `sync()`.
 
-That means it can populate a reusable `RasterizableStack` in reverse order and
-keep the default `kSourceOver` blending mode:
+That means it can walk `overlays_` once, filter by translated extents, and add
+the surviving descriptors to a reusable `RasterizableStack` in reverse order
+while keeping the default `kSourceOver` blending mode:
 
-- push `bounded_overlays_` from back to front,
+- walk the surviving overlays from back to front,
+- compute each source-space clip from the descriptor's device-space clip and
+  signed offset,
+- add the source rasterizable directly to the stack,
 - keep each input in `kSourceOver`,
 - get the current clipper order directly.
 
@@ -185,11 +199,22 @@ For clipper migration, prefer:
 Treat `kDestinationOver` as a valid fallback or proof that a reverse-order flag
 is not required, not as the primary strategy.
 
-## `ClippedOverlay` API Gap Analysis
+## `ClippedOverlay` Refactor And Clip Translation
 
 Signed offsets are handled by the companion design
 `stack_signed_offsets_design.md`. After that change, the main semantic gap is
-the clip space.
+not another wrapper rasterizable. It is just the mapping from clipper's
+device-space clip to `RasterizableStack`'s source-space clip.
+
+A converged `ClippedOverlay` should be a simple clipper-owned descriptor that
+stores:
+
+- the source `Rasterizable`,
+- the device-space clip box,
+- and the signed offset.
+
+It may also expose a convenience helper for translated visible extents, but it
+should not implement `Rasterizable` itself.
 
 ### Current `ClippedOverlay` Semantics
 
@@ -202,30 +227,43 @@ and then samples the delegate in source space by subtracting `dx` and `dy`.
 That means the clip box is expressed in destination coordinates after the
 translation.
 
+Those are the semantics that matter. They can move into `sync()` without
+keeping the wrapper as a read-time composition layer.
+
 ### Current `RasterizableStack` Semantics
 
-The existing clipped-offset overload effectively clips the source extents before
-the translation.
+The existing clipped-offset overload already represents the same data once
+clipper supplies the clip in source coordinates:
 
-For clipper, that is not a drop-in replacement.
+`source_clip = intersect(delegate.extents(), device_clip.translate(-dx, -dy))`
+
+`stack.addInput(delegate, source_clip, dx, dy)`
+
+That preserves destination-space clipping semantics while letting
+`RasterizableStack` apply the offset during its own input compaction pass.
 
 ### Options
 
-#### Option A: Translate The Clip Back At The Call Site
+#### Option A: Translate The Clip Back During `sync()`
 
-Clipper can convert its device-space clip into source-space stack coordinates by
-applying `clip_box.translate(-dx, -dy)` before calling `addInput()`.
+Clipper can compute the source-space clip from each overlay descriptor before
+calling `addInput()`.
 
 Benefits:
 
 - no new general-purpose stack API,
+- removes the wrapper rasterizable dispatch and `bounded_overlays_` in the same
+  migration,
 - keeps the translation math local to the only known caller that needs this
   exact semantic.
+- lets `RasterizableStack::readColors()` write translated coordinates directly
+  into the per-input buffers it already builds, instead of having
+  `ClippedOverlay::readColors()` rewrite an already compacted batch.
 
 Costs:
 
 - the conversion is easy to get wrong,
-- the call site is less self-explanatory than today's `ClippedOverlay`.
+- `sync()` owns slightly more geometry math than it does today.
 
 #### Option B: Add A Helper API To `RasterizableStack`
 
@@ -246,8 +284,9 @@ Costs:
 
 Do not add a new public clip-space API up front.
 
-For the first clipper migration attempt, let clipper translate the device-space
-clip back into source-space stack coordinates before `addInput()`.
+For the primary clipper migration, refactor `ClippedOverlay` into a plain
+descriptor and let clipper translate the device-space clip back into
+source-space stack coordinates during `sync()` before `addInput()`.
 
 If a second caller appears, or if the clipper code becomes hard to reason
 about, then add a dedicated helper in both stack types.
@@ -329,24 +368,26 @@ by blending mode and keep `readUniformColorRect()` consistent.
 This is a good fit for `roo_display` because it improves the general stack,
 not just a single downstream caller.
 
-### Optimization 2: Zero-Offset Wrapper Fast Path
+### Optimization 2: Wrapper-Specific Zero-Offset Fast Path
 
 `ClippedOverlay::readColors()` has a tiny special case for `dx == 0 && dy == 0`
 that avoids per-sample subtraction.
 
-This is not worth elevating into public `RasterizableStack` API design.
+Once `ClippedOverlay` becomes plain metadata, that special case disappears with
+the wrapper. It is not a reason to keep the wrapper layer.
 
 Benefit:
 
-- saves a subtraction-by-zero path.
+- saves a subtraction-by-zero path inside a wrapper we plan to remove.
 
 Cost:
 
-- more special casing in a general stack abstraction.
+- keeping an extra composition layer alive for a micro-optimization that the
+  stack can handle itself.
 
 Recommendation: do not design around this. If profiling later shows a real
-problem, add a local micro-optimization in the implementation, not a new public
-concept.
+problem, optimize inside `RasterizableStack`, not by preserving a wrapper
+`Rasterizable` around each clipper overlay.
 
 ### Optimization 3: Range Rebinding, Compaction Buffer, And Direct Rebuild
 
@@ -358,19 +399,15 @@ That is why `ClipperOutput::sync()` currently compacts the active subset into
 generally contiguous inside `overlays_`, and `OverlayStack` cannot bind a
 sparse subset.
 
-With `RasterizableStack`, that extra overlay compaction buffer is not
-inherently required. `sync()` can iterate `overlays_` once, test
-`extents().intersects(bounds_)`, and add each surviving overlay directly to a
-reusable stack in reverse order.
+With `RasterizableStack`, neither that extra overlay compaction buffer nor a
+wrapper `Rasterizable` is inherently required. `sync()` can iterate
+`overlays_` once, test the translated extents against `bounds_`, compute the
+source-space clip for each surviving descriptor, and add the source directly to
+a reusable stack in reverse order.
 
 That keeps the same asymptotic filtering work while removing the mirrored
-`bounded_overlays_` storage and the copy into it.
-
-A practical incremental path exists even before clipper translates device-space
-clips back into source-space stack coordinates: reuse the existing
-`ClippedOverlay` wrappers as the stack inputs. That would let clipper replace
-`OverlayStack` directly and drop `bounded_overlays_` first, while leaving
-`ClippedOverlay` removal as a later step.
+`bounded_overlays_` storage, the copy into it, and the extra wrapper dispatch
+layer.
 
 Potential benefit of extra stack API such as `clear()` and `reserve()`:
 
@@ -385,13 +422,13 @@ Potential cost:
 - direct rebuild only removes the overlay compaction buffer; the exclusion path
   still keeps `bounded_exclusions_` unless `RectUnion` also gains a direct
   rebuild API,
-- and keeping `ClippedOverlay` as the first migration step preserves its local
-  wrapper behavior, so that step is convergent but not yet the final form.
+- and descriptor-driven rebuild shifts a little more clip math into
+  `ClipperOutput::sync()`, which needs clear naming and tests.
 
 Recommendation: during Phase 3, prefer rebuilding `RasterizableStack`
-directly from `overlays_` and treat `bounded_overlays_` as removable migration
-scaffolding. `clear()` and `reserve()` are useful enabling additions, but a
-range-view stack type is not necessary.
+directly from `overlays_`, remove `bounded_overlays_`, and downgrade
+`ClippedOverlay` to plain metadata in the same step. `clear()` and `reserve()`
+are useful enabling additions, but a range-view stack type is not necessary.
 
 ## Recommended Plan
 
@@ -416,24 +453,25 @@ Current status: complete in `roo_display`, with matching mode-aware behavior in
 ### Phase 3: Migrate Clipper To `RasterizableStack`
 
 - keep clipper's ownership and bounds filtering in `roo_windows`,
+- refactor `ClippedOverlay` into simple metadata holding source, device-space
+  clip, and signed offset,
 - rebuild a reusable `RasterizableStack` directly from `overlays_` in
   `ClipperOutput::sync()`,
+- compute each input's source-space clip during that rebuild,
 - add active overlays in reverse order with default `kSourceOver`,
-- drop `bounded_overlays_` as part of that direct rebuild when the stack reuse
-  API is in place,
-- and either translate device-space clip boxes back into source-space stack
-  coordinates when removing `ClippedOverlay`, or use existing
-  `ClippedOverlay` wrappers as a short-lived first migration step.
+- drop `bounded_overlays_`,
+- and remove `OverlayStack` as part of that same direct rebuild once the stack
+  reuse API is in place.
 
 Current status: not started.
 
-### Phase 4: Reassess Whether `ClippedOverlay` Still Adds Value
+### Phase 4: Reassess Whether Clip Translation Should Become Public API
 
-If the migrated clipper is clear and fast enough, remove `OverlayStack` and
-possibly `ClippedOverlay`.
+If the migrated clipper is clear and fast enough, stop there.
 
-If the translated-clip call sites remain noisy or error-prone, then add a small
-public helper API to the stack classes and remove the extra wrapper after that.
+If the translated-clip rebuild remains noisy or error-prone, then add a small
+public helper API to the stack classes. That would generalize the descriptor-to-
+stack bridge, not restore a wrapper `Rasterizable`.
 
 Current status: not started.
 
@@ -465,6 +503,8 @@ uniformly transparent partial layer must still be applied instead of skipped.
 
 - add a focused clipper or paint-context test with at least two overlapping
   overlays so the current order is pinned explicitly before migration.
+- add one case with a translated and clipped overlay so the descriptor-to-stack
+  clip translation is pinned explicitly.
 
 That test should verify the documented clipper rule that earlier-added overlays
 stay above later-added overlays.
@@ -476,16 +516,16 @@ stay above later-added overlays.
 - removes duplicate composition logic,
 - lets clipper reuse the general stack stream path,
 - keeps overlay-order handling explicit,
-- can remove the extra `bounded_overlays_` mirror during the direct-rebuild
-  migration,
+- removes `bounded_overlays_` and the wrapper rasterizable layer during the
+  direct-rebuild migration,
 - ports one genuinely useful optimization into the general stack,
 - reduces the number of special-purpose composition types maintained across the
   two repositories.
 
 ### Costs
 
-- fully removing `ClippedOverlay` still needs call-site clip translation unless
-  a helper API is added,
+- the descriptor-driven rebuild still needs clip translation in
+  `ClipperOutput::sync()` unless a helper API is added,
 - `RasterizableStack::readColorRect()` becomes slightly more complex,
 - public API may grow modestly if reusable `clear()` and `reserve()` helpers
   are added to support direct stack rebuilds cleanly,
@@ -507,13 +547,12 @@ If the public stack headers change again during the migration, also run:
 
 ## Proposed Commit Message
 
-`rasterizable_stack_overlay_convergence_design.md` Phase 2: port clipper-useful transparent partial-layer skipping into RasterizableStack.
+`rasterizable_stack_overlay_convergence_design.md`: target direct clipper
+rebuilds from overlay metadata.
 
-Teach `RasterizableStack::readColorRect()` to keep its uniform fast path when a
-partially covering input proves uniformly transparent, but only for blend modes
-where transparent source preserves destination, matching the one overlay-
-specific optimization in `roo_windows::OverlayStack` that is worth
-generalizing. The follow-up clipper migration should then rebuild a reusable
-`RasterizableStack` directly from `overlays_` in reverse input order with
-default `kSourceOver`, dropping `bounded_overlays_` instead of encoding clipper
-ordering through `kDestinationOver` on every layer.
+Update the convergence design so Phase 3 removes `bounded_overlays_` and
+`OverlayStack` by rebuilding a reusable `RasterizableStack` directly from
+clipper-owned overlay descriptors in reverse order. Refactor `ClippedOverlay`
+into plain metadata carrying source, device-space clip, and signed offset, then
+translate each surviving overlay into `RasterizableStack::addInput()` during
+`sync()` instead of preserving a wrapper `Rasterizable` layer.

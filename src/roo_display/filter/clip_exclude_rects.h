@@ -46,6 +46,75 @@ class RectUnion {
     return contains(x, y, nullptr);
   }
 
+  /// Return a best-effort lower bound on visible pixels in raster order
+  /// starting at `(bounds.xMin(), y)`.
+  ///
+  /// The caller must only use this when the current row is already known to be
+  /// visible from `bounds.xMin()` through `bounds.xMax()`. The returned count
+  /// includes that full row plus any later fully visible rows and the visible
+  /// prefix of the first row where an exclusion appears.
+  inline uint32_t visiblePixelsFromRowStart(const Box& bounds,
+                                            int16_t y) const {
+    const int16_t x0 = bounds.xMin();
+    const int16_t x1 = bounds.xMax();
+    const uint32_t width = static_cast<uint32_t>(bounds.width());
+    int32_t next_blocked_y = static_cast<int32_t>(bounds.yMax()) + 1;
+    for (const Box* box = begin_; box != end_; ++box) {
+      if (box->xMin() > x1 || box->xMax() < x0) continue;
+      if (box->yMax() < y || box->yMin() > bounds.yMax()) continue;
+      int32_t candidate_y = box->yMin();
+      if (candidate_y < y) candidate_y = y;
+      if (candidate_y < next_blocked_y) {
+        next_blocked_y = candidate_y;
+      }
+    }
+    if (next_blocked_y > bounds.yMax()) {
+      return width * static_cast<uint32_t>(bounds.yMax() - y + 1);
+    }
+    uint32_t pixels = width * static_cast<uint32_t>(next_blocked_y - y);
+    size_t same_count = 0;
+    if (!contains(x0, static_cast<int16_t>(next_blocked_y), &same_count)) {
+      if (same_count > width) same_count = width;
+      pixels += static_cast<uint32_t>(same_count);
+    }
+    return pixels;
+  }
+
+  /// Return a best-effort lower bound on excluded pixels in raster order
+  /// starting at `(bounds.xMin(), y)`.
+  ///
+  /// The caller must only use this when the current row is already known to be
+  /// excluded from `bounds.xMin()` through `bounds.xMax()`. The returned count
+  /// includes every full-width covered row proven by a single containing box,
+  /// plus the excluded prefix of the following row when that state continues.
+  inline uint32_t excludedPixelsFromRowStart(const Box& bounds,
+                                             int16_t y) const {
+    const int16_t x0 = bounds.xMin();
+    const int16_t x1 = bounds.xMax();
+    const uint32_t width = static_cast<uint32_t>(bounds.width());
+    int16_t max_full_y = y - 1;
+    for (const Box* box = begin_; box != end_; ++box) {
+      if (box->xMin() > x0 || box->xMax() < x1) continue;
+      if (box->yMin() > y || box->yMax() < y) continue;
+      if (box->yMax() > max_full_y) {
+        max_full_y = box->yMax();
+      }
+    }
+    if (max_full_y < y) return 0;
+    if (max_full_y > bounds.yMax()) max_full_y = bounds.yMax();
+
+    uint32_t pixels = width * static_cast<uint32_t>(max_full_y - y + 1);
+    int32_t next_y = static_cast<int32_t>(max_full_y) + 1;
+    if (next_y <= bounds.yMax()) {
+      size_t same_count = 0;
+      if (contains(x0, static_cast<int16_t>(next_y), &same_count)) {
+        if (same_count > width) same_count = width;
+        pixels += static_cast<uint32_t>(same_count);
+      }
+    }
+    return pixels;
+  }
+
   /// Return whether the union intersects a rectangle.
   inline bool intersects(const Box& rect) const {
     for (const Box* box = begin_; box != end_; ++box) {
@@ -96,7 +165,7 @@ class RectUnionFilter : public DisplayOutput {
     output_ = &output;
     capabilities_ = Capabilities(output.getCapabilities().supportsBlending(),
                                  /*supports_blit_copy=*/false);
-    resetPartialRunState();
+    resetRunState();
   }
 
   void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
@@ -105,65 +174,46 @@ class RectUnionFilter : public DisplayOutput {
     blending_mode_ = mode;
     cursor_x_ = x0;
     cursor_y_ = y0;
-    resetPartialRunState();
+    resetRunState();
     if (!exclusion_->intersects(address_window_)) {
-      addr_excluded_ = kNone;
-      output_->setAddress(x0, y0, x1, y1, mode);
+      run_excluded_ = false;
+      run_remaining_ = static_cast<uint32_t>(address_window_.area());
     } else if (exclusion_->contains(address_window_)) {
-      addr_excluded_ = kFull;
-    } else {
-      addr_excluded_ = kPartial;
+      run_excluded_ = true;
+      run_remaining_ = static_cast<uint32_t>(address_window_.area());
     }
   }
 
   void write(Color* color, uint32_t pixel_count) override {
-    if (addr_excluded_ == kNone) {
-      output_->write(color, pixel_count);
-      advanceCursor(pixel_count);
-      return;
-    }
-    if (addr_excluded_ == kFull) {
-      // Don't bother to advance cursor, since we're not using it anyway.
-      return;
-    }
-    // Slow path: cache same-answer runs and forward visible runs through the
-    // wrapped address-window interface.
+    // Route the address window through cached runs. Row starts may promote a
+    // row-local answer to a multi-line batch when the same state persists.
     uint32_t i = 0;
     while (i < pixel_count) {
-      primePartialRun();
+      primeRun();
       uint32_t run = pixel_count - i;
-      if (run > partial_run_remaining_) run = partial_run_remaining_;
+      if (run > run_remaining_) run = run_remaining_;
 
-      if (!partial_run_excluded_) {
+      if (!run_excluded_) {
         output_->write(color + i, run);
       }
-      consumePartialRun(run);
+      consumeRun(run);
       i += run;
     }
   }
 
   void fill(Color color, uint32_t pixel_count) override {
-    if (addr_excluded_ == kNone) {
-      output_->fill(color, pixel_count);
-      advanceCursor(pixel_count);
-      return;
-    }
-    if (addr_excluded_ == kFull) {
-      // Don't bother to advance cursor, since we're not using it anyway.
-      return;
-    }
-    // Slow path: cache same-answer runs and forward visible runs through the
-    // wrapped address-window interface.
+    // Route the address window through cached runs. Row starts may promote a
+    // row-local answer to a multi-line batch when the same state persists.
     uint32_t i = 0;
     while (i < pixel_count) {
-      primePartialRun();
+      primeRun();
       uint32_t run = pixel_count - i;
-      if (run > partial_run_remaining_) run = partial_run_remaining_;
+      if (run > run_remaining_) run = run_remaining_;
 
-      if (!partial_run_excluded_) {
+      if (!run_excluded_) {
         output_->fill(color, run);
       }
-      consumePartialRun(run);
+      consumeRun(run);
       i += run;
     }
   }
@@ -234,43 +284,58 @@ class RectUnionFilter : public DisplayOutput {
   }
 
  private:
-  void resetPartialRunState() {
-    partial_run_remaining_ = 0;
-    partial_run_excluded_ = false;
-    partial_row_window_open_ = false;
+  void resetRunState() {
+    run_remaining_ = 0;
+    run_excluded_ = false;
+    visible_window_open_ = false;
   }
 
   uint32_t rowRemaining() const {
     return static_cast<uint32_t>(address_window_.xMax() - cursor_x_ + 1);
   }
 
-  void primePartialRun() {
+  /// Ensure a cached run is available and, for visible runs, open the widest
+  /// safe address window on the wrapped output.
+  void primeRun() {
     uint32_t row_remaining = rowRemaining();
-    if (partial_run_remaining_ == 0) {
+    if (run_remaining_ == 0) {
       size_t same_count = 1;
-      partial_run_excluded_ =
-          exclusion_->contains(cursor_x_, cursor_y_, &same_count);
-      partial_run_remaining_ = row_remaining;
-      if (same_count < partial_run_remaining_) {
-        partial_run_remaining_ = static_cast<uint32_t>(same_count);
+      run_excluded_ = exclusion_->contains(cursor_x_, cursor_y_, &same_count);
+      run_remaining_ = row_remaining;
+      if (same_count < run_remaining_) {
+        run_remaining_ = static_cast<uint32_t>(same_count);
+      } else if (cursor_x_ == address_window_.xMin()) {
+        uint32_t batch = run_excluded_ ? exclusion_->excludedPixelsFromRowStart(
+                                             address_window_, cursor_y_)
+                                       : exclusion_->visiblePixelsFromRowStart(
+                                             address_window_, cursor_y_);
+        if (batch > run_remaining_) {
+          run_remaining_ = batch;
+        }
       }
-      if (partial_run_excluded_) {
-        partial_row_window_open_ = false;
+      if (run_excluded_) {
+        visible_window_open_ = false;
       }
     }
-    if (!partial_run_excluded_ && !partial_row_window_open_) {
-      output_->setAddress(cursor_x_, cursor_y_, address_window_.xMax(),
-                          cursor_y_, blending_mode_);
-      partial_row_window_open_ = true;
+    if (!run_excluded_ && !visible_window_open_) {
+      uint16_t y1 = cursor_y_;
+      if (cursor_x_ == address_window_.xMin() &&
+          run_remaining_ > row_remaining) {
+        uint32_t width = static_cast<uint32_t>(address_window_.width());
+        uint32_t rows_spanned = (run_remaining_ + width - 1) / width;
+        y1 = static_cast<uint16_t>(cursor_y_ + rows_spanned - 1);
+      }
+      output_->setAddress(cursor_x_, cursor_y_, address_window_.xMax(), y1,
+                          blending_mode_);
+      visible_window_open_ = true;
     }
   }
 
-  void consumePartialRun(uint32_t pixel_count) {
+  void consumeRun(uint32_t pixel_count) {
     advanceCursor(pixel_count);
-    partial_run_remaining_ -= pixel_count;
-    if (cursor_x_ == address_window_.xMin()) {
-      partial_run_remaining_ = 0;
-      partial_row_window_open_ = false;
+    run_remaining_ -= pixel_count;
+    if (run_remaining_ == 0) {
+      visible_window_open_ = false;
     }
   }
 
@@ -343,18 +408,15 @@ class RectUnionFilter : public DisplayOutput {
     cursor_x_ = address_window_.xMin() + pos % w;
   }
 
-  enum AddrExclusion : uint8_t { kNone, kPartial, kFull };
-
   DisplayOutput* output_;
   const RectUnion* exclusion_;
   Box address_window_;
   BlendingMode blending_mode_;
   int16_t cursor_x_;
   int16_t cursor_y_;
-  uint32_t partial_run_remaining_ = 0;
-  bool partial_run_excluded_ = false;
-  bool partial_row_window_open_ = false;
-  AddrExclusion addr_excluded_ = kNone;
+  uint32_t run_remaining_ = 0;
+  bool run_excluded_ = false;
+  bool visible_window_open_ = false;
   Capabilities capabilities_;
 };
 

@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="420" viewBox="0 0 980 420">
+  <rect x="1" y="1" width="978" height="418" fill="#ffffff" stroke="#d0d0d0" stroke-width="2"/>
+
+  <g transform="translate(50,42)" font-family="Arial, Helvetica, sans-serif">
+    <text x="0" y="0" font-size="24" fill="#2c2a28">Clip Exclude Rects Multiline Row-Start Batch</text>
+    <text x="0" y="28" font-size="14" fill="#5b564f">
+      Two full visible rows and the next-row prefix can share one wrapped address window.
+    </text>
+
+    <g transform="translate(0,62)">
+      <text x="110" y="0" font-size="18" fill="#2c2a28">Row-Bounded Scanline Skip</text>
+      <text x="112" y="22" font-size="13" fill="#5b564f">Three wrapped setAddress() calls</text>
+
+      <g transform="translate(30,40)">
+        <rect x="0" y="0" width="240" height="180" fill="#faf8f5" stroke="#d6d0c9" stroke-width="2"/>
+
+        <g fill="#d8efe0" stroke="#5b8e6f" stroke-width="1.5">
+          <rect x="0" y="0" width="60" height="60"/>
+          <rect x="60" y="0" width="60" height="60"/>
+          <rect x="120" y="0" width="60" height="60"/>
+          <rect x="180" y="0" width="60" height="60"/>
+          <rect x="0" y="60" width="60" height="60"/>
+          <rect x="60" y="60" width="60" height="60"/>
+          <rect x="120" y="60" width="60" height="60"/>
+          <rect x="180" y="60" width="60" height="60"/>
+          <rect x="0" y="120" width="60" height="60"/>
+          <rect x="60" y="120" width="60" height="60"/>
+        </g>
+
+        <g fill="#f3d3d0" stroke="#b55d54" stroke-width="1.5">
+          <rect x="120" y="120" width="60" height="60"/>
+          <rect x="180" y="120" width="60" height="60"/>
+        </g>
+
+        <g fill="none" stroke="#306f99" stroke-width="3">
+          <rect x="3" y="3" width="234" height="54"/>
+          <rect x="3" y="63" width="234" height="54"/>
+          <rect x="3" y="123" width="234" height="54"/>
+        </g>
+
+        <g fill="#2c2a28" font-size="12">
+          <text x="248" y="36">row 0</text>
+          <text x="248" y="96">row 1</text>
+          <text x="248" y="156">row 2</text>
+        </g>
+      </g>
+    </g>
+
+    <g transform="translate(470,62)">
+      <text x="102" y="0" font-size="18" fill="#2c2a28">Multiline Row-Start Batch</text>
+      <text x="108" y="22" font-size="13" fill="#5b564f">One wrapped setAddress() call</text>
+
+      <g transform="translate(30,40)">
+        <rect x="0" y="0" width="240" height="180" fill="#faf8f5" stroke="#d6d0c9" stroke-width="2"/>
+
+        <g fill="#d8efe0" stroke="#5b8e6f" stroke-width="1.5">
+          <rect x="0" y="0" width="60" height="60"/>
+          <rect x="60" y="0" width="60" height="60"/>
+          <rect x="120" y="0" width="60" height="60"/>
+          <rect x="180" y="0" width="60" height="60"/>
+          <rect x="0" y="60" width="60" height="60"/>
+          <rect x="60" y="60" width="60" height="60"/>
+          <rect x="120" y="60" width="60" height="60"/>
+          <rect x="180" y="60" width="60" height="60"/>
+          <rect x="0" y="120" width="60" height="60"/>
+          <rect x="60" y="120" width="60" height="60"/>
+        </g>
+
+        <g fill="#f3d3d0" stroke="#b55d54" stroke-width="1.5">
+          <rect x="120" y="120" width="60" height="60"/>
+          <rect x="180" y="120" width="60" height="60"/>
+        </g>
+
+        <rect x="3" y="3" width="234" height="174" fill="none" stroke="#306f99" stroke-width="3"/>
+        <path d="M 15 30 H 225 M 225 30 L 217 24 M 225 30 L 217 36 M 225 30 V 90 M 225 90 H 15 M 15 90 L 23 84 M 15 90 L 23 96 M 15 90 V 150 M 15 150 H 105"
+              fill="none" stroke="#306f99" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <g fill="#2c2a28" font-size="12">
+          <text x="248" y="36">row 0</text>
+          <text x="248" y="96">row 1</text>
+          <text x="248" y="156">row 2</text>
+          <text x="0" y="202">10 visible pixels = 2 full rows + 2-pixel prefix</text>
+        </g>
+      </g>
+    </g>
+
+    <g transform="translate(370,286)">
+      <path d="M 0 0 H 170" fill="none" stroke="#8b867f" stroke-width="2" stroke-dasharray="6 6"/>
+      <path d="M 170 0 L 160 -6 M 170 0 L 160 6" fill="none" stroke="#8b867f" stroke-width="2"/>
+      <text x="14" y="-10" font-size="13" fill="#5b564f">same clipped raster, fewer window resets</text>
+    </g>
+
+    <g transform="translate(0,320)" font-size="13" fill="#2c2a28">
+      <rect x="0" y="0" width="18" height="18" fill="#d8efe0" stroke="#5b8e6f" stroke-width="1.5"/>
+      <text x="28" y="14">visible pixels written</text>
+      <rect x="210" y="0" width="18" height="18" fill="#f3d3d0" stroke="#b55d54" stroke-width="1.5"/>
+      <text x="238" y="14">excluded pixels skipped</text>
+      <rect x="430" y="0" width="18" height="18" fill="none" stroke="#306f99" stroke-width="2.5"/>
+      <text x="458" y="14">wrapped address window</text>
+    </g>
+  </g>
+</svg>

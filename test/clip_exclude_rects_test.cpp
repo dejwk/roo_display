@@ -11,6 +11,59 @@ namespace {
 
 using TestOffscreen = FakeOffscreen<Argb8888>;
 
+class CountingOutput : public DisplayOutput {
+ public:
+  explicit CountingOutput(TestOffscreen& output) : output_(output) {}
+
+  void setAddress(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
+                  BlendingMode mode) override {
+    ++set_address_count_;
+    output_.setAddress(x0, y0, x1, y1, mode);
+  }
+
+  void write(Color* color, uint32_t pixel_count) override {
+    output_.write(color, pixel_count);
+  }
+
+  void fill(Color color, uint32_t pixel_count) override {
+    output_.fill(color, pixel_count);
+  }
+
+  void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
+                   uint16_t pixel_count) override {
+    output_.writePixels(mode, color, x, y, pixel_count);
+  }
+
+  void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
+                  uint16_t pixel_count) override {
+    output_.fillPixels(mode, color, x, y, pixel_count);
+  }
+
+  void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
+                  int16_t* x1, int16_t* y1, uint16_t count) override {
+    output_.writeRects(mode, color, x0, y0, x1, y1, count);
+  }
+
+  void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
+                 int16_t* x1, int16_t* y1, uint16_t count) override {
+    output_.fillRects(mode, color, x0, y0, x1, y1, count);
+  }
+
+  const ColorFormat& getColorFormat() const override {
+    return output_.getColorFormat();
+  }
+
+  const Capabilities& getCapabilities() const override {
+    return output_.getCapabilities();
+  }
+
+  int setAddressCount() const { return set_address_count_; }
+
+ private:
+  TestOffscreen& output_;
+  int set_address_count_ = 0;
+};
+
 void AdvanceWindowCursor(const Box& window, int16_t& x, int16_t& y) {
   ++x;
   if (x > window.xMax()) {
@@ -105,6 +158,22 @@ TEST(RectUnion, OtherRowsDoNotAffectFalseRunCount) {
 
   EXPECT_FALSE(exclusion.contains(0, 3, &same_count));
   EXPECT_EQ(same_count, 4u);
+}
+
+// Verifies visible row starts can absorb clear rows plus the next-row prefix.
+TEST(RectUnion, VisiblePixelsFromRowStartSpansClearRowsAndNextPrefix) {
+  std::array<Box, 2> boxes = {Box(2, 2, 4, 2), Box(0, 4, 4, 4)};
+  RectUnion exclusion(boxes.data(), boxes.data() + boxes.size());
+
+  EXPECT_EQ(exclusion.visiblePixelsFromRowStart(Box(0, 0, 4, 4), 0), 12u);
+}
+
+// Verifies excluded row starts can absorb full rows and the next-row prefix.
+TEST(RectUnion, ExcludedPixelsFromRowStartSpansCoveredRowsAndNextPrefix) {
+  std::array<Box, 2> boxes = {Box(0, 0, 4, 1), Box(0, 2, 1, 2)};
+  RectUnion exclusion(boxes.data(), boxes.data() + boxes.size());
+
+  EXPECT_EQ(exclusion.excludedPixelsFromRowStart(Box(0, 0, 4, 3), 0), 12u);
 }
 
 TEST(RectUnionFilter, WritePartiallyExcludedSingleRowConsumesSource) {
@@ -272,6 +341,49 @@ TEST(RectUnionFilter, NonIntersectingWindowPassesThrough) {
 
   WriteExpected(expected, exclusion, window, colors);
   ExpectSameRaster(actual, expected);
+}
+
+// Verifies a left-edge visible batch spanning multiple rows reuses one window.
+TEST(RectUnionFilter, WriteMultilineVisibleBatchUsesSingleAddressWindow) {
+  std::array<Box, 1> boxes = {Box(2, 2, 3, 2)};
+  RectUnion exclusion(boxes.data(), boxes.data() + boxes.size());
+  Box window(0, 0, 3, 2);
+  std::vector<Color> colors = MakeGradient(static_cast<size_t>(window.area()));
+
+  TestOffscreen actual(4, 3, color::White);
+  CountingOutput counted(actual);
+  TestOffscreen expected(4, 3, color::White);
+
+  RectUnionFilter filter(counted, &exclusion);
+  filter.setAddress(window.xMin(), window.yMin(), window.xMax(), window.yMax(),
+                    BlendingMode::kSource);
+  filter.write(colors.data(), colors.size());
+
+  WriteExpected(expected, exclusion, window, colors);
+  ExpectSameRaster(actual, expected);
+  EXPECT_EQ(counted.setAddressCount(), 1);
+}
+
+// Verifies a multiline visible batch survives a row wrap across write calls.
+TEST(RectUnionFilter, WriteSequentialChunksReuseMultilineVisibleBatch) {
+  std::array<Box, 1> boxes = {Box(2, 2, 3, 2)};
+  RectUnion exclusion(boxes.data(), boxes.data() + boxes.size());
+  Box window(0, 0, 3, 2);
+  std::vector<Color> colors = MakeGradient(static_cast<size_t>(window.area()));
+
+  TestOffscreen actual(4, 3, color::White);
+  CountingOutput counted(actual);
+  TestOffscreen expected(4, 3, color::White);
+
+  RectUnionFilter filter(counted, &exclusion);
+  filter.setAddress(window.xMin(), window.yMin(), window.xMax(), window.yMax(),
+                    BlendingMode::kSource);
+  filter.write(colors.data(), 4);
+  filter.write(colors.data() + 4, colors.size() - 4);
+
+  WriteExpected(expected, exclusion, window, colors);
+  ExpectSameRaster(actual, expected);
+  EXPECT_EQ(counted.setAddressCount(), 1);
 }
 
 }  // namespace roo_display

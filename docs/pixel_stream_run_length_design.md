@@ -62,6 +62,11 @@ single virtual `read(Color* buf, uint16_t size)` method. The contract is simple
 and strong: the callee fully initializes the requested buffer with row-major
 pixels.
 
+The library also generally follows a caller-owned bounds model for streams:
+the caller is expected to know how many pixels are safe to request for the
+current draw operation, and stream implementations typically do not guard
+against reading past their logical end.
+
 That strong buffer contract is important because several layers consume
 `PixelStream` output as ordinary dense buffers:
 
@@ -113,6 +118,8 @@ can select `fill()` and reduce repeated blending work.
   initializes `buf[0..size-1]`.
 - Avoid an additional virtual capability probe for run-less streams.
 - Allow streams that know exact uniform runs to report them precisely.
+- Allow a stream to report an unbounded uniform remainder with a dedicated
+  sentinel value, so callers can clamp that run to their own remaining demand.
 - Allow streams that only know the current returned prefix to report that
   prefix without inventing a longer exact run.
 - Keep per-instance RAM cost at zero for generic run-less `PixelStream`
@@ -121,8 +128,10 @@ can select `fill()` and reduce repeated blending work.
 - Make the common extents-path helpers in
   [streamable.h](../src/roo_display/core/streamable.h) the first optimization
   target, because they are the common background-blending path.
-- Use a 32-pixel minimum threshold before replacing `write()` with `fill()` in
-  stream consumers, while still allowing background-blending helpers to
+- Use a 32-pixel minimum threshold before replacing in-buffer `write()` work
+  with `fill()` in stream consumers, while still preferring one
+  `fill(emitted_run)` call whenever the clamped uniform run extends past the
+  returned buffer, and while still allowing background-blending helpers to
   collapse uniform-prefix blend loops for any non-zero reported run.
 - Roll out incrementally: phase 1 must compile and preserve behavior even when
   every stream reports `run_length = 0`.
@@ -144,16 +153,18 @@ The chosen design is:
    output `run_length` parameter.
 2. Keep a non-virtual two-argument `read()` helper that forwards to the new
    virtual method for callers that do not care about run metadata.
-3. Define `run_length` as the exact uniform-color prefix length that starts at
-   the current stream position, with one deliberate concession for low-state
-   producers: when a stream cannot prove the exact tail beyond the returned
-   buffer, it may clamp the exact prefix to `size`.
+3. Define `run_length` as intrinsic stream metadata for the current position:
+  a finite exact uniform-prefix length, `0` for no run information, or a
+  dedicated unbounded sentinel for a stream that remains uniform for the rest
+  of its logical extent.
 4. Require the buffer to remain fully initialized even when a uniform prefix is
    reported.
 5. Integrate the run-aware fast path first in the extents-path stream helpers
   in [streamable.h](../src/roo_display/core/streamable.h), using a 32-pixel
-  threshold for `write()` to `fill()` substitution and unconditional
-  uniform-prefix blend-loop collapse in the background-blending helpers.
+  threshold for in-buffer `write()` to `fill()` substitution, but still
+  preferring one `fill(emitted_run)` call when the clamped run extends beyond
+  the returned buffer, plus unconditional uniform-prefix blend-loop collapse
+  in the background-blending helpers.
 6. Roll run production into streams that already know uniform runs cheaply:
    constant-color streams, rasterizable-backed row reads, RLE image streams,
    clipped sub-rectangle streams, and segment-based smooth round-rect streams.
@@ -174,19 +185,19 @@ The new `run_length` value has three cases:
 
 - `run_length == 0`: the stream provides no run information for this read.
   The caller must treat the buffer exactly as it does today.
-- `1 <= run_length <= size`: the first `run_length` pixels in the returned
-  buffer are exactly uniform and equal to `buf[0]`. No guarantee is made about
-  pixel `buf[run_length]` or any tail beyond the returned buffer.
-- `run_length > size`: the stream guarantees that the exact uniform run from
-  the current stream position has length `run_length`, so the caller may handle
-  the first `size` pixels from the returned buffer, then optionally process the
-  remaining `run_length - size` pixels as the same color and advance the source
-  with `skip(run_length - size)`.
+- `0 < run_length < PixelStream::kUnlimitedRunLength`: the exact uniform-color
+  prefix starting at the current stream position has length `run_length`.
+  The returned buffer therefore starts with
+  `min<uint32_t>(run_length, size)` identical pixels equal to `buf[0]`.
+- `run_length == PixelStream::kUnlimitedRunLength`: the stream is uniform from
+  the current position onward for the rest of its logical extent. The caller
+  must clamp that unbounded run to its own remaining demand before emitting
+  pixels or advancing the stream.
 
 This contract keeps the common low-state cases cheap:
 
 - a constant-color stream that does not track remaining pixels can return
-  `run_length = size`,
+  `PixelStream::kUnlimitedRunLength`,
 - an RLE stream with explicit remaining-run state can return the exact full run
   length,
 - and a stream that has no cheap run information can return `0`.
@@ -209,12 +220,16 @@ is profitable.
 `skip()` keeps its current meaning: advance the stream by the requested number
 of pixels.
 
-When a caller receives `run_length > size`, it may treat the whole exact run as
-one span. If the chosen emission strategy is `fill()`, it should prefer one
-`fill(run_length)` call over separate prefix and tail calls, then call
-`skip(run_length - size)` to keep the stream state aligned.
+When a caller receives non-zero run metadata, it should first clamp that run to
+the number of pixels it still intends to consume. Let that clamped value be
+`emitted_run`.
 
-When a caller receives `run_length <= size`, it must not skip beyond the
+If `emitted_run > size`, the caller may treat the whole run as one span. If
+the chosen emission strategy is `fill()`, it should prefer one
+`fill(emitted_run)` call over separate prefix and tail calls, then call
+`skip(emitted_run - size)` to keep the stream state aligned.
+
+When `emitted_run <= size`, the caller must not skip beyond the
 already-consumed buffer tail, because the stream has already advanced through
 all `size` returned pixels.
 
@@ -234,15 +249,17 @@ For each batch, the extents-path helpers should:
 
 1. Read up to `kPixelWritingBufferSize` pixels and capture `run_length`.
 2. If `run_length == 0`, preserve the current behavior.
-3. Otherwise, treat the first `prefix = min(run_length, size)` pixels as one
-   uniform run.
-4. In `fillReplaceRect()`, replace `write()` with `fill()` only when the exact
-  emitted run length is at least 32 pixels.
+3. Otherwise, clamp the reported run to the remaining pixels in the current
+   rectangle. Let that clamped value be `emitted_run`, and let
+   `prefix = min(emitted_run, size)`.
+4. In `fillReplaceRect()`, when `emitted_run <= size`, replace `write()` with
+  `fill()` only when the exact emitted prefix length is at least 32 pixels.
 5. In `fillPaintRectOverOpaqueBg()` and `fillPaintRectOverBg()`, collapse the
   background blend loop for any non-zero uniform prefix, regardless of length.
-6. If `run_length > size` and the chosen emission strategy is `fill()`, emit
-  the whole exact run with one `fill(run_length)` call and then
-  `skip(run_length - size)`.
+6. If `emitted_run > size`, emit the whole clamped run with one
+  `fill(emitted_run)` call and then `skip(emitted_run - size)`. This takes
+  precedence over the 32-pixel threshold because the alternative would still
+  require handling an additional tail beyond the returned buffer.
 7. Process any already-returned non-uniform suffix in the buffer with the
   existing logic.
 
@@ -254,9 +271,9 @@ Reasoning:
   enough to avoid turning short repeated spans into many tiny virtual calls,
 - 32 pixels is half of the typical 64-pixel read buffer, so it still catches
   the long runs that matter for device-side fill acceleration,
-- and any exact run with `run_length > size` during a full-buffer read is
-  already longer than the threshold, so the multi-batch case still collapses to
-  one `fill(run_length)` call.
+- and long finite runs plus `PixelStream::kUnlimitedRunLength` both collapse to
+  one `fill(emitted_run)` call after the consumer clamps the run to its own
+  remaining demand.
 
 For the background-blending helpers, no threshold applies to reducing blend
 work. Once the `run_length == 0` branch is already taken, replacing a uniform
@@ -266,9 +283,9 @@ prefix blend loop with one blended color is a win even for short prefixes.
 
 For `fillReplaceRect()`, a uniform run emits:
 
-- `output.fill(buf[0], run_length)` plus `stream->skip(...)` when
-  `run_length > size`,
-- `output.fill(buf[0], prefix)` when `run_length <= size` and
+- `output.fill(buf[0], emitted_run)` plus `stream->skip(...)` when
+  `emitted_run > size`,
+- `output.fill(buf[0], prefix)` when `emitted_run <= size` and
   `prefix >= 32`,
 - otherwise the helper keeps the ordinary buffer-based `write()` path for the
   returned pixels.
@@ -280,9 +297,9 @@ No additional color math is needed.
 For the background-blending helpers, a uniform run emits:
 
 - one blended color,
-- one `output.fill(blended, run_length)` plus `stream->skip(...)` when
-  `run_length > size`,
-- one `output.fill(blended, prefix)` when `run_length <= size` and
+- one `output.fill(blended, emitted_run)` plus `stream->skip(...)` when
+  `emitted_run > size`,
+- one `output.fill(blended, prefix)` when `emitted_run <= size` and
   `prefix >= 32`,
 - or, for shorter prefixes, one `FillColor()` over the already-returned prefix
   before the helper continues with its ordinary buffer-based write path.
@@ -309,7 +326,8 @@ That gives a behavior-preserving baseline with no per-instance RAM increase.
 Constant-color streams such as `FilledRectStream` in
 [basic.cpp](../src/roo_display/shape/basic.cpp) should return:
 
-- `run_length = size` when they do not track an exact remaining tail,
+- `run_length = PixelStream::kUnlimitedRunLength` when they do not track an
+  exact remaining tail,
 - or the exact remaining pixel count when that count is already available.
 
 They should keep using `FillColor()` to initialize the full returned buffer.
@@ -445,6 +463,8 @@ The public `PixelStream` declaration in
 ```cpp
 class PixelStream {
  public:
+  static constexpr uint32_t kUnlimitedRunLength = 0xFFFFFFFFu;
+
   /// Read up to `size` pixels into `buf`, optionally reporting a uniform
   /// prefix run starting at the current stream position.
   ///
@@ -452,14 +472,15 @@ class PixelStream {
   ///
   /// `run_length == 0` means that no run information is provided.
   ///
-  /// `1 <= run_length <= size` means that the returned buffer starts with an
-  /// exact uniform-color prefix of length `run_length`, equal to `buf[0]`.
-  /// No guarantee is made beyond the returned buffer.
+  /// `0 < run_length < kUnlimitedRunLength` means that the exact uniform-color
+  /// prefix starting at the current stream position has length `run_length`.
+  /// The returned buffer therefore starts with
+  /// `min<uint32_t>(run_length, size)` identical pixels equal to `buf[0]`.
   ///
-  /// `run_length > size` means that the exact uniform run from the current
-  /// stream position has length `run_length`. The caller may process the
-  /// returned `size` pixels from `buf`, then optionally handle the remaining
-  /// tail as the same color and call `skip(run_length - size)`.
+  /// `run_length == kUnlimitedRunLength` means that the stream is uniform from
+  /// the current position onward for the rest of its logical extent. The
+  /// caller clamps that run to its own remaining demand before emitting pixels
+  /// or calling `skip()`.
   virtual void read(Color* buf, uint16_t size, uint32_t& run_length) = 0;
 
   /// Convenience overload for callers that do not use run metadata.
@@ -493,6 +514,7 @@ Work:
 
 - change the primary virtual `PixelStream::read()` declaration in
   [streamable.h](../src/roo_display/core/streamable.h),
+- add the `PixelStream::kUnlimitedRunLength` sentinel constant,
 - keep the two-argument convenience wrapper and update `skip()` to call the new
   virtual method,
 - update every `PixelStream` implementation and direct test stream to compile
@@ -526,11 +548,12 @@ Work:
 - add a 32-pixel internal threshold constant for `write()` to `fill()`
   substitution,
 - teach `fillReplaceRect()` to use `run_length` for thresholded fill
-  substitution,
+  substitution within the returned buffer, while still using one
+  `fill(emitted_run)` call when the clamped run extends beyond that buffer,
 - teach `fillPaintRectOverOpaqueBg()` and `fillPaintRectOverBg()` to use
   `run_length` for unconditional prefix blend-loop collapse and thresholded
-  fill substitution, using one `fill(run_length)` call when an exact run spans
-  beyond the returned buffer,
+  fill substitution, using one `fill(emitted_run)` call when the clamped run
+  spans beyond the returned buffer,
 - keep visible-path helpers behaviorally unchanged,
 - add focused regression coverage in
   [streamable_test.cpp](../test/streamable_test.cpp) using a small counting
@@ -545,7 +568,8 @@ pixel_stream_run_length_design phase 2: exploit uniform prefixes in the extents-
 
 Teach the direct stream drawing helpers in streamable.h to use run_length for
 background blending and thresholded fill forwarding so uniform prefixes always
-blend once and long exact spans emit through DisplayOutput::fill() while
+blend once, in-buffer prefixes honor the 32-pixel fill cutoff, and runs that
+extend past the returned buffer still emit through DisplayOutput::fill() while
 preserving existing visible-path behavior.
 ```
 
@@ -649,8 +673,8 @@ Focused contract coverage:
   [streamable_test.cpp](../test/streamable_test.cpp),
   [rasterizable_test.cpp](../test/rasterizable_test.cpp), and
   [smooth_shapes_test.cpp](../test/smooth_shapes_test.cpp) should verify the
-  `run_length` contract for exact prefixes, exact tails, clipped prefixes, and
-  `run_length = 0` fallbacks.
+  `run_length` contract for exact prefixes, exact tails, unlimited uniform
+  streams, clipped prefixes, and `run_length = 0` fallbacks.
 - those focused additions should cover only new contract and path-selection
   cases that existing broad rendering and stress tests do not already cover.
 

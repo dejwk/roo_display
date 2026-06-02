@@ -305,6 +305,22 @@ TEST(Streamable, FillReplaceRectUsesSingleFillAndSkipForLongExactRun) {
   ExpectBufferEquals(output, source);
 }
 
+TEST(Streamable, FillReplaceRectClampsUnlimitedRunLengthToRemainingArea) {
+  std::vector<Color> source(100, Color(0xFF336699));
+  ScriptedRunStream stream(source, {PixelStream::kUnlimitedRunLength});
+  CountingOffscreen output(100, 1, color::Transparent);
+
+  internal::fillReplaceRect(output, Box(0, 0, 99, 0), &stream,
+                            BlendingMode::kSource);
+
+  ASSERT_EQ(output.fill_calls(), 1u);
+  EXPECT_EQ(output.fill_lengths()[0], 100u);
+  EXPECT_EQ(stream.skip_calls(), 1u);
+  EXPECT_EQ(stream.skipped_pixels(),
+            static_cast<uint32_t>(100 - kPixelWritingBufferSize));
+  ExpectBufferEquals(output, source);
+}
+
 TEST(Streamable, FillPaintRectOverBgUsesSingleFillForLongExactRun) {
   Color bg = Color(0x7F010203);
   Color prefix_source = Color(0x80405060);

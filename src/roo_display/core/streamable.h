@@ -11,6 +11,8 @@ namespace roo_display {
 /// Stream of pixels in row-major order.
 class PixelStream {
  public:
+  static constexpr uint32_t kUnlimitedRunLength = 0xFFFFFFFFu;
+
   /// Read up to `size` pixels into `buf`, optionally reporting a uniform
   /// prefix run starting at the current stream position.
   ///
@@ -18,14 +20,13 @@ class PixelStream {
   ///
   /// `run_length == 0` means that no run information is provided.
   ///
-  /// `1 <= run_length <= size` means that the returned buffer starts with an
-  /// exact uniform-color prefix of length `run_length`, equal to `buf[0]`.
-  /// No guarantee is made beyond the returned buffer.
+  /// `0 < run_length < kUnlimitedRunLength` means that the stream starts with
+  /// an exact uniform-color prefix of length `run_length`, equal to `buf[0]`.
   ///
-  /// `run_length > size` means that the exact uniform run from the current
-  /// stream position has length `run_length`. The caller may process the
-  /// returned `size` pixels from `buf`, then optionally handle the remaining
-  /// tail as the same color and call `skip(run_length - size)`.
+  /// `run_length == kUnlimitedRunLength` means that the stream is uniform from
+  /// the current position onward, with color `buf[0]`. The caller must clamp
+  /// the effective run to its own remaining demand before emitting pixels or
+  /// calling `skip()`.
   virtual void read(Color* buf, uint16_t size, uint32_t& run_length) = 0;
 
   /// Convenience overload for callers that do not use run metadata.
@@ -73,6 +74,7 @@ inline void fillReplaceRect(DisplayOutput& output, const Box& extents,
     uint32_t run_length = 0;
     stream->read(buf, n, run_length);
     if (run_length >= n) {
+      if (run_length > count) run_length = count;
       output.fill(buf[0], run_length);
       stream->skip(run_length - n);
       count -= run_length;

@@ -45,7 +45,11 @@ class TouchXpt2046 : public BasicTouchDevice<1> {
  public:
   explicit TouchXpt2046(Spi spi = Spi());
 
-  virtual void initTouch() override { device_.init(); }
+  virtual void initTouch() override {
+    Gpio::setOutput(pinCS);
+    Gpio::template setHigh<pinCS>();
+    device_.init();
+  }
 
  protected:
   int readTouch(TouchPoint* points) override;
@@ -66,10 +70,7 @@ TouchXpt2046<pinCS, Spi, Gpio>::TouchXpt2046(Spi spi)
                               .smoothing_factor = 0.8}),
       device_(spi),
       pressed_(false),
-      latest_confirmed_pressed_timestamp_(0) {
-  Gpio::setOutput(pinCS);
-  Gpio::template setHigh<pinCS>();
-}
+      latest_confirmed_pressed_timestamp_(0) {}
 
 template <typename Spi>
 void get_raw_touch_xy(Spi& spi, uint16_t* x, uint16_t* y) {

@@ -60,6 +60,8 @@ class PixelStream {
 
 namespace internal {
 
+constexpr uint32_t kRunLengthFillThreshold = 32;
+
 inline void fillReplaceRect(DisplayOutput& output, const Box& extents,
                             PixelStream* stream, BlendingMode mode) {
   Color buf[kPixelWritingBufferSize];
@@ -68,8 +70,20 @@ inline void fillReplaceRect(DisplayOutput& output, const Box& extents,
   while (count > 0) {
     uint32_t n = count;
     if (n > kPixelWritingBufferSize) n = kPixelWritingBufferSize;
-    stream->read(buf, n);
-    output.write(buf, n);
+    uint32_t run_length = 0;
+    stream->read(buf, n, run_length);
+    if (run_length >= n) {
+      output.fill(buf[0], run_length);
+      stream->skip(run_length - n);
+      count -= run_length;
+      continue;
+    }
+    if (run_length >= kRunLengthFillThreshold) {
+      output.fill(buf[0], run_length);
+      output.write(buf + run_length, n - run_length);
+    } else {
+      output.write(buf, n);
+    }
     count -= n;
   }
 }
@@ -83,9 +97,40 @@ inline void fillPaintRectOverOpaqueBg(DisplayOutput& output, const Box& extents,
   do {
     uint16_t n = kPixelWritingBufferSize;
     if (n > count) n = count;
-    stream->read(buf, n);
-    for (int i = 0; i < n; i++) buf[i] = AlphaBlendOverOpaque(bgColor, buf[i]);
-    output.write(buf, n);
+    uint32_t run_length = 0;
+    stream->read(buf, n, run_length);
+    if (run_length == 0) {
+      for (int i = 0; i < n; i++) {
+        buf[i] = AlphaBlendOverOpaque(bgColor, buf[i]);
+      }
+      output.write(buf, n);
+      count -= n;
+      continue;
+    }
+
+    Color blended_prefix = AlphaBlendOverOpaque(bgColor, buf[0]);
+
+    if (run_length >= n) {
+      if (run_length > count) run_length = count;
+      output.fill(blended_prefix, run_length);
+      stream->skip(run_length - n);
+      count -= run_length;
+      continue;
+    }
+
+    for (uint32_t i = 0; i < run_length; ++i) {
+      buf[i] = blended_prefix;
+    }
+    for (uint32_t i = run_length; i < n; ++i) {
+      buf[i] = AlphaBlendOverOpaque(bgColor, buf[i]);
+    }
+
+    if (run_length >= kRunLengthFillThreshold) {
+      output.fill(blended_prefix, run_length);
+      output.write(buf + run_length, n - run_length);
+    } else {
+      output.write(buf, n);
+    }
     count -= n;
   } while (count > 0);
 }
@@ -99,11 +144,40 @@ inline void fillPaintRectOverBg(DisplayOutput& output, const Box& extents,
   do {
     uint16_t n = kPixelWritingBufferSize;
     if (n > count) n = count;
-    stream->read(buf, n);
-    for (int i = 0; i < n; ++i) {
+    uint32_t run_length = 0;
+    stream->read(buf, n, run_length);
+    if (run_length == 0) {
+      for (int i = 0; i < n; ++i) {
+        buf[i] = AlphaBlend(bgcolor, buf[i]);
+      }
+      output.write(buf, n);
+      count -= n;
+      continue;
+    }
+
+    Color blended_prefix = AlphaBlend(bgcolor, buf[0]);
+
+    if (run_length >= n) {
+      if (run_length > count) run_length = count;
+      output.fill(blended_prefix, run_length);
+      stream->skip(run_length - n);
+      count -= run_length;
+      continue;
+    }
+
+    for (uint32_t i = 0; i < run_length; ++i) {
+      buf[i] = blended_prefix;
+    }
+    for (uint32_t i = run_length; i < n; ++i) {
       buf[i] = AlphaBlend(bgcolor, buf[i]);
     }
-    output.write(buf, n);
+
+    if (run_length >= kRunLengthFillThreshold) {
+      output.fill(blended_prefix, run_length);
+      output.write(buf + run_length, n - run_length);
+    } else {
+      output.write(buf, n);
+    }
     count -= n;
   } while (count > 0);
 }

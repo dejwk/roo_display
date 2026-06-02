@@ -1,6 +1,8 @@
 
 #include "roo_display/core/streamable.h"
 
+#include <vector>
+
 #include "roo_display/color/color.h"
 #include "testing.h"
 
@@ -10,6 +12,86 @@
 using namespace testing;
 
 namespace roo_display {
+
+namespace {
+
+class ScriptedRunStream : public PixelStream {
+ public:
+  using PixelStream::read;
+
+  ScriptedRunStream(std::vector<Color> pixels,
+                    std::vector<uint32_t> run_lengths)
+      : pixels_(std::move(pixels)), run_lengths_(std::move(run_lengths)) {}
+
+  void read(Color* buf, uint16_t size, uint32_t& run_length) override {
+    EXPECT_LE(idx_ + size, pixels_.size());
+    memcpy(buf, pixels_.data() + idx_, size * sizeof(Color));
+    idx_ += size;
+    if (read_count_ < run_lengths_.size()) {
+      run_length = run_lengths_[read_count_++];
+    } else {
+      run_length = 0;
+    }
+  }
+
+  void skip(uint32_t count) override {
+    ++skip_calls_;
+    skipped_pixels_ += count;
+    idx_ += count;
+  }
+
+  uint32_t skip_calls() const { return skip_calls_; }
+  uint32_t skipped_pixels() const { return skipped_pixels_; }
+
+ private:
+  std::vector<Color> pixels_;
+  std::vector<uint32_t> run_lengths_;
+  size_t idx_ = 0;
+  size_t read_count_ = 0;
+  uint32_t skip_calls_ = 0;
+  uint32_t skipped_pixels_ = 0;
+};
+
+class CountingOffscreen : public FakeOffscreen<Argb8888> {
+ public:
+  using Base = FakeOffscreen<Argb8888>;
+  using Base::Base;
+
+  void write(Color* color, uint32_t pixel_count) override {
+    ++write_calls_;
+    Base::write(color, pixel_count);
+  }
+
+  void fill(Color color, uint32_t pixel_count) override {
+    ++fill_calls_;
+    fill_lengths_.push_back(pixel_count);
+    fill_colors_.push_back(color);
+    DisplayOutput::fill(color, pixel_count);
+  }
+
+  uint32_t write_calls() const { return write_calls_; }
+  uint32_t fill_calls() const { return fill_calls_; }
+  const std::vector<uint32_t>& fill_lengths() const { return fill_lengths_; }
+  const std::vector<Color>& fill_colors() const { return fill_colors_; }
+
+ private:
+  uint32_t write_calls_ = 0;
+  uint32_t fill_calls_ = 0;
+  std::vector<uint32_t> fill_lengths_;
+  std::vector<Color> fill_colors_;
+};
+
+void ExpectBufferEquals(const CountingOffscreen& output,
+                        const std::vector<Color>& expected) {
+  ASSERT_EQ(expected.size(),
+            static_cast<size_t>(output.raw_width()) * output.raw_height());
+  const Color* actual = output.buffer();
+  for (size_t i = 0; i < expected.size(); ++i) {
+    EXPECT_EQ(expected[i], actual[i]);
+  }
+}
+
+}  // namespace
 
 void Draw(DisplayDevice& output, int16_t x, int16_t y, const Box& clip_box,
           const Streamable& object, FillMode fill_mode = FillMode::kVisible,
@@ -202,6 +284,55 @@ TEST(Streamable, AlphaTransparencyWriteWithTranslucentBackground) {
   EXPECT_THAT(test_screen, MatchesContent(Argb4444(), 3, 2,
                                           "F000 F677 F678"
                                           "F000 F5A5 F000"));
+}
+
+TEST(Streamable, FillReplaceRectUsesSingleFillAndSkipForLongExactRun) {
+  std::vector<Color> source(100, Color(0xFF336699));
+  for (int i = 90; i < 100; ++i) {
+    source[i] = Color(0xFF550000 + i);
+  }
+  ScriptedRunStream stream(source, {90, 0});
+  CountingOffscreen output(100, 1, color::Transparent);
+
+  internal::fillReplaceRect(output, Box(0, 0, 99, 0), &stream,
+                            BlendingMode::kSource);
+
+  ASSERT_EQ(output.fill_calls(), 1u);
+  EXPECT_EQ(output.fill_lengths()[0], 90u);
+  EXPECT_EQ(stream.skip_calls(), 1u);
+  EXPECT_EQ(stream.skipped_pixels(),
+            static_cast<uint32_t>(90 - kPixelWritingBufferSize));
+  ExpectBufferEquals(output, source);
+}
+
+TEST(Streamable, FillPaintRectOverBgUsesSingleFillForLongExactRun) {
+  Color bg = Color(0x7F010203);
+  Color prefix_source = Color(0x80405060);
+  std::vector<Color> source(100, prefix_source);
+  for (int i = 90; i < 100; ++i) {
+    source[i] = Color(0x70010200 + i);
+  }
+  ScriptedRunStream stream(source, {90, 0});
+  CountingOffscreen output(100, 1, color::Transparent);
+
+  internal::fillPaintRectOverBg(output, Box(0, 0, 99, 0), bg, &stream,
+                                BlendingMode::kSource);
+
+  std::vector<Color> expected = source;
+  for (int i = 0; i < 90; ++i) {
+    expected[i] = AlphaBlend(bg, prefix_source);
+  }
+  for (int i = 90; i < 100; ++i) {
+    expected[i] = AlphaBlend(bg, source[i]);
+  }
+
+  ASSERT_EQ(output.fill_calls(), 1u);
+  EXPECT_EQ(output.fill_lengths()[0], 90u);
+  EXPECT_EQ(output.fill_colors()[0], AlphaBlend(bg, prefix_source));
+  EXPECT_EQ(stream.skip_calls(), 1u);
+  EXPECT_EQ(stream.skipped_pixels(),
+            static_cast<uint32_t>(90 - kPixelWritingBufferSize));
+  ExpectBufferEquals(output, expected);
 }
 
 }  // namespace roo_display

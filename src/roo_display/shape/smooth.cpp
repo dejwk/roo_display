@@ -12,9 +12,7 @@ class EmptyStream : public PixelStream {
  public:
   using PixelStream::read;
 
-  void read(Color*, uint16_t, uint32_t& run_length) override {
-    run_length = 0;
-  }
+  void read(Color*, uint16_t, uint32_t& run_length) override { run_length = 0; }
 
   void skip(uint32_t) override {}
 };

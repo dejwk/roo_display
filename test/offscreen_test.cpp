@@ -167,6 +167,8 @@ class TrivialColorReader {
 template <typename Reader>
 class ColorStream : public PixelStream {
  public:
+  using PixelStream::read;
+
   template <typename... Args>
   ColorStream(Box bounds, Args&&... args)
       : reader_(std::forward<Args>(args)...),
@@ -174,7 +176,8 @@ class ColorStream : public PixelStream {
         x_(bounds_.xMin()),
         y_(bounds_.yMin()) {}
 
-  void read(Color* buf, uint16_t size) override {
+  void read(Color* buf, uint16_t size, uint32_t& run_length) override {
+    run_length = 0;
     for (int i = 0; i < size; ++i) {
       buf[i++] = next();
     }

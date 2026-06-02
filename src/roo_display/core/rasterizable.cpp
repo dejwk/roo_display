@@ -6,13 +6,16 @@ namespace {
 
 class Stream : public PixelStream {
  public:
+  using PixelStream::read;
+
   Stream(const Rasterizable *data, Box bounds)
       : data_(data),
         bounds_(std::move(bounds)),
         x_(bounds_.xMin()),
         y_(bounds_.yMin()) {}
 
-  void read(Color *buf, uint16_t size) override {
+  void read(Color *buf, uint16_t size, uint32_t& run_length) override {
+    run_length = 0;
     int16_t x[size];
     int16_t y[size];
     for (int i = 0; i < size; ++i) {

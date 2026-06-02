@@ -641,6 +641,8 @@ void WriteVisible(Engine* engine, const Box& bounds,
 
 class StreamableComboStream : public PixelStream {
  public:
+  using PixelStream::read;
+
   StreamableComboStream(Program prg,
                         std::vector<internal::BufferingStream> streams,
                         std::vector<BlendingMode> blending_modes)
@@ -650,7 +652,8 @@ class StreamableComboStream : public PixelStream {
         blending_modes_(std::move(blending_modes)),
         remaining_count_(0) {}
 
-  void read(Color* buf, uint16_t size) override {
+  void read(Color* buf, uint16_t size, uint32_t& run_length) override {
+    run_length = 0;
     Color* result = buf;
     do {
       while (remaining_count_ == 0) {

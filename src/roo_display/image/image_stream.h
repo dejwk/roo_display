@@ -62,6 +62,8 @@ template <typename Resource, typename ColorMode, int8_t bits_per_pixel>
 class RleStreamUniform<Resource, ColorMode, bits_per_pixel, false>
     : public PixelStream {
  public:
+  using PixelStream::read;
+
   RleStreamUniform(const Resource& input, const ColorMode& color_mode)
       : RleStreamUniform(input.Open(), color_mode) {}
 
@@ -72,7 +74,8 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, false>
         run_value_(0),
         color_mode_(color_mode) {}
 
-  void read(Color* buf, uint16_t size) override {
+  void read(Color* buf, uint16_t size, uint32_t& run_length) override {
+    run_length = 0;
     while (size-- > 0) {
       *buf++ = next();
     }
@@ -127,6 +130,8 @@ template <typename Resource, typename ColorMode, int8_t bits_per_pixel>
 class RleStreamUniform<Resource, ColorMode, bits_per_pixel, true>
     : public PixelStream {
  public:
+  using PixelStream::read;
+
   static constexpr int pixels_per_byte = 8 / bits_per_pixel;
 
   RleStreamUniform(const Resource& input, const ColorMode& color_mode)
@@ -139,7 +144,8 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, true>
         run_(false),
         color_mode_(color_mode) {}
 
-  void read(Color* buf, uint16_t size) override {
+  void read(Color* buf, uint16_t size, uint32_t& run_length) override {
+    run_length = 0;
     while (size-- > 0) {
       *buf++ = next();
     }
@@ -193,6 +199,8 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, true>
 template <typename Resource>
 class RleStreamRgb565Alpha4 : public PixelStream {
  public:
+  using PixelStream::read;
+
   RleStreamRgb565Alpha4(const Resource& input)
       : RleStreamRgb565Alpha4(input.Open()) {}
 
@@ -204,7 +212,8 @@ class RleStreamRgb565Alpha4 : public PixelStream {
         alpha_buf_(0xFF),
         alpha_mode_(0) {}
 
-  void read(Color* buf, uint16_t size) override {
+  void read(Color* buf, uint16_t size, uint32_t& run_length) override {
+    run_length = 0;
     while (size-- > 0) {
       *buf++ = next();
     }
@@ -346,6 +355,8 @@ class RleStream4bppxBiased;
 template <typename Resource, typename ColorMode>
 class RleStream4bppxBiased<Resource, ColorMode, 4> : public PixelStream {
  public:
+  using PixelStream::read;
+
   RleStream4bppxBiased(const Resource& input, const ColorMode& color_mode)
       : RleStream4bppxBiased(input.Open(), color_mode) {}
 
@@ -356,7 +367,8 @@ class RleStream4bppxBiased<Resource, ColorMode, 4> : public PixelStream {
         run_value_(0),
         color_mode_(color_mode) {}
 
-  void read(Color* buf, uint16_t size) override {
+  void read(Color* buf, uint16_t size, uint32_t& run_length) override {
+    run_length = 0;
     while (size-- > 0) {
       *buf++ = next();
     }

@@ -1334,6 +1334,8 @@ class CircleBandDxTracker {
 
 class RoundRectStream : public PixelStream {
  public:
+  using PixelStream::read;
+
   // Emits a round-rect in row-major order without buffering the whole row.
   // Each scanline is decomposed into a small number of uniform segments:
   // transparent, outline, interior, plus narrow 'slow' edge segments that
@@ -1358,7 +1360,8 @@ class RoundRectStream : public PixelStream {
         inner_tracker_(rix2_ > 0 ? Square(rix2_ - 1) : 0, Square(rix2_ + 1),
                        rix2_ > 0, RowDySq4(bounds_.yMin(), y0x2_, y1x2_)) {}
 
-  void read(Color* buf, uint16_t count) override {
+  void read(Color* buf, uint16_t count, uint32_t& run_length) override {
+    run_length = 0;
     while (count > 0) {
       if (!row_ready_) PrepareRow();
       if (segment_index_ >= segment_count_) return;
@@ -1574,6 +1577,8 @@ class RoundRectStream : public PixelStream {
 // without touching the rounded-inner hot path.
 class RectInnerRoundRectStream : public PixelStream {
  public:
+  using PixelStream::read;
+
   RectInnerRoundRectStream(const SmoothShape::RoundRect& rect, Box bounds)
       : rect_(rect),
         bounds_(std::move(bounds)),
@@ -1595,7 +1600,8 @@ class RectInnerRoundRectStream : public PixelStream {
         inner_outside_left_end_((int16_t)floorf(rect.inner_x0 - 0.5f)),
         inner_outside_right_start_((int16_t)ceilf(rect.inner_x1 + 0.5f)) {}
 
-  void read(Color* buf, uint16_t count) override {
+  void read(Color* buf, uint16_t count, uint32_t& run_length) override {
+    run_length = 0;
     while (count > 0) {
       if (!row_ready_) PrepareRow();
       if (segment_index_ >= segment_count_) return;
@@ -1808,6 +1814,8 @@ class RectInnerRoundRectStream : public PixelStream {
 // pixel evaluator for rows or spans that remain in an AA fringe.
 class RoundRectCornersStream : public PixelStream {
  public:
+  using PixelStream::read;
+
   RoundRectCornersStream(const SmoothShape::RoundRectCorners& rect, Box bounds)
       : rect_(rect),
         bounds_(std::move(bounds)),
@@ -1866,7 +1874,8 @@ class RoundRectCornersStream : public PixelStream {
         inner_inside_right_end_((int16_t)floorf(inner_x1_ - 0.5f)),
         inner_outside_right_start_((int16_t)ceilf(inner_x1_ + 0.5f)) {}
 
-  void read(Color* buf, uint16_t count) override {
+  void read(Color* buf, uint16_t count, uint32_t& run_length) override {
+    run_length = 0;
     while (count > 0) {
       if (!row_ready_) PrepareRow();
       if (segment_index_ >= segment_count_) return;

@@ -76,12 +76,15 @@ template <typename Resource, typename ColorMode, ColorPixelOrder pixel_order,
           int pixels_per_byte = ColorTraits<ColorMode>::pixels_per_byte>
 class RasterPixelStream : public PixelStream {
  public:
+  using PixelStream::read;
+
   RasterPixelStream(StreamType<Resource> stream, const ColorMode& color_mode)
       : stream_(std::move(stream)),
         pixel_index_(ColorTraits<ColorMode>::pixels_per_byte),
         color_mode_(color_mode) {}
 
-  void read(Color* buf, uint16_t size) override {
+  void read(Color* buf, uint16_t size, uint32_t& run_length) override {
+    run_length = 0;
     while (size-- > 0) {
       *buf++ = next();
     }
@@ -137,10 +140,13 @@ template <typename Resource, typename ColorMode, ColorPixelOrder pixel_order,
 class RasterPixelStream<Resource, ColorMode, pixel_order, byte_order, 1>
     : public PixelStream {
  public:
+  using PixelStream::read;
+
   RasterPixelStream(StreamType<Resource> stream, const ColorMode& color_mode)
       : stream_(std::move(stream)), color_mode_(color_mode) {}
 
-  void read(Color* buf, uint16_t size) override {
+  void read(Color* buf, uint16_t size, uint32_t& run_length) override {
+    run_length = 0;
     while (size-- > 0) {
       *buf++ = next();
     }

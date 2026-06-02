@@ -11,17 +11,38 @@ namespace roo_display {
 /// Stream of pixels in row-major order.
 class PixelStream {
  public:
-  /// Read up to `size` pixels into `buf`.
-  virtual void read(Color* buf, uint16_t size) = 0;
+  /// Read up to `size` pixels into `buf`, optionally reporting a uniform
+  /// prefix run starting at the current stream position.
+  ///
+  /// The implementation must fully initialize `buf[0..size-1]`.
+  ///
+  /// `run_length == 0` means that no run information is provided.
+  ///
+  /// `1 <= run_length <= size` means that the returned buffer starts with an
+  /// exact uniform-color prefix of length `run_length`, equal to `buf[0]`.
+  /// No guarantee is made beyond the returned buffer.
+  ///
+  /// `run_length > size` means that the exact uniform run from the current
+  /// stream position has length `run_length`. The caller may process the
+  /// returned `size` pixels from `buf`, then optionally handle the remaining
+  /// tail as the same color and call `skip(run_length - size)`.
+  virtual void read(Color* buf, uint16_t size, uint32_t& run_length) = 0;
+
+  /// Convenience overload for callers that do not use run metadata.
+  inline void read(Color* buf, uint16_t size) {
+    uint32_t ignored_run_length = 0;
+    read(buf, size, ignored_run_length);
+  }
 
   /// Skip `count` pixels.
   virtual void skip(uint32_t count) {
     Color buf[kPixelWritingBufferSize];
+    uint32_t ignored_run_length = 0;
     while (count > kPixelWritingBufferSize) {
-      read(buf, kPixelWritingBufferSize);
+      read(buf, kPixelWritingBufferSize, ignored_run_length);
       count -= kPixelWritingBufferSize;
     }
-    read(buf, count);
+    read(buf, count, ignored_run_length);
   }
 
   __attribute__((deprecated("Use `read()` instead."))) void Read(
@@ -310,6 +331,8 @@ class BufferingStream {
 template <typename Delegate>
 class SubRectangleStream : public PixelStream {
  public:
+  using PixelStream::read;
+
   SubRectangleStream(Delegate delegate, uint32_t count, int16_t width,
                      int16_t width_skip)
       : stream_(std::move(delegate)),
@@ -321,7 +344,8 @@ class SubRectangleStream : public PixelStream {
 
   SubRectangleStream(SubRectangleStream&&) = default;
 
-  void read(Color* buf, uint16_t count) override {
+  void read(Color* buf, uint16_t count, uint32_t& run_length) override {
+    run_length = 0;
     do {
       if (x_ >= width_) {
         dskip(width_skip_);
@@ -367,7 +391,8 @@ class SubRectangleStream : public PixelStream {
     }
     uint16_t n = kPixelWritingBufferSize;
     if (n > remaining_) n = remaining_;
-    stream_.read(buf_, n);
+    uint32_t ignored_run_length = 0;
+    stream_.read(buf_, n, ignored_run_length);
     remaining_ -= n;
     idx_ = count;
   }
@@ -376,7 +401,8 @@ class SubRectangleStream : public PixelStream {
     if (idx_ >= kPixelWritingBufferSize) {
       uint16_t n = kPixelWritingBufferSize;
       if (n > remaining_) n = remaining_;
-      stream_.read(buf_, n);
+      uint32_t ignored_run_length = 0;
+      stream_.read(buf_, n, ignored_run_length);
       idx_ = 0;
       remaining_ -= n;
     }

@@ -174,13 +174,13 @@ class ColorStream : public PixelStream {
         x_(bounds_.xMin()),
         y_(bounds_.yMin()) {}
 
-  void Read(Color* buf, uint16_t size) override {
+  void read(Color* buf, uint16_t size) override {
     for (int i = 0; i < size; ++i) {
       buf[i++] = next();
     }
   }
 
-  void Skip(uint32_t count) override {
+  void skip(uint32_t count) override {
     auto w = bounds_.width();
     y_ += count / w;
     x_ += count % w;
@@ -289,9 +289,8 @@ class TrivialWriter {
   void operator()(Color* p, uint32_t offset, uint32_t count) {
     while (count-- > 0) {
       Color bg = p[offset];
-      p[offset++] = color_mode_.toArgbColor(
-          color_mode_.fromArgbColor(
-              BlendOp<blending_mode>().blend(bg, *color_++)));
+      p[offset++] = color_mode_.toArgbColor(color_mode_.fromArgbColor(
+          BlendOp<blending_mode>().blend(bg, *color_++)));
     }
   }
 
@@ -311,9 +310,8 @@ class TrivialFiller {
   void operator()(Color* p, uint32_t offset, uint32_t count) {
     while (count-- > 0) {
       Color bg = p[offset];
-      p[offset++] = color_mode_.toArgbColor(
-          color_mode_.fromArgbColor(
-              BlendOp<blending_mode>().blend(bg, color_)));
+      p[offset++] = color_mode_.toArgbColor(color_mode_.fromArgbColor(
+          BlendOp<blending_mode>().blend(bg, color_)));
     }
   }
 

@@ -261,11 +261,9 @@ class ParserStream : public PixelStream {
         x_(extents.xMin()),
         y_(extents.yMin()) {}
 
-  void Read(Color* buf, uint16_t size) override {
+  void read(Color* buf, uint16_t size) override {
     while (size-- > 0) *buf++ = next();
   }
-
-  void Skip(uint32_t count) override { skip(count); }
 
   TransparencyMode transparency() const { return mode_.transparency(); }
 
@@ -285,7 +283,7 @@ class ParserStream : public PixelStream {
     return result;
   }
 
-  void skip(int16_t count) {
+  void skip(uint32_t count) override {
     while (count-- > 0) next();
   }
 
@@ -1139,16 +1137,15 @@ class FakeOffscreen : public DisplayDevice {
     }
   }
 
-  void blitCopy(int16_t src_x0, int16_t src_y0, int16_t src_x1,
-                int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override {
+  void blitCopy(int16_t src_x0, int16_t src_y0, int16_t src_x1, int16_t src_y1,
+                int16_t dst_x0, int16_t dst_y0) override {
     if (dst_x0 == src_x0 && dst_y0 == src_y0) return;
     if (src_x1 < src_x0 || src_y1 < src_y0) return;
 
     int16_t dst_x1 = dst_x0 + (src_x1 - src_x0);
     int16_t dst_y1 = dst_y0 + (src_y1 - src_y0);
 
-    auto orient_rect = [&](int16_t& x0, int16_t& y0, int16_t& x1,
-                           int16_t& y1) {
+    auto orient_rect = [&](int16_t& x0, int16_t& y0, int16_t& x1, int16_t& y1) {
       if (orientation().isXYswapped()) {
         std::swap(x0, y0);
         std::swap(x1, y1);

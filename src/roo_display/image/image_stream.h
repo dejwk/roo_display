@@ -72,15 +72,13 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, false>
         run_value_(0),
         color_mode_(color_mode) {}
 
-  void Read(Color* buf, uint16_t size) override {
+  void read(Color* buf, uint16_t size) override {
     while (size-- > 0) {
       *buf++ = next();
     }
   }
 
-  void Skip(uint32_t n) override { skip(n); }
-
-  void skip(uint32_t n) {
+  void skip(uint32_t n) override {
     while (n-- > 0) next();
   }
 
@@ -141,15 +139,13 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, true>
         run_(false),
         color_mode_(color_mode) {}
 
-  void Read(Color* buf, uint16_t size) override {
+  void read(Color* buf, uint16_t size) override {
     while (size-- > 0) {
       *buf++ = next();
     }
   }
 
-  void Skip(uint32_t n) override { skip(n); }
-
-  void skip(uint32_t n) {
+  void skip(uint32_t n) override {
     while (n-- > 0) next();
   }
 
@@ -208,13 +204,13 @@ class RleStreamRgb565Alpha4 : public PixelStream {
         alpha_buf_(0xFF),
         alpha_mode_(0) {}
 
-  void Read(Color* buf, uint16_t size) override {
+  void read(Color* buf, uint16_t size) override {
     while (size-- > 0) {
       *buf++ = next();
     }
   }
 
-  void Skip(uint32_t count) override {
+  void skip(uint32_t count) override {
     while (--count >= 0) next();
   }
 
@@ -360,13 +356,11 @@ class RleStream4bppxBiased<Resource, ColorMode, 4> : public PixelStream {
         run_value_(0),
         color_mode_(color_mode) {}
 
-  void Read(Color* buf, uint16_t size) override {
+  void read(Color* buf, uint16_t size) override {
     while (size-- > 0) {
       *buf++ = next();
     }
   }
-
-  void Skip(uint32_t n) override { skip(n); }
 
   // The algorihm processes nibbles (4-bit values), decoding them as follows:
   //
@@ -444,7 +438,7 @@ class RleStream4bppxBiased<Resource, ColorMode, 4> : public PixelStream {
     }
   }
 
-  void skip(uint32_t n) {
+  void skip(uint32_t n) override {
     while (n-- > 0) next();
   }
 

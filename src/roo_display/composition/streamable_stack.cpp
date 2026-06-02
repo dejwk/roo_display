@@ -650,7 +650,7 @@ class StreamableComboStream : public PixelStream {
         blending_modes_(std::move(blending_modes)),
         remaining_count_(0) {}
 
-  void Read(Color* buf, uint16_t size) override {
+  void read(Color* buf, uint16_t size) override {
     Color* result = buf;
     do {
       while (remaining_count_ == 0) {

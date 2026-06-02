@@ -81,13 +81,11 @@ class RasterPixelStream : public PixelStream {
         pixel_index_(ColorTraits<ColorMode>::pixels_per_byte),
         color_mode_(color_mode) {}
 
-  void Read(Color* buf, uint16_t size) override {
+  void read(Color* buf, uint16_t size) override {
     while (size-- > 0) {
       *buf++ = next();
     }
   }
-
-  void Skip(uint32_t count) override { skip(count); }
 
   // Advances the iterator to the next pixel in the buffer.
   Color next() {
@@ -98,7 +96,7 @@ class RasterPixelStream : public PixelStream {
     return cache_[pixel_index_++];
   }
 
-  void skip(uint32_t count) {
+  void skip(uint32_t count) override {
     uint32_t new_pixel_index = count + pixel_index_;
     if (new_pixel_index <= ColorTraits<ColorMode>::pixels_per_byte) {
       pixel_index_ = new_pixel_index;
@@ -142,13 +140,11 @@ class RasterPixelStream<Resource, ColorMode, pixel_order, byte_order, 1>
   RasterPixelStream(StreamType<Resource> stream, const ColorMode& color_mode)
       : stream_(std::move(stream)), color_mode_(color_mode) {}
 
-  void Read(Color* buf, uint16_t size) override {
+  void read(Color* buf, uint16_t size) override {
     while (size-- > 0) {
       *buf++ = next();
     }
   }
-
-  void Skip(uint32_t count) override { skip(count); }
 
   // Advances the iterator to the next pixel in the buffer.
   Color next() {
@@ -156,7 +152,7 @@ class RasterPixelStream<Resource, ColorMode, pixel_order, byte_order, 1>
     return read(stream_, color_mode_);
   }
 
-  void skip(uint32_t count) {
+  void skip(uint32_t count) override {
     stream_.skip(count * ColorMode::bits_per_pixel / 8);
   }
 
@@ -299,10 +295,9 @@ class Raster : public Rasterizable {
       row_width_bytes =
           static_cast<size_t>(width_) * ColorTraits<ColorMode>::bytes_per_pixel;
     } else {
-      row_width_bytes =
-          (static_cast<size_t>(width_) +
-           ColorTraits<ColorMode>::pixels_per_byte - 1) /
-          ColorTraits<ColorMode>::pixels_per_byte;
+      row_width_bytes = (static_cast<size_t>(width_) +
+                         ColorTraits<ColorMode>::pixels_per_byte - 1) /
+                        ColorTraits<ColorMode>::pixels_per_byte;
     }
 
     ColorRectIo<ColorMode, byte_order, pixel_order> io;
@@ -515,16 +510,15 @@ using ConstDramRasterBE =
     ConstDramRaster<ColorMode, ColorPixelOrder::kMsbFirst, roo_io::kBigEndian>;
 
 template <typename ColorMode>
-using ConstDramRasterLE =
-    ConstDramRaster<ColorMode, ColorPixelOrder::kMsbFirst,
-                    roo_io::kLittleEndian>;
+using ConstDramRasterLE = ConstDramRaster<ColorMode, ColorPixelOrder::kMsbFirst,
+                                          roo_io::kLittleEndian>;
 
 template <typename ColorMode>
 using ProgMemRasterBE =
     ProgMemRaster<ColorMode, ColorPixelOrder::kMsbFirst, roo_io::kBigEndian>;
 
 template <typename ColorMode>
-using ProgMemRasterLE = ProgMemRaster<ColorMode, ColorPixelOrder::kMsbFirst,
-                                      roo_io::kLittleEndian>;
+using ProgMemRasterLE =
+    ProgMemRaster<ColorMode, ColorPixelOrder::kMsbFirst, roo_io::kLittleEndian>;
 
 }  // namespace roo_display

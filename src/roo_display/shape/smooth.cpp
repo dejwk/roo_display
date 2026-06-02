@@ -10,9 +10,9 @@ namespace {
 
 class EmptyStream : public PixelStream {
  public:
-  void Read(Color*, uint16_t) override {}
+  void read(Color*, uint16_t) override {}
 
-  void Skip(uint32_t) override {}
+  void skip(uint32_t) override {}
 };
 
 }  // namespace

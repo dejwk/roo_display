@@ -1358,7 +1358,7 @@ class RoundRectStream : public PixelStream {
         inner_tracker_(rix2_ > 0 ? Square(rix2_ - 1) : 0, Square(rix2_ + 1),
                        rix2_ > 0, RowDySq4(bounds_.yMin(), y0x2_, y1x2_)) {}
 
-  void Read(Color* buf, uint16_t count) override {
+  void read(Color* buf, uint16_t count) override {
     while (count > 0) {
       if (!row_ready_) PrepareRow();
       if (segment_index_ >= segment_count_) return;
@@ -1395,7 +1395,7 @@ class RoundRectStream : public PixelStream {
     }
   }
 
-  void Skip(uint32_t count) override {
+  void skip(uint32_t count) override {
     uint16_t width = bounds_.width();
     y_ += count / width;
     x_ += count % width;
@@ -1595,7 +1595,7 @@ class RectInnerRoundRectStream : public PixelStream {
         inner_outside_left_end_((int16_t)floorf(rect.inner_x0 - 0.5f)),
         inner_outside_right_start_((int16_t)ceilf(rect.inner_x1 + 0.5f)) {}
 
-  void Read(Color* buf, uint16_t count) override {
+  void read(Color* buf, uint16_t count) override {
     while (count > 0) {
       if (!row_ready_) PrepareRow();
       if (segment_index_ >= segment_count_) return;
@@ -1626,7 +1626,7 @@ class RectInnerRoundRectStream : public PixelStream {
     }
   }
 
-  void Skip(uint32_t count) override {
+  void skip(uint32_t count) override {
     uint16_t width = bounds_.width();
     y_ += count / width;
     x_ += count % width;
@@ -1866,7 +1866,7 @@ class RoundRectCornersStream : public PixelStream {
         inner_inside_right_end_((int16_t)floorf(inner_x1_ - 0.5f)),
         inner_outside_right_start_((int16_t)ceilf(inner_x1_ + 0.5f)) {}
 
-  void Read(Color* buf, uint16_t count) override {
+  void read(Color* buf, uint16_t count) override {
     while (count > 0) {
       if (!row_ready_) PrepareRow();
       if (segment_index_ >= segment_count_) return;
@@ -1897,7 +1897,7 @@ class RoundRectCornersStream : public PixelStream {
     }
   }
 
-  void Skip(uint32_t count) override {
+  void skip(uint32_t count) override {
     uint16_t width = bounds_.width();
     y_ += count / width;
     x_ += count % width;

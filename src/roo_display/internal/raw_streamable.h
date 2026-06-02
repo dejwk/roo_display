@@ -314,7 +314,7 @@ class DrawableRawStreamable : public Streamable {
    public:
     Stream(std::unique_ptr<RawStream> raw) : raw_(std::move(raw)) {}
 
-    void Read(Color *buf, uint16_t count) override {
+    void read(Color *buf, uint16_t count) override {
       while (count-- > 0) *buf++ = raw_->next();
     }
 

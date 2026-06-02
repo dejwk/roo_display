@@ -65,7 +65,7 @@ class WindowedPixelStream {
 
       uint32_t run = std::min<uint32_t>(count, current_run_);
       if (current_run_is_delegate_) {
-        delegate_->Skip(run);
+        delegate_->skip(run);
       }
       count -= run;
       advance(run);
@@ -75,7 +75,7 @@ class WindowedPixelStream {
  private:
   void readDelegate(Color* buf, uint32_t count) {
     DCHECK(count <= 0xFFFFu);
-    delegate_->Read(buf, static_cast<uint16_t>(count));
+    delegate_->read(buf, static_cast<uint16_t>(count));
   }
 
   void advance(uint32_t count) {

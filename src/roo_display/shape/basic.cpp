@@ -167,11 +167,11 @@ class FilledRectStream : public PixelStream {
  public:
   FilledRectStream(Color color) : color_(color) {}
 
-  void Read(Color *buf, uint16_t count) override {
+  void read(Color *buf, uint16_t count) override {
     FillColor(buf, count, color_);
   }
 
-  void Skip(uint32_t count) override {}
+  void skip(uint32_t count) override {}
 
  private:
   Color color_;

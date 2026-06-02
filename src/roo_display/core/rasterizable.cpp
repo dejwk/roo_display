@@ -12,7 +12,7 @@ class Stream : public PixelStream {
         x_(bounds_.xMin()),
         y_(bounds_.yMin()) {}
 
-  void Read(Color *buf, uint16_t size) override {
+  void read(Color *buf, uint16_t size) override {
     int16_t x[size];
     int16_t y[size];
     for (int i = 0; i < size; ++i) {
@@ -36,7 +36,7 @@ class Stream : public PixelStream {
     }
   }
 
-  void Skip(uint32_t count) override {
+  void skip(uint32_t count) override {
     auto w = bounds_.width();
     y_ += count / w;
     x_ += count % w;

@@ -247,7 +247,7 @@ TEST(RleStream4bppxBiased, VarintArbitraryPixels) {
 }
 
 TEST(RleStream4bppxBiased, ReadAndSkipMethods) {
-  // Test Read() and Skip() methods
+  // Test read() and skip() methods
   uint8_t data[] = {0x50};  // Run of 5 transparent pixels
 
   roo_io::MemoryIterable resource((const roo::byte*)data,
@@ -257,7 +257,7 @@ TEST(RleStream4bppxBiased, ReadAndSkipMethods) {
       resource.iterator(), color_mode);
 
   Color buffer[3];
-  stream.Read(buffer, 3);
+  stream.read(buffer, 3);
 
   // All should be transparent.
   for (int i = 0; i < 3; i++) {
@@ -265,7 +265,7 @@ TEST(RleStream4bppxBiased, ReadAndSkipMethods) {
   }
 
   // Skip remaining 2 pixels
-  stream.Skip(2);
+  stream.skip(2);
 
   ASSERT_TRUE(stream.ok());
   stream.next();

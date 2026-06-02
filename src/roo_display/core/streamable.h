@@ -12,16 +12,26 @@ namespace roo_display {
 class PixelStream {
  public:
   /// Read up to `size` pixels into `buf`.
-  virtual void Read(Color* buf, uint16_t size) = 0;
+  virtual void read(Color* buf, uint16_t size) = 0;
 
   /// Skip `count` pixels.
-  virtual void Skip(uint32_t count) {
+  virtual void skip(uint32_t count) {
     Color buf[kPixelWritingBufferSize];
     while (count > kPixelWritingBufferSize) {
-      Read(buf, kPixelWritingBufferSize);
+      read(buf, kPixelWritingBufferSize);
       count -= kPixelWritingBufferSize;
     }
-    Read(buf, count);
+    read(buf, count);
+  }
+
+  __attribute__((deprecated("Use `read()` instead."))) void Read(
+      Color* buf, uint16_t count) {
+    read(buf, count);
+  }
+
+  __attribute__((deprecated("Use `skip()` instead."))) void Skip(
+      uint32_t count) {
+    skip(count);
   }
 
   virtual ~PixelStream() {}
@@ -37,7 +47,7 @@ inline void fillReplaceRect(DisplayOutput& output, const Box& extents,
   while (count > 0) {
     uint32_t n = count;
     if (n > kPixelWritingBufferSize) n = kPixelWritingBufferSize;
-    stream->Read(buf, n);
+    stream->read(buf, n);
     output.write(buf, n);
     count -= n;
   }
@@ -52,7 +62,7 @@ inline void fillPaintRectOverOpaqueBg(DisplayOutput& output, const Box& extents,
   do {
     uint16_t n = kPixelWritingBufferSize;
     if (n > count) n = count;
-    stream->Read(buf, n);
+    stream->read(buf, n);
     for (int i = 0; i < n; i++) buf[i] = AlphaBlendOverOpaque(bgColor, buf[i]);
     output.write(buf, n);
     count -= n;
@@ -68,7 +78,7 @@ inline void fillPaintRectOverBg(DisplayOutput& output, const Box& extents,
   do {
     uint16_t n = kPixelWritingBufferSize;
     if (n > count) n = count;
-    stream->Read(buf, n);
+    stream->read(buf, n);
     for (int i = 0; i < n; ++i) {
       buf[i] = AlphaBlend(bgcolor, buf[i]);
     }
@@ -91,7 +101,7 @@ inline void writeRectVisible(DisplayOutput& output, const Box& extents,
         idx = 0;
         int n = remaining < kPixelWritingBufferSize ? remaining
                                                     : kPixelWritingBufferSize;
-        stream->Read(buf, n);
+        stream->read(buf, n);
         remaining -= n;
       }
       Color color = buf[idx++];
@@ -117,7 +127,8 @@ inline void writeRectVisibleOverOpaqueBg(DisplayOutput& output,
         idx = 0;
         int n = remaining < kPixelWritingBufferSize ? remaining
                                                     : kPixelWritingBufferSize;
-        stream->Read(buf, n);
+        stream->read(buf, n);
+        remaining -= n;
       }
       Color color = buf[idx++];
       if (color.a() != 0) {
@@ -141,7 +152,8 @@ inline void writeRectVisibleOverBg(DisplayOutput& output, const Box& extents,
         idx = 0;
         int n = remaining < kPixelWritingBufferSize ? remaining
                                                     : kPixelWritingBufferSize;
-        stream->Read(buf, n);
+        stream->read(buf, n);
+        remaining -= n;
       }
       Color color = buf[idx++];
       if (color.a() != 0) {
@@ -274,7 +286,7 @@ class BufferingStream {
   uint16_t fetch() {
     uint16_t n = kPixelWritingBufferSize;
     if (n > remaining_) n = remaining_;
-    stream_->Read(buf_, n);
+    stream_->read(buf_, n);
     remaining_ -= n;
     return n;
   }
@@ -309,7 +321,7 @@ class SubRectangleStream : public PixelStream {
 
   SubRectangleStream(SubRectangleStream&&) = default;
 
-  void Read(Color* buf, uint16_t count) override {
+  void read(Color* buf, uint16_t count) override {
     do {
       if (x_ >= width_) {
         dskip(width_skip_);
@@ -349,13 +361,13 @@ class SubRectangleStream : public PixelStream {
     count -= buffered;
     idx_ = kPixelWritingBufferSize;
     if (count >= kPixelWritingBufferSize / 2) {
-      stream_.Skip(count);
+      stream_.skip(count);
       remaining_ -= count;
       return;
     }
     uint16_t n = kPixelWritingBufferSize;
     if (n > remaining_) n = remaining_;
-    stream_.Read(buf_, n);
+    stream_.read(buf_, n);
     remaining_ -= n;
     idx_ = count;
   }
@@ -364,7 +376,7 @@ class SubRectangleStream : public PixelStream {
     if (idx_ >= kPixelWritingBufferSize) {
       uint16_t n = kPixelWritingBufferSize;
       if (n > remaining_) n = remaining_;
-      stream_.Read(buf_, n);
+      stream_.read(buf_, n);
       idx_ = 0;
       remaining_ -= n;
     }
@@ -396,7 +408,7 @@ inline SubRectangleStream<Stream> MakeSubRectangle(Stream stream,
   int xoffset = bounds.xMin() - extents.xMin();
   int yoffset = bounds.yMin() - extents.yMin();
   uint32_t skipped = yoffset * extents.width() + xoffset;
-  stream.Skip(skipped);
+  stream.skip(skipped);
   return SubRectangleStream<Stream>(std::move(stream), extents.area() - skipped,
                                     bounds.width(), line_offset);
 }
@@ -412,7 +424,7 @@ inline std::unique_ptr<PixelStream> SubRectangle(Stream stream,
   int xoffset = bounds.xMin() - extents.xMin();
   int yoffset = bounds.yMin() - extents.yMin();
   uint32_t skipped = yoffset * extents.width() + xoffset;
-  stream.Skip(skipped);
+  stream.skip(skipped);
   return std::unique_ptr<PixelStream>(new internal::SubRectangleStream<Stream>(
       std::move(stream), extents.area() - skipped, bounds.width(),
       line_offset));

@@ -197,7 +197,7 @@ class BlendingFilter : public DisplayOutput {
                    address_window_.xMax(), address_window_.yMax(),
                    &addr_uniform_color_)) {
       addr_uniform_ = true;
-    } else {
+    } else if (inner_window.height() > 1) {
       addr_stream_.reset(raster_->createStream(inner_window),
                          address_window_.width(),
                          inner_window.translate(-address_window_.xMin(),
@@ -250,23 +250,71 @@ class BlendingFilter : public DisplayOutput {
       return;
     }
 
-    int16_t x[pixel_count];
-    int16_t y[pixel_count];
     Color newcolor[pixel_count];
 
-    for (uint32_t i = 0; i < pixel_count; ++i) {
-      x[i] = cursor_x_++;
-      y[i] = cursor_y_;
-      if (cursor_x_ > address_window_.xMax()) {
-        cursor_y_++;
-        cursor_x_ = address_window_.xMin();
+    if (cursor_x_ + (int32_t)pixel_count - 1 <= address_window_.xMax()) {
+      // Single line.
+      Color* src = color;
+      Color* dst = newcolor;
+      size_t remaining = pixel_count;
+      const Box& raster_extents = raster_->extents();
+      const bool y_overlaps = cursor_y_ >= raster_extents.yMin() &&
+                              cursor_y_ <= raster_extents.yMax();
+      if (y_overlaps && raster_extents.xMin() > cursor_x_) {
+        // Write the leading part (before raster).
+        size_t batch =
+            std::min<uint32_t>(remaining, raster_extents.xMin() - cursor_x_);
+        std::copy(src, src + batch, dst);
+        src += batch;
+        dst += batch;
+        cursor_x_ += batch;
+        remaining -= batch;
+      }
+      if (remaining > 0 && y_overlaps && cursor_x_ <= raster_extents.xMax()) {
+        // Write the overlapping part.
+        size_t batch = std::min<uint32_t>(
+            remaining, raster_extents.xMax() - cursor_x_ + 1);
+        if (raster_->readColorRect(cursor_x_, cursor_y_, cursor_x_ + batch - 1,
+                                   cursor_y_, dst)) {
+          Color raster_color = dst[0];
+          for (size_t i = 0; i < batch; ++i) {
+            dst[i] = blender_.blend(raster_color, src[i]);
+          }
+        } else {
+          for (size_t i = 0; i < batch; ++i) {
+            dst[i] = blender_.blend(dst[i], src[i]);
+          }
+        }
+        cursor_x_ += batch;
+        remaining -= batch;
+        src += batch;
+        dst += batch;
+      }
+      if (remaining > 0) {
+        // Write the trailing part (after the raster).
+        std::copy(src, src + remaining, dst);
+        cursor_x_ += remaining;
+        remaining = 0;
+        src += remaining;
+        dst += remaining;
+      }
+    } else {
+      // Regular slow path (multi-line).
+      int16_t x[pixel_count];
+      int16_t y[pixel_count];
+      for (uint32_t i = 0; i < pixel_count; ++i) {
+        x[i] = cursor_x_++;
+        y[i] = cursor_y_;
+        if (cursor_x_ > address_window_.xMax()) {
+          cursor_y_++;
+          cursor_x_ = address_window_.xMin();
+        }
+      }
+      raster_->readColorsMaybeOutOfBounds(x, y, pixel_count, newcolor);
+      for (uint32_t i = 0; i < pixel_count; ++i) {
+        newcolor[i] = blender_.blend(newcolor[i], color[i]);
       }
     }
-    raster_->readColorsMaybeOutOfBounds(x, y, pixel_count, newcolor);
-    for (uint32_t i = 0; i < pixel_count; ++i) {
-      newcolor[i] = blender_.blend(newcolor[i], color[i]);
-    }
-
     internal::BlendWithBackground(newcolor, pixel_count, bgcolor_);
     output_->write(newcolor, pixel_count);
   }
@@ -310,29 +358,81 @@ class BlendingFilter : public DisplayOutput {
       return;
     }
 
-    int16_t x[pixel_count];
-    int16_t y[pixel_count];
     Color newcolor[pixel_count];
 
-    for (uint32_t i = 0; i < pixel_count; ++i) {
-      x[i] = cursor_x_++;
-      y[i] = cursor_y_;
-      if (cursor_x_ > address_window_.xMax()) {
-        cursor_y_++;
-        cursor_x_ = address_window_.xMin();
+    if (cursor_x_ + (int32_t)pixel_count - 1 <= address_window_.xMax()) {
+      // Single line.
+      Color* dst = newcolor;
+      size_t remaining = pixel_count;
+      const Box& raster_extents = raster_->extents();
+      const bool y_overlaps = cursor_y_ >= raster_extents.yMin() &&
+                              cursor_y_ <= raster_extents.yMax();
+      if (y_overlaps && raster_extents.xMin() > cursor_x_) {
+        // Write the leading part (before raster).
+        size_t batch =
+            std::min<uint32_t>(remaining, raster_extents.xMin() - cursor_x_);
+        roo_io::PatternFill<sizeof(Color)>((roo::byte*)dst, batch,
+                                           (const roo::byte*)&color);
+        dst += batch;
+        cursor_x_ += batch;
+        remaining -= batch;
       }
-    }
-    raster_->readColorsMaybeOutOfBounds(x, y, pixel_count, newcolor);
-    if (transparent_src) {
-      for (uint32_t i = 0; i < pixel_count; ++i) {
-        newcolor[i] = blender_.blendTransparentSrc(newcolor[i], color);
+      if (remaining > 0 && y_overlaps && cursor_x_ <= raster_extents.xMax()) {
+        // Read the overlapping part.
+        size_t batch = std::min<uint32_t>(
+            remaining, raster_extents.xMax() - cursor_x_ + 1);
+        if (raster_->readColorRect(cursor_x_, cursor_y_, cursor_x_ + batch - 1,
+                                   cursor_y_, dst)) {
+          Color result = transparent_src
+                             ? blender_.blendTransparentSrc(dst[0], color)
+                             : blender_.blend(dst[0], color);
+          roo_io::PatternFill<sizeof(Color)>((roo::byte*)dst, batch,
+                                             (const roo::byte*)&result);
+        } else {
+          if (transparent_src) {
+            for (size_t i = 0; i < batch; ++i) {
+              dst[i] = blender_.blendTransparentSrc(dst[i], color);
+            }
+          } else {
+            for (size_t i = 0; i < batch; ++i) {
+              dst[i] = blender_.blend(dst[i], color);
+            }
+          }
+        }
+        cursor_x_ += batch;
+        remaining -= batch;
+        dst += batch;
+      }
+      if (remaining > 0) {
+        // Read the trailing part (after the raster).
+        roo_io::PatternFill<sizeof(Color)>((roo::byte*)dst, remaining,
+                                           (const roo::byte*)&color);
+        cursor_x_ += remaining;
+        remaining = 0;
+        dst += remaining;
       }
     } else {
+      int16_t x[pixel_count];
+      int16_t y[pixel_count];
       for (uint32_t i = 0; i < pixel_count; ++i) {
-        newcolor[i] = blender_.blend(newcolor[i], color);
+        x[i] = cursor_x_++;
+        y[i] = cursor_y_;
+        if (cursor_x_ > address_window_.xMax()) {
+          cursor_y_++;
+          cursor_x_ = address_window_.xMin();
+        }
+      }
+      raster_->readColorsMaybeOutOfBounds(x, y, pixel_count, newcolor);
+      if (transparent_src) {
+        for (uint32_t i = 0; i < pixel_count; ++i) {
+          newcolor[i] = blender_.blendTransparentSrc(newcolor[i], color);
+        }
+      } else {
+        for (uint32_t i = 0; i < pixel_count; ++i) {
+          newcolor[i] = blender_.blend(newcolor[i], color);
+        }
       }
     }
-
     internal::BlendWithBackground(newcolor, pixel_count, bgcolor_);
     output_->write(newcolor, pixel_count);
   }

@@ -110,6 +110,20 @@ class WindowedPixelStream {
   bool current_run_is_delegate_;
 };
 
+inline __attribute__((always_inline)) void BlendWithBackground(
+    Color* color, uint32_t pixel_count, Color bgcolor) {
+  if (bgcolor.a() == color::Transparent) return;
+  if (bgcolor.isOpaque()) {
+    for (uint32_t i = 0; i < pixel_count; ++i) {
+      color[i] = AlphaBlendOverOpaque(bgcolor, color[i]);
+    }
+  } else {
+    for (uint32_t i = 0; i < pixel_count; ++i) {
+      color[i] = AlphaBlend(bgcolor, color[i]);
+    }
+  }
+}
+
 }  // namespace internal
 
 /// Filtering device that blends with a rasterizable image.
@@ -206,11 +220,7 @@ class BlendingFilter : public DisplayOutput {
         for (uint16_t i = 0; i < batch; ++i) {
           newcolor[i] = blender_.blend(addr_uniform_color_, color[i]);
         }
-        if (bgcolor_.a() != 0) {
-          for (uint16_t i = 0; i < batch; ++i) {
-            newcolor[i] = AlphaBlend(bgcolor_, newcolor[i]);
-          }
-        }
+        internal::BlendWithBackground(newcolor, batch, bgcolor_);
         output_->write(newcolor, batch);
         color += batch;
         pixel_count -= batch;
@@ -231,11 +241,7 @@ class BlendingFilter : public DisplayOutput {
         for (uint16_t i = 0; i < batch; ++i) {
           newcolor[i] = blender_.blend(raster_color[i], color[i]);
         }
-        if (bgcolor_ != color::Transparent) {
-          for (uint16_t i = 0; i < batch; ++i) {
-            newcolor[i] = AlphaBlend(bgcolor_, newcolor[i]);
-          }
-        }
+        internal::BlendWithBackground(newcolor, batch, bgcolor_);
         output_->write(newcolor, batch);
         color += batch;
         pixel_count -= batch;
@@ -260,11 +266,8 @@ class BlendingFilter : public DisplayOutput {
     for (uint32_t i = 0; i < pixel_count; ++i) {
       newcolor[i] = blender_.blend(newcolor[i], color[i]);
     }
-    if (bgcolor_ != color::Transparent) {
-      for (uint32_t i = 0; i < pixel_count; ++i) {
-        newcolor[i] = AlphaBlend(bgcolor_, newcolor[i]);
-      }
-    }
+
+    internal::BlendWithBackground(newcolor, pixel_count, bgcolor_);
     output_->write(newcolor, pixel_count);
   }
 
@@ -299,11 +302,7 @@ class BlendingFilter : public DisplayOutput {
             newcolor[i] = blender_.blend(raster_color[i], color);
           }
         }
-        if (bgcolor_ != color::Transparent) {
-          for (uint16_t i = 0; i < batch; ++i) {
-            newcolor[i] = AlphaBlend(bgcolor_, newcolor[i]);
-          }
-        }
+        internal::BlendWithBackground(newcolor, batch, bgcolor_);
         output_->write(newcolor, batch);
         pixel_count -= batch;
       }
@@ -333,11 +332,8 @@ class BlendingFilter : public DisplayOutput {
         newcolor[i] = blender_.blend(newcolor[i], color);
       }
     }
-    if (bgcolor_ != color::Transparent) {
-      for (uint32_t i = 0; i < pixel_count; ++i) {
-        newcolor[i] = AlphaBlend(bgcolor_, newcolor[i]);
-      }
-    }
+
+    internal::BlendWithBackground(newcolor, pixel_count, bgcolor_);
     output_->write(newcolor, pixel_count);
   }
 
@@ -402,11 +398,7 @@ class BlendingFilter : public DisplayOutput {
     for (uint32_t i = 0; i < pixel_count; ++i) {
       newcolor[i] = blender_.blend(newcolor[i], color[i]);
     }
-    if (bgcolor_ != color::Transparent) {
-      for (uint32_t i = 0; i < pixel_count; ++i) {
-        newcolor[i] = AlphaBlend(bgcolor_, newcolor[i]);
-      }
-    }
+    internal::BlendWithBackground(newcolor, pixel_count, bgcolor_);
     output_->writePixels(mode, newcolor, x, y, pixel_count);
   }
 
@@ -447,11 +439,7 @@ class BlendingFilter : public DisplayOutput {
         newcolor[i] = blender_.blend(newcolor[i], color);
       }
     }
-    if (bgcolor_ != color::Transparent) {
-      for (uint32_t i = 0; i < pixel_count; ++i) {
-        newcolor[i] = AlphaBlend(bgcolor_, newcolor[i]);
-      }
-    }
+    internal::BlendWithBackground(newcolor, pixel_count, bgcolor_);
     output_->writePixels(mode, newcolor, x, y, pixel_count);
   }
 
@@ -598,11 +586,7 @@ class BlendingFilter : public DisplayOutput {
           newcolor[i] = blender_.blend(newcolor[i], color);
         }
       }
-      if (bgcolor_ != color::Transparent) {
-        for (uint16_t i = 0; i < pixel_count; ++i) {
-          newcolor[i] = AlphaBlend(bgcolor_, newcolor[i]);
-        }
-      }
+      internal::BlendWithBackground(newcolor, pixel_count, bgcolor_);
       output_->setAddress(Box(xMin, yMin, xMax, yMax), mode);
       output_->write(newcolor, pixel_count);
     }

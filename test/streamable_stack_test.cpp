@@ -3,6 +3,7 @@
 
 #include "roo_display.h"
 #include "roo_display/color/color.h"
+#include "roo_display/shape/basic.h"
 #include "testing.h"
 
 using namespace testing;
@@ -368,6 +369,78 @@ TEST(StreamableStack, TwoOverlapAlphaBlend) {
                                           "          "
                                           "          "
                                           "          "));
+}
+
+// Verifies createStream() reports exact BLANK-prefix run metadata.
+TEST(StreamableStack, StreamReportsRunLengthForBlankPrefix) {
+  FilledRect input(Box(2, 0, 3, 0), color::Red);
+  StreamableStack stack(Box(0, 0, 7, 0));
+  stack.addInput(&input);
+
+  std::unique_ptr<PixelStream> stream = stack.createStream();
+  Color pixel[1];
+  uint32_t run_length = 0;
+
+  stream->read(pixel, 1, run_length);
+  EXPECT_EQ(run_length, 2u);
+  EXPECT_EQ(pixel[0], color::Transparent);
+
+  stream->read(pixel, 1, run_length);
+  EXPECT_EQ(run_length, 1u);
+  EXPECT_EQ(pixel[0], color::Transparent);
+
+  stream->read(pixel, 1, run_length);
+  EXPECT_EQ(run_length, 2u);
+  EXPECT_EQ(pixel[0], color::Red);
+
+  stream->read(pixel, 1, run_length);
+  EXPECT_EQ(run_length, 1u);
+  EXPECT_EQ(pixel[0], color::Red);
+
+  stream->read(pixel, 1, run_length);
+  EXPECT_EQ(run_length, 4u);
+  EXPECT_EQ(pixel[0], color::Transparent);
+}
+
+// Verifies createStream() propagates exact WRITE_SINGLE runs for disjoint inputs.
+TEST(StreamableStack, StreamReportsRunLengthForDisjointSingleInputSpans) {
+  FilledRect left(Box(1, 0, 2, 0), color::Blue);
+  FilledRect right(Box(6, 0, 7, 0), color::Green);
+  StreamableStack stack(Box(0, 0, 9, 0));
+  stack.addInput(&left);
+  stack.addInput(&right);
+
+  std::unique_ptr<PixelStream> stream = stack.createStream();
+  Color pixel[1];
+  uint32_t run_length = 0;
+
+  stream->read(pixel, 1, run_length);
+  EXPECT_EQ(run_length, 1u);
+  EXPECT_EQ(pixel[0], color::Transparent);
+
+  stream->read(pixel, 1, run_length);
+  EXPECT_EQ(run_length, 2u);
+  EXPECT_EQ(pixel[0], color::Blue);
+
+  stream->read(pixel, 1, run_length);
+  EXPECT_EQ(run_length, 1u);
+  EXPECT_EQ(pixel[0], color::Blue);
+
+  stream->read(pixel, 1, run_length);
+  EXPECT_EQ(run_length, 3u);
+  EXPECT_EQ(pixel[0], color::Transparent);
+
+  stream->read(pixel, 1, run_length);
+  EXPECT_EQ(run_length, 2u);
+  EXPECT_EQ(pixel[0], color::Transparent);
+
+  stream->read(pixel, 1, run_length);
+  EXPECT_EQ(run_length, 1u);
+  EXPECT_EQ(pixel[0], color::Transparent);
+
+  stream->read(pixel, 1, run_length);
+  EXPECT_EQ(run_length, 2u);
+  EXPECT_EQ(pixel[0], color::Green);
 }
 
 }  // namespace roo_display

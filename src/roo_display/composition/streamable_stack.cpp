@@ -655,6 +655,7 @@ class StreamableComboStream : public PixelStream {
   void read(Color* buf, uint16_t size, uint32_t& run_length) override {
     run_length = 0;
     Color* result = buf;
+    bool first_batch = true;
     do {
       while (remaining_count_ == 0) {
         last_instruction_ = engine_.fetch();
@@ -691,11 +692,25 @@ class StreamableComboStream : public PixelStream {
       uint16_t batch = std::min(size, remaining_count_);
       switch (last_instruction_) {
         case BLANK: {
+          if (first_batch) {
+            run_length = remaining_count_;
+          }
           FillColor(result, batch, color::Transparent);
           break;
         }
         case WRITE_SINGLE: {
-          streams_[input_].read(result, batch);
+          if (first_batch) {
+            uint32_t input_run_length = 0;
+            streams_[input_].read(result, batch, input_run_length);
+            if (input_run_length == PixelStream::kUnlimitedRunLength) {
+              run_length = remaining_count_;
+            } else if (input_run_length > 0) {
+              run_length = input_run_length;
+              if (run_length > remaining_count_) run_length = remaining_count_;
+            }
+          } else {
+            streams_[input_].read(result, batch);
+          }
           break;
         }
         case WRITE: {
@@ -727,6 +742,7 @@ class StreamableComboStream : public PixelStream {
       result += batch;
       size -= batch;
       remaining_count_ -= batch;
+      first_batch = false;
     } while (size > 0);
   }
 

@@ -293,6 +293,7 @@ class BufferingStream {
   BufferingStream(std::unique_ptr<PixelStream> stream, uint32_t count)
       : stream_(std::move(stream)),
         remaining_(count),
+      buffered_run_length_(0),
         idx_(kPixelWritingBufferSize) {}
 
   Color next() {
@@ -339,6 +340,24 @@ class BufferingStream {
     }
   }
 
+  void read(Color* buf, uint16_t count, uint32_t& run_length) {
+    run_length = 0;
+    if (count == 0) return;
+    if (idx_ >= kPixelWritingBufferSize) {
+      idx_ = 0;
+      fetch();
+    }
+    if (buffered_run_length_ != 0 &&
+        static_cast<uint32_t>(idx_) < buffered_run_length_) {
+      if (buffered_run_length_ == PixelStream::kUnlimitedRunLength) {
+        run_length = PixelStream::kUnlimitedRunLength;
+      } else {
+        run_length = buffered_run_length_ - static_cast<uint32_t>(idx_);
+      }
+    }
+    read(buf, count);
+  }
+
   void blend(Color* buf, uint16_t count, BlendingMode blending_mode) {
     if (idx_ >= kPixelWritingBufferSize) {
       idx_ = 0;
@@ -383,13 +402,18 @@ class BufferingStream {
   uint16_t fetch() {
     uint16_t n = kPixelWritingBufferSize;
     if (n > remaining_) n = remaining_;
-    stream_->read(buf_, n);
+    if (n == 0) {
+      buffered_run_length_ = 0;
+      return 0;
+    }
+    stream_->read(buf_, n, buffered_run_length_);
     remaining_ -= n;
     return n;
   }
 
   std::unique_ptr<PixelStream> stream_;
   uint32_t remaining_;
+  uint32_t buffered_run_length_;
   Color buf_[kPixelWritingBufferSize];
   int idx_;
 };

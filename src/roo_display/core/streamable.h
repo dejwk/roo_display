@@ -293,7 +293,7 @@ class BufferingStream {
   BufferingStream(std::unique_ptr<PixelStream> stream, uint32_t count)
       : stream_(std::move(stream)),
         remaining_(count),
-      buffered_run_length_(0),
+        buffered_run_length_(0),
         idx_(kPixelWritingBufferSize) {}
 
   Color next() {
@@ -387,6 +387,14 @@ class BufferingStream {
       return;
     }
     count -= buffered;
+    idx_ = kPixelWritingBufferSize;
+    buffered_run_length_ = 0;
+    if (count >= kDelegateSkipThreshold) {
+      if (count > remaining_) count = remaining_;
+      stream_->skip(count);
+      remaining_ -= count;
+      return;
+    }
     idx_ = 0;
     do {
       uint16_t n = fetch();
@@ -412,6 +420,7 @@ class BufferingStream {
   }
 
   std::unique_ptr<PixelStream> stream_;
+  static constexpr uint16_t kDelegateSkipThreshold = 32;
   uint32_t remaining_;
   uint32_t buffered_run_length_;
   Color buf_[kPixelWritingBufferSize];

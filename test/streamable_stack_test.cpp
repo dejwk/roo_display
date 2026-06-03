@@ -402,7 +402,8 @@ TEST(StreamableStack, StreamReportsRunLengthForBlankPrefix) {
   EXPECT_EQ(pixel[0], color::Transparent);
 }
 
-// Verifies createStream() propagates exact WRITE_SINGLE runs for disjoint inputs.
+// Verifies createStream() propagates exact WRITE_SINGLE runs for disjoint
+// inputs.
 TEST(StreamableStack, StreamReportsRunLengthForDisjointSingleInputSpans) {
   FilledRect left(Box(1, 0, 2, 0), color::Blue);
   FilledRect right(Box(6, 0, 7, 0), color::Green);

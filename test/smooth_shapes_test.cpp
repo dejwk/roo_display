@@ -222,6 +222,42 @@ FakeOffscreen<Argb8888> StreamShapeArgb8888(const Streamable& streamable) {
       BlendingMode::kSourceOver, color::Transparent);
 }
 
+void ExpectRunLengthTracksExactSolidSegmentRemainder(const SmoothShape& shape) {
+  std::unique_ptr<PixelStream> stream = shape.createStream();
+  const Box bounds = shape.extents();
+  const uint32_t pixel_count = (uint32_t)bounds.width() * bounds.height();
+
+  bool saw_nonzero_run = false;
+  bool saw_zero_run = false;
+  Color prev_color = color::Transparent;
+  uint32_t prev_run_length = 0;
+  bool has_prev = false;
+
+  for (uint32_t i = 0; i < pixel_count; ++i) {
+    Color current;
+    uint32_t run_length = 0;
+    stream->read(&current, 1, run_length);
+
+    if (run_length == 0) {
+      saw_zero_run = true;
+    } else {
+      saw_nonzero_run = true;
+    }
+
+    if (has_prev && prev_run_length > 1) {
+      EXPECT_EQ(prev_color, current);
+      EXPECT_EQ(prev_run_length - 1, run_length);
+    }
+
+    prev_color = current;
+    prev_run_length = run_length;
+    has_prev = true;
+  }
+
+  EXPECT_TRUE(saw_nonzero_run);
+  EXPECT_TRUE(saw_zero_run);
+}
+
 void ExpectTranslatedShapeMatches(const SmoothShape& original,
                                   const SmoothShape& expected, int16_t dx,
                                   int16_t dy,
@@ -603,6 +639,29 @@ TEST(SmoothShapes, ThickRoundRectCornerRadiiClippedDrawMatchesStreaming) {
       BlendingMode::kSourceOver, color::White);
 
   EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
+}
+
+TEST(SmoothShapes, RoundRectStreamReportsExactSolidSegmentPrefixRuns) {
+  const SmoothShape shape = SmoothThickRoundRect(
+      0.5f, 0.5f, 18.5f, 14.5f, 4.0f, 2.0f, color::Black, Color(0xFFF3EFE7));
+
+  ExpectRunLengthTracksExactSolidSegmentRemainder(shape);
+}
+
+TEST(SmoothShapes, RectInnerRoundRectStreamReportsExactSolidSegmentPrefixRuns) {
+  const SmoothShape shape = SmoothThickRoundRect(
+      0.5f, 0.5f, 20.5f, 14.5f, 2.0f, 5.0f, color::Black, Color(0xFFF3EFE7));
+
+  ExpectRunLengthTracksExactSolidSegmentRemainder(shape);
+}
+
+TEST(SmoothShapes,
+     UnequalCornerRoundRectStreamReportsExactSolidSegmentPrefixRuns) {
+  const SmoothShape shape = SmoothThickRoundRect(
+      0.5f, 0.5f, 20.5f, 14.5f, RoundRectRadii{5.0f, 2.0f, 4.0f, 3.0f}, 2.0f,
+      color::Black.withA(0x95), Color(0x80F3EFE7));
+
+  ExpectRunLengthTracksExactSolidSegmentRemainder(shape);
 }
 
 TEST(SmoothShapes, DrawSmallCirclesCenterWhole) {

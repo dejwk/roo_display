@@ -1362,10 +1362,17 @@ class RoundRectStream : public PixelStream {
 
   void read(Color* buf, uint16_t count, uint32_t& run_length) override {
     run_length = 0;
+    bool first_batch = true;
     while (count > 0) {
       if (!row_ready_) PrepareRow();
       if (segment_index_ >= segment_count_) return;
       const Segment& segment = segments_[segment_index_];
+      if (first_batch) {
+        run_length = (segment.kind == SegmentKind::kSlow)
+                         ? 0
+                         : (uint32_t)(segment.end_x - x_ + 1);
+        first_batch = false;
+      }
       uint16_t batch = segment.end_x - x_ + 1;
       if (batch > count) batch = count;
       switch (segment.kind) {
@@ -1602,10 +1609,17 @@ class RectInnerRoundRectStream : public PixelStream {
 
   void read(Color* buf, uint16_t count, uint32_t& run_length) override {
     run_length = 0;
+    bool first_batch = true;
     while (count > 0) {
       if (!row_ready_) PrepareRow();
       if (segment_index_ >= segment_count_) return;
       const Segment& segment = segments_[segment_index_];
+      if (first_batch) {
+        run_length = (segment.kind == SegmentKind::kSlow)
+                         ? 0
+                         : (uint32_t)(segment.end_x - x_ + 1);
+        first_batch = false;
+      }
       uint16_t batch = segment.end_x - x_ + 1;
       if (batch > count) batch = count;
       switch (segment.kind) {
@@ -1876,10 +1890,17 @@ class RoundRectCornersStream : public PixelStream {
 
   void read(Color* buf, uint16_t count, uint32_t& run_length) override {
     run_length = 0;
+    bool first_batch = true;
     while (count > 0) {
       if (!row_ready_) PrepareRow();
       if (segment_index_ >= segment_count_) return;
       const Segment& segment = segments_[segment_index_];
+      if (first_batch) {
+        run_length = (segment.kind == SegmentKind::kSlow)
+                         ? 0
+                         : (uint32_t)(segment.end_x - x_ + 1);
+        first_batch = false;
+      }
       uint16_t batch = segment.end_x - x_ + 1;
       if (batch > count) batch = count;
       switch (segment.kind) {

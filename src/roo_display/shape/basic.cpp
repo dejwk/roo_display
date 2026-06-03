@@ -170,7 +170,7 @@ class FilledRectStream : public PixelStream {
   FilledRectStream(Color color) : color_(color) {}
 
   void read(Color *buf, uint16_t count, uint32_t &run_length) override {
-    run_length = 0;
+    run_length = PixelStream::kUnlimitedRunLength;
     FillColor(buf, count, color_);
   }
 

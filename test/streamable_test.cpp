@@ -351,4 +351,34 @@ TEST(Streamable, FillPaintRectOverBgUsesSingleFillForLongExactRun) {
   ExpectBufferEquals(output, expected);
 }
 
+TEST(Streamable, SubRectangleStreamTruncatesRunAtRowBoundary) {
+  std::vector<Color> source(12, Color(0xFF204060));
+  ScriptedRunStream stream(source, {PixelStream::kUnlimitedRunLength});
+  auto clipped = internal::MakeSubRectangle(std::move(stream), Box(0, 0, 3, 2),
+                                            Box(1, 0, 2, 1));
+
+  Color buf[4];
+  uint32_t run_length = 0;
+  clipped.read(buf, 4, run_length);
+
+  EXPECT_EQ(run_length, 2u);
+  EXPECT_EQ(buf[0], source[1]);
+  EXPECT_EQ(buf[1], source[2]);
+  EXPECT_EQ(buf[2], source[5]);
+  EXPECT_EQ(buf[3], source[6]);
+}
+
+TEST(Streamable, SubRectangleStreamPreservesDelegateZeroRunMetadata) {
+  std::vector<Color> source(12, Color(0xFF204060));
+  ScriptedRunStream stream(source, {0});
+  auto clipped = internal::MakeSubRectangle(std::move(stream), Box(0, 0, 3, 2),
+                                            Box(1, 0, 2, 1));
+
+  Color buf[2];
+  uint32_t run_length = 0;
+  clipped.read(buf, 2, run_length);
+
+  EXPECT_EQ(run_length, 0u);
+}
+
 }  // namespace roo_display

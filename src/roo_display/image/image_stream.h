@@ -76,6 +76,13 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, false>
 
   void read(Color* buf, uint16_t size, uint32_t& run_length) override {
     run_length = 0;
+    if (size == 0) return;
+    if (remaining_items_ == 0) {
+      decode_next_group();
+    }
+    if (run_) {
+      run_length = remaining_items_;
+    }
     while (size-- > 0) {
       *buf++ = next();
     }
@@ -87,18 +94,7 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, false>
 
   Color next() {
     if (remaining_items_ == 0) {
-      // No remaining items; need to decode the next group.
-      roo::byte data = input_.read();
-      run_ = ((data & roo::byte{0x80}) != roo::byte{0});
-      if ((data & roo::byte{0x40}) == roo::byte{0}) {
-        remaining_items_ = (int)(data & roo::byte{0x3F}) + 1;
-      } else {
-        remaining_items_ =
-            read_varint(input_, (int)(data & roo::byte{0x3F})) + 1;
-      }
-      if (run_) {
-        run_value_ = read_color();
-      }
+      decode_next_group();
     }
     --remaining_items_;
     if (run_) {
@@ -112,6 +108,19 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, false>
   }
 
  private:
+  void decode_next_group() {
+    roo::byte data = input_.read();
+    run_ = ((data & roo::byte{0x80}) != roo::byte{0});
+    if ((data & roo::byte{0x40}) == roo::byte{0}) {
+      remaining_items_ = (int)(data & roo::byte{0x3F}) + 1;
+    } else {
+      remaining_items_ = read_varint(input_, (int)(data & roo::byte{0x3F})) + 1;
+    }
+    if (run_) {
+      run_value_ = read_color();
+    }
+  }
+
   Color read_color() {
     RawColorReader<StreamType<Resource>, ColorMode::bits_per_pixel> read;
     return color_mode_.toArgbColor(read(input_));
@@ -146,6 +155,13 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, true>
 
   void read(Color* buf, uint16_t size, uint32_t& run_length) override {
     run_length = 0;
+    if (size == 0) return;
+    if (remaining_items_ == 0) {
+      decode_next_group();
+    }
+    if (run_) {
+      run_length = current_run_prefix();
+    }
     while (size-- > 0) {
       *buf++ = next();
     }
@@ -157,16 +173,7 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, true>
 
   Color next() {
     if (remaining_items_ == 0) {
-      // No remaining items; need to decode the next group.
-      uint8_t data = (uint8_t)input_.read();
-      run_ = ((data & 0x80) != 0);
-      if ((data & 0x40) == 0) {
-        remaining_items_ = pixels_per_byte * ((data & 0x3F) + 1);
-      } else {
-        remaining_items_ =
-            pixels_per_byte * (read_varint(input_, data & 0x3F) + 1);
-      }
-      read_colors();
+      decode_next_group();
     }
 
     --remaining_items_;
@@ -180,6 +187,34 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, true>
   }
 
  private:
+  void decode_next_group() {
+    uint8_t data = (uint8_t)input_.read();
+    run_ = ((data & 0x80) != 0);
+    if ((data & 0x40) == 0) {
+      remaining_items_ = pixels_per_byte * ((data & 0x3F) + 1);
+    } else {
+      remaining_items_ =
+          pixels_per_byte * (read_varint(input_, data & 0x3F) + 1);
+    }
+    read_colors();
+  }
+
+  uint32_t current_run_prefix() const {
+    if (!run_ || remaining_items_ == 0) return 0;
+    // This is a real run only if all the pixels in the batch actually have the
+    // same color.
+    int index = pixels_per_byte - 1 - remaining_items_ % pixels_per_byte;
+    Color color = value_[index];
+    uint32_t max = remaining_items_;
+    for (uint32_t i = 1; i < max; ++i) {
+      int next_index = (index + i) % pixels_per_byte;
+      if (value_[next_index] != color) {
+        return 0;
+      }
+    }
+    return max;
+  }
+
   void read_colors() {
     SubByteColorIo<ColorMode, ColorPixelOrder::kMsbFirst> io;
     io.loadBulk(color_mode_, input_.read(), value_);
@@ -214,6 +249,13 @@ class RleStreamRgb565Alpha4 : public PixelStream {
 
   void read(Color* buf, uint16_t size, uint32_t& run_length) override {
     run_length = 0;
+    if (size == 0) return;
+    if (remaining_items_ == 0) {
+      decode_next_group();
+    }
+    if (run_rgb_ && alpha_mode_ != 0) {
+      run_length = remaining_items_;
+    }
     while (size-- > 0) {
       *buf++ = next();
     }
@@ -225,51 +267,13 @@ class RleStreamRgb565Alpha4 : public PixelStream {
 
   Color next() {
     if (remaining_items_ == 0) {
-      // No remaining items; need to decode the next group.
-      uint8_t data = input_.read();
-      // Bit 7 specifies whether all colors in the group have the same RGB
-      // color (possibly with different alpha).
-      run_rgb_ = (data >> 7);
-      // Bits 5-6 determine the type of alpha in the group:
-      // 00: each pixel has a distinct alpha.
-      // 01: pixels have uniform alpha.
-      // 10: all pixels are opaque (alpha = 0xF).
-      // 11: all pixels are transparent (alpha = 0x0).
-      alpha_mode_ = (data & 0x60) >> 5;
-      switch (alpha_mode_) {
-        case 0: {
-          // We have 5 bits left to use, and we only allow odd # of pixels.
-          remaining_items_ =
-              data & 0x10 ? read_varint(data & 0x0F) : data & 0x0F;
-          remaining_items_ <<= 1;
-          break;
-        }
-        case 1: {
-          remaining_items_ = read_varint((data & 0x10) >> 4);
-          alpha_buf_ = (data & 0x0F) * 0x11;
-          break;
-        }
-        case 2: {
-          remaining_items_ =
-              data & 0x10 ? read_varint(data & 0x0F) : data & 0x0F;
-          alpha_buf_ = 0xFF;
-        }
-        case 3: {
-          remaining_items_ =
-              data & 0x10 ? read_varint(data & 0x0F) : data & 0x0F;
-          alpha_buf_ = 0x00;
-        }
-      }
-      if (run_rgb_) {
-        run_value_ = read_color();
-        run_value_.set_a(alpha_buf_);
-      }
+      decode_next_group();
     }
     --remaining_items_;
     if (run_rgb_) {
       if (alpha_mode_ == 0) {
         if (remaining_items_ & 1) {
-          alpha_buf_ = input_.read();
+          alpha_buf_ = (uint8_t)input_.read();
           run_value_.set_a((alpha_buf_ >> 4) * 0x11);
         } else {
           run_value_.set_a((alpha_buf_ & 0xF) * 0x11);
@@ -281,7 +285,7 @@ class RleStreamRgb565Alpha4 : public PixelStream {
       if (alpha_mode_ == 0) {
         c = read_color();
         if (remaining_items_ & 1) {
-          alpha_buf_ = input_.read();
+          alpha_buf_ = (uint8_t)input_.read();
           c.set_a((alpha_buf_ >> 4) * 0x11);
         } else {
           c.set_a((alpha_buf_ & 0xF) * 0x11);
@@ -295,6 +299,44 @@ class RleStreamRgb565Alpha4 : public PixelStream {
   }
 
  private:
+  void decode_next_group() {
+    uint8_t data = (uint8_t)input_.read();
+    // Bit 7 specifies whether all colors in the group have the same RGB
+    // color (possibly with different alpha).
+    run_rgb_ = (data >> 7);
+    // Bits 5-6 determine the type of alpha in the group:
+    // 00: each pixel has a distinct alpha.
+    // 01: pixels have uniform alpha.
+    // 10: all pixels are opaque (alpha = 0xF).
+    // 11: all pixels are transparent (alpha = 0x0).
+    alpha_mode_ = (data & 0x60) >> 5;
+    switch (alpha_mode_) {
+      case 0: {
+        // We have 5 bits left to use, and we only allow odd # of pixels.
+        remaining_items_ = data & 0x10 ? read_varint(data & 0x0F) : data & 0x0F;
+        remaining_items_ <<= 1;
+        break;
+      }
+      case 1: {
+        remaining_items_ = read_varint((data & 0x10) >> 4);
+        alpha_buf_ = (data & 0x0F) * 0x11;
+        break;
+      }
+      case 2: {
+        remaining_items_ = data & 0x10 ? read_varint(data & 0x0F) : data & 0x0F;
+        alpha_buf_ = 0xFF;
+      }
+      case 3: {
+        remaining_items_ = data & 0x10 ? read_varint(data & 0x0F) : data & 0x0F;
+        alpha_buf_ = 0x00;
+      }
+    }
+    if (run_rgb_) {
+      run_value_ = read_color();
+      run_value_.set_a(alpha_buf_);
+    }
+  }
+
   Color read_color() {
     return Rgb565().toArgbColor(roo_io::ReadBeU16(&input_));
   }
@@ -369,6 +411,13 @@ class RleStream4bppxBiased<Resource, ColorMode, 4> : public PixelStream {
 
   void read(Color* buf, uint16_t size, uint32_t& run_length) override {
     run_length = 0;
+    if (size == 0) return;
+    if (remaining_items_ == 0) {
+      decode_next_group();
+    }
+    if (run_) {
+      run_length = remaining_items_;
+    }
     while (size-- > 0) {
       *buf++ = next();
     }
@@ -402,41 +451,7 @@ class RleStream4bppxBiased<Resource, ColorMode, 4> : public PixelStream {
   // 0x8 0xD 0x1 ... -> 13 (11 + 2) arbitrary pixels that follow
   Color next() {
     if (remaining_items_ == 0) {
-      // No remaining items; need to decode the next group.
-      uint8_t nibble = (uint8_t)reader_.next();
-      if (nibble == 0x0) {
-        run_ = true;
-        uint8_t operand = (uint8_t)reader_.next();
-        if (operand == 0) {
-          remaining_items_ = 2;
-          run_value_ = color(reader_.next());
-        } else if (operand == 0xF) {
-          remaining_items_ = 3;
-          run_value_ = color(reader_.next());
-        } else {
-          // Singleton value.
-          remaining_items_ = 1;
-          run_value_ = color(operand);
-        }
-      } else if (nibble == 0x8) {
-        int count = read_varint();
-        if (count == 0) {
-          // This actualy means a single zero nibble -> run
-          run_ = true;
-          remaining_items_ = read_varint() + 4;
-          run_value_ = color(reader_.next());
-        } else {
-          // This indicates a list of X+2 arbitrary values
-          run_ = false;
-          remaining_items_ = count + 2;
-        }
-      } else {
-        // Run of opaque or transparent.
-        run_ = true;
-        remaining_items_ = nibble & 0x7;
-        bool transparent = ((nibble & 0x8) == 0);
-        run_value_ = color_mode_.toArgbColor(transparent ? 0x0 : 0xF);
-      }
+      decode_next_group();
     }
 
     --remaining_items_;
@@ -459,6 +474,43 @@ class RleStream4bppxBiased<Resource, ColorMode, 4> : public PixelStream {
   bool ok() const { return reader_.ok(); }
 
  private:
+  void decode_next_group() {
+    uint8_t nibble = (uint8_t)reader_.next();
+    if (nibble == 0x0) {
+      run_ = true;
+      uint8_t operand = (uint8_t)reader_.next();
+      if (operand == 0) {
+        remaining_items_ = 2;
+        run_value_ = color(reader_.next());
+      } else if (operand == 0xF) {
+        remaining_items_ = 3;
+        run_value_ = color(reader_.next());
+      } else {
+        // Singleton value.
+        remaining_items_ = 1;
+        run_value_ = color(operand);
+      }
+    } else if (nibble == 0x8) {
+      int count = read_varint();
+      if (count == 0) {
+        // This actualy means a single zero nibble -> run
+        run_ = true;
+        remaining_items_ = read_varint() + 4;
+        run_value_ = color(reader_.next());
+      } else {
+        // This indicates a list of X+2 arbitrary values
+        run_ = false;
+        remaining_items_ = count + 2;
+      }
+    } else {
+      // Run of opaque or transparent.
+      run_ = true;
+      remaining_items_ = nibble & 0x7;
+      bool transparent = ((nibble & 0x8) == 0);
+      run_value_ = color_mode_.toArgbColor(transparent ? 0x0 : 0xF);
+    }
+  }
+
   inline Color color(uint8_t nibble) { return color_mode_.toArgbColor(nibble); }
 
   uint32_t read_varint() {

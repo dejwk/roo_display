@@ -30,6 +30,7 @@ class Stream : public PixelStream {
     }
     if (y[0] == y[size - 1]) {
       if (data_->readColorRect(x[0], y[0], x[size - 1], y[0], buf)) {
+        run_length = size;
         for (int i = 1; i < size; ++i) {
           buf[i] = buf[0];
         }

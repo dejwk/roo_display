@@ -284,5 +284,84 @@ TEST(RleStream4bppxBiased, TransparencyMode) {
   ASSERT_EQ(stream.transparency(), color_mode.transparency());
 }
 
+TEST(RleStreamUniform, ReportsExactRunLengthForByteAlignedRuns) {
+  uint8_t data[] = {0x82, 0x12, 0x34};  // Run of 3 RGB565 pixels.
+
+  roo_io::MemoryIterable resource((const roo::byte*)data,
+                                  (const roo::byte*)(data + sizeof(data)));
+  Rgb565 color_mode;
+  RleStreamUniform<roo_io::MemoryIterable, Rgb565> stream(resource.iterator(),
+                                                          color_mode);
+
+  Color buf[2];
+  uint32_t run_length = 0;
+  stream.read(buf, 2, run_length);
+  EXPECT_EQ(run_length, 3u);
+  EXPECT_EQ(buf[0], buf[1]);
+
+  stream.read(buf, 1, run_length);
+  EXPECT_EQ(run_length, 1u);
+}
+
+TEST(RleStreamUniform, ReportsSubByteRunLengthOnlyForUniformPattern) {
+  {
+    uint8_t data[] = {0x81, 0x11};  // Run of 4 Alpha4 pixels with value 0x1.
+    roo_io::MemoryIterable resource((const roo::byte*)data,
+                                    (const roo::byte*)(data + sizeof(data)));
+    Alpha4 color_mode(color::Black);
+    RleStreamUniform<roo_io::MemoryIterable, Alpha4> stream(resource.iterator(),
+                                                            color_mode);
+
+    Color buf[2];
+    uint32_t run_length = 0;
+    stream.read(buf, 2, run_length);
+    EXPECT_EQ(run_length, 4u);
+  }
+
+  {
+    uint8_t data[] = {0x81, 0x12};  // Run with alternating Alpha4 values.
+    roo_io::MemoryIterable resource((const roo::byte*)data,
+                                    (const roo::byte*)(data + sizeof(data)));
+    Alpha4 color_mode(color::Black);
+    RleStreamUniform<roo_io::MemoryIterable, Alpha4> stream(resource.iterator(),
+                                                            color_mode);
+
+    Color buf[2];
+    uint32_t run_length = 0;
+    stream.read(buf, 2, run_length);
+    EXPECT_EQ(run_length, 0u);
+  }
+}
+
+TEST(RleStream4bppxBiased, ReportsRunLengthOnlyForRunGroups) {
+  {
+    uint8_t data[] = {0xD0};  // Run of 5 opaque pixels.
+    roo_io::MemoryIterable resource((const roo::byte*)data,
+                                    (const roo::byte*)(data + sizeof(data)));
+    Alpha4 color_mode(color::Black);
+    RleStream4bppxBiased<roo_io::MemoryIterable, Alpha4> stream(
+        resource.iterator(), color_mode);
+
+    Color buf[2];
+    uint32_t run_length = 0;
+    stream.read(buf, 2, run_length);
+    EXPECT_EQ(run_length, 5u);
+  }
+
+  {
+    uint8_t data[] = {0x81, 0x34, 0x50};  // 3 arbitrary values.
+    roo_io::MemoryIterable resource((const roo::byte*)data,
+                                    (const roo::byte*)(data + sizeof(data)));
+    Alpha4 color_mode(color::Black);
+    RleStream4bppxBiased<roo_io::MemoryIterable, Alpha4> stream(
+        resource.iterator(), color_mode);
+
+    Color buf[3];
+    uint32_t run_length = 0;
+    stream.read(buf, 3, run_length);
+    EXPECT_EQ(run_length, 0u);
+  }
+}
+
 }  // namespace internal
 }  // namespace roo_display

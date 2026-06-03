@@ -119,4 +119,58 @@ TEST(Rasterizable, SimpleFilledCircleClippedAsStreamable) {
                                           "         "));
 }
 
+TEST(Rasterizable, StreamReportsRunLengthForSameRowUniformPrefix) {
+  auto input = MakeRasterizable(
+      Box(0, 0, 4, 1),
+      [](int16_t x, int16_t y) -> Color {
+        (void)x;
+        return y == 0 ? color::White : color::Black;
+      },
+      TransparencyMode::kNone);
+
+  auto stream = input.createStream();
+  Color buf[3];
+  uint32_t run_length = 0;
+  stream->read(buf, 3, run_length);
+
+  EXPECT_EQ(run_length, 3u);
+  EXPECT_EQ(buf[0], color::White);
+  EXPECT_EQ(buf[1], color::White);
+  EXPECT_EQ(buf[2], color::White);
+}
+
+TEST(Rasterizable, StreamReportsZeroRunLengthForFallbackPaths) {
+  auto varying = MakeRasterizable(
+      Box(0, 0, 4, 1),
+      [](int16_t x, int16_t y) -> Color {
+        (void)y;
+        return x == 0 ? color::White : color::Black;
+      },
+      TransparencyMode::kNone);
+
+  {
+    auto stream = varying.createStream();
+    Color buf[3];
+    uint32_t run_length = 0;
+    stream->read(buf, 3, run_length);
+    EXPECT_EQ(run_length, 0u);
+  }
+
+  auto per_row_constant = MakeRasterizable(
+      Box(0, 0, 4, 1),
+      [](int16_t x, int16_t y) -> Color {
+        (void)x;
+        return y == 0 ? color::White : color::Black;
+      },
+      TransparencyMode::kNone);
+
+  {
+    auto stream = per_row_constant.createStream();
+    Color buf[6];
+    uint32_t run_length = 0;
+    stream->read(buf, 6, run_length);
+    EXPECT_EQ(run_length, 0u);
+  }
+}
+
 }  // namespace roo_display

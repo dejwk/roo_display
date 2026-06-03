@@ -416,12 +416,14 @@ class SubRectangleStream : public PixelStream {
         width_(width),
         width_skip_(width_skip),
         remaining_(count),
+        buffered_run_length_(0),
         idx_(kPixelWritingBufferSize) {}
 
   SubRectangleStream(SubRectangleStream&&) = default;
 
   void read(Color* buf, uint16_t count, uint32_t& run_length) override {
     run_length = 0;
+    bool first = true;
     do {
       if (x_ >= width_) {
         dskip(width_skip_);
@@ -429,7 +431,12 @@ class SubRectangleStream : public PixelStream {
       }
       uint16_t n = width_ - x_;
       if (n > count) n = count;
-      uint16_t read = dnext(buf, n);
+      uint32_t clipped_prefix = 0;
+      uint16_t read = dnext(buf, n, first ? &clipped_prefix : nullptr);
+      if (first) {
+        run_length = clipped_prefix;
+        first = false;
+      }
       buf += read;
       count -= read;
       x_ += read;
@@ -460,6 +467,7 @@ class SubRectangleStream : public PixelStream {
     }
     count -= buffered;
     idx_ = kPixelWritingBufferSize;
+    buffered_run_length_ = 0;
     if (count >= kPixelWritingBufferSize / 2) {
       stream_.skip(count);
       remaining_ -= count;
@@ -467,23 +475,31 @@ class SubRectangleStream : public PixelStream {
     }
     uint16_t n = kPixelWritingBufferSize;
     if (n > remaining_) n = remaining_;
-    uint32_t ignored_run_length = 0;
-    stream_.read(buf_, n, ignored_run_length);
+    stream_.read(buf_, n, buffered_run_length_);
     remaining_ -= n;
     idx_ = count;
   }
 
-  uint16_t dnext(Color* buf, int16_t count) {
+  uint16_t dnext(Color* buf, int16_t count, uint32_t* run_length = nullptr) {
     if (idx_ >= kPixelWritingBufferSize) {
       uint16_t n = kPixelWritingBufferSize;
       if (n > remaining_) n = remaining_;
-      uint32_t ignored_run_length = 0;
-      stream_.read(buf_, n, ignored_run_length);
+      stream_.read(buf_, n, buffered_run_length_);
       idx_ = 0;
       remaining_ -= n;
     }
     if (count > kPixelWritingBufferSize - idx_) {
       count = kPixelWritingBufferSize - idx_;
+    }
+    if (run_length != nullptr) {
+      if (buffered_run_length_ == 0 ||
+          static_cast<uint32_t>(idx_) >= buffered_run_length_) {
+        *run_length = 0;
+      } else {
+        *run_length = buffered_run_length_ - static_cast<uint32_t>(idx_);
+        uint32_t max_count = static_cast<uint16_t>(count);
+        if (*run_length > max_count) *run_length = max_count;
+      }
     }
     memcpy(buf, buf_ + idx_, count * sizeof(Color));
     idx_ += count;
@@ -498,6 +514,7 @@ class SubRectangleStream : public PixelStream {
   const int16_t width_skip_;
 
   uint32_t remaining_;
+  uint32_t buffered_run_length_;
   Color buf_[kPixelWritingBufferSize];
   int idx_;
 };

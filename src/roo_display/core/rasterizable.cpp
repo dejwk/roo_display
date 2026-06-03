@@ -15,7 +15,24 @@ class Stream : public PixelStream {
         y_(bounds_.yMin()) {}
 
   void read(Color *buf, uint16_t size, uint32_t &run_length) override {
-    run_length = 0;
+    if (x_ + size - 1 <= bounds_.xMax()) {
+      // Fast path: all pixels are on the same row, so we can use readColorRect
+      // which may be optimized for this case.
+      if (data_->readColorRect(x_, y_, x_ + size - 1, y_, buf)) {
+        // All pixels are the same, so we can report a run length.
+        run_length = size;
+        if (size > 1) {
+          FillColor(&buf[1], size - 1, buf[0]);
+        }
+      }
+      x_ += size;
+      if (x_ > bounds_.xMax()) {
+        x_ = bounds_.xMin();
+        ++y_;
+      }
+      return;
+    }
+    // Slow path: general case.
     int16_t x[size];
     int16_t y[size];
     for (int i = 0; i < size; ++i) {
@@ -28,16 +45,84 @@ class Stream : public PixelStream {
         ++y_;
       }
     }
-    if (y[0] == y[size - 1]) {
-      if (data_->readColorRect(x[0], y[0], x[size - 1], y[0], buf)) {
+    data_->readColors(x, y, size, buf);
+    run_length = 0;
+  }
+
+  void skip(uint32_t count) override {
+    auto w = bounds_.width();
+    y_ += count / w;
+    x_ += count % w;
+    if (x_ > bounds_.xMax()) {
+      x_ -= w;
+      ++y_;
+    }
+  }
+
+ private:
+  const Rasterizable *data_;
+  Box bounds_;
+  int16_t x_, y_;
+};
+
+class NarrowStream : public PixelStream {
+ public:
+  using PixelStream::read;
+
+  NarrowStream(const Rasterizable *data, Box bounds)
+      : data_(data),
+        bounds_(std::move(bounds)),
+        x_(bounds_.xMin()),
+        y_(bounds_.yMin()) {}
+
+  void read(Color *buf, uint16_t size, uint32_t &run_length) override {
+    if (x_ == bounds_.xMin() && size % bounds_.width() == 0) {
+      // Fast path: we're at the start of a row and reading an integral number
+      // of rows, so we can use readColorRect which may be optimized for
+      // this case.
+      int16_t y_end = y_ + size / bounds_.width() - 1;
+      if (data_->readColorRect(x_, y_, bounds_.xMax(), y_end, buf)) {
+        // All pixels are the same, so we can report a run length.
         run_length = size;
-        for (int i = 1; i < size; ++i) {
-          buf[i] = buf[0];
+        if (size > 1) {
+          FillColor(&buf[1], size - 1, buf[0]);
         }
       }
-    } else {
-      data_->readColors(x, y, size, buf);
+      y_ = y_end + 1;
+      return;
     }
+    if (x_ + size - 1 <= bounds_.xMax()) {
+      // Fast path: all pixels are on the same row, so we can use readColorRect
+      // which may be optimized for this case.
+      if (data_->readColorRect(x_, y_, x_ + size - 1, y_, buf)) {
+        // All pixels are the same, so we can report a run length.
+        run_length = size;
+        if (size > 1) {
+          FillColor(&buf[1], size - 1, buf[0]);
+        }
+      }
+      x_ += size;
+      if (x_ > bounds_.xMax()) {
+        x_ = bounds_.xMin();
+        ++y_;
+      }
+      return;
+    }
+    // Slow path: general case.
+    int16_t x[size];
+    int16_t y[size];
+    for (int i = 0; i < size; ++i) {
+      x[i] = x_;
+      y[i] = y_;
+      if (x_ < bounds_.xMax()) {
+        ++x_;
+      } else {
+        x_ = bounds_.xMin();
+        ++y_;
+      }
+    }
+    data_->readColors(x, y, size, buf);
+    run_length = 0;
   }
 
   void skip(uint32_t count) override {
@@ -135,13 +220,24 @@ bool Rasterizable::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
   return true;
 }
 
+namespace {
+
+inline __attribute__((always_inline)) std::unique_ptr<PixelStream> CreateStream(
+    const Rasterizable *r, const Box &bounds) {
+  return bounds.width() <= 32
+             ? std::unique_ptr<PixelStream>(new NarrowStream(r, bounds))
+             : std::unique_ptr<PixelStream>(new Stream(r, bounds));
+}
+
+}  // namespace
+
 std::unique_ptr<PixelStream> Rasterizable::createStream() const {
-  return std::unique_ptr<PixelStream>(new Stream(this, this->extents()));
+  return CreateStream(this, this->extents());
 }
 
 std::unique_ptr<PixelStream> Rasterizable::createStream(
     const Box &bounds) const {
-  return std::unique_ptr<PixelStream>(new Stream(this, bounds));
+  return CreateStream(this, bounds);
 }
 
 // void Rasterizable::drawTo(const Surface& s) const {

@@ -560,7 +560,8 @@ TEST(SmoothShapes, ThickRoundRectCornerRadiiReadColorRectUsesClassifier) {
   EXPECT_TRUE(shape.readColorRect(5, 0, 7, 0, sample));
   EXPECT_EQ(outline, sample[0]);
 
-  EXPECT_FALSE(shape.readColorRect(-1, -1, 1, 1, sample));
+  Color uniform_sample;
+  EXPECT_FALSE(shape.readUniformColorRect(-1, -1, 1, 1, &uniform_sample));
 }
 
 // Verifies the dedicated unequal-radius draw path matches the streaming path,

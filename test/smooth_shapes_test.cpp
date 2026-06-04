@@ -173,13 +173,6 @@ FakeOffscreen<Argb8888> RenderThinOutlineRepro(
   return result;
 }
 
-FakeOffscreen<Argb8888> RenderThinOutlineRepro(
-    float thickness, Color outline, int scale,
-    Color background = color::White) {
-  return RenderThinOutlineRepro(thickness, outline, kThinOutlineReproInterior,
-                                scale, background);
-}
-
 template <typename ColorMode>
 FakeOffscreen<ColorMode> CoercedToViaStreaming(
     const Streamable& streamable, ColorMode color_mode = ColorMode(),
@@ -300,38 +293,6 @@ Color AveragedPixel(const FakeOffscreen<Argb8888>& offscreen, int x0, int y0,
                (((g + count / 2) / count) << 8) | ((b + count / 2) / count));
 }
 
-Color PremultipliedAveragedPixel(const FakeOffscreen<Argb8888>& offscreen,
-                                 int x0, int y0, int factor) {
-  uint64_t alpha_sum = 0;
-  uint64_t red_alpha_sum = 0;
-  uint64_t green_alpha_sum = 0;
-  uint64_t blue_alpha_sum = 0;
-  for (int y = 0; y < factor; ++y) {
-    for (int x = 0; x < factor; ++x) {
-      const Color pixel = PixelAt(offscreen, x0 + x, y0 + y);
-      const uint32_t alpha = pixel.a();
-      alpha_sum += alpha;
-      red_alpha_sum += pixel.r() * alpha;
-      green_alpha_sum += pixel.g() * alpha;
-      blue_alpha_sum += pixel.b() * alpha;
-    }
-  }
-  const uint32_t count = factor * factor;
-  const uint8_t alpha = static_cast<uint8_t>((alpha_sum + count / 2) / count);
-  if (alpha == 0) return color::Transparent;
-
-  const uint8_t red =
-      static_cast<uint8_t>((red_alpha_sum + alpha_sum / 2) / alpha_sum);
-  const uint8_t green =
-      static_cast<uint8_t>((green_alpha_sum + alpha_sum / 2) / alpha_sum);
-  const uint8_t blue =
-      static_cast<uint8_t>((blue_alpha_sum + alpha_sum / 2) / alpha_sum);
-  return Color((static_cast<uint32_t>(alpha) << 24) |
-               (static_cast<uint32_t>(red) << 16) |
-               (static_cast<uint32_t>(green) << 8) |
-               static_cast<uint32_t>(blue));
-}
-
 FakeOffscreen<Argb8888> DownsampleByAveraging(
     const FakeOffscreen<Argb8888>& offscreen, int factor) {
   const int16_t width = offscreen.raw_width() / factor;
@@ -343,23 +304,6 @@ FakeOffscreen<Argb8888> DownsampleByAveraging(
       result.writePixel(
           BlendingMode::kSource, x, y,
           AveragedPixel(offscreen, x * factor, y * factor, factor));
-    }
-  }
-  result.resetPixelDrawCount();
-  return result;
-}
-
-FakeOffscreen<Argb8888> DownsampleByPremultipliedAveraging(
-    const FakeOffscreen<Argb8888>& offscreen, int factor) {
-  const int16_t width = offscreen.raw_width() / factor;
-  const int16_t height = offscreen.raw_height() / factor;
-  FakeOffscreen<Argb8888> result(Box(0, 0, width - 1, height - 1),
-                                 color::Transparent);
-  for (int16_t y = 0; y < height; ++y) {
-    for (int16_t x = 0; x < width; ++x) {
-      result.writePixel(BlendingMode::kSource, x, y,
-                        PremultipliedAveragedPixel(offscreen, x * factor,
-                                                   y * factor, factor));
     }
   }
   result.resetPixelDrawCount();

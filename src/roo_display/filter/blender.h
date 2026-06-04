@@ -13,47 +13,77 @@ namespace internal {
 // row-major iteration order.
 class WindowedPixelStream {
  public:
-  WindowedPixelStream() = default;
+  static constexpr uint32_t kUnlimitedRunLength = 0xFFFFFFFFu;
 
-  void reset(std::unique_ptr<PixelStream> delegate, int16_t outer_width,
-             const Box& inner) {
-    delegate_ = std::move(delegate);
-    skip_ = inner.empty() ? 0
-                          : inner.xMin() + static_cast<int32_t>(outer_width) *
-                                               inner.yMin();
+  WindowedPixelStream(const Rasterizable* raster) : raster_(raster) {}
+
+  /// Returns true if non-empty.
+  void reset(const Box& addr_window) {
+    bounds_ = Box::Intersect(addr_window, raster_->extents());
+    if (bounds_.empty()) {
+      delegate_ = nullptr;
+      skip_ = 0;
+      remaining_lines_ = -1;
+      inner_width_ = 0;
+      gap_ = 0;
+      current_run_ = 0;
+      current_run_is_delegate_ = false;
+      return;
+    }
+    if (bounds_.height() > 8 && bounds_.width() > 8) {
+      delegate_ = raster_->createStream(bounds_);
+    } else {
+      // Skip creating the stream to avoid dynamic memory allocation. Will serve
+      // data directly from the raster using readColors, which is more efficient
+      // for small areas.
+      delegate_ = nullptr;
+      x_ = bounds_.xMin();
+      y_ = bounds_.yMin();
+    }
+
+    Box local_inner =
+        bounds_.translate(-addr_window.xMin(), -addr_window.yMin());
+    skip_ = local_inner.xMin() +
+            static_cast<int32_t>(addr_window.width()) * local_inner.yMin();
     remaining_lines_ =
-        inner.empty() || inner.width() == outer_width ? 0 : inner.height() - 1;
+        bounds_.width() == addr_window.width() ? 0 : bounds_.height() - 1;
     inner_width_ =
-        inner.empty()
-            ? 0
-            : (inner.width() == outer_width
-                   ? static_cast<int32_t>(outer_width) * inner.height()
-                   : inner.width());
-    gap_ = inner.empty() ? 0 : outer_width - inner.width();
+        (bounds_.width() == addr_window.width()
+             ? static_cast<int32_t>(addr_window.width()) * bounds_.height()
+             : bounds_.width());
+    gap_ = addr_window.width() - bounds_.width();
     current_run_ = skip_ > 0 ? skip_ : inner_width_;
     current_run_is_delegate_ = skip_ == 0 && inner_width_ > 0;
   }
 
-  void reset() { delegate_.reset(); }
-
-  bool has_stream() const { return delegate_ != nullptr; }
-
-  void read(Color* buf, uint32_t count) {
-    while (count > 0) {
+  void read(Color* buf, uint32_t count, uint32_t& run_length) {
+    run_length = 0;
+    if (count == 0) return;
+    bool first_batch = true;
+    while (true) {
       if (current_run_ == 0) {
         FillColor(buf, count, color::Transparent);
+        if (first_batch) {
+          run_length = kUnlimitedRunLength;
+        }
         return;
       }
 
       uint32_t run = std::min<uint32_t>(count, current_run_);
       if (current_run_is_delegate_) {
-        readDelegate(buf, run);
+        readDelegate(buf, run, run_length);
       } else {
         FillColor(buf, run, color::Transparent);
+        run_length = current_run_;
       }
       buf += run;
       count -= run;
       advance(run);
+      if (count == 0) {
+        if (!first_batch) run_length = 0;
+        return;
+      }
+      first_batch = false;
     }
   }
 
@@ -65,7 +95,7 @@ class WindowedPixelStream {
 
       uint32_t run = std::min<uint32_t>(count, current_run_);
       if (current_run_is_delegate_) {
-        delegate_->skip(run);
+        skipDelegate(run);
       }
       count -= run;
       advance(run);
@@ -73,9 +103,77 @@ class WindowedPixelStream {
   }
 
  private:
-  void readDelegate(Color* buf, uint32_t count) {
+  void readDelegate(Color* buf, uint32_t count, uint32_t& run_length) {
     DCHECK(count <= 0xFFFFu);
-    delegate_->read(buf, static_cast<uint16_t>(count));
+    if (delegate_ != nullptr) {
+      delegate_->read(buf, static_cast<uint16_t>(count), run_length);
+    } else {
+      if (x_ == bounds_.xMin() && count % bounds_.width() == 0) {
+        // Fast path: we're at the start of a row and reading an integral number
+        // of rows, so we can use readColorRect which may be optimized for
+        // this case.
+        int16_t y_end = y_ + count / bounds_.width() - 1;
+        if (raster_->readColorRect(x_, y_, bounds_.xMax(), y_end, buf)) {
+          // All pixels are the same, so we can report a run length.
+          run_length = count;
+          if (count > 1) {
+            FillColor(&buf[1], count - 1, buf[0]);
+          }
+        } else {
+          run_length = 0;
+        }
+        y_ = y_end + 1;
+        return;
+      }
+      if (x_ + (int32_t)count - 1 <= bounds_.xMax()) {
+        // Fast path: all pixels are on the same row, so we can use
+        // readColorRect which may be optimized for this case.
+        if (raster_->readColorRect(x_, y_, x_ + count - 1, y_, buf)) {
+          // All pixels are the same, so we can report a run length.
+          run_length = count;
+          if (count > 1) {
+            FillColor(&buf[1], count - 1, buf[0]);
+          }
+        } else {
+          run_length = 0;
+        }
+        x_ += count;
+        if (x_ > bounds_.xMax()) {
+          x_ = bounds_.xMin();
+          ++y_;
+        }
+        return;
+      }
+      // Slow path: general case.
+      int16_t x[count];
+      int16_t y[count];
+      for (uint32_t i = 0; i < count; ++i) {
+        x[i] = x_;
+        y[i] = y_;
+        if (x_ < bounds_.xMax()) {
+          ++x_;
+        } else {
+          x_ = bounds_.xMin();
+          ++y_;
+        }
+      }
+      raster_->readColors(x, y, count, buf);
+      run_length = 0;
+    }
+  }
+
+  void skipDelegate(uint32_t count) {
+    if (delegate_ != nullptr) {
+      delegate_->skip(count);
+    } else {
+      auto w = bounds_.width();
+      y_ += count / w;
+      x_ += count % w;
+      if (x_ > bounds_.xMax()) {
+        x_ -= w;
+        ++y_;
+      }
+    }
   }
 
   void advance(uint32_t count) {
@@ -101,6 +199,7 @@ class WindowedPixelStream {
     current_run_ = inner_width_;
   }
 
+  const Rasterizable* raster_;
   std::unique_ptr<PixelStream> delegate_;
   int32_t skip_;
   int16_t remaining_lines_;
@@ -108,6 +207,9 @@ class WindowedPixelStream {
   int16_t gap_;
   int32_t current_run_;
   bool current_run_is_delegate_;
+  // Used when we skip delegate creation due to tiny window size.
+  Box bounds_;
+  int16_t x_, y_;
 };
 
 inline __attribute__((always_inline)) void BlendWithBackground(
@@ -133,6 +235,7 @@ inline __attribute__((always_inline)) void BlendWithBackground(
 /// struct T {
 ///   Color blend(Color dst, Color src) const;
 ///   Color blendTransparentSrc(Color dst, Color src) const;
+///   Color blendTransparentDst(Color dst, Color src) const;
 /// };
 /// ```
 /// where `dst` is the raster color and `src` is the drawable color.
@@ -163,6 +266,7 @@ class BlendingFilter : public DisplayOutput {
                       /*supports_blit_copy=*/false),
         blender_(std::move(blender)),
         raster_(raster),
+        addr_stream_(raster_),
         address_window_(0, 0, 0, 0),
         cursor_x_(0),
         cursor_y_(0),
@@ -184,274 +288,63 @@ class BlendingFilter : public DisplayOutput {
     address_window_ = Box(x0 - dx_, y0 - dy_, x1 - dx_, y1 - dy_);
     cursor_x_ = x0 - dx_;
     cursor_y_ = y0 - dy_;
-    addr_stream_.reset();
-    addr_uniform_ = false;
 
-    Box inner_window = Box::Intersect(address_window_, raster_->extents());
-    if (inner_window.empty()) {
-      addr_uniform_ = true;
-      addr_uniform_color_ = color::Transparent;
-    } else if (inner_window.contains(address_window_) &&
-               raster_->readUniformColorRect(
-                   address_window_.xMin(), address_window_.yMin(),
-                   address_window_.xMax(), address_window_.yMax(),
-                   &addr_uniform_color_)) {
-      addr_uniform_ = true;
-    } else if (inner_window.height() > 1) {
-      addr_stream_.reset(raster_->createStream(inner_window),
-                         address_window_.width(),
-                         inner_window.translate(-address_window_.xMin(),
-                                                -address_window_.yMin()));
-    }
+    addr_stream_.reset(address_window_);
     output_->setAddress(x0, y0, x1, y1, mode);
   }
 
   void write(Color* color, uint32_t pixel_count) override {
     if (pixel_count == 0) return;
+    Color raster_color[pixel_count];
 
-    // Fast path: uniform raster detected in setAddress.
-    if (addr_uniform_) {
-      uint32_t processed = pixel_count;
-      while (pixel_count > 0) {
-        uint16_t batch = pixel_count > kPixelWritingBufferSize
-                             ? kPixelWritingBufferSize
-                             : pixel_count;
-        Color newcolor[kPixelWritingBufferSize];
-        for (uint16_t i = 0; i < batch; ++i) {
-          newcolor[i] = blender_.blend(addr_uniform_color_, color[i]);
-        }
-        internal::BlendWithBackground(newcolor, batch, bgcolor_);
-        output_->write(newcolor, batch);
-        color += batch;
-        pixel_count -= batch;
-      }
-      advanceCursor(processed);
-      return;
+    // if (addr_stream_.has_stream()) {
+    uint32_t run_length = 0;
+    addr_stream_.read(raster_color, pixel_count, run_length);
+    uint32_t run = std::min(run_length, pixel_count);
+    if (run > 0) {
+      // Blend the run.
+      blendWithUniformRasterColorInPlace(color, run, raster_color[0]);
     }
-
-    if (addr_stream_.has_stream()) {
-      uint32_t processed = pixel_count;
-      while (pixel_count > 0) {
-        uint16_t batch = pixel_count > kPixelWritingBufferSize
-                             ? kPixelWritingBufferSize
-                             : pixel_count;
-        Color raster_color[kPixelWritingBufferSize];
-        Color newcolor[kPixelWritingBufferSize];
-        addr_stream_.read(raster_color, batch);
-        for (uint16_t i = 0; i < batch; ++i) {
-          newcolor[i] = blender_.blend(raster_color[i], color[i]);
-        }
-        internal::BlendWithBackground(newcolor, batch, bgcolor_);
-        output_->write(newcolor, batch);
-        color += batch;
-        pixel_count -= batch;
-      }
-      advanceCursor(processed);
-      return;
+    // Blend the remaining pixels.
+    for (uint32_t i = run; i < pixel_count; ++i) {
+      color[i] = blender_.blend(raster_color[i], color[i]);
     }
-
-    Color newcolor[pixel_count];
-
-    if (cursor_x_ + (int32_t)pixel_count - 1 <= address_window_.xMax()) {
-      // Single line.
-      Color* src = color;
-      Color* dst = newcolor;
-      size_t remaining = pixel_count;
-      const Box& raster_extents = raster_->extents();
-      const bool y_overlaps = cursor_y_ >= raster_extents.yMin() &&
-                              cursor_y_ <= raster_extents.yMax();
-      if (y_overlaps && raster_extents.xMin() > cursor_x_) {
-        // Write the leading part (before raster).
-        size_t batch =
-            std::min<uint32_t>(remaining, raster_extents.xMin() - cursor_x_);
-        std::copy(src, src + batch, dst);
-        src += batch;
-        dst += batch;
-        cursor_x_ += batch;
-        remaining -= batch;
-      }
-      if (remaining > 0 && y_overlaps && cursor_x_ <= raster_extents.xMax()) {
-        // Write the overlapping part.
-        size_t batch = std::min<uint32_t>(
-            remaining, raster_extents.xMax() - cursor_x_ + 1);
-        if (raster_->readColorRect(cursor_x_, cursor_y_, cursor_x_ + batch - 1,
-                                   cursor_y_, dst)) {
-          Color raster_color = dst[0];
-          for (size_t i = 0; i < batch; ++i) {
-            dst[i] = blender_.blend(raster_color, src[i]);
-          }
-        } else {
-          for (size_t i = 0; i < batch; ++i) {
-            dst[i] = blender_.blend(dst[i], src[i]);
-          }
-        }
-        cursor_x_ += batch;
-        remaining -= batch;
-        src += batch;
-        dst += batch;
-      }
-      if (remaining > 0) {
-        // Write the trailing part (after the raster).
-        std::copy(src, src + remaining, dst);
-        cursor_x_ += remaining;
-        remaining = 0;
-        src += remaining;
-        dst += remaining;
-      }
-    } else {
-      // Regular slow path (multi-line).
-      int16_t x[pixel_count];
-      int16_t y[pixel_count];
-      for (uint32_t i = 0; i < pixel_count; ++i) {
-        x[i] = cursor_x_++;
-        y[i] = cursor_y_;
-        if (cursor_x_ > address_window_.xMax()) {
-          cursor_y_++;
-          cursor_x_ = address_window_.xMin();
-        }
-      }
-      raster_->readColorsMaybeOutOfBounds(x, y, pixel_count, newcolor);
-      for (uint32_t i = 0; i < pixel_count; ++i) {
-        newcolor[i] = blender_.blend(newcolor[i], color[i]);
-      }
-    }
-    internal::BlendWithBackground(newcolor, pixel_count, bgcolor_);
-    output_->write(newcolor, pixel_count);
+    internal::BlendWithBackground(color, pixel_count, bgcolor_);
+    output_->write(color, pixel_count);
+    advanceCursor(pixel_count);
   }
 
   void fill(Color color, uint32_t pixel_count) override {
     if (pixel_count == 0) return;
-    bool transparent_src = color.a() == 0;
+    Color newcolor[kPixelWritingBufferSize];
+    uint32_t processed = pixel_count;
 
-    // Fast path: uniform raster detected in setAddress.
-    if (addr_uniform_) {
-      Color blended =
-          AlphaBlend(bgcolor_, blender_.blend(addr_uniform_color_, color));
-      output_->fill(blended, pixel_count);
-      advanceCursor(pixel_count);
-      return;
+    // if (addr_stream_.has_stream()) {
+    while (pixel_count > 0) {
+      uint16_t batch = pixel_count > kPixelWritingBufferSize
+                           ? kPixelWritingBufferSize
+                           : pixel_count;
+      uint32_t run_length = 0;
+      addr_stream_.read(newcolor, batch, run_length);
+      uint32_t run = std::min<uint32_t>(run_length, pixel_count);
+      if (run > 0) {
+        Color blended = blender_.blend(newcolor[0], color);
+        blended = AlphaBlend(bgcolor_, blended);
+        if (run >= batch) {
+          output_->fill(blended, run);
+          addr_stream_.skip(run - batch);
+          pixel_count -= run;
+          continue;
+        }
+        FillColor(newcolor, run, blended);
+      }
+      blendUniformSourceColorInPlace(newcolor + run, batch - run, color);
+      internal::BlendWithBackground(newcolor + run, batch - run, bgcolor_);
+      output_->write(newcolor, batch);
+      pixel_count -= batch;
     }
-
-    if (addr_stream_.has_stream()) {
-      uint32_t processed = pixel_count;
-      while (pixel_count > 0) {
-        uint16_t batch = pixel_count > kPixelWritingBufferSize
-                             ? kPixelWritingBufferSize
-                             : pixel_count;
-        Color raster_color[kPixelWritingBufferSize];
-        Color newcolor[kPixelWritingBufferSize];
-        addr_stream_.read(raster_color, batch);
-        if (transparent_src) {
-          for (uint16_t i = 0; i < batch; ++i) {
-            newcolor[i] = blender_.blendTransparentSrc(raster_color[i], color);
-          }
-        } else {
-          for (uint16_t i = 0; i < batch; ++i) {
-            newcolor[i] = blender_.blend(raster_color[i], color);
-          }
-        }
-        internal::BlendWithBackground(newcolor, batch, bgcolor_);
-        output_->write(newcolor, batch);
-        pixel_count -= batch;
-      }
-      advanceCursor(processed);
-      return;
-    }
-
-    Color newcolor[pixel_count];
-
-    if (cursor_x_ + (int32_t)pixel_count - 1 <= address_window_.xMax()) {
-      // Single line.
-      Color* dst = newcolor;
-      size_t remaining = pixel_count;
-      const Box& raster_extents = raster_->extents();
-      const bool y_overlaps = cursor_y_ >= raster_extents.yMin() &&
-                              cursor_y_ <= raster_extents.yMax();
-      if (y_overlaps && raster_extents.xMin() > cursor_x_) {
-        // Write the leading part (before raster).
-        size_t batch =
-            std::min<uint32_t>(remaining, raster_extents.xMin() - cursor_x_);
-        roo_io::PatternFill<sizeof(Color)>((roo::byte*)dst, batch,
-                                           (const roo::byte*)&color);
-        dst += batch;
-        cursor_x_ += batch;
-        remaining -= batch;
-      }
-      if (remaining > 0 && y_overlaps && cursor_x_ <= raster_extents.xMax()) {
-        // Read the overlapping part.
-        size_t batch = std::min<uint32_t>(
-            remaining, raster_extents.xMax() - cursor_x_ + 1);
-        if (raster_->readColorRect(cursor_x_, cursor_y_, cursor_x_ + batch - 1,
-                                   cursor_y_, dst)) {
-          Color result = transparent_src
-                             ? blender_.blendTransparentSrc(dst[0], color)
-                             : blender_.blend(dst[0], color);
-          roo_io::PatternFill<sizeof(Color)>((roo::byte*)dst, batch,
-                                             (const roo::byte*)&result);
-        } else {
-          if (transparent_src) {
-            for (size_t i = 0; i < batch; ++i) {
-              dst[i] = blender_.blendTransparentSrc(dst[i], color);
-            }
-          } else {
-            for (size_t i = 0; i < batch; ++i) {
-              dst[i] = blender_.blend(dst[i], color);
-            }
-          }
-        }
-        cursor_x_ += batch;
-        remaining -= batch;
-        dst += batch;
-      }
-      if (remaining > 0) {
-        // Read the trailing part (after the raster).
-        roo_io::PatternFill<sizeof(Color)>((roo::byte*)dst, remaining,
-                                           (const roo::byte*)&color);
-        cursor_x_ += remaining;
-        remaining = 0;
-        dst += remaining;
-      }
-    } else {
-      int16_t x[pixel_count];
-      int16_t y[pixel_count];
-      for (uint32_t i = 0; i < pixel_count; ++i) {
-        x[i] = cursor_x_++;
-        y[i] = cursor_y_;
-        if (cursor_x_ > address_window_.xMax()) {
-          cursor_y_++;
-          cursor_x_ = address_window_.xMin();
-        }
-      }
-      raster_->readColorsMaybeOutOfBounds(x, y, pixel_count, newcolor);
-      if (transparent_src) {
-        for (uint32_t i = 0; i < pixel_count; ++i) {
-          newcolor[i] = blender_.blendTransparentSrc(newcolor[i], color);
-        }
-      } else {
-        for (uint32_t i = 0; i < pixel_count; ++i) {
-          newcolor[i] = blender_.blend(newcolor[i], color);
-        }
-      }
-    }
-    internal::BlendWithBackground(newcolor, pixel_count, bgcolor_);
-    output_->write(newcolor, pixel_count);
+    advanceCursor(processed);
   }
-
-  // void fill(BlendingMode mode, Color color, uint32_t pixel_count) override {
-  //   // Naive implementation, for now.
-  //   uint32_t i = 0;
-  //   BufferedPixelFiller filler(output_, color, mode);
-  //   while (i < pixel_count) {
-  //     if (clip_mask_->isSet(cursor_x_, cursor_y_)) {
-  //       filler.fillPixel(cursor_x_, cursor_y_);
-  //     }
-  //     if (++cursor_x_ > address_window_.xMax()) {
-  //       ++cursor_y_;
-  //       cursor_x_ = address_window_.xMin();
-  //     }
-  //     ++i;
-  //   }
-  // }
 
   void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
@@ -702,6 +595,32 @@ class BlendingFilter : public DisplayOutput {
     }
   }
 
+  inline __attribute__((always_inline)) void blendWithUniformRasterColorInPlace(
+      Color* buf, uint32_t pixel_count, Color raster_color) {
+    if (raster_color.a() == 0) {
+      for (uint32_t i = 0; i < pixel_count; ++i) {
+        buf[i] = blender_.blendTransparentDst(raster_color, buf[i]);
+      }
+    } else {
+      for (uint32_t i = 0; i < pixel_count; ++i) {
+        buf[i] = blender_.blend(raster_color, buf[i]);
+      }
+    }
+  }
+
+  inline __attribute__((always_inline)) void blendUniformSourceColorInPlace(
+      Color* buf, uint32_t pixel_count, Color source_color) {
+    if (source_color.a() == 0) {
+      for (uint32_t i = 0; i < pixel_count; ++i) {
+        buf[i] = blender_.blendTransparentSrc(buf[i], source_color);
+      }
+    } else {
+      for (uint32_t i = 0; i < pixel_count; ++i) {
+        buf[i] = blender_.blend(source_color, buf[i]);
+      }
+    }
+  }
+
   DisplayOutput* output_;
   Capabilities capabilities_;
   Blender blender_;
@@ -713,8 +632,6 @@ class BlendingFilter : public DisplayOutput {
   int16_t dx_;
   int16_t dy_;
   Color bgcolor_;
-  bool addr_uniform_ = false;
-  Color addr_uniform_color_;
 };
 
 }  // namespace roo_display

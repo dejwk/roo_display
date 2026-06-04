@@ -184,6 +184,14 @@ bool RasterizableStack::readUniformColorRect(int16_t xMin, int16_t yMin,
 }
 
 std::unique_ptr<PixelStream> RasterizableStack::createStream() const {
+  // For very small rasterizables, building and compiling the streamable stack
+  // may be more expensive than just reading pixels directly, so we can skip it
+  // and use the default implementation that reads pixels one by one using
+  // readColors(). The threshold here is somewhat arbitrary and can be tuned
+  // based on benchmarks.
+  if (extents_.area() <= 128) {
+    return Rasterizable::createStream();
+  }
   StreamableStack stack(extents_);
   stack.setAnchorExtents(anchor_extents_);
   for (const auto& input : inputs_) {
@@ -196,7 +204,16 @@ std::unique_ptr<PixelStream> RasterizableStack::createStream() const {
 
 std::unique_ptr<PixelStream> RasterizableStack::createStream(
     const Box& clip_box) const {
-  StreamableStack stack(extents_);
+  // For very small rasterizables, building and compiling the streamable stack
+  // may be more expensive than just reading pixels directly, so we can skip it
+  // and use the default implementation that reads pixels one by one using
+  // readColors(). The threshold here is somewhat arbitrary and can be tuned
+  // based on benchmarks.
+  Box clipped_extents = Box::Intersect(extents_, clip_box);
+  if (clipped_extents.area() <= 128) {
+    return Rasterizable::createStream(clip_box);
+  }
+  StreamableStack stack(clipped_extents);
   stack.setAnchorExtents(anchor_extents_);
   for (const auto& input : inputs_) {
     Box source_extents = input.extents().translate(-input.dx(), -input.dy());

@@ -16,7 +16,7 @@ namespace roo_display {
 class Color {
  public:
   /// Construct transparent black.
-  Color() : argb_(0) {}
+  constexpr Color() : argb_(0) {}
 
   /// Construct opaque color from RGB.
   constexpr Color(uint8_t r, uint8_t g, uint8_t b)

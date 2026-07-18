@@ -470,6 +470,20 @@ cc_test(
 )
 
 cc_test(
+    name = "driver_gc9a01a_test",
+    srcs = [
+        "test/driver_gc9a01a_test.cpp",
+        "test/testing_viewport.h",
+    ],
+    linkstatic = 1,
+    deps = UNIT_TEST_DEPS + [
+        "@roo_testing//roo_testing/devices/display/st77xx:spi",
+        "@roo_testing//roo_testing/microcontrollers/esp32:core",
+        "@roo_testing//roo_testing/transducers/ui/viewport",
+    ],
+)
+
+cc_test(
     name = "driver_ili9486_test",
     srcs = [
         "test/driver_ili9486_test.cpp",

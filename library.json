@@ -6,6 +6,7 @@
         "ILI9341",
         "ILI9486",
         "ILI9488",
+        "GC9A01A",
         "TFT",
         "touch",
         "XPT2046",

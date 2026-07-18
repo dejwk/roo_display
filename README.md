@@ -23,7 +23,7 @@
 
 ## Compatibility
 
-* Supported SPI display drivers: ILI9341, ILI9486, ILI9488, SSD1327, ST7735, ST7789, ST7796s;
+* Supported SPI display drivers: GC9A01A, ILI9341, ILI9486, ILI9488, SSD1327, ST7735, ST7789, ST7796s;
 * ESP32S3 DMA parallel driver harness;
 * Adapter driver for TFT_eSPI-supported displays;
 * Supported touch drivers: XPT2046, FT6x36, GT911;

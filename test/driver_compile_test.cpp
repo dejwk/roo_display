@@ -3,6 +3,7 @@
 #include "gtest/gtest.h"
 #include "roo_display/driver/TFT_eSPI_adapter.h"
 #include "roo_display/driver/esp32s3_dma_parallel_rgb565.h"
+#include "roo_display/driver/gc9a01a.h"
 #include "roo_display/driver/ili9341.h"
 #include "roo_display/driver/ili9486.h"
 #include "roo_display/driver/ili9488.h"
@@ -23,6 +24,7 @@ constexpr bool IsComplete() {
 }
 
 TEST(DriverCompileTest, InstantiateDriverTemplates) {
+  using Gc9a01aSpi = roo_display::Gc9a01aspi_240x240<1, 2, 3>;
   using Ili9341Spi = roo_display::Ili9341spi<1, 2, 3>;
   using Ili9486Spi = roo_display::Ili9486spi<1, 2, 3>;
   using Ili9488Spi = roo_display::Ili9488spi<1, 2, 3>;
@@ -43,6 +45,7 @@ TEST(DriverCompileTest, InstantiateDriverTemplates) {
   using TouchGt911 = roo_display::TouchGt911;
   using TouchXpt2046 = roo_display::TouchXpt2046<4>;
 
+  static_assert(IsComplete<Gc9a01aSpi>());
   static_assert(IsComplete<Ili9341Spi>());
   static_assert(IsComplete<Ili9486Spi>());
   static_assert(IsComplete<Ili9488Spi>());

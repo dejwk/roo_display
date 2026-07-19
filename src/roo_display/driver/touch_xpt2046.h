@@ -157,6 +157,7 @@ int TouchXpt2046<pinCS, Spi, Gpio>::readTouch(TouchPoint* touch_point) {
   }
 
   bool touched = false;
+  bool settled_enough = false;
   for (int i = 0; i < kMaxConversionAttempts; ++i) {
     ConversionResult result =
         single_conversion(device_, z_threshold, &x_tmp, &y_tmp, &z_tmp);
@@ -170,24 +171,28 @@ int TouchXpt2046<pinCS, Spi, Gpio>::readTouch(TouchPoint* touch_point) {
       count++;
     }
     if (settled_conversions >= kMinSettledConversions) {
-      // We got enough settled conversions to return a result.
-      if (touched) {
-        touch_point->id = 0;
-        touch_point->x = 4095 - (x_sum / count);
-        touch_point->y = 4095 - (y_sum / count);
-        touch_point->z = z_max;
-        // if (z >= kInitialTouchZThreshold) {
-        //   // We got a definite press.
-        //   latest_confirmed_pressed_timestamp_ = now;
-        // }
-      }
-      pressed_ = touched;
-      return pressed_ ? 1 : 0;
+      settled_enough = true;
+      break;
     }
   }
-  // No reliable readout despite numerous attempts - aborting.
-  pressed_ = false;
-  return 0;
-};
+
+  // Re-enable PENIRQ: send any control byte with PD0=0 while CS is still low.
+  device_.transfer(roo::byte{0x82});
+  device_.transfer16(0x0000);  // clock out response, discard
+
+  if (!settled_enough) {
+    pressed_ = false;
+    return 0;
+  }
+
+  if (touched) {
+    touch_point->id = 0;
+    touch_point->x = 4095 - (x_sum / count);
+    touch_point->y = 4095 - (y_sum / count);
+    touch_point->z = z_max;
+  }
+  pressed_ = touched;
+  return pressed_ ? 1 : 0;
+}
 
 }  // namespace roo_display

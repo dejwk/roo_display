@@ -588,8 +588,8 @@ void SmoothFont::drawGlyph(const Surface& s, char32_t code, FontLayout layout,
       output, x, y, total_rect_width, glyph_metrics, compressed,
       glyph_data_begin_ + reader.data_offset(), -preadvanced,
       Box::Intersect(s.clip_box(),
-                     Box(x, y - metrics().glyphYMax(),
-                         x + total_rect_width - 1, y - metrics().glyphYMin())),
+                     Box(x, y - metrics().glyphYMax(), x + total_rect_width - 1,
+                         y - metrics().glyphYMin())),
       color, s.bgcolor(), s.blending_mode());
 }
 

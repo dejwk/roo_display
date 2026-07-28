@@ -7,7 +7,6 @@
 #include "roo_backport/string_view.h"
 #include "roo_display/core/device.h"
 #include "roo_display/core/drawable.h"
-
 #include "roo_logging.h"
 
 namespace roo_display {
@@ -33,8 +32,8 @@ class FontMetrics {
         max_right_overhang_(max_right_overhang) {}
 
   FontMetrics() = default;
-  FontMetrics(FontMetrics &&) = default;
-  FontMetrics &operator=(FontMetrics &&) = default;
+  FontMetrics(FontMetrics&&) = default;
+  FontMetrics& operator=(FontMetrics&&) = default;
 
   /// Font ascent (positive).
   int16_t ascent() const { return ascent_; }
@@ -74,7 +73,7 @@ class FontProperties {
  public:
   /// Character set supported by the font.
   enum class Charset {
-    kAscii,       // 7-bit
+    kAscii,      // 7-bit
     kUnicodeBmp  // 16-bit codes, usually UTF-encoded.
   };
 
@@ -108,8 +107,8 @@ class FontProperties {
   static constexpr Kerning KERNING_PAIRS = Kerning::kPairs;
 
   FontProperties() = default;
-  FontProperties(FontProperties &&) = default;
-  FontProperties &operator=(FontProperties &&) = default;
+  FontProperties(FontProperties&&) = default;
+  FontProperties& operator=(FontProperties&&) = default;
 
   /// Construct font properties.
   FontProperties(Charset charset, Spacing spacing, Smoothing smoothing,
@@ -145,13 +144,13 @@ class GlyphMetrics {
         advance_(advance) {}
 
   GlyphMetrics() = default;
-  GlyphMetrics(const GlyphMetrics &) = default;
-  GlyphMetrics(GlyphMetrics &&) = default;
-  GlyphMetrics &operator=(GlyphMetrics &&) = default;
-  GlyphMetrics &operator=(const GlyphMetrics &) = default;
+  GlyphMetrics(const GlyphMetrics&) = default;
+  GlyphMetrics(GlyphMetrics&&) = default;
+  GlyphMetrics& operator=(GlyphMetrics&&) = default;
+  GlyphMetrics& operator=(const GlyphMetrics&) = default;
 
   /// Bounding box in screen coordinates (Y down).
-  const Box &screen_extents() const { return bbox_; }
+  const Box& screen_extents() const { return bbox_; }
 
   /// Bounding box in FreeType coordinates (Y up).
 
@@ -185,13 +184,13 @@ class GlyphMetrics {
 class Font {
  public:
   /// Return font metrics.
-  const FontMetrics &metrics() const { return metrics_; }
+  const FontMetrics& metrics() const { return metrics_; }
   /// Return font properties.
-  const FontProperties &properties() const { return properties_; }
+  const FontProperties& properties() const { return properties_; }
 
   /// Retrieve glyph metrics for a code point and layout.
   virtual bool getGlyphMetrics(char32_t code, FontLayout layout,
-                               GlyphMetrics *result) const = 0;
+                               GlyphMetrics* result) const = 0;
 
   /// Return kerning adjustment for a pair of code points.
   ///
@@ -206,13 +205,13 @@ class Font {
   /// Draw a UTF-8 string horizontally using a string view.
   ///
   /// See https://www.freetype.org/freetype2/docs/glyphs/glyphs-3.html
-  void drawHorizontalString(const Surface &s, roo::string_view text,
+  void drawHorizontalString(const Surface& s, roo::string_view text,
                             Color color) const {
     drawHorizontalString(s, text.data(), text.size(), color);
   }
 
   /// Draw a UTF-8 string horizontally.
-  virtual void drawHorizontalString(const Surface &s, const char *utf8_data,
+  virtual void drawHorizontalString(const Surface& s, const char* utf8_data,
                                     uint32_t size, Color color) const = 0;
 
   /// Draw a single glyph.
@@ -231,7 +230,7 @@ class Font {
 
   /// Return metrics of the specified UTF-8 string as if it were a single
   /// glyph.
-  virtual GlyphMetrics getHorizontalStringMetrics(const char *utf8_data,
+  virtual GlyphMetrics getHorizontalStringMetrics(const char* utf8_data,
                                                   uint32_t size) const = 0;
 
   /// Return metrics for consecutive glyphs in the UTF-8 string.
@@ -240,7 +239,7 @@ class Font {
   /// limited by `max_count`. Returns the number of glyphs measured, which
   /// may be smaller than `max_count` if the input string is shorter.
   uint32_t getHorizontalStringGlyphMetrics(roo::string_view text,
-                                           GlyphMetrics *result,
+                                           GlyphMetrics* result,
                                            uint32_t offset,
                                            uint32_t max_count) const {
     return getHorizontalStringGlyphMetrics(text.data(), text.size(), result,
@@ -249,7 +248,7 @@ class Font {
 
   /// Return metrics for consecutive glyphs in the UTF-8 string.
   virtual uint32_t getHorizontalStringGlyphMetrics(
-      const char *utf8_data, uint32_t size, GlyphMetrics *result,
+      const char* utf8_data, uint32_t size, GlyphMetrics* result,
       uint32_t offset, uint32_t max_count) const = 0;
 
   virtual ~Font() {}
@@ -266,9 +265,13 @@ class Font {
 };
 
 roo_logging::Stream& operator<<(roo_logging::Stream& stream, FontLayout layout);
-roo_logging::Stream& operator<<(roo_logging::Stream& stream, FontProperties::Charset charset);
-roo_logging::Stream& operator<<(roo_logging::Stream& stream, FontProperties::Spacing spacing);
-roo_logging::Stream& operator<<(roo_logging::Stream& stream, FontProperties::Smoothing smoothing);
-roo_logging::Stream& operator<<(roo_logging::Stream& stream, FontProperties::Kerning kerning);
+roo_logging::Stream& operator<<(roo_logging::Stream& stream,
+                                FontProperties::Charset charset);
+roo_logging::Stream& operator<<(roo_logging::Stream& stream,
+                                FontProperties::Spacing spacing);
+roo_logging::Stream& operator<<(roo_logging::Stream& stream,
+                                FontProperties::Smoothing smoothing);
+roo_logging::Stream& operator<<(roo_logging::Stream& stream,
+                                FontProperties::Kerning kerning);
 
 }  // namespace roo_display

@@ -11,10 +11,10 @@ The option adds a fixed number of pixels to every inter-glyph advance. It
 preserves kerning, does not add space before the first or after the last glyph,
 and produces identical measurement and drawing results.
 
-**Implementation status: phase 1 complete.** `Font::Options` stores signed
+**Implementation status: phase 2 complete.** `Font::Options` stores signed
 `int16_t` tracking, and all built-in fonts implement the option-aware
-measurement contract. Tracked rasterization and text-drawable propagation
-remain for phases 2 and 3.
+measurement and rasterization contracts. Text-drawable propagation remains
+for phase 3.
 
 ## Motivation
 

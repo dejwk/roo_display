@@ -2,6 +2,7 @@
 #include "roo_display.h"
 #include "roo_display/color/color.h"
 #include "roo_display/font/font.h"
+#include "roo_display/font/font_adafruit_fixed_5x7.h"
 #include "roo_fonts/NotoSerif_Italic/12.h"
 #include "testing_drawable.h"
 
@@ -9,14 +10,14 @@ using namespace testing;
 
 namespace roo_display {
 
-const Font &font() { return font_NotoSerif_Italic_12(); }
+const Font& font() { return font_NotoSerif_Italic_12(); }
 
 class Label : public Drawable {
  public:
-  Label(const string &label) : label_(label) {}
+  Label(const string& label) : label_(label) {}
 
  private:
-  void drawTo(const Surface &s) const override {
+  void drawTo(const Surface& s) const override {
     font().drawHorizontalString(s, label_, color::White);
   }
 
@@ -26,6 +27,86 @@ class Label : public Drawable {
 
   std::string label_;
 };
+
+class TrackingLabel : public Drawable {
+ public:
+  TrackingLabel(const Font& font, const string& label,
+                const Font::Options& options)
+      : font_(font), label_(label), options_(options) {}
+
+ private:
+  void drawTo(const Surface& s) const override {
+    font_.drawHorizontalString(s, label_, color::White, options_);
+  }
+
+  Box extents() const override {
+    return font_.getHorizontalStringMetrics(label_, options_).screen_extents();
+  }
+
+  const Font& font_;
+  std::string label_;
+  Font::Options options_;
+};
+
+// Draws each ASCII glyph at the tracked, kerning-adjusted origin independently.
+class PositionedGlyphs : public Drawable {
+ public:
+  PositionedGlyphs(const Font& font, const string& label, int16_t tracking_px)
+      : font_(font), label_(label), tracking_px_(tracking_px) {}
+
+ private:
+  void drawTo(const Surface& s) const override {
+    int16_t x = 0;
+    for (uint32_t i = 0; i < label_.size(); ++i) {
+      char32_t code = static_cast<unsigned char>(label_[i]);
+      Surface glyph_surface(s);
+      glyph_surface.set_dx(s.dx() + x);
+      font_.drawGlyph(glyph_surface, code, FontLayout::kHorizontal,
+                      color::White);
+      if (i + 1 < label_.size()) {
+        char32_t next_code = static_cast<unsigned char>(label_[i + 1]);
+        GlyphMetrics metrics;
+        ASSERT_TRUE(
+            font_.getGlyphMetrics(code, FontLayout::kHorizontal, &metrics));
+        x += metrics.advance() - font_.getKerning(code, next_code) +
+             tracking_px_;
+      }
+    }
+  }
+
+  Box extents() const override {
+    Font::Options options;
+    options.setTrackingPx(tracking_px_);
+    return font_.getHorizontalStringMetrics(label_, options).screen_extents();
+  }
+
+  const Font& font_;
+  std::string label_;
+  int16_t tracking_px_;
+};
+
+// Verifies that two same-size test screens have identical pixels.
+template <typename ColorMode>
+void ExpectSamePixels(const FakeScreen<ColorMode>& actual,
+                      const FakeScreen<ColorMode>& expected, uint32_t count) {
+  std::unique_ptr<TestColorStream> actual_stream = actual.createRawStream();
+  std::unique_ptr<TestColorStream> expected_stream = expected.createRawStream();
+  for (uint32_t i = 0; i < count; ++i) {
+    EXPECT_EQ(expected_stream->next(), actual_stream->next()) << "pixel " << i;
+  }
+}
+
+// Returns one pixel from a test screen's row-major raw stream.
+template <typename ColorMode>
+Color PixelAt(const FakeScreen<ColorMode>& screen, uint32_t width, uint32_t x,
+              uint32_t y) {
+  std::unique_ptr<TestColorStream> stream = screen.createRawStream();
+  Color result;
+  for (uint32_t i = 0; i <= y * width + x; ++i) {
+    result = stream->next();
+  }
+  return result;
+}
 
 TEST(SmoothFontTest, FontMetrics) {
   EXPECT_EQ(15, font().metrics().linespace());
@@ -87,9 +168,8 @@ TEST(SmoothFontTest, KerningConsistency) {
     int pair_advance = font().getHorizontalStringMetrics(together).advance();
 
     int observed_kerning = left_advance + right_advance - pair_advance;
-    int reported_kerning =
-        font().getKerning(static_cast<char32_t>(pair.left),
-                          static_cast<char32_t>(pair.right));
+    int reported_kerning = font().getKerning(static_cast<char32_t>(pair.left),
+                                             static_cast<char32_t>(pair.right));
     EXPECT_EQ(observed_kerning, reported_kerning)
         << "pair: " << pair.left << pair.right;
     if (observed_kerning != 0) {
@@ -188,6 +268,69 @@ TEST(SmoothFontTest, TrackedHorizontalStringGlyphMetrics) {
             tracked[2].advance());
   EXPECT_EQ(tracked[1].glyphXMin(), offset[0].glyphXMin());
   EXPECT_EQ(tracked[1].advance(), offset[0].advance());
+}
+
+// Verifies positive and negative tracking preserve kerning while moving the
+// rasterized next-glyph origin by the tracked inter-glyph advance.
+TEST(SmoothFontTest, TrackedVisibleRenderingMatchesPositionedGlyphs) {
+  for (int16_t tracking_px : {int16_t(-2), int16_t(2)}) {
+    Font::Options options;
+    options.setTrackingPx(tracking_px);
+    FakeScreen<Argb4444> actual(20, 14, color::Black);
+    FakeScreen<Argb4444> expected(20, 14, color::Black);
+    actual.Draw(TrackingLabel(font(), "AV", options), 1, 11);
+    expected.Draw(PositionedGlyphs(font(), "AV", tracking_px), 1, 11);
+    ExpectSamePixels(actual, expected, 20 * 14);
+  }
+}
+
+// Verifies positive tracking fills the newly exposed extents gap and respects
+// the caller's clip box.
+TEST(SmoothFontTest, TrackedExtentsFillAndClipPositiveGap) {
+  Font::Options options;
+  options.setTrackingPx(2);
+  TrackingLabel label(font(), "A ", options);
+  int tracking_gap_x = font().getHorizontalStringMetrics("A").advance() +
+                       options.trackingPx() - 1;
+
+  FakeScreen<Argb4444> visible(20, 14, color::Red);
+  FakeScreen<Argb4444> extents(20, 14, color::Red);
+  visible.Draw(label, 0, 11);
+  extents.Draw(label, 0, 11, color::Black, FillMode::kExtents);
+  EXPECT_EQ(color::Red, PixelAt(visible, 20, tracking_gap_x, 5));
+  EXPECT_EQ(color::Black, PixelAt(extents, 20, tracking_gap_x, 5));
+
+  FakeScreen<Argb4444> clipped(20, 14, color::Red);
+  clipped.Draw(label, 0, 11, Box(tracking_gap_x, 1, tracking_gap_x, 10),
+               color::Black, FillMode::kExtents);
+  EXPECT_EQ(color::Black, PixelAt(clipped, 20, tracking_gap_x, 5));
+  EXPECT_EQ(color::Red, PixelAt(clipped, 20, tracking_gap_x - 1, 5));
+}
+
+// Verifies the fixed font honors positive and negative tracking, including
+// background fill across a positive extents gap.
+TEST(SmoothFontTest, FixedFontTrackedRendering) {
+  FontAdafruitFixed5x7 fixed_font;
+  for (int16_t tracking_px : {int16_t(-2), int16_t(2)}) {
+    Font::Options options;
+    options.setTrackingPx(tracking_px);
+    FakeScreen<Argb4444> actual(18, 12, color::Black);
+    FakeScreen<Argb4444> expected(18, 12, color::Black);
+    actual.Draw(TrackingLabel(fixed_font, "AA", options), 1, 8);
+    expected.Draw(PositionedGlyphs(fixed_font, "AA", tracking_px), 1, 8);
+    ExpectSamePixels(actual, expected, 18 * 12);
+  }
+
+  Font::Options positive_tracking;
+  positive_tracking.setTrackingPx(2);
+  GlyphMetrics fixed_a;
+  ASSERT_TRUE(
+      fixed_font.getGlyphMetrics(U'A', FontLayout::kHorizontal, &fixed_a));
+  int tracking_gap_x = fixed_a.advance() + positive_tracking.trackingPx() - 1;
+  FakeScreen<Argb4444> extents(18, 12, color::Red);
+  extents.Draw(TrackingLabel(fixed_font, "A ", positive_tracking), 0, 8,
+               color::Black, FillMode::kExtents);
+  EXPECT_EQ(color::Black, PixelAt(extents, 18, tracking_gap_x, 4));
 }
 
 TEST(SmoothFontTest, SimpleTextNoBackground) {

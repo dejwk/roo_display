@@ -471,6 +471,12 @@ uint32_t SmoothFont::getHorizontalStringGlyphMetrics(
 
 void SmoothFont::drawHorizontalString(const Surface& s, const char* utf8_data,
                                       uint32_t size, Color color) const {
+  drawHorizontalString(s, utf8_data, size, color, Options());
+}
+
+void SmoothFont::drawHorizontalString(const Surface& s, const char* utf8_data,
+                                      uint32_t size, Color color,
+                                      const Options& options) const {
   roo_io::Utf8Decoder decoder(utf8_data, size);
   char32_t next_code;
   if (!decoder.next(next_code)) {
@@ -506,7 +512,10 @@ void SmoothFont::drawHorizontalString(const Surface& s, const char* utf8_data,
       drawGlyphModeVisible(output, x - preadvanced, y, glyphs.left_metrics(),
                            glyphs.left_compressed(), glyphs.left_data(),
                            s.clip_box(), color, s.bgcolor(), s.blending_mode());
-      x += (glyphs.left_metrics().advance() - kern);
+      x += glyphs.left_metrics().advance() - kern;
+      if (has_more) {
+        x += options.trackingPx();
+      }
     } else {
       // General case. We may have two glyphs to worry about, and we may be
       // pre-advanced. Let's determine our bounding box, taking the
@@ -515,6 +524,8 @@ void SmoothFont::drawHorizontalString(const Surface& s, const char* utf8_data,
       int16_t gap = 0;
       if (has_more) {
         gap = glyphs.left_metrics().rsb() + glyphs.right_metrics().lsb() - kern;
+        advance += options.trackingPx();
+        gap += options.trackingPx();
       }
       // Calculate the total width of a rectangle that we will need to fill with
       // content (glyphs + background).
@@ -553,13 +564,6 @@ void SmoothFont::drawHorizontalString(const Surface& s, const char* utf8_data,
       preadvanced = total_rect_width - (advance - preadvanced);
     }
   } while (has_more);
-}
-
-void SmoothFont::drawHorizontalString(const Surface& s, const char* utf8_data,
-                                      uint32_t size, Color color,
-                                      const Options& options) const {
-  (void)options;
-  drawHorizontalString(s, utf8_data, size, color);
 }
 
 void SmoothFont::drawGlyph(const Surface& s, char32_t code, FontLayout layout,

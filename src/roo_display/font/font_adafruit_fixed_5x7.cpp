@@ -130,11 +130,15 @@ FontAdafruitFixed5x7::FontAdafruitFixed5x7() {
 }
 
 void drawAdafruitFixed5x7Glyph(const Surface& s, char32_t code, Color color,
-                               bool whitespace) {
+                               int16_t trailing_bg_width) {
   int16_t x = s.dx();
   int16_t y = s.dy();
+  int16_t right = x + advance - 1;
+  if (trailing_bg_width > 0) {
+    right = x + 4 + trailing_bg_width;
+  }
   if (!s.clip_box().intersects(
-          Box(x, y - ascent, x + advance - 1, y - descent + linegap))) {
+          Box(x, y - ascent, right, y - descent + linegap))) {
     return;
   }
   y -= ascent;
@@ -158,9 +162,11 @@ void drawAdafruitFixed5x7Glyph(const Surface& s, char32_t code, Color color,
         writer.writePixel(x + i, y + j, (line & 0x1) ? color : s.bgcolor());
         line >>= 1;
       }
-      if (whitespace) {
+    }
+    if (trailing_bg_width > 0) {
+      for (int16_t i = 5; i < 5 + trailing_bg_width; i++) {
         for (int8_t j = 0; j < 8; j++) {
-          writer.writePixel(x + 5, y + j, s.bgcolor());
+          writer.writePixel(x + i, y + j, s.bgcolor());
         }
       }
     }
@@ -170,13 +176,20 @@ void drawAdafruitFixed5x7Glyph(const Surface& s, char32_t code, Color color,
 void FontAdafruitFixed5x7::drawGlyph(const Surface& s, char32_t code,
                                      FontLayout layout, Color color) const {
   if (layout != FontLayout::kHorizontal) return;
-  drawAdafruitFixed5x7Glyph(s, code, color, false);
+  drawAdafruitFixed5x7Glyph(s, code, color, 0);
 }
 
 void FontAdafruitFixed5x7::drawHorizontalString(const Surface& s,
                                                 const char* utf8_data,
                                                 uint32_t size,
                                                 Color color) const {
+  drawHorizontalString(s, utf8_data, size, color, Options());
+}
+
+void FontAdafruitFixed5x7::drawHorizontalString(const Surface& s,
+                                                const char* utf8_data,
+                                                uint32_t size, Color color,
+                                                const Options& options) const {
   Surface news(s);
   roo_io::Utf8Decoder decoder(utf8_data, size);
   char32_t ch;
@@ -184,19 +197,13 @@ void FontAdafruitFixed5x7::drawHorizontalString(const Surface& s,
   while (true) {
     char32_t next;
     bool has_next = decoder.next(next);
-    drawAdafruitFixed5x7Glyph(news, ch, color, has_next);
+    int16_t trailing_bg_width =
+        has_next ? advance - 5 + options.trackingPx() : 0;
+    drawAdafruitFixed5x7Glyph(news, ch, color, trailing_bg_width);
     if (!has_next) return;
-    news.set_dx(news.dx() + advance);
+    news.set_dx(news.dx() + advance + options.trackingPx());
     ch = next;
   };
-}
-
-void FontAdafruitFixed5x7::drawHorizontalString(const Surface& s,
-                                                const char* utf8_data,
-                                                uint32_t size, Color color,
-                                                const Options& options) const {
-  (void)options;
-  drawHorizontalString(s, utf8_data, size, color);
 }
 
 bool FontAdafruitFixed5x7::getGlyphMetrics(char32_t code, FontLayout layout,

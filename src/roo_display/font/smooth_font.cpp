@@ -362,6 +362,11 @@ class GlyphPairIterator {
 
 GlyphMetrics SmoothFont::getHorizontalStringMetrics(const char* utf8_data,
                                                     uint32_t size) const {
+  return getHorizontalStringMetrics(utf8_data, size, Options());
+}
+
+GlyphMetrics SmoothFont::getHorizontalStringMetrics(
+    const char* utf8_data, uint32_t size, const Options& options) const {
   roo_io::Utf8Decoder decoder(utf8_data, size);
   char32_t next_code;
   if (!decoder.next(next_code)) {
@@ -402,6 +407,9 @@ GlyphMetrics SmoothFont::getHorizontalStringMetrics(const char* utf8_data,
     if (xm > xMax) {
       xMax = xm;
     }
+    if (has_more) {
+      advance += options.trackingPx();
+    }
   } while (has_more);
   return GlyphMetrics(xMin, yMin, xMax, yMax, advance);
 }
@@ -411,6 +419,13 @@ uint32_t SmoothFont::getHorizontalStringGlyphMetrics(const char* utf8_data,
                                                      GlyphMetrics* result,
                                                      uint32_t offset,
                                                      uint32_t max_count) const {
+  return getHorizontalStringGlyphMetrics(utf8_data, size, result, offset,
+                                         max_count, Options());
+}
+
+uint32_t SmoothFont::getHorizontalStringGlyphMetrics(
+    const char* utf8_data, uint32_t size, GlyphMetrics* result, uint32_t offset,
+    uint32_t max_count, const Options& options) const {
   roo_io::Utf8Decoder decoder(utf8_data, size);
   char32_t next_code;
   if (!decoder.next(next_code)) {
@@ -442,10 +457,14 @@ uint32_t SmoothFont::getHorizontalStringGlyphMetrics(const char* utf8_data,
                        glyphs.left_metrics().glyphYMin(),
                        glyphs.left_metrics().glyphXMax() + advance,
                        glyphs.left_metrics().glyphYMax(),
-                       glyphs.left_metrics().advance() + advance);
+                       glyphs.left_metrics().advance() + advance +
+                           (has_more ? options.trackingPx() : 0));
     }
     ++glyph_idx;
     advance += (glyphs.left_metrics().advance() - kern);
+    if (has_more) {
+      advance += options.trackingPx();
+    }
   } while (has_more);
   return glyph_count;
 }
@@ -534,6 +553,13 @@ void SmoothFont::drawHorizontalString(const Surface& s, const char* utf8_data,
       preadvanced = total_rect_width - (advance - preadvanced);
     }
   } while (has_more);
+}
+
+void SmoothFont::drawHorizontalString(const Surface& s, const char* utf8_data,
+                                      uint32_t size, Color color,
+                                      const Options& options) const {
+  (void)options;
+  drawHorizontalString(s, utf8_data, size, color);
 }
 
 void SmoothFont::drawGlyph(const Surface& s, char32_t code, FontLayout layout,

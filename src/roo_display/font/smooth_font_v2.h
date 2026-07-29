@@ -28,6 +28,10 @@ class SmoothFontV2 : public Font {
   void drawHorizontalString(const Surface& s, const char* utf8_data,
                             uint32_t size, Color color) const override;
 
+  void drawHorizontalString(const Surface& s, const char* utf8_data,
+                            uint32_t size, Color color,
+                            const Options& options) const override;
+
   void drawGlyph(const Surface& s, char32_t code, FontLayout layout,
                  Color color) const override;
 
@@ -39,10 +43,19 @@ class SmoothFontV2 : public Font {
   GlyphMetrics getHorizontalStringMetrics(const char* utf8_data,
                                           uint32_t size) const override;
 
+  GlyphMetrics getHorizontalStringMetrics(
+      const char* utf8_data, uint32_t size,
+      const Options& options) const override;
+
   uint32_t getHorizontalStringGlyphMetrics(const char* utf8_data, uint32_t size,
                                            GlyphMetrics* result,
                                            uint32_t offset,
                                            uint32_t max_count) const override;
+
+  uint32_t getHorizontalStringGlyphMetrics(
+      const char* utf8_data, uint32_t size, GlyphMetrics* result,
+      uint32_t offset, uint32_t max_count,
+      const Options& options) const override;
 
  private:
   class GlyphPairIterator;

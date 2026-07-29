@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="330"
+     viewBox="0 0 880 330">
+  <rect width="880" height="330" fill="white"/>
+  <style>
+    text { font-family: sans-serif; fill: #202124; }
+    .label { font-size: 17px; }
+    .small { font-size: 14px; }
+    .glyph { font-size: 112px; font-weight: 500; fill: #3949ab; }
+    .guide { stroke: #5f6368; stroke-width: 1.5; stroke-dasharray: 6 5; }
+    .measure { stroke: #c62828; stroke-width: 2; marker-start: url(#arrow);
+               marker-end: url(#arrow); }
+    .origin { stroke: #00897b; stroke-width: 2; }
+  </style>
+  <defs>
+    <marker id="arrow" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5"
+            orient="auto-start-reverse">
+      <path d="M 0 0 L 7 3.5 L 0 7 z" fill="#c62828"/>
+    </marker>
+  </defs>
+
+  <text x="40" y="34" class="label">Existing kerning-aware advance plus integer tracking</text>
+  <line x1="70" y1="230" x2="810" y2="230" class="guide"/>
+  <text x="70" y="220" class="glyph">A</text>
+  <text x="440" y="220" class="glyph">V</text>
+
+  <line x1="90" y1="85" x2="90" y2="250" class="origin"/>
+  <line x1="460" y1="85" x2="460" y2="250" class="origin"/>
+  <text x="75" y="275" class="small">pᵢ</text>
+  <text x="438" y="275" class="small">pᵢ₊₁</text>
+
+  <line x1="90" y1="70" x2="400" y2="70" class="measure"/>
+  <text x="222" y="60" class="label">existing advance aᵢ</text>
+  <line x1="400" y1="70" x2="460" y2="70" class="measure"/>
+  <text x="423" y="60" class="label">t</text>
+
+  <rect x="400" y="100" width="60" height="130" fill="#fce8e6"
+        fill-opacity="0.7" stroke="#c62828" stroke-dasharray="4 4"/>
+  <text x="520" y="130" class="label">Tracking changes only this</text>
+  <text x="520" y="154" class="label">inter-glyph boundary.</text>
+  <text x="520" y="190" class="small">No leading or trailing tracking</text>
+  <text x="520" y="212" class="small">is added at the line edges.</text>
+</svg>

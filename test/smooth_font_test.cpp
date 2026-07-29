@@ -118,6 +118,78 @@ TEST(SmoothFontTest, SpaceGlyphMetrics) {
   EXPECT_GT(space.advance(), 0);
 }
 
+// Verifies tracked measurement preserves empty and single-glyph geometry,
+// while moving only inter-glyph boundaries.
+TEST(SmoothFontTest, TrackedHorizontalStringMetrics) {
+  Font::Options positive_tracking;
+  positive_tracking.setTrackingPx(2);
+  Font::Options negative_tracking;
+  negative_tracking.setTrackingPx(-1);
+
+  EXPECT_EQ(sizeof(int16_t), sizeof(Font::Options));
+  EXPECT_EQ(2, positive_tracking.trackingPx());
+  EXPECT_EQ(-1, negative_tracking.trackingPx());
+
+  GlyphMetrics empty = font().getHorizontalStringMetrics("");
+  GlyphMetrics tracked_empty =
+      font().getHorizontalStringMetrics("", positive_tracking);
+  EXPECT_EQ(empty.glyphXMin(), tracked_empty.glyphXMin());
+  EXPECT_EQ(empty.glyphXMax(), tracked_empty.glyphXMax());
+  EXPECT_EQ(empty.advance(), tracked_empty.advance());
+
+  GlyphMetrics single = font().getHorizontalStringMetrics("A");
+  GlyphMetrics tracked_single =
+      font().getHorizontalStringMetrics("A", positive_tracking);
+  EXPECT_EQ(single.glyphXMin(), tracked_single.glyphXMin());
+  EXPECT_EQ(single.glyphXMax(), tracked_single.glyphXMax());
+  EXPECT_EQ(single.advance(), tracked_single.advance());
+
+  GlyphMetrics untracked_pair = font().getHorizontalStringMetrics("AV");
+  GlyphMetrics tracked_pair =
+      font().getHorizontalStringMetrics("AV", positive_tracking);
+  EXPECT_NE(0, font().getKerning(U'A', U'V'));
+  EXPECT_EQ(untracked_pair.advance() + positive_tracking.trackingPx(),
+            tracked_pair.advance());
+
+  GlyphMetrics untracked_whitespace = font().getHorizontalStringMetrics("A V");
+  EXPECT_EQ(
+      untracked_whitespace.advance() + 2 * positive_tracking.trackingPx(),
+      font().getHorizontalStringMetrics("A V", positive_tracking).advance());
+  EXPECT_EQ(
+      untracked_whitespace.advance() + 2 * negative_tracking.trackingPx(),
+      font().getHorizontalStringMetrics("A V", negative_tracking).advance());
+}
+
+// Verifies tracked per-glyph origins include prior boundaries and returned
+// advances include only the following boundary.
+TEST(SmoothFontTest, TrackedHorizontalStringGlyphMetrics) {
+  Font::Options tracking;
+  tracking.setTrackingPx(2);
+
+  GlyphMetrics untracked[3];
+  GlyphMetrics tracked[3];
+  GlyphMetrics offset[1];
+  ASSERT_EQ(3u, font().getHorizontalStringGlyphMetrics("A V", untracked, 0, 3));
+  ASSERT_EQ(3u, font().getHorizontalStringGlyphMetrics("A V", tracked, 0, 3,
+                                                       tracking));
+  ASSERT_EQ(1u, font().getHorizontalStringGlyphMetrics("A V", offset, 1, 1,
+                                                       tracking));
+
+  EXPECT_EQ(untracked[0].glyphXMin(), tracked[0].glyphXMin());
+  EXPECT_EQ(untracked[1].glyphXMin() + tracking.trackingPx(),
+            tracked[1].glyphXMin());
+  EXPECT_EQ(untracked[2].glyphXMin() + 2 * tracking.trackingPx(),
+            tracked[2].glyphXMin());
+  EXPECT_EQ(untracked[0].advance() + tracking.trackingPx(),
+            tracked[0].advance());
+  EXPECT_EQ(untracked[1].advance() + 2 * tracking.trackingPx(),
+            tracked[1].advance());
+  EXPECT_EQ(untracked[2].advance() + 2 * tracking.trackingPx(),
+            tracked[2].advance());
+  EXPECT_EQ(tracked[1].glyphXMin(), offset[0].glyphXMin());
+  EXPECT_EQ(tracked[1].advance(), offset[0].advance());
+}
+
 TEST(SmoothFontTest, SimpleTextNoBackground) {
   FakeScreen<Argb4444> screen(26, 18, color::Black);
   screen.Draw(Label("Aftp"), 2, 14);

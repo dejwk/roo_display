@@ -183,6 +183,25 @@ class GlyphMetrics {
 /// Abstract font interface.
 class Font {
  public:
+  /// Options controlling horizontal string layout.
+  class Options {
+   public:
+    /// Constructs options with zero tracking.
+    Options() : tracking_px_(0) {}
+
+    /// Sets the signed pixel adjustment between adjacent glyphs.
+    Options& setTrackingPx(int16_t tracking_px) {
+      tracking_px_ = tracking_px;
+      return *this;
+    }
+
+    /// Returns the signed pixel adjustment between adjacent glyphs.
+    int16_t trackingPx() const { return tracking_px_; }
+
+   private:
+    int16_t tracking_px_;
+  };
+
   /// Return font metrics.
   const FontMetrics& metrics() const { return metrics_; }
   /// Return font properties.
@@ -210,9 +229,20 @@ class Font {
     drawHorizontalString(s, text.data(), text.size(), color);
   }
 
+  /// Draw a UTF-8 string horizontally using the specified options.
+  void drawHorizontalString(const Surface& s, roo::string_view text,
+                            Color color, const Options& options) const {
+    drawHorizontalString(s, text.data(), text.size(), color, options);
+  }
+
   /// Draw a UTF-8 string horizontally.
   virtual void drawHorizontalString(const Surface& s, const char* utf8_data,
                                     uint32_t size, Color color) const = 0;
+
+  /// Draw a UTF-8 string horizontally, using the specified options.
+  virtual void drawHorizontalString(const Surface& s, const char* utf8_data,
+                                    uint32_t size, Color color,
+                                    const Options& options) const = 0;
 
   /// Draw a single glyph.
   ///
@@ -228,10 +258,20 @@ class Font {
     return getHorizontalStringMetrics(text.data(), text.size());
   }
 
+  /// Return metrics of the specified UTF-8 string using the specified options.
+  GlyphMetrics getHorizontalStringMetrics(roo::string_view text,
+                                          const Options& options) const {
+    return getHorizontalStringMetrics(text.data(), text.size(), options);
+  }
+
   /// Return metrics of the specified UTF-8 string as if it were a single
   /// glyph.
   virtual GlyphMetrics getHorizontalStringMetrics(const char* utf8_data,
                                                   uint32_t size) const = 0;
+
+  /// Return metrics of the specified UTF-8 string using the specified options.
+  virtual GlyphMetrics getHorizontalStringMetrics(
+      const char* utf8_data, uint32_t size, const Options& options) const = 0;
 
   /// Return metrics for consecutive glyphs in the UTF-8 string.
   ///
@@ -246,10 +286,24 @@ class Font {
                                            offset, max_count);
   }
 
+  /// Return metrics for consecutive glyphs using the specified options.
+  uint32_t getHorizontalStringGlyphMetrics(roo::string_view text,
+                                           GlyphMetrics* result,
+                                           uint32_t offset, uint32_t max_count,
+                                           const Options& options) const {
+    return getHorizontalStringGlyphMetrics(text.data(), text.size(), result,
+                                           offset, max_count, options);
+  }
+
   /// Return metrics for consecutive glyphs in the UTF-8 string.
   virtual uint32_t getHorizontalStringGlyphMetrics(
       const char* utf8_data, uint32_t size, GlyphMetrics* result,
       uint32_t offset, uint32_t max_count) const = 0;
+
+  /// Return metrics for consecutive glyphs using the specified options.
+  virtual uint32_t getHorizontalStringGlyphMetrics(
+      const char* utf8_data, uint32_t size, GlyphMetrics* result,
+      uint32_t offset, uint32_t max_count, const Options& options) const = 0;
 
   virtual ~Font() {}
 

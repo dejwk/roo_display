@@ -191,6 +191,14 @@ void FontAdafruitFixed5x7::drawHorizontalString(const Surface& s,
   };
 }
 
+void FontAdafruitFixed5x7::drawHorizontalString(const Surface& s,
+                                                const char* utf8_data,
+                                                uint32_t size, Color color,
+                                                const Options& options) const {
+  (void)options;
+  drawHorizontalString(s, utf8_data, size, color);
+}
+
 bool FontAdafruitFixed5x7::getGlyphMetrics(char32_t code, FontLayout layout,
                                            GlyphMetrics* result) const {
   *result = GlyphMetrics(0, descent, 4, ascent, advance);
@@ -199,33 +207,51 @@ bool FontAdafruitFixed5x7::getGlyphMetrics(char32_t code, FontLayout layout,
 
 GlyphMetrics FontAdafruitFixed5x7::getHorizontalStringMetrics(
     const char* utf8_data, uint32_t size) const {
+  return getHorizontalStringMetrics(utf8_data, size, Options());
+}
+
+GlyphMetrics FontAdafruitFixed5x7::getHorizontalStringMetrics(
+    const char* utf8_data, uint32_t size, const Options& options) const {
   roo_io::Utf8Decoder decoder(utf8_data, size);
-  int16_t length = 0;
+  int length = 0;
   char32_t ignored;
   while (decoder.next(ignored)) {
     length++;
   }
-  return GlyphMetrics(0, descent, advance * length - 2, ascent,
-                      advance * length - 1);
+  int tracking = length > 0 ? (length - 1) * options.trackingPx() : 0;
+  return GlyphMetrics(0, descent, advance * length + tracking - 2, ascent,
+                      advance * length + tracking - 1);
 }
 
 uint32_t FontAdafruitFixed5x7::getHorizontalStringGlyphMetrics(
     const char* utf8_data, uint32_t size, GlyphMetrics* result, uint32_t offset,
     uint32_t max_count) const {
+  return getHorizontalStringGlyphMetrics(utf8_data, size, result, offset,
+                                         max_count, Options());
+}
+
+uint32_t FontAdafruitFixed5x7::getHorizontalStringGlyphMetrics(
+    const char* utf8_data, uint32_t size, GlyphMetrics* result, uint32_t offset,
+    uint32_t max_count, const Options& options) const {
+  if (max_count == 0) return 0;
   roo_io::Utf8Decoder decoder(utf8_data, size);
-  uint32_t i = 0;
-  uint32_t count = 0;
   char32_t ignored;
-  while (decoder.next(ignored) && count < max_count) {
-    uint16_t running = 0;
-    if (i >= offset) {
-      result[count++] = GlyphMetrics(running, descent, running + 4, ascent,
-                                     running + advance);
+  if (!decoder.next(ignored)) return 0;
+  uint32_t glyph_idx = 0;
+  uint32_t count = 0;
+  int running = 0;
+  while (true) {
+    bool has_more = decoder.next(ignored);
+    if (glyph_idx >= offset) {
+      result[count++] = GlyphMetrics(
+          running, descent, running + 4, ascent,
+          running + advance + (has_more ? options.trackingPx() : 0));
+      if (count == max_count) return count;
     }
-    running += advance;
-    ++i;
+    if (!has_more) return count;
+    running += advance + options.trackingPx();
+    ++glyph_idx;
   }
-  return count;
 }
 
 }  // namespace roo_display

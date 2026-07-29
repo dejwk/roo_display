@@ -37,21 +37,34 @@ class TextLabel : public Drawable {
             FillMode fill_mode = FillMode::kVisible)
       : TextLabel(std::string(std::move(label)), font, color, fill_mode) {}
 
+  /// Construct from a string-like value with horizontal layout options.
+  template <typename String>
+  TextLabel(const String& label, const Font& font, Color color,
+            FillMode fill_mode, const Font::Options& options)
+      : TextLabel(std::string(std::move(label)), font, color, fill_mode,
+                  options) {}
+
   /// Construct from an owned string.
   TextLabel(std::string label, const Font& font, Color color,
             FillMode fill_mode = FillMode::kVisible)
+      : TextLabel(std::move(label), font, color, fill_mode, Font::Options()) {}
+
+  /// Construct from an owned string with horizontal layout options.
+  TextLabel(std::string label, const Font& font, Color color,
+            FillMode fill_mode, const Font::Options& options)
       : font_(&font),
         label_(std::move(label)),
         color_(color),
         fill_mode_(fill_mode),
-        metrics_(font.getHorizontalStringMetrics(label_)) {}
+        options_(options),
+        metrics_(font.getHorizontalStringMetrics(label_, options_)) {}
 
   void drawTo(const Surface& s) const override {
     Surface news = s;
     if (fill_mode() == FillMode::kExtents) {
       news.set_fill_mode(FillMode::kExtents);
     }
-    font().drawHorizontalString(news, label(), color());
+    font().drawHorizontalString(news, label(), color(), options());
   }
 
   Box extents() const override { return metrics_.screen_extents(); }
@@ -71,6 +84,8 @@ class TextLabel : public Drawable {
   const Color color() const { return color_; }
   /// Return the fill mode.
   const FillMode fill_mode() const { return fill_mode_; }
+  /// Return the horizontal layout options.
+  const Font::Options& options() const { return options_; }
 
   /// Set the label color.
   void setColor(Color color) { color_ = color; }
@@ -82,6 +97,7 @@ class TextLabel : public Drawable {
   std::string label_;
   Color color_;
   FillMode fill_mode_;
+  Font::Options options_;
   GlyphMetrics metrics_;
 };
 
@@ -99,7 +115,7 @@ class ClippedTextLabel : public TextLabel {
       news.set_fill_mode(FillMode::kExtents);
     }
     // news.clipToExtents(metrics().screen_extents());
-    font().drawHorizontalString(news, label(), color());
+    font().drawHorizontalString(news, label(), color(), options());
   }
 
   Box anchorExtents() const override { return metrics().screen_extents(); }
@@ -117,21 +133,34 @@ class StringViewLabel : public Drawable {
       : StringViewLabel(roo::string_view(std::move(label)), font, color,
                         fill_mode) {}
 
+  /// Construct from a string-like value with horizontal layout options.
+  template <typename String>
+  StringViewLabel(String& label, const Font& font, const Color color,
+                  FillMode fill_mode, const Font::Options& options)
+      : StringViewLabel(roo::string_view(std::move(label)), font, color,
+                        fill_mode, options) {}
+
   /// Construct from a `string_view`.
   StringViewLabel(roo::string_view label, const Font& font, Color color,
                   FillMode fill_mode = FillMode::kVisible)
+      : StringViewLabel(label, font, color, fill_mode, Font::Options()) {}
+
+  /// Construct from a `string_view` with horizontal layout options.
+  StringViewLabel(roo::string_view label, const Font& font, Color color,
+                  FillMode fill_mode, const Font::Options& options)
       : font_(&font),
         label_(std::move(label)),
         color_(color),
         fill_mode_(fill_mode),
-        metrics_(font.getHorizontalStringMetrics(label)) {}
+        options_(options),
+        metrics_(font.getHorizontalStringMetrics(label_, options_)) {}
 
   void drawTo(const Surface& s) const override {
     Surface news = s;
     if (fill_mode() == FillMode::kExtents) {
       news.set_fill_mode(FillMode::kExtents);
     }
-    font().drawHorizontalString(news, label(), color());
+    font().drawHorizontalString(news, label(), color(), options());
   }
 
   Box extents() const override { return metrics_.screen_extents(); }
@@ -151,6 +180,8 @@ class StringViewLabel : public Drawable {
   const Color color() const { return color_; }
   /// Return the fill mode.
   const FillMode fill_mode() const { return fill_mode_; }
+  /// Return the horizontal layout options.
+  const Font::Options& options() const { return options_; }
 
   /// Set the label color.
   void setColor(Color color) { color_ = color; }
@@ -162,6 +193,7 @@ class StringViewLabel : public Drawable {
   roo::string_view label_;
   Color color_;
   FillMode fill_mode_;
+  Font::Options options_;
   GlyphMetrics metrics_;
 };
 
@@ -177,7 +209,7 @@ class ClippedStringViewLabel : public StringViewLabel {
     if (fill_mode() == FillMode::kExtents) {
       news.set_fill_mode(FillMode::kExtents);
     }
-    font().drawHorizontalString(news, label(), color());
+    font().drawHorizontalString(news, label(), color(), options());
   }
 
   Box extents() const override { return metrics().screen_extents(); }

@@ -266,6 +266,30 @@ The 'origin' of the text label is at the baseline and to the left of the text. W
 
 > Note: `TextLabel` makes a copy of the string argument. If that argument is known to remain valid throughout the lifetime of the label, you can use `StringViewLabel` instead, which avoids the copy. In particular, `StringViewLabel` is always safe to use if the argument is a compile-time C string constant, and it is usually safe when the label is transient, as in most examples in this guide.
 
+### Letter tracking
+
+Use `Font::Options` to adjust every inter-glyph advance by an integer number
+of pixels. Pass the options as the trailing argument to `TextLabel`,
+`StringViewLabel`, or their clipped variants:
+
+```cpp
+Font::Options options;
+options.setTrackingPx(1);
+
+dc.draw(TextLabel("Pool temperature", font_NotoSans_Regular_27(),
+                  color::Black, FillMode::kVisible, options),
+        5, 30);
+```
+
+Positive values add space between adjacent glyphs; negative values move them
+closer together. The label copies the options and uses the same copy for its
+cached extents and rasterization. Tracking does not add space before the first
+or after the last glyph.
+
+Tracking operates on decoded glyphs, not grapheme clusters. It does not shape
+text, form ligatures, reorder bidirectional text, or suppress spacing for
+script-specific cases.
+
 ### Backgrounds and overwriting
 
 By default, `roo_display` draws the minimum possible number of pixels:

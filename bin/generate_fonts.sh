@@ -21,7 +21,6 @@ mkdir -p ${OUT_DIR}
 (cd ${BIN_DIR};
 git clone https://github.com/dejwk/roo_display_font_importer.git;
 cd roo_display_font_importer;
-git checkout v2;
 
 for font in "${FONTS[@]}"; do
   ./gradlew run --args="-font=$font -sizes=$SIZES -output-dir=$OUT_DIR"

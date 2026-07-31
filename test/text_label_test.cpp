@@ -124,8 +124,8 @@ TEST(StringViewLabel, SimpleTextNoBackground) {
 TEST(TextLabel, TrackingOptionsMatchMetricsAndRasterization) {
   Font::Options positive_tracking;
   positive_tracking.setTrackingPx(2);
-  TextLabel owned("AV", font12(), color::White, FillMode::kVisible,
-                  positive_tracking);
+  TextLabel owned("AV", font12(), color::White, positive_tracking,
+                  FillMode::kVisible);
   GlyphMetrics positive_metrics =
       font12().getHorizontalStringMetrics("AV", positive_tracking);
   EXPECT_EQ(positive_tracking.trackingPx(), owned.options().trackingPx());
@@ -144,8 +144,8 @@ TEST(TextLabel, TrackingOptionsMatchMetricsAndRasterization) {
 
   Font::Options negative_tracking;
   negative_tracking.setTrackingPx(-2);
-  StringViewLabel borrowed("AV", font12(), color::White, FillMode::kExtents,
-                           negative_tracking);
+  StringViewLabel borrowed("AV", font12(), color::White, negative_tracking,
+                           FillMode::kExtents);
   GlyphMetrics negative_metrics =
       font12().getHorizontalStringMetrics("AV", negative_tracking);
   EXPECT_EQ(negative_tracking.trackingPx(), borrowed.options().trackingPx());
@@ -168,10 +168,10 @@ TEST(TextLabel, TrackingOptionsMatchMetricsAndRasterization) {
 TEST(TextLabel, ClippedTrackingOptionsMatchMetricsAndRasterization) {
   Font::Options options;
   options.setTrackingPx(2);
-  ClippedTextLabel owned("AV", font12(), color::White, FillMode::kExtents,
-                         options);
-  ClippedStringViewLabel borrowed("AV", font12(), color::White,
-                                  FillMode::kExtents, options);
+  ClippedTextLabel owned("AV", font12(), color::White, options,
+                         FillMode::kExtents);
+  ClippedStringViewLabel borrowed("AV", font12(), color::White, options,
+                                  FillMode::kExtents);
   GlyphMetrics metrics = font12().getHorizontalStringMetrics("AV", options);
   EXPECT_EQ(metrics.screen_extents().xMax(), owned.anchorExtents().xMax());
   EXPECT_EQ(metrics.screen_extents().xMax(), borrowed.extents().xMax());

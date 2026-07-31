@@ -40,18 +40,20 @@ class TextLabel : public Drawable {
   /// Construct from a string-like value with horizontal layout options.
   template <typename String>
   TextLabel(const String& label, const Font& font, Color color,
-            FillMode fill_mode, const Font::Options& options)
-      : TextLabel(std::string(std::move(label)), font, color, fill_mode,
-                  options) {}
+            const Font::Options& options,
+            FillMode fill_mode = FillMode::kVisible)
+      : TextLabel(std::string(std::move(label)), font, color, options,
+                  fill_mode) {}
 
   /// Construct from an owned string.
   TextLabel(std::string label, const Font& font, Color color,
             FillMode fill_mode = FillMode::kVisible)
-      : TextLabel(std::move(label), font, color, fill_mode, Font::Options()) {}
+      : TextLabel(std::move(label), font, color, Font::Options(), fill_mode) {}
 
   /// Construct from an owned string with horizontal layout options.
   TextLabel(std::string label, const Font& font, Color color,
-            FillMode fill_mode, const Font::Options& options)
+            const Font::Options& options,
+            FillMode fill_mode = FillMode::kVisible)
       : font_(&font),
         label_(std::move(label)),
         color_(color),
@@ -136,18 +138,20 @@ class StringViewLabel : public Drawable {
   /// Construct from a string-like value with horizontal layout options.
   template <typename String>
   StringViewLabel(String& label, const Font& font, const Color color,
-                  FillMode fill_mode, const Font::Options& options)
+                  const Font::Options& options,
+                  FillMode fill_mode = FillMode::kVisible)
       : StringViewLabel(roo::string_view(std::move(label)), font, color,
-                        fill_mode, options) {}
+                        options, fill_mode) {}
 
   /// Construct from a `string_view`.
   StringViewLabel(roo::string_view label, const Font& font, Color color,
                   FillMode fill_mode = FillMode::kVisible)
-      : StringViewLabel(label, font, color, fill_mode, Font::Options()) {}
+      : StringViewLabel(label, font, color, Font::Options(), fill_mode) {}
 
   /// Construct from a `string_view` with horizontal layout options.
   StringViewLabel(roo::string_view label, const Font& font, Color color,
-                  FillMode fill_mode, const Font::Options& options)
+                  const Font::Options& options,
+                  FillMode fill_mode = FillMode::kVisible)
       : font_(&font),
         label_(std::move(label)),
         color_(color),

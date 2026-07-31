@@ -24,12 +24,14 @@ class FontMetrics {
  public:
   /// Construct font metrics.
   FontMetrics(int ascent, int descent, int linegap, int16_t xMin, int16_t yMin,
-              int16_t xMax, int16_t yMax, int max_right_overhang)
+              int16_t xMax, int16_t yMax, int max_right_overhang,
+              int16_t default_space_width = 0)
       : ascent_(ascent),
         descent_(descent),
         linegap_(linegap),
         bbox_(xMin, yMin, xMax, yMax),
-        max_right_overhang_(max_right_overhang) {}
+        max_right_overhang_(max_right_overhang),
+        default_space_width_(default_space_width) {}
 
   FontMetrics() = default;
   FontMetrics(FontMetrics&&) = default;
@@ -60,12 +62,16 @@ class FontMetrics {
   /// Minimum right side bearing across glyphs.
   int minRsb() const { return -max_right_overhang_; }
 
+  /// Default advance for a space character.
+  int16_t defaultSpaceWidth() const { return default_space_width_; }
+
  private:
   int16_t ascent_;
   int16_t descent_;
   int16_t linegap_;
   Box bbox_;  // In freeType coordinates; i.e. Y grows up the screen
   int16_t max_right_overhang_;
+  int16_t default_space_width_;
 };
 
 /// Metadata describing a font's encoding and spacing behavior.

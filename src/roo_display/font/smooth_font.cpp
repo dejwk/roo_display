@@ -139,7 +139,7 @@ SmoothFont::SmoothFont(const roo::byte* font_data PROGMEM)
       glyph_kerning_begin_ + glyph_kerning_size_ * kerning_pairs_count_;
 
   Font::init(FontMetrics(ascent, descent, linegap, xMin, yMin, xMax, yMax,
-                         max_right_overhang),
+                         max_right_overhang, default_space_width_),
              FontProperties(
                  encoding_bytes_ > 1 ? FontProperties::Charset::kUnicodeBmp
                                      : FontProperties::Charset::kAscii,

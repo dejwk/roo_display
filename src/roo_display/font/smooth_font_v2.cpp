@@ -313,7 +313,7 @@ SmoothFontV2::SmoothFontV2(const roo::byte* font_data PROGMEM)
 
   Font::init(
       FontMetrics(ascent, descent, linegap, xMin, yMin, xMax, yMax,
-                  max_right_overhang),
+                  max_right_overhang, default_space_width_),
       FontProperties(
           encoding_bytes_ > 1 ? FontProperties::Charset::kUnicodeBmp
                               : FontProperties::Charset::kAscii,

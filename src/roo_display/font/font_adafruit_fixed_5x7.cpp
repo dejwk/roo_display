@@ -123,7 +123,8 @@ static int16_t advance = 6;
 
 FontAdafruitFixed5x7::FontAdafruitFixed5x7() {
   init(
-      FontMetrics(ascent, descent, linegap, 0, descent, advance - 1, ascent, 0),
+      FontMetrics(ascent, descent, linegap, 0, descent, advance - 1, ascent, 0,
+                  advance),
       FontProperties(
           FontProperties::Charset::kAscii, FontProperties::Spacing::kMonospace,
           FontProperties::Smoothing::kNone, FontProperties::Kerning::kNone));

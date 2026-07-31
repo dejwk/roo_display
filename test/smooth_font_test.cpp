@@ -195,6 +195,7 @@ TEST(SmoothFontTest, SpaceGlyphMetrics) {
 
   int expected_space_advance = font().getHorizontalStringMetrics(" ").advance();
   EXPECT_EQ(expected_space_advance, space.advance());
+  EXPECT_EQ(expected_space_advance, font().metrics().defaultSpaceWidth());
   EXPECT_GT(space.advance(), 0);
 }
 

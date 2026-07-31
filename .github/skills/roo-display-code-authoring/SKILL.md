@@ -33,6 +33,11 @@ Use this skill for `roo_display`-specific guidance on top of the local
   `(cd lib/roo_display; bazel build //...)`
   `(cd lib/roo_display; bazel test //... --test_output=errors)`
 
+## Formatting
+
+- Before handing code over for review or submitting it, run `clang-format` on
+  every changed C++ source and header file.
+
 ## Checklist
 
 - Validation uses the narrowest relevant Bazel target first.
@@ -40,3 +45,5 @@ Use this skill for `roo_display`-specific guidance on top of the local
 - User-facing docs are updated when behavior or recommended usage changes.
 - Extensions stay consistent with the established local style in the same
   file unless the change intentionally refactors that surrounding code.
+- `clang-format` has been run on every changed C++ source and header file
+  before review or submission.

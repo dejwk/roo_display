@@ -16,16 +16,19 @@ void DisplayOutput::fill(Color color, uint32_t pixel_count) {
     return;
   }
 
-  roo_io::PatternFill<4>((roo::byte*)chunk, kChunkSize,
-                         (const roo::byte*)(&color));
-
   const uint32_t remainder = pixel_count % kChunkSize;
   if (remainder > 0) {
+    roo_io::PatternFill<4>((roo::byte*)chunk, remainder,
+                           (const roo::byte*)(&color));
     write(chunk, remainder);
   }
 
   uint32_t full_blocks = pixel_count / kChunkSize;
   while (full_blocks-- > 0) {
+    // write() is allowed to modify its source buffer, so restore the requested
+    // color before reusing this chunk.
+    roo_io::PatternFill<4>((roo::byte*)chunk, kChunkSize,
+                           (const roo::byte*)(&color));
     write(chunk, kChunkSize);
   }
 }

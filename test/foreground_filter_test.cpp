@@ -2,6 +2,7 @@
 #include "roo_display.h"
 #include "roo_display/color/color.h"
 #include "roo_display/filter/foreground.h"
+#include "roo_display/shape/basic.h"
 #include "testing.h"
 #include "testing_display_device.h"
 
@@ -91,6 +92,23 @@ TEST(Background, StressTests) {
       BlendingMode::kSource, Orientation());
   TestWriteRectWindowStress<TestDeviceSimple, RefDeviceSimple>(
       BlendingMode::kSource, Orientation());
+}
+
+TEST(Foreground, InheritedFillRefillsSourceBufferBetweenWrites) {
+  FakeOffscreen<Argb8888> actual(130, 1, color::White);
+  FakeOffscreen<Argb8888> expected(130, 1, color::White);
+  FilledRect foreground(Box(0, 0, 1, 0), color::Red);
+  ForegroundFilter filter(actual, &foreground);
+
+  filter.setAddress(0, 0, 129, 0, BlendingMode::kSource);
+  // Exercise DisplayOutput's default fill implementation with a write()
+  // implementation that is permitted to modify the supplied buffer.
+  filter.DisplayOutput::fill(color::Transparent, 130);
+
+  expected.fillRect(BlendingMode::kSource, Box(0, 0, 1, 0), color::Red);
+  expected.fillRect(BlendingMode::kSource, Box(2, 0, 129, 0),
+                    color::Transparent);
+  EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
 }
 
 }  // namespace roo_display

@@ -74,6 +74,8 @@ policy on top of this baseline.
   widen only if needed.
 - Use repo-local code-authoring skills or guidance to find repository-specific
   validation commands, compile-coverage checks, and integration builds.
+- Before handing code over for review or submitting it, run `clang-format` on
+  every changed C++ source and header file.
 
 ## Checklist
 
@@ -82,6 +84,8 @@ policy on top of this baseline.
 - Non-trivial tests have short `Verifies ...` comments immediately before the
   test declaration, covering the whole test case.
 - Validation uses the narrowest relevant target first.
+- `clang-format` has been run on every changed C++ source and header file
+  before review or submission.
 - Complex implementation comments explain intent, not mechanics.
 - Complex algorithms explain their main strategy and important branches.
 - Non-trivial helper functions and methods are documented.

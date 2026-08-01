@@ -616,7 +616,7 @@ class BlendingFilter : public DisplayOutput {
       }
     } else {
       for (uint32_t i = 0; i < pixel_count; ++i) {
-        buf[i] = blender_.blend(source_color, buf[i]);
+        buf[i] = blender_.blend(buf[i], source_color);
       }
     }
   }

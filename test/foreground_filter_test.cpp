@@ -3,6 +3,7 @@
 #include "roo_display/color/color.h"
 #include "roo_display/filter/foreground.h"
 #include "roo_display/shape/basic.h"
+#include "roo_display/shape/smooth.h"
 #include "testing.h"
 #include "testing_display_device.h"
 
@@ -109,6 +110,22 @@ TEST(Foreground, InheritedFillRefillsSourceBufferBetweenWrites) {
   expected.fillRect(BlendingMode::kSource, Box(2, 0, 129, 0),
                     color::Transparent);
   EXPECT_THAT(RasterOf(actual), MatchesContent(RasterOf(expected)));
+}
+
+TEST(Foreground, OptimizedFillMatchesWritableBufferFallback) {
+  FakeOffscreen<Argb4444> optimized(96, 32, color::White);
+  FakeOffscreen<Argb4444> fallback(96, 32, color::White);
+  SmoothShape foreground =
+      SmoothFilledRoundRect(40, 8, 63, 23, 8, Color(0xffba1a1a));
+  ForegroundFilter optimized_filter(optimized, &foreground);
+  ForegroundFilter fallback_filter(fallback, &foreground);
+
+  optimized_filter.setAddress(0, 0, 95, 31, BlendingMode::kSource);
+  optimized_filter.fill(Color(0xff444455), 96 * 32);
+  fallback_filter.setAddress(0, 0, 95, 31, BlendingMode::kSource);
+  fallback_filter.DisplayOutput::fill(Color(0xff444455), 96 * 32);
+
+  EXPECT_THAT(RasterOf(optimized), MatchesContent(RasterOf(fallback)));
 }
 
 }  // namespace roo_display

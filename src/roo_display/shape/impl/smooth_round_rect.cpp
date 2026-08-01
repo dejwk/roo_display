@@ -1406,16 +1406,7 @@ class RoundRectStream : public PixelStream {
   }
 
   void skip(uint32_t count) override {
-    uint16_t width = bounds_.width();
-    y_ += count / width;
-    x_ += count % width;
-    if (x_ > bounds_.xMax()) {
-      x_ -= width;
-      ++y_;
-    }
-    row_ready_ = false;
-    segment_count_ = 0;
-    segment_index_ = 0;
+    Seek(count);
   }
 
  private:
@@ -1443,6 +1434,29 @@ class RoundRectStream : public PixelStream {
   void UpdateThresholds(uint32_t dy_sq4) {
     outer_tracker_.Update(dy_sq4);
     inner_tracker_.Update(dy_sq4);
+  }
+
+  void ResetThresholds(uint32_t dy_sq4) {
+    outer_tracker_.Reset(dy_sq4);
+    inner_tracker_.Reset(dy_sq4);
+  }
+
+  void Seek(uint32_t count) {
+    const uint32_t offset = x_ - bounds_.xMin() + count;
+    const uint32_t width = bounds_.width();
+    x_ = bounds_.xMin() + offset % width;
+    y_ += offset / width;
+    row_ready_ = false;
+    segment_count_ = 0;
+    segment_index_ = 0;
+    if (y_ > bounds_.yMax()) return;
+
+    ResetThresholds(RowDySq4(y_, y0x2_, y1x2_));
+    PrepareRow();
+    while (segment_index_ < segment_count_ &&
+           x_ > segments_[segment_index_].end_x) {
+      ++segment_index_;
+    }
   }
 
   void AddSegment(int16_t start_x, int16_t end_x, SegmentKind kind) {
@@ -1647,16 +1661,7 @@ class RectInnerRoundRectStream : public PixelStream {
   }
 
   void skip(uint32_t count) override {
-    uint16_t width = bounds_.width();
-    y_ += count / width;
-    x_ += count % width;
-    if (x_ > bounds_.xMax()) {
-      x_ -= width;
-      ++y_;
-    }
-    row_ready_ = false;
-    segment_count_ = 0;
-    segment_index_ = 0;
+    Seek(count);
   }
 
  private:
@@ -1692,6 +1697,24 @@ class RectInnerRoundRectStream : public PixelStream {
     }
     segments_[segment_count_++] =
         Segment{start_x, end_x, SegmentKind::kSolid, color};
+  }
+
+  void Seek(uint32_t count) {
+    const uint32_t offset = x_ - bounds_.xMin() + count;
+    const uint32_t width = bounds_.width();
+    x_ = bounds_.xMin() + offset % width;
+    y_ += offset / width;
+    row_ready_ = false;
+    segment_count_ = 0;
+    segment_index_ = 0;
+    if (y_ > bounds_.yMax()) return;
+
+    outer_tracker_.Reset(RowDySq4(y_, y0x2_, y1x2_));
+    PrepareRow();
+    while (segment_index_ < segment_count_ &&
+           x_ > segments_[segment_index_].end_x) {
+      ++segment_index_;
+    }
   }
 
   void AddSlowSegment(int16_t start_x, int16_t end_x) {
@@ -1928,16 +1951,7 @@ class RoundRectCornersStream : public PixelStream {
   }
 
   void skip(uint32_t count) override {
-    uint16_t width = bounds_.width();
-    y_ += count / width;
-    x_ += count % width;
-    if (x_ > bounds_.xMax()) {
-      x_ -= width;
-      ++y_;
-    }
-    row_ready_ = false;
-    segment_count_ = 0;
-    segment_index_ = 0;
+    Seek(count);
   }
 
  private:
@@ -2030,6 +2044,24 @@ class RoundRectCornersStream : public PixelStream {
     }
     for (CornerTracker& tracker : inner_trackers_) {
       tracker.Update(y_);
+    }
+  }
+
+  void Seek(uint32_t count) {
+    const uint32_t offset = x_ - bounds_.xMin() + count;
+    const uint32_t width = bounds_.width();
+    x_ = bounds_.xMin() + offset % width;
+    y_ += offset / width;
+    row_ready_ = false;
+    segment_count_ = 0;
+    segment_index_ = 0;
+    if (y_ > bounds_.yMax()) return;
+
+    UpdateTrackers();
+    PrepareRow();
+    while (segment_index_ < segment_count_ &&
+           x_ > segments_[segment_index_].end_x) {
+      ++segment_index_;
     }
   }
 

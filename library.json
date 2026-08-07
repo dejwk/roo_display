@@ -29,7 +29,7 @@
         "type": "git",
         "url": "https://github.com/dejwk/roo_display"
     },
-    "version": "3.1.2",
+    "version": "3.2.0",
     "homepage": "https://github.com/dejwk/roo_display",
     "frameworks": [
         "*"
@@ -44,7 +44,7 @@
     ],
     "dependencies": {
         "dejwk/roo_backport": ">=1.2.2",
-        "dejwk/roo_collections": ">=1.4.4",
-        "dejwk/roo_io": ">=2.2.3"
+        "dejwk/roo_collections": ">=1.4.5",
+        "dejwk/roo_io": ">=2.2.4"
     }
 }

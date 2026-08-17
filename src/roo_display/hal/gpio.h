@@ -4,6 +4,16 @@
 
 #if defined(ESP_PLATFORM)
 
+#if defined(ROO_TESTING) && !defined(ARDUINO)
+
+#include "roo_display/hal/esp32/gpio_idf_emulator.h"
+
+namespace roo_display {
+using DefaultGpio = esp32::IdfEmulatorGpio;
+}  // namespace roo_display
+
+#else
+
 #if (CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2 ||   \
      CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32C3 || \
      CONFIG_IDF_TARGET_ESP32C2 || CONFIG_IDF_TARGET_ESP32C6 || \
@@ -12,6 +22,8 @@
 #else
 #error "Unsupported ESP32 variant"
 #endif
+
+#endif  // defined(ROO_TESTING) && !defined(ARDUINO)
 
 #elif defined(ARDUINO)
 

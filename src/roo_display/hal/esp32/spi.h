@@ -657,7 +657,7 @@ using Fspi = Esp32Spi<2>;
 
 #undef ROO_DISPLAY_SPI_ASYNC_ISR_ATTR
 
-#else
+#elif defined(ARDUINO)
 // The SPI hardware is not emulated by roo_testing; we need to use a
 // higher-level driver abstraction.
 
@@ -671,6 +671,23 @@ using Vspi = ArduinoSpi;
 using Hspi = ArduinoSpi;
 #endif
 using Fspi = ArduinoSpi;
+
+}  // namespace esp32
+}  // namespace roo_display
+
+#else
+// Keep an IDF-only build on the ESP-IDF frontend. The emulator implements the
+// public SPI master API even though it does not model the peripheral registers.
+#include "roo_display/hal/esp32/spi_idf_emulator.h"
+
+namespace roo_display {
+namespace esp32 {
+
+#if CONFIG_IDF_TARGET_ESP32
+using Vspi = IdfEmulatorVspi;
+using Hspi = IdfEmulatorHspi;
+#endif
+using Fspi = IdfEmulatorFspi;
 
 }  // namespace esp32
 }  // namespace roo_display

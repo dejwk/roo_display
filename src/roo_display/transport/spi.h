@@ -44,12 +44,12 @@ class SpiTransport {
     Gpio::setOutput(pinCS);
     cs_h();
 
-    if (pinDC >= 0) {
+    if constexpr (pinDC >= 0) {
       Gpio::setOutput(pinDC);
       dc_d();
     }
 
-    if (pinRST >= 0) {
+    if constexpr (pinRST >= 0) {
       Gpio::setOutput(pinRST);
       // Make sure that RESET is unclicked
       Gpio::template setHigh<pinRST>();

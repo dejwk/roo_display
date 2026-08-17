@@ -2,6 +2,18 @@
 
 `roo_display` is a feature-rich, fast, and easy to use library intended for building 'smart home' and similar controllers with graphical UI and optionally touch control.
 
+## ESP-IDF emulator coverage
+
+The IDF-only SPI display smoke initializes an ILI9341 through ESP-IDF's SPI
+master API and writes a pixel through the roo_testing driver shim. The matching
+example initializes a display and draws a small rectangle without using Arduino
+headers or libraries:
+
+```sh
+bazel test --config=roo_testing_idf_esp32 //:idf_spi_display_test
+bazel build --config=roo_testing_idf_esp32 //examples/espidf/ili9341
+```
+
 ## Highlights
 
 * Text: anti-aliasing, kerning, zero-flicker, FreeType-style alignment, font metrics, UTF-8, formatting;

@@ -1,0 +1,23 @@
+# Canonical source:
+# https://github.com/dejwk/roo_testing/blob/main/bazelrc/esp32/base.bazelrc
+# Standalone workspaces vendor this file; keep every copy byte-for-byte identical.
+#
+# Internal compiler environment shared by all classic ESP32 frontends emulated
+# by roo_testing. Select a public frontend profile, not this config directly.
+
+# Emulator identity.
+build:roo_testing_esp32_base --copt=-DROO_TESTING=1
+
+# ESP-IDF frontend and version.
+build:roo_testing_esp32_base --copt=-DESP_PLATFORM=1
+build:roo_testing_esp32_base --copt=-DIDF_VER=\"v6.0.2\"
+
+# Concrete ESP32 SoC and architecture.
+build:roo_testing_esp32_base --copt=-DCONFIG_IDF_FIRMWARE_CHIP_ID=0x0000
+build:roo_testing_esp32_base --copt=-DCONFIG_IDF_TARGET=\"esp32\"
+build:roo_testing_esp32_base --copt=-DCONFIG_IDF_TARGET_ARCH=\"xtensa\"
+build:roo_testing_esp32_base --copt=-DCONFIG_IDF_TARGET_ARCH_XTENSA=1
+build:roo_testing_esp32_base --copt=-DCONFIG_IDF_TARGET_ESP32=1
+build:roo_testing_esp32_base --copt=-DESP32=1
+build:roo_testing_esp32_base --copt=-DROO_TESTING_SOC=\"esp32\"
+build:roo_testing_esp32_base --copt=-DROO_TESTING_SOC_ESP32=1

@@ -1,0 +1,32 @@
+# Canonical source:
+# https://github.com/dejwk/roo_testing/blob/main/bazelrc/esp32/arduino.bazelrc
+# Standalone workspaces vendor this file; keep every copy byte-for-byte identical.
+#
+# Arduino frontend for the shared classic ESP32 base. Import base.bazelrc before
+# this file. Ordinary --copt entries compose with ASAN, warnings, and user flags.
+build:roo_testing_arduino_esp32 --config=roo_testing_esp32_base
+build:roo_testing_arduino_esp32 --platforms=@roo_testing//roo_testing/platforms:arduino_esp32
+
+# Arduino frontend, board, variant, USB, and logging defaults.
+build:roo_testing_arduino_esp32 --copt=-DARDUINO=10819
+build:roo_testing_arduino_esp32 --copt=-DARDUINO_ARCH_ESP32=1
+build:roo_testing_arduino_esp32 --copt=-DARDUINO_BOARD=\"ESP32_DEV\"
+build:roo_testing_arduino_esp32 --copt=-DARDUINO_ESP32_DEV=1
+build:roo_testing_arduino_esp32 --copt=-DARDUINO_USB_CDC_ON_BOOT=0
+build:roo_testing_arduino_esp32 --copt=-DARDUINO_USB_DFU_ON_BOOT=0
+build:roo_testing_arduino_esp32 --copt=-DARDUINO_USB_MSC_ON_BOOT=0
+build:roo_testing_arduino_esp32 --copt=-DARDUINO_USB_MODE=0
+build:roo_testing_arduino_esp32 --copt=-DARDUINO_USB_ON_BOOT=0
+build:roo_testing_arduino_esp32 --copt=-DARDUINO_VARIANT=\"esp32\"
+build:roo_testing_arduino_esp32 --copt=-DCORE_DEBUG_LEVEL=5
+
+# Arduino-as-an-ESP-IDF-component Kconfig defaults.
+build:roo_testing_arduino_esp32 --copt=-DCONFIG_AUTOSTART_ARDUINO=1
+build:roo_testing_arduino_esp32 --copt=-DCONFIG_ARDUINO_LOOP_STACK_SIZE=8192
+build:roo_testing_arduino_esp32 --copt=-DCONFIG_ARDUINO_RUNNING_CORE=0
+build:roo_testing_arduino_esp32 --copt=-DCONFIG_ARDUINO_EVENT_RUNNING_CORE=0
+build:roo_testing_arduino_esp32 --copt=-DCONFIG_ARDUINO_SERIAL_EVENT_TASK_RUNNING_CORE=-1
+build:roo_testing_arduino_esp32 --copt=-DCONFIG_ARDUINO_SERIAL_EVENT_TASK_STACK_SIZE=2048
+build:roo_testing_arduino_esp32 --copt=-DCONFIG_ARDUINO_SERIAL_EVENT_TASK_PRIORITY=24
+build:roo_testing_arduino_esp32 --copt=-DCONFIG_ARDUHAL_LOG_DEFAULT_LEVEL=1
+build:roo_testing_arduino_esp32 --copt=-DCONFIG_ARDUHAL_ESP_LOG=1

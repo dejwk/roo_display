@@ -2,7 +2,6 @@
 
 #if defined(ESP_PLATFORM)
 
-#include "driver/i2c.h"
 #include "driver/i2c_master.h"
 #include "roo_backport.h"
 #include "roo_backport/byte.h"
@@ -15,7 +14,7 @@ class Esp32I2cMasterBusHandle {
   // Creates the I2C master bus handle that references the specified esp-idf bus
   // handle.
   Esp32I2cMasterBusHandle(i2c_port_num_t i2c_port = 0)
-      : bus_handle_(0), frequency_(0), i2c_port_(i2c_port) {}
+      : i2c_port_(i2c_port), bus_handle_(0), frequency_(0) {}
 
   // Should not be called after resolveBusHandle().
   void init(int sda, int scl, uint32_t frequency = 0) {

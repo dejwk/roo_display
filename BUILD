@@ -4,7 +4,6 @@ load("@rules_cc//cc:cc_test.bzl", "cc_test")
 UNIT_TEST_DEPS = [
     ":roo_display",
     ":testing",
-    "@roo_testing//:arduino_gtest_main",
 ]
 
 cc_library(
@@ -17,12 +16,6 @@ cc_library(
         ],
         exclude = ["test/**"],
     ),
-    defines = [
-        # the emulation is accurate enough that we can let roo_display believe it's
-        # running on the real ESP32, which allows us to test the GPIO pin remapping logic.
-        "ESP_PLATFORM",
-        "CONFIG_IDF_TARGET_ESP32=1",
-    ],
     includes = [
         "src",
     ],
@@ -33,9 +26,35 @@ cc_library(
         "@roo_backport",
         "@roo_collections",
         "@roo_io",
-        "@roo_testing//:arduino",
-        "@roo_testing//roo_testing/frameworks/arduino-esp32-2.0.4/libraries/FS",
-        "@roo_testing//roo_testing/frameworks/arduino-esp32-2.0.4/libraries/Wire",
+    ] + select({
+        "@roo_testing//roo_testing/platforms:is_arduino": [
+            "@roo_testing//:arduino",
+            "@roo_testing//roo_testing/frameworks/arduino-esp32-2.0.4/libraries/FS",
+            "@roo_testing//roo_testing/frameworks/arduino-esp32-2.0.4/libraries/Wire",
+        ],
+        "@roo_testing//roo_testing/platforms:is_idf": [
+            "@roo_testing//roo_testing/frameworks/esp-idf",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+cc_test(
+    name = "idf_spi_display_test",
+    srcs = [
+        "test/idf_spi_display_test.cpp",
+        "test/testing_viewport.h",
+    ],
+    target_compatible_with = select({
+        "@roo_testing//roo_testing/platforms:is_idf": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    deps = [
+        ":roo_display",
+        "@roo_testing//:esp_idf_gtest_main",
+        "@roo_testing//roo_testing/devices/display/ili9341:spi",
+        "@roo_testing//roo_testing/microcontrollers/esp32:core",
+        "@roo_testing//roo_testing/transducers/ui/viewport",
     ],
 )
 
@@ -51,6 +70,9 @@ cc_library(
         "test",
     ],
     linkstatic = 1,
+    target_compatible_with = [
+        "@roo_testing//roo_testing/platforms:arduino",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         ":roo_display",

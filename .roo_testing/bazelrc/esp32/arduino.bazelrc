@@ -1,5 +1,5 @@
 # Canonical source:
-# https://github.com/dejwk/roo_testing/blob/main/bazelrc/esp32/arduino.bazelrc
+# https://github.com/dejwk/roo_testing/blob/main/.roo_testing/bazelrc/esp32/arduino.bazelrc
 # Standalone workspaces vendor this file; keep every copy byte-for-byte identical.
 #
 # Arduino frontend for the shared classic ESP32 base. Import base.bazelrc before

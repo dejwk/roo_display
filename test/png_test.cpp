@@ -109,7 +109,7 @@ TEST(Png, PaletteOpaqueFile) {
 
   PosixTestFilesystem fs(runfiles_root);
   PngDecoder decoder;
-  PngFile image(decoder, fs, kPaletteImagePath);
+  PngFile image(decoder, fs, std::string(kPaletteImagePath));
 
   FakeOffscreen<Argb8888> test_screen(8, 4, color::Transparent);
   Draw(test_screen, image, FillMode::kVisible, BlendingMode::kSource);
@@ -132,7 +132,7 @@ TEST(Png, RgbaFile) {
 
   PosixTestFilesystem fs(runfiles_root);
   PngDecoder decoder;
-  PngFile image(decoder, fs, kRgbaImagePath);
+  PngFile image(decoder, fs, std::string(kRgbaImagePath));
 
   FakeOffscreen<Argb8888> test_screen(8, 4, color::Transparent);
   Draw(test_screen, image, FillMode::kVisible, BlendingMode::kSource);

@@ -1,5 +1,5 @@
 # Canonical source:
-# https://github.com/dejwk/roo_testing/blob/main/bazelrc/esp32/base.bazelrc
+# https://github.com/dejwk/roo_testing/blob/main/.roo_testing/bazelrc/esp32/base.bazelrc
 # Standalone workspaces vendor this file; keep every copy byte-for-byte identical.
 #
 # Internal compiler environment shared by all classic ESP32 frontends emulated

@@ -122,7 +122,7 @@ TEST(Jpeg, ColorFile) {
 
   PosixTestFilesystem fs(runfiles_root);
   JpegDecoder decoder;
-  JpegFile image(decoder, fs, kColorImagePath);
+  JpegFile image(decoder, fs, std::string(kColorImagePath));
 
   FakeOffscreen<Argb8888> test_screen(9, 9, color::Transparent);
   Draw(test_screen, image, FillMode::kVisible, BlendingMode::kSource);
@@ -155,7 +155,7 @@ TEST(Jpeg, GrayscaleFile) {
 
   PosixTestFilesystem fs(runfiles_root);
   JpegDecoder decoder;
-  JpegFile image(decoder, fs, kGrayscaleImagePath);
+  JpegFile image(decoder, fs, std::string(kGrayscaleImagePath));
 
   FakeOffscreen<Argb8888> test_screen(9, 9, color::Transparent);
   Draw(test_screen, image, FillMode::kVisible, BlendingMode::kSource);

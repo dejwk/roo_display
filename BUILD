@@ -28,6 +28,7 @@ cc_library(
         "@roo_io",
     ] + select({
         "@roo_testing//roo_testing/platforms:is_arduino": [
+            "@roo_io//:arduino_fs",
             "@roo_testing//:arduino",
             "@roo_testing//roo_testing/frameworks/arduino-esp32-2.0.4/libraries/FS",
             "@roo_testing//roo_testing/frameworks/arduino-esp32-2.0.4/libraries/Wire",

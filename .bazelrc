@@ -1,11 +1,10 @@
 common --registry="https://raw.githubusercontent.com/dejwk/roo-registry/main/" --registry="https://bcr.bazel.build"
 
-import %workspace%/bazelrc/esp32/base.bazelrc
-import %workspace%/bazelrc/esp32/idf.bazelrc
-import %workspace%/bazelrc/esp32/arduino.bazelrc
+import %workspace%/.roo_testing/bazelrc/esp32/base.bazelrc
+import %workspace%/.roo_testing/bazelrc/esp32/idf.bazelrc
+import %workspace%/.roo_testing/bazelrc/esp32/arduino.bazelrc
 
-# Select exactly one frontend per invocation:
-# --config=roo_testing_arduino_esp32 or --config=roo_testing_idf_esp32.
+# Bazelisk defaults configured commands to Arduino unless a frontend is selected.
 
 # Enable testing-specific code paths (e.g. tiny buffer sizes) only for bazel
 # test invocations, not for normal library builds.

@@ -77,3 +77,21 @@ bazel build --config=roo_testing_idf_esp32 //examples/espidf/ili9341
 
 * [Programming guide](doc/programming_guide.md).
 * [Quick start for TFT_eSPI](doc/for_tft_espi_users.md) users.
+
+## Host emulation
+
+Host builds support both Arduino and ESP-IDF through roo_testing 2.0. With
+Bazelisk 1.21 or newer, a plain command defaults to Arduino and prints a notice:
+
+    bazel test ...
+    bazel test ... --config=roo_testing_arduino_esp32
+    bazel test ... --config=roo_testing_idf_esp32
+    .roo_testing/bin/test_all_profiles ...
+
+The files under .roo_testing are vendored from roo_testing; follow their
+canonical-source headers when refreshing them.
+
+Arduino examples are native runnable targets in their source packages. For
+example:
+
+    bazel run //examples/programming_guide/part1_1_basic_setup:part1_1_basic_setup

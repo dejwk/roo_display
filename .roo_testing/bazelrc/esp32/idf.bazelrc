@@ -1,5 +1,5 @@
 # Canonical source:
-# https://github.com/dejwk/roo_testing/blob/main/bazelrc/esp32/idf.bazelrc
+# https://github.com/dejwk/roo_testing/blob/main/.roo_testing/bazelrc/esp32/idf.bazelrc
 #
 # ESP-IDF-only frontend for the shared classic ESP32 base. Import base.bazelrc
 # before this file. No Arduino frontend, board, variant, or USB macros are added.

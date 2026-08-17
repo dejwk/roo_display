@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+# Canonical source:
+# https://github.com/dejwk/roo_testing/blob/main/.roo_testing/bin/bazel
+#
+# roo_testing client workspaces vendor this file as .roo_testing/bin/bazel and
+# set BAZELISK_WRAPPER_DIRECTORY=.roo_testing/bin in their root .bazeliskrc.
+
+set -euo pipefail
+
+arduino_config_prefix="roo_testing_arduino_"
+idf_config_prefix="roo_testing_idf_"
+args=("$@")
+command_index=-1
+configured_command=false
+showing_help=false
+workspace_rc=true
+ignore_all_rc_files=false
+quiet=false
+frontend_configs=()
+
+startup_options_with_values=(
+  --bazelrc
+  --command_port
+  --connect_timeout_secs
+  --digest_function
+  --experimental_cgroup_parent
+  --extra_classpath
+  --failure_detail_out
+  --host_jvm_args
+  --host_jvm_profile
+  --install_base
+  --invocation_policy
+  --io_nice_level
+  --local_startup_timeout_secs
+  --macos_qos_class
+  --max_idle_secs
+  --output_base
+  --output_user_root
+  --server_javabase
+  --server_jvm_out
+  --unix_digest_hash_attribute_name
+)
+
+is_startup_option_with_value() {
+  local candidate="$1"
+  local option
+  for option in "${startup_options_with_values[@]}"; do
+    if [[ "${candidate}" == "${option}" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+record_frontend_config() {
+  local candidate="$1"
+  local selected
+  case "${candidate}" in
+    "${arduino_config_prefix}"*|"${idf_config_prefix}"*) ;;
+    *) return ;;
+  esac
+  for selected in "${frontend_configs[@]}"; do
+    if [[ "${selected}" == "${candidate}" ]]; then
+      return
+    fi
+  done
+  frontend_configs+=("${candidate}")
+}
+
+# Find the first positional argument, which is the Bazel command. Startup
+# options accept both --option=value and split --option value spellings; the
+# latter must be skipped when its value happens to look like a command name.
+expect_startup_value=false
+for ((i = 0; i < ${#args[@]}; ++i)); do
+  arg="${args[i]}"
+
+  if $expect_startup_value; then
+    expect_startup_value=false
+    continue
+  fi
+
+  case "${arg}" in
+    --workspace_rc|--workspace_rc=true) workspace_rc=true ;;
+    --noworkspace_rc|--workspace_rc=false) workspace_rc=false ;;
+    --ignore_all_rc_files|--ignore_all_rc_files=true) ignore_all_rc_files=true ;;
+    --noignore_all_rc_files|--ignore_all_rc_files=false) ignore_all_rc_files=false ;;
+    --quiet|--quiet=true) quiet=true ;;
+    --noquiet|--quiet=false) quiet=false ;;
+  esac
+
+  if [[ "${arg}" == --*=* ]]; then
+    continue
+  fi
+  if is_startup_option_with_value "${arg}"; then
+    expect_startup_value=true
+    continue
+  fi
+  if [[ "${arg}" == -* ]]; then
+    continue
+  fi
+
+  command_index=${i}
+  case "${arg}" in
+    aquery|build|coverage|cquery|fetch|info|mobile-install|print_action|run|test|vendor)
+      configured_command=true
+      ;;
+  esac
+  break
+done
+
+# Frontend options are Bazel options only before a `--` target-argument
+# delimiter. Prefix matching makes future SoC profiles opt out of this ESP32
+# default without requiring a wrapper update.
+if ((command_index >= 0)); then
+  expect_config_value=false
+  for ((i = command_index + 1; i < ${#args[@]}; ++i)); do
+    arg="${args[i]}"
+    if [[ "${arg}" == "--" ]]; then
+      break
+    fi
+
+    if $expect_config_value; then
+      record_frontend_config "${arg}"
+      expect_config_value=false
+      continue
+    fi
+
+    case "${arg}" in
+      --config) expect_config_value=true ;;
+      --config=*) record_frontend_config "${arg#--config=}" ;;
+      --help|-h) showing_help=true ;;
+    esac
+  done
+fi
+
+if $configured_command && ((${#frontend_configs[@]} > 1)); then
+  printf >&2 'ERROR: roo_testing: select exactly one frontend/SoC profile.\n'
+  exit 2
+fi
+
+if $configured_command && ! $showing_help && $workspace_rc && \
+    ! $ignore_all_rc_files && ((${#frontend_configs[@]} == 0)); then
+  default_config="roo_testing_arduino_esp32"
+  if ! $quiet; then
+    printf >&2 '%s\n' \
+      "INFO: roo_testing: no frontend selected; defaulting to --config=${default_config}."
+  fi
+  insertion_index=$((command_index + 1))
+  args=(
+    "${args[@]:0:insertion_index}"
+    "--config=${default_config}"
+    "${args[@]:insertion_index}"
+  )
+fi
+
+if [[ -n "${BAZEL_REAL:-}" ]]; then
+  exec "${BAZEL_REAL}" "${args[@]}"
+fi
+
+# Direct invocation (`.roo_testing/bin/bazel ...`) falls back to Bazel on PATH.
+# If that is Bazelisk, prevent it from rediscovering this wrapper recursively.
+export BAZELISK_SKIP_WRAPPER=true
+exec bazel "${args[@]}"

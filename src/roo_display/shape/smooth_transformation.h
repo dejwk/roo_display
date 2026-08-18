@@ -407,7 +407,6 @@ class TransformedRaster : public Rasterizable {
     typename RasterType::Reader reader;
     const auto ptr = original_.buffer();
     uint16_t w = orig_extents.width();
-    RawColorInterpolator<typename RasterType::ColorMode> interpolator;
     for (uint32_t i = 0; i < count; ++i) {
       FpPoint orig =
           inverse_transformation_.apply(FpPoint{(float)x[i], (float)y[i]});

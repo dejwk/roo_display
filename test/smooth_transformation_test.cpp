@@ -150,4 +150,18 @@ TEST(SmoothTransformation, ProjectiveInversionRoundTrip) {
   ExpectPointNear(round_trip, point.x, point.y);
 }
 
+TEST(SmoothTransformation, TransformedAlpha4RasterInterpolatesColors) {
+  const uint8_t data[] = {0xF0};
+  ConstDramRaster<Alpha4> raster(2, 1, (const roo::byte*)data,
+                                 Alpha4(Color(255, 0, 0)));
+  auto transformed = TransformRaster(raster, Translate(0.5f, 0.0f));
+  const int16_t x[] = {1};
+  const int16_t y[] = {0};
+  Color result;
+
+  transformed.readColors(x, y, 1, &result);
+
+  EXPECT_EQ(Color(127, 255, 0, 0), result);
+}
+
 }  // namespace roo_display

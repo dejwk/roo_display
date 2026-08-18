@@ -2,7 +2,9 @@
 
 #include "gtest/gtest.h"
 #include "roo_display/driver/TFT_eSPI_adapter.h"
+#if defined(ESP_PLATFORM) && defined(CONFIG_IDF_TARGET_ESP32S3)
 #include "roo_display/driver/esp32s3_dma_parallel_rgb565.h"
+#endif
 #include "roo_display/driver/gc9a01a.h"
 #include "roo_display/driver/ili9341.h"
 #include "roo_display/driver/ili9486.h"

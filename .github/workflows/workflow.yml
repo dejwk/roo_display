@@ -2,47 +2,27 @@ name: CI
 
 on:
   push: {}
+  pull_request: {}
+  workflow_dispatch: {}
 
-env:
-  SYMBOLIZE_DEPS: libunwind-dev binutils-dev
-  BAZEL_SYMBOLIZE_FLAGS: >-
-    --copt=-DHAVE_SYMBOLIZE
-    --copt=-DHAVE_UNWIND
-    --copt=-DHAVE_LIBUNWIND
-    --linkopt=-lunwind
-    --linkopt=-ldl
+permissions:
+  contents: read
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
 
 jobs:
   build_and_test:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v3
-    - uses: ./.github/actions/ci-setup
-
-    - name: Build
-      run: |
-        bazel build //... \
-          ${{ env.BAZEL_SYMBOLIZE_FLAGS }}
-
-    - name: Test
-      run: |
-        bazel test //... --test_output=errors \
-          ${{ env.BAZEL_SYMBOLIZE_FLAGS }}
-
-  build_and_test_asan:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v3
-    - uses: ./.github/actions/ci-setup
-
-    - name: Build with address sanitizer
-      run: |
-        bazel build --config=asan //... \
-          ${{ env.BAZEL_SYMBOLIZE_FLAGS }}
-
-    - name: Test with address sanitizer
-      run: |
-        bazel test --config=asan //... --test_output=errors \
-          ${{ env.BAZEL_SYMBOLIZE_FLAGS }}
+    uses: dejwk/roo_testing/.github/workflows/client-ci.yml@953eed22666e4148b687bae5ecdbebe1b9350422 # roo_testing 2.0.0
+    with:
+      profiles: '["arduino", "idf"]'
+      run_tests: true
+      system_packages: >-
+        libunwind-dev binutils-dev libx11-dev libjpeg-dev libpng-dev zlib1g-dev
+      extra_bazel_args: >-
+        --copt=-DHAVE_SYMBOLIZE
+        --copt=-DHAVE_UNWIND
+        --copt=-DHAVE_LIBUNWIND
+        --linkopt=-lunwind
+        --linkopt=-ldl

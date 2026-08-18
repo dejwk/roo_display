@@ -27,15 +27,21 @@ jobs:
           sudo apt-get install -y doxygen graphviz libclang-dev
 
       - name: Download Doxygen Awesome assets
+        env:
+          DOXYGEN_AWESOME_COMMIT: 1f3620084ff75734ed192101acf40e9dff01d848 # v2.4.1
         run: |
-          curl -L -o docs/doxygen-awesome.css \
-            https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/v2.4.1/doxygen-awesome.css
-          curl -L -o docs/doxygen-awesome-sidebar-only.css \
-            https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/v2.4.1/doxygen-awesome-sidebar-only.css
-          curl -L -o docs/doxygen-awesome-sidebar-only-darkmode-toggle.css \
-            https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/v2.4.1/doxygen-awesome-sidebar-only-darkmode-toggle.css
-          curl -L -o docs/doxygen-awesome-darkmode-toggle.js \
-            https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/v2.4.1/doxygen-awesome-darkmode-toggle.js
+          curl --fail-with-body --retry 3 --location \
+            --output docs/doxygen-awesome.css \
+            "https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/${DOXYGEN_AWESOME_COMMIT}/doxygen-awesome.css"
+          curl --fail-with-body --retry 3 --location \
+            --output docs/doxygen-awesome-sidebar-only.css \
+            "https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/${DOXYGEN_AWESOME_COMMIT}/doxygen-awesome-sidebar-only.css"
+          curl --fail-with-body --retry 3 --location \
+            --output docs/doxygen-awesome-sidebar-only-darkmode-toggle.css \
+            "https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/${DOXYGEN_AWESOME_COMMIT}/doxygen-awesome-sidebar-only-darkmode-toggle.css"
+          curl --fail-with-body --retry 3 --location \
+            --output docs/doxygen-awesome-darkmode-toggle.js \
+            "https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/${DOXYGEN_AWESOME_COMMIT}/doxygen-awesome-darkmode-toggle.js"
 
       - name: Build docs
         run: doxygen

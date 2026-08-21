@@ -1,0 +1,15 @@
+# Canonical source:
+# https://github.com/dejwk/roo_testing/blob/main/.roo_testing/bazelrc/common/asan.bazelrc
+# Client workspaces vendor this file; keep every copy byte-for-byte identical.
+#
+# AddressSanitizer is independent of the selected roo_testing frontend. Import
+# this fragment in the root .bazelrc, then append --config=asan to a build,
+# test, or run command.
+
+build:asan --strip=never
+build:asan --copt=-fsanitize=address
+build:asan --copt=-DADDRESS_SANITIZER
+build:asan --copt=-O1
+build:asan --copt=-g
+build:asan --copt=-fno-omit-frame-pointer
+build:asan --linkopt=-fsanitize=address

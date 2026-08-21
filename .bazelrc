@@ -1,5 +1,7 @@
 common --registry="https://raw.githubusercontent.com/dejwk/roo-registry/main/" --registry="https://bcr.bazel.build"
 
+# AddressSanitizer: append --config=asan to bazel build, test, or run.
+import %workspace%/.roo_testing/bazelrc/common/asan.bazelrc
 import %workspace%/.roo_testing/bazelrc/esp32/base.bazelrc
 import %workspace%/.roo_testing/bazelrc/esp32/idf.bazelrc
 import %workspace%/.roo_testing/bazelrc/esp32/arduino.bazelrc
@@ -10,12 +12,5 @@ import %workspace%/.roo_testing/bazelrc/esp32/arduino.bazelrc
 # test invocations, not for normal library builds.
 test --copt=-DROO_DISPLAY_TESTING
 
-build:asan --strip=never
-build:asan --copt -fsanitize=address
-build:asan --copt -DADDRESS_SANITIZER
-build:asan --copt -O1
-build:asan --copt -g
-build:asan --copt -fno-omit-frame-pointer
-build:asan --linkopt -fsanitize=address
 # GCC 14 can emit spurious maybe-uninitialized warnings in std::regex with ASAN.
 build:asan --per_file_copt=src/logging.cc@-Wno-maybe-uninitialized

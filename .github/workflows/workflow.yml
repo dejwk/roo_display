@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   build_and_test:
-    uses: dejwk/roo_testing/.github/workflows/client-ci.yml@953eed22666e4148b687bae5ecdbebe1b9350422 # roo_testing 2.0.0
+    uses: dejwk/roo_testing/.github/workflows/client-ci.yml@e51df12bcaf96e4270a459ead582767fdcd3a5ac # roo_testing 2.0.0
     with:
       profiles: '["arduino", "idf"]'
       run_tests: true

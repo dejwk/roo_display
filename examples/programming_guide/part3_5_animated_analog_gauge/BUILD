@@ -1,8 +1,9 @@
 load("@roo_testing//roo_testing/emulation:arduino.bzl", "roo_arduino_example")
 
 roo_arduino_example(
-    name = "part1_1_basic_setup",
-    sketch = "part1_1_basic_setup.ino",
+    name = "part3_5_animated_analog_gauge",
+    sketch = "part3_5_animated_analog_gauge.ino",
+    visibility = ["//visibility:public"],
     deps = [
         "//:roo_display",
         "@roo_testing//roo_testing/devices/display/ili9341:spi",

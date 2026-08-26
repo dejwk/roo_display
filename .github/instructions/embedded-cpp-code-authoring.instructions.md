@@ -26,6 +26,8 @@ policy on top of this baseline.
   more naturally, matching the spelling of the underlying field.
 - Favor readability. Avoid redundant branches, repeated explanations, and
   unnecessary line count when the code can stay clear without them.
+- Keep `CHECK` and related assertion macros at their point of use so failures
+  report the source line that expresses the violated contract.
 - Avoid long lambdas. When logic is substantial, prefer an unnamed-namespace
   helper over a large local lambda, and define that helper close to the place
   where it is used.
@@ -35,8 +37,14 @@ policy on top of this baseline.
 - Be conservative about RAM. Flash is usually cheaper than per-instance state,
   so prefer shared data, existing ownership points, and zero-cost hooks when
   possible.
+- Use `///` for Doxygen comments; do not use block-form Doxygen comments.
 - All public classes and public methods should have Doxygen comments at the
   declaration site.
+- Leave one empty separator line between public methods or functions that have
+  Doxygen comments, including one-line declarations. Adjacent undocumented
+  one-line declarations may omit the separator.
+- Always leave one empty separator line between adjacent `struct` or `class`
+  declarations.
 - Doxygen comments should summarize implemented behavior, or intended behavior
   for pure-virtual and otherwise contract-defining declarations.
 - Every code change must ship with focused unit tests.
@@ -79,7 +87,10 @@ policy on top of this baseline.
 
 ## Checklist
 
-- Public API declarations have Doxygen comments.
+- Public API declarations have `///` Doxygen comments.
+- Documented public methods and functions have empty separator lines between
+  their declarations.
+- Adjacent `struct` and `class` declarations have empty separator lines.
 - The code change includes focused unit tests.
 - Non-trivial tests have short `Verifies ...` comments immediately before the
   test declaration, covering the whole test case.

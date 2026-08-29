@@ -28,6 +28,8 @@ policy on top of this baseline.
   unnecessary line count when the code can stay clear without them.
 - Keep `CHECK` and related assertion macros at their point of use so failures
   report the source line that expresses the violated contract.
+- Embedded-target code must build with exceptions disabled (`-fno-exceptions`);
+  do not use `throw`, `try`, `catch`, or exception-dependent behavior.
 - Avoid long lambdas. When logic is substantial, prefer an unnamed-namespace
   helper over a large local lambda, and define that helper close to the place
   where it is used.

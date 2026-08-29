@@ -1,3 +1,4 @@
+---
 name: "Embedded Design Doc Authoring"
 description: "Use when writing or updating design docs, implementation plans, rendering docs, or API proposals in this repository. Shared baseline across roo libraries."
 applyTo:
@@ -9,6 +10,18 @@ applyTo:
 Use this instruction for shared design-doc expectations across roo
 repositories. Repo-local skills should add project-specific references,
 validation, and constraints on top of this baseline.
+
+## Audience and Purpose
+
+A design document serves three audiences at once:
+
+- agents and humans who will implement the design;
+- human reviewers who must evaluate its correctness and tradeoffs; and
+- future maintainers who use it as durable project documentation.
+
+Write so a human reader can understand the problem, vocabulary, decisions, and
+rationale without reconstructing them from the proposed API or implementation
+plan. Implementation precision does not replace explanatory clarity.
 
 ## Required Structure
 
@@ -29,6 +42,19 @@ Use this section order unless a narrower document genuinely needs less:
 ## Writing Rules
 
 - Be succinct.
+- Keep Objective succinct and limited to the intended outcome. Do not put term
+  definitions there; it is acceptable for full understanding of the Objective
+  to require the Background that follows.
+- Define pre-existing concepts needed by the proposal in Background. When a
+  concept already has a project-wide definition, link the project glossary
+  instead of redefining it.
+- Define concepts introduced by the proposal in Design Overview, before the
+  later design sections rely on them. State what each document-local term
+  represents, what state or lifetime it has, and how it differs from nearby
+  concepts. Do not rely on an API name or metaphor such as "armed",
+  "connected", "host", or "owner" to explain itself.
+- State Requirements in problem-domain language. Avoid making them depend on
+  names or mechanics introduced only by the proposed solution.
 - References and cross-references should generally be Markdown hyperlinks.
   Prefer linked file paths, doc titles, issues, PRs, and APIs over bare text
   mentions when a stable target exists.
@@ -39,6 +65,13 @@ Use this section order unless a narrower document genuinely needs less:
 - Put detailed enumeration in Requirements, not in Motivation.
 - Put major decisions in Design Overview and leave mechanics for Design
   Details.
+- In Design Overview, show how each major part of the proposed solution satisfies
+  the Requirements. When the connection is not obvious, add an explicit mapping
+  paragraph, table, or annotated diagram. A reviewer should not have to infer why
+  a class, list, cache, callback, state field, or ownership link is necessary.
+- Explain purpose before mechanics. Before describing how a data structure is
+  linked, traversed, or updated, state which behavior or lifetime requirement
+  needs it and why a simpler one-way relationship is insufficient.
 - Split Implementation Plan into small incremental subsections or phases that
   each map to a single commit.
 - Start Implementation Plan with a short authoring-reference line that links
@@ -122,7 +155,22 @@ Rules:
 
 - Section order matches the required structure.
 - References are generally hyperlinks when a stable link target exists.
+- The intended implementation, review, and long-term documentation audiences can
+  understand the document without reverse-engineering terminology from code.
+- Objective states the intended outcome succinctly and contains no term
+  definitions.
+- Background defines the pre-existing concepts needed to understand the design,
+  linking project-wide glossary definitions where available.
+- Design Overview defines concepts introduced by the proposal before later
+  design sections rely on them.
+- Requirements use problem-domain language rather than unexplained names or
+  mechanics from the proposed solution.
 - No repeated requirements across Objective, Motivation, and Requirements.
+- Design Overview explicitly connects major solution elements to requirements,
+  with a mapping table, paragraph, or diagram where the relationship is not
+  obvious.
+- Every nontrivial data structure or reverse link is motivated before its
+  mechanics are described.
 - Implementation Plan is split into incremental, testable steps.
 - Implementation Plan includes a hyperlink to the corresponding code-authoring
   guidance.

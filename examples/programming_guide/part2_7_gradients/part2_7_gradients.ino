@@ -42,12 +42,12 @@ void setup() {
 void loop() {
   int w = display.width();
   int h = display.height();
-  auto centered = kMiddle | kCenter;
   {
     // Radial gradient.
     DrawingContext dc(display, Box(0, 0, w / 2 - 1, h / 2 - 1));
     auto gradient = RadialGradientSq(
-        {w / 4, h / 4}, ColorGradient({{0, HsvToRgb(60, 0.8, 0.99)},
+        {static_cast<int16_t>(w / 4), static_cast<int16_t>(h / 4)},
+        ColorGradient({{0, HsvToRgb(60, 0.8, 0.99)},
                                        {50 * 50, HsvToRgb(0, 0.8, 0.95)},
                                        {51 * 51, color::Transparent}}));
     dc.setBackground(&gradient);
@@ -62,7 +62,7 @@ void loop() {
     // oscillate between red and yellow.
     DrawingContext dc(display, Box(w / 2, 0, w - 1, h / 2 - 1));
     auto gradient =
-        AngularGradient({w * 3 / 4, h / 4},
+        AngularGradient({w * 3.0f / 4, h * 1.0f / 4},
                         ColorGradient({{0, HsvToRgb(60, 0.8, 0.95)},
                                        {M_PI / 3, HsvToRgb(0, 0.8, 0.99)},
                                        {M_PI / 1.5, HsvToRgb(60, 0.8, 0.95)}},
@@ -98,7 +98,9 @@ void loop() {
     DrawingContext dc(display, Box(w / 2, h / 2, w - 1, h - 1));
     float v = 0.9;
     float s = 0.7;
-    auto gradient = LinearGradient({w / 2 + 10, h / 2 + 10}, 0.5, 0.3,
+    auto gradient = LinearGradient(
+        {static_cast<int16_t>(w / 2 + 10), static_cast<int16_t>(h / 2 + 10)},
+        0.5, 0.3,
                                    ColorGradient({{0, HsvToRgb(0, s, v)},
                                                   {20, HsvToRgb(60, s, v)},
                                                   {40, HsvToRgb(120, s, v)},

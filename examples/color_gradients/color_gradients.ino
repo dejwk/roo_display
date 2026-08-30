@@ -39,7 +39,9 @@ using namespace roo_display;
 #include "roo_display/driver/ili9341.h"
 #include "roo_display/driver/st7789.h"
 #include "roo_display/driver/touch_xpt2046.h"
+#if defined(ESP32) && CONFIG_IDF_TARGET_ESP32S3
 #include "roo_display/products/lilygo/t_display_s3.h"
+#endif
 
 // Set your configuration for the driver.
 static constexpr int kCsPin = 7;

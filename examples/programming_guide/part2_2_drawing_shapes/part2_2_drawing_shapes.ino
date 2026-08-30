@@ -258,12 +258,14 @@ void more_wedges() {
 
   DrawingContext dc(display);
   for (int i = 0; i < 15; ++i) {
-    dc.draw(SmoothWedgedLine({20 + i * 20, 120}, 15, {20 + i * 20, 10}, 14 - i,
+    dc.draw(SmoothWedgedLine({20.0f + i * 20.0f, 120}, 15,
+                             {20.0f + i * 20.0f, 10}, 14 - i,
                              color::Black));
   }
 
   for (int i = 0; i < 7; ++i) {
-    dc.draw(SmoothWedgedLine({20 + i * 45, 210}, 4 + i * 5, {20 + i * 45, 140},
+    dc.draw(SmoothWedgedLine({20.0f + i * 45.0f, 210}, 4 + i * 5,
+                             {20.0f + i * 45.0f, 140},
                              0, color::DarkRed));
   }
 

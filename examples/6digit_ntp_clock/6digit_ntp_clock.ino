@@ -159,7 +159,7 @@ bool getNTPtime(int sec) {
       time(&now);
       localtime_r(&now, &timeinfo);
       delay(10);
-    } while (((millis() - start) <= (1000 * sec)) &&
+    } while (((millis() - start) <= (1000UL * sec)) &&
              (timeinfo.tm_year < (2016 - 1900)));
     if (timeinfo.tm_year <= (2016 - 1900))
       return false;  // the NTP call was not successful

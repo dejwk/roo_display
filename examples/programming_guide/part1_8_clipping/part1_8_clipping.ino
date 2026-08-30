@@ -75,7 +75,6 @@ void with_clip_mask() {
   auto label = TextLabel("Hello!", font, color::Black);
   DrawingContext dc(display);
   int w = dc.width();
-  int h = dc.height();
   dc.setClipBox(0, 0, w - 1, 179);
   dc.draw(FilledCircle::ByRadius(w / 2, 179, w / 2 - 20, color::Gold));
   dc.setBackgroundColor(color::Gold);

@@ -56,7 +56,9 @@ class PressAnimationOverlay : public Drawable {
   void drawTo(const Surface& s) const override {
     Surface my_s(s);
     my_s.set_bgcolor(AlphaBlend(s.bgcolor(), color::Purple.withA(0x20)));
-    auto circle = SmoothFilledCircle({xc_, yc_}, r_, color::Purple.withA(0x30));
+    auto circle = SmoothFilledCircle(
+        {static_cast<float>(xc_), static_cast<float>(yc_)}, r_,
+        color::Purple.withA(0x30));
     ForegroundFilter fg(s.out(), &circle, s.dx(), s.dy());
     if (r_ != 0) {
       my_s.set_out(&fg);

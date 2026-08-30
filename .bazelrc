@@ -11,6 +11,7 @@ import %workspace%/.roo_testing/bazelrc/esp32/arduino.bazelrc
 # Enable testing-specific code paths (e.g. tiny buffer sizes) only for bazel
 # test invocations, not for normal library builds.
 test --copt=-DROO_DISPLAY_TESTING
+test --test_output=errors
 
 # GCC 14 can emit spurious maybe-uninitialized warnings in std::regex with ASAN.
 build:asan --per_file_copt=src/logging.cc@-Wno-maybe-uninitialized

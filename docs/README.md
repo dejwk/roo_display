@@ -11,3 +11,7 @@ It may also contain source markdown for local design notes related to
 To build locally:
 1) Install Doxygen.
 2) Run `doxygen` from the repository root.
+
+Design notes:
+
+- [Value-owned raw streams for glyph rendering (deferred)](value_owned_raw_streams_design.md)

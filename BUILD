@@ -26,6 +26,7 @@ cc_library(
         "@roo_backport",
         "@roo_collections",
         "@roo_io",
+        "@roo_io//:i2c",
     ] + select({
         "@roo_testing//roo_testing/platforms:is_arduino": [
             "@roo_io//:arduino_fs",
@@ -569,9 +570,13 @@ cc_test(
         "test/touch_ft6x36_test.cpp",
     ],
     linkstatic = 1,
-    deps = UNIT_TEST_DEPS + [
+    deps = [
+        ":roo_display",
         "@roo_testing//roo_testing/devices/touch/ft6x36",
         "@roo_testing//roo_testing/microcontrollers/esp32:core",
         "@roo_testing//roo_testing/transducers/ui/viewport",
-    ],
+    ] + select({
+        "@roo_testing//roo_testing/platforms:is_idf": ["@roo_testing//:esp_idf_gtest_main"],
+        "//conditions:default": ["@roo_testing//:arduino_gtest_main"],
+    }),
 )

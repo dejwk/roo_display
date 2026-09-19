@@ -96,3 +96,11 @@ Arduino examples are native runnable targets in their source packages. For
 example:
 
     bazel run //examples/programming_guide/part1_1_basic_setup:part1_1_basic_setup
+
+### I2C transport
+
+I2C touch drivers use `roo_io/i2c/i2c.h` (`@roo_io//:i2c` in Bazel).
+The existing `roo_display/hal/i2c.h` and backend headers retain type aliases for
+source compatibility. Native IDF device registrations are released when their
+drivers are destroyed; keep externally owned buses alive until then. See the
+`roo_io` I2C documentation for bus initialization and ownership.

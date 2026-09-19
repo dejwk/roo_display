@@ -29,10 +29,10 @@ TouchPoint ReadPoint(const roo::byte* data) {
 
 TouchGt911::TouchGt911(GpioSetter pinIntr, GpioSetter pinRst,
                        long reset_low_hold_ms)
-    : TouchGt911(I2cMasterBusHandle(), std::move(pinIntr), std::move(pinRst),
-                 reset_low_hold_ms) {}
+    : TouchGt911(roo_io::I2cMasterBusHandle(), std::move(pinIntr),
+                 std::move(pinRst), reset_low_hold_ms) {}
 
-TouchGt911::TouchGt911(I2cMasterBusHandle i2c, GpioSetter pinIntr,
+TouchGt911::TouchGt911(roo_io::I2cMasterBusHandle i2c, GpioSetter pinIntr,
                        GpioSetter pinRst, long reset_low_hold_ms)
     : BasicTouchDevice<5>(Config{.min_sampling_interval_ms = 20,
                                  .touch_intertia_ms = 30,
@@ -56,15 +56,11 @@ void TouchGt911::initTouch() {
 }
 
 void TouchGt911::reset() {
-  if (reset_thread_.joinable()) {
-    return;
-  }
+  if (reset_thread_.joinable()) return;
   ready_ = false;
   // Initialize the reset asynchronously to avoid blocking the main thread.
   reset_thread_ = roo::thread([this]() {
-    if (pinIntr_.isDefined()) {
-      pinIntr_.setLow();
-    }
+    if (pinIntr_.isDefined()) pinIntr_.setLow();
     pinRst_.setLow();
     roo::this_thread::sleep_for(roo_time::Millis((reset_low_hold_ms_)));
     if (pinIntr_.isDefined()) {
@@ -90,9 +86,7 @@ void TouchGt911::reset() {
 
 int TouchGt911::readTouch(TouchPoint* points) {
   if (!ready_) return 0;
-  if (reset_thread_.joinable()) {
-    reset_thread_.join();
-  }
+  if (reset_thread_.joinable()) reset_thread_.join();
   roo::byte status;
   if (!readByte(kTouchRead, status)) {
     reset();

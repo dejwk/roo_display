@@ -23,13 +23,13 @@ static constexpr int kTouchBufferSize = 6;
 // The panel reports the same, cached, coordinates if scanned more frequently
 // than every 25ms. So let's not bother asking, just serve cached values.
 // (This also allows velocity detection to work).
-TouchFt6x36::TouchFt6x36(I2cMasterBusHandle i2c)
+TouchFt6x36::TouchFt6x36(roo_io::I2cMasterBusHandle i2c)
     : BasicTouchDevice<2>(Config{.min_sampling_interval_ms = 25,
                                  .touch_intertia_ms = 0,
                                  .smoothing_factor = 0.0}),
       i2c_slave_(i2c, kTouchI2cAddr) {}
 
-TouchFt6x36::TouchFt6x36() : TouchFt6x36(I2cMasterBusHandle()) {}
+TouchFt6x36::TouchFt6x36() : TouchFt6x36(roo_io::I2cMasterBusHandle()) {}
 
 void TouchFt6x36::initTouch() { i2c_slave_.init(); }
 

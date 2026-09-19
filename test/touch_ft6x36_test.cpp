@@ -1,8 +1,6 @@
-#include <Arduino.h>
-
-#include "Wire.h"
-#include "gtest/gtest.h"
 #include "roo_display/driver/touch_ft6x36.h"
+
+#include "gtest/gtest.h"
 #include "roo_testing/devices/touch/ft6x36/ft6x36.h"
 #include "roo_testing/microcontrollers/esp32/fake_esp32.h"
 #include "roo_testing/system/timer.h"
@@ -19,10 +17,12 @@ int16_t ScaleToRaw(int16_t value, int16_t max) {
   return static_cast<int16_t>((4096LL * value) / max);
 }
 
+/// Keeps the emulated touch panel connected to its viewport and bus pins.
 struct TouchEmulator {
   testing::TestViewport viewport;
   FakeFt6x36 touch;
 
+  /// Initializes the viewport and attaches the touch controller.
   TouchEmulator() : viewport(), touch(viewport) {
     viewport.init(240, 320);
     FakeEsp32().attachI2cDevice(touch, kPinSda, kPinScl);
@@ -31,11 +31,14 @@ struct TouchEmulator {
 
 }  // namespace
 
+// Verifies the shared I2C transport reports emulated touch coordinates on both
+// backends.
 TEST(TouchFt6x36, ReportsTouchCoordinates) {
-  TouchEmulator emu;
+  static TouchEmulator emu;
 
-  TouchFt6x36 touch;
-  Wire.begin(kPinSda, kPinScl);
+  roo_io::I2cMasterBusHandle bus;
+  ASSERT_TRUE(bus.init(kPinSda, kPinScl));
+  TouchFt6x36 touch(bus);
   touch.initTouch();
 
   emu.viewport.setMouse(40, 50, true);

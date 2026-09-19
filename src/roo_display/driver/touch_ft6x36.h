@@ -14,7 +14,7 @@ class TouchFt6x36 : public BasicTouchDevice<2> {
   // argument).
   // When using Arduino, you can pass a Wire& object reference.
   // When using esp-idf, you can pass an i2c_port_num_t.
-  TouchFt6x36(I2cMasterBusHandle i2c);
+  TouchFt6x36(roo_io::I2cMasterBusHandle i2c);
 
   // Initializes the driver (performing GPIO setup and calling reset()).
   // Must be called once.
@@ -23,7 +23,7 @@ class TouchFt6x36 : public BasicTouchDevice<2> {
   int readTouch(TouchPoint* point) override;
 
  private:
-  I2cSlaveDevice i2c_slave_;
+  roo_io::I2cSlaveDevice i2c_slave_;
 };
 
 }  // namespace roo_display

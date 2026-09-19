@@ -20,6 +20,16 @@ policy on top of this baseline.
 
 ## Core Conventions
 
+- Use braces for control-flow bodies unless the entire construct, including
+  its condition and single-statement body, fits on one line within the style's
+  column limit (for example, `if (ptr == nullptr) return;`). Multiline constructs
+  require braces. Format C++ with the Google baseline; do not force
+  `InsertBraces: true`, since single-line unbraced constructs are permitted.
+- Do not rely on implicit or contextual conversions to `bool`. Compare pointers
+  and smart pointers explicitly with `nullptr`, numeric values and counts with
+  zero, and bitmasks with zero. This applies to conditions, logical operators,
+  and conditional (`?:`) expressions. Boolean values and predicates may be used
+  directly; do not add redundant `== true` or `== false` comparisons.
 - Follow Google-style C++, except instance methods use `camelCase()`.
   Trivial accessors and mutators (one-line field getters/setters and
   STL-mimicking container methods) may keep `snake_case()` when that reads

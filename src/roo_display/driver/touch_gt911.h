@@ -31,8 +31,8 @@ class TouchGt911 : public BasicTouchDevice<5> {
   // When using Arduino, you can pass a Wire& object reference.
   // When using esp-idf, you can pass an i2c_port_num_t.
   // For GpioSetter, you can pass pin numbers, or a custom implementation.
-  TouchGt911(I2cMasterBusHandle i2c, GpioSetter pinIntr, GpioSetter pinRst,
-             long reset_low_hold_ms = 1);
+  TouchGt911(roo_io::I2cMasterBusHandle i2c, GpioSetter pinIntr,
+             GpioSetter pinRst, long reset_low_hold_ms = 1);
 
   // Initializes the driver (performing GPIO setup and calling reset()).
   // Must be called once.
@@ -50,7 +50,7 @@ class TouchGt911 : public BasicTouchDevice<5> {
   int8_t addr_;
   GpioSetter pinIntr_;
   GpioSetter pinRst_;
-  I2cSlaveDevice i2c_slave_;
+  roo_io::I2cSlaveDevice i2c_slave_;
   long reset_low_hold_ms_;
 
   roo::atomic<bool> ready_;

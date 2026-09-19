@@ -1,3 +1,13 @@
+# roo_display 3.3.0
+
+- Migrated FT6x36 and GT911 touch drivers to the shared `roo_io` I2C API, retaining compatibility aliases in existing headers. ESP-IDF device registrations are now released when drivers are destroyed; externally owned buses must outlive their drivers.
+- Extended FT6x36 touch-coordinate tests to Arduino and ESP-IDF backends.
+- Updated dependencies to `roo_io` 2.3.0, `roo_backport` 1.2.4, `roo_collections` 1.4.7, `roo_testing` 2.1.2, `roo_icons` 1.2.4, and `roo_fonts_basic` 1.0.4. Added icons and basic fonts to Arduino and PlatformIO dependency declarations.
+- Updated Bazel rules and shared CI tooling.
+- Added consolidated release history and documented a deferred glyph-stream optimization.
+
+---
+
 # [roo_display 3.2.2](https://github.com/dejwk/roo_display/releases/tag/3.2.2)
 
 Published 2026-08-30.

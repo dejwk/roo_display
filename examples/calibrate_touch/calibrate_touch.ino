@@ -75,10 +75,10 @@ class TouchCalibrator {
       : display_(display), font_(font), state_(IDLE), last_touch_event_() {}
 
   void loop() {
-    int16_t xstart;
-    int16_t ystart;
-    int16_t x;
-    int16_t y;
+    int16_t xstart = 0;
+    int16_t ystart = 0;
+    int16_t x = 0;
+    int16_t y = 0;
     while (true) {
       switch (state_) {
         case IDLE: {

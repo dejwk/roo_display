@@ -11,11 +11,13 @@ arduino_config_prefix="roo_testing_arduino_"
 idf_config_prefix="roo_testing_idf_"
 args=("$@")
 command_index=-1
+command=""
 configured_command=false
 showing_help=false
 workspace_rc=true
 ignore_all_rc_files=false
 quiet=false
+idf_example_run=false
 frontend_configs=()
 
 startup_options_with_values=(
@@ -100,6 +102,7 @@ for ((i = 0; i < ${#args[@]}; ++i)); do
   fi
 
   command_index=${i}
+  command="${arg}"
   case "${arg}" in
     aquery|build|coverage|cquery|fetch|info|mobile-install|print_action|run|test|vendor)
       configured_command=true
@@ -130,6 +133,17 @@ if ((command_index >= 0)); then
       --config=*) record_frontend_config "${arg#--config=}" ;;
       --help|-h) showing_help=true ;;
     esac
+
+    # A run command accepts one target, so an ESP-IDF example package is
+    # unambiguous. Other configured commands may contain mixed target patterns
+    # and retain the established Arduino default.
+    if [[ "${command}" == "run" ]]; then
+      case "${arg}" in
+        *"/espidf/"*|*"/espidf:"*|*"/esp-idf/"*|*"/esp-idf:"*)
+          idf_example_run=true
+          ;;
+      esac
+    fi
   done
 fi
 
@@ -140,10 +154,16 @@ fi
 
 if $configured_command && ! $showing_help && $workspace_rc && \
     ! $ignore_all_rc_files && ((${#frontend_configs[@]} == 0)); then
-  default_config="roo_testing_arduino_esp32"
+  if $idf_example_run; then
+    default_config="roo_testing_idf_esp32"
+    notice="inferred an ESP-IDF example target; selecting"
+  else
+    default_config="roo_testing_arduino_esp32"
+    notice="no frontend selected; defaulting to"
+  fi
   if ! $quiet; then
     printf >&2 '%s\n' \
-      "INFO: roo_testing: no frontend selected; defaulting to --config=${default_config}."
+      "INFO: roo_testing: ${notice} --config=${default_config}."
   fi
   insertion_index=$((command_index + 1))
   args=(

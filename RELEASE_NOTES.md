@@ -1,3 +1,12 @@
+# roo_display 3.3.1
+
+- Upgrade dependencies to `roo_collections` 1.4.8, `roo_io` 2.4.0, `roo_icons` 1.2.5, `roo_fonts_basic` 1.0.5, and `roo_testing` 2.3.0.
+- Add explicit icon and font dependencies to Arduino and PlatformIO package metadata.
+- Automatically select the ESP-IDF configuration when running ESP-IDF examples through the Bazel wrapper.
+- Refresh contributor guidance and fix stale documentation references.
+
+---
+
 # roo_display 3.3.0
 
 - Migrated FT6x36 and GT911 touch drivers to the shared `roo_io` I2C API, retaining compatibility aliases in existing headers. ESP-IDF device registrations are now released when drivers are destroyed; externally owned buses must outlive their drivers.

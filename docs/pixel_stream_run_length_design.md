@@ -506,7 +506,8 @@ two-argument convenience overload.
 
 ## Implementation Plan
 
-Authoring reference: [roo_display code authoring](../.github/skills/roo-display-code-authoring/SKILL.md) on top of [embedded C++ code authoring](../.github/instructions/general-cpp-code-authoring-instructions.md).
+Authoring reference:
+[general C++ authoring instructions](../.github/instructions/general-cpp-code-authoring-instructions.md).
 
 ### Phase 1: Migrate `PixelStream` To The Run-Aware Contract
 

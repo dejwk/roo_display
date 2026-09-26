@@ -214,7 +214,7 @@ existing public constructor and drawing API.
 ## Implementation Plan
 
 Authoring reference:
-[roo-display-code-authoring](../.github/skills/roo-display-code-authoring/SKILL.md)
+[general C++ authoring instructions](../.github/instructions/general-cpp-code-authoring-instructions.md)
 
 ### Phase 1: Land Row-Start Multiline Batches
 

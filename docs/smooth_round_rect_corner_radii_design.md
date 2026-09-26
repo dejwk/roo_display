@@ -771,7 +771,7 @@ corrected equal-radius path.
 ## Implementation Plan
 
 Authoring reference:
-[roo-display-code-authoring](../.github/skills/roo-display-code-authoring/SKILL.md)
+[general C++ authoring instructions](../.github/instructions/general-cpp-code-authoring-instructions.md)
 
 Prerequisite state:
 

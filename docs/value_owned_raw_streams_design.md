@@ -93,7 +93,7 @@ part of the initial optimization.
 
 ## Implementation Plan
 
-Follow the [embedded C++ authoring guidance](../.github/instructions/embedded-cpp-code-authoring.instructions.md).
+Follow the [embedded C++ authoring guidance](../.github/instructions/general-cpp-code-authoring-instructions.md).
 
 1. **Measure the current path.** Add reproducible target size/stack probes and
    clipped/overlapping glyph fixtures. Proposed commit: `Characterize glyph

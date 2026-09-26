@@ -280,7 +280,7 @@ StringViewLabel(roo::string_view label, const Font& font, Color color,
 ## Implementation Plan
 
 Implementation follows the
-[`roo_display` embedded C++ authoring guidance](../.github/instructions/embedded-cpp-code-authoring.instructions.md).
+[`roo_display` embedded C++ authoring guidance](../.github/instructions/general-cpp-code-authoring-instructions.md).
 
 ### Phase 1: Complete the font contract and measurement
 

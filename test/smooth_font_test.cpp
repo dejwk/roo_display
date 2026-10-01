@@ -4,6 +4,7 @@
 #include "roo_display/font/font.h"
 #include "roo_display/font/font_adafruit_fixed_5x7.h"
 #include "roo_fonts/NotoSerif_Italic/12.h"
+#include "roo_fonts/NotoSerif_Italic/40.h"
 #include "testing_drawable.h"
 
 using namespace testing;
@@ -414,6 +415,48 @@ TEST(SmoothFontTest, ClippedTextWithBackground) {
                                      "111111   1E2      11111111"
                                      "111111  7C6       11111111"
                                      "11111111111111111111111111"));
+}
+
+// Verifies that a supplied background does not turn transparent glyph pixels
+// into paint that erases earlier, overlapping italic glyphs.
+TEST(SmoothFontTest, VisibleBackgroundPreservesOverlappingGlyphs) {
+  const Font& large_font = font_NotoSerif_Italic_40();
+  for (const char* text : {"Left", "Right"}) {
+    SCOPED_TRACE(text);
+    FakeScreen<Argb4444> actual(140, 60, color::Black);
+    FakeScreen<Argb4444> expected(140, 60, color::Black);
+    TrackingLabel label(large_font, text, Font::Options());
+    actual.Draw(label, 10, 45, color::Black);
+    expected.Draw(label, 10, 45);
+    ExpectSamePixels(actual, expected, 140 * 60);
+  }
+}
+
+// Verifies single-glyph drawing skips transparent pixels while pre-blending
+// visible pixels against opaque or translucent backgrounds, including clipping.
+TEST(SmoothFontTest, VisibleGlyphBackgroundPreservesTransparentPixels) {
+  for (Color background : {color::Black, Color(0x88000000)}) {
+    for (const char* text : {"e", "f"}) {
+      SCOPED_TRACE(text);
+      FakeScreen<Argb8888> actual(30, 20, color::Red);
+      FakeScreen<Argb8888> coverage(30, 20);
+      PositionedGlyphs glyph(font(), text, 0);
+      Box clip(4, 2, 20, 16);
+      actual.Draw(glyph, 3, 14, clip, background);
+      coverage.Draw(glyph, 3, 14, clip);
+      std::unique_ptr<TestColorStream> actual_stream = actual.createRawStream();
+      std::unique_ptr<TestColorStream> coverage_stream =
+          coverage.createRawStream();
+      for (int i = 0; i < 30 * 20; ++i) {
+        Color foreground = coverage_stream->next();
+        Color expected =
+            foreground.a() == 0
+                ? color::Red
+                : AlphaBlend(color::Red, AlphaBlend(background, foreground));
+        EXPECT_EQ(expected, actual_stream->next()) << "pixel " << i;
+      }
+    }
+  }
 }
 
 }  // namespace roo_display

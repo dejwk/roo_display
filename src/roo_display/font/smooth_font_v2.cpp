@@ -85,14 +85,13 @@ constexpr uint8_t kKerningFormatNone = 0;
 constexpr uint8_t kKerningFormatPairs = 1;
 constexpr uint8_t kKerningFormatClasses = 2;
 
-// Pre-blends the 16-level Alpha4 gradient against bgcolor into a palette.
-// This lets glyph rendering use Indexed4 (a simple table lookup) instead of
-// Alpha4 (per-pixel alpha blending).  When bgcolor is opaque, every palette
-// entry is opaque, so the rendering pipeline can use TransparencyMode::kNone
-// and skip blending entirely.
-void BuildAlpha4Palette(Color* out, Color bgcolor, Color color) {
+// Pre-blends the Alpha4 gradient so glyph rendering uses palette lookups.
+// Visible-only drawing must retain transparent entries: painting background
+// there would erase overlapping glyphs drawn earlier.
+void BuildAlpha4Palette(Color* out, Color bgcolor, Color color,
+                        FillMode fill_mode) {
   Alpha4 alpha(color);
-  out[0] = bgcolor;
+  out[0] = fill_mode == FillMode::kVisible ? color::Transparent : bgcolor;
   if (bgcolor.a() == 0xFF) {
     for (int i = 1; i < 16; ++i) {
       out[i] = AlphaBlendOverOpaque(bgcolor, alpha.toArgbColor(i));
@@ -691,7 +690,7 @@ void SmoothFontV2::drawHorizontalString(const Surface& s, const char* utf8_data,
   // Pre-compute a 16-color Indexed4 palette that bakes in the alpha blend
   // against bgcolor, so per-glyph rendering avoids per-pixel blending.
   Color palette_colors[16];
-  BuildAlpha4Palette(palette_colors, s.bgcolor(), color);
+  BuildAlpha4Palette(palette_colors, s.bgcolor(), color, s.fill_mode());
   Palette palette = Palette::ReadOnly(palette_colors, 16);
   bool has_more;
   do {
@@ -800,7 +799,7 @@ void SmoothFontV2::drawGlyph(const Surface& s, char32_t code, FontLayout layout,
 
   // Pre-compute a 16-color Indexed4 palette (see BuildAlpha4Palette).
   Color palette_colors[16];
-  BuildAlpha4Palette(palette_colors, s.bgcolor(), color);
+  BuildAlpha4Palette(palette_colors, s.bgcolor(), color, s.fill_mode());
   Palette palette = Palette::ReadOnly(palette_colors, 16);
 
   if (s.fill_mode() == FillMode::kVisible) {

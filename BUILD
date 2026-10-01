@@ -580,3 +580,10 @@ cc_test(
         "//conditions:default": ["@roo_testing//:arduino_gtest_main"],
     }),
 )
+
+cc_test(
+    name = "alignment_test",
+    srcs = ["test/alignment_test.cpp"],
+    linkstatic = 1,
+    deps = UNIT_TEST_DEPS,
+)

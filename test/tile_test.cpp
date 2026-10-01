@@ -20,6 +20,7 @@ TEST(TileTest, Trivial) {
                                      "     "));
 }
 
+// Verifies fractional center offsets round once, toward negative infinity.
 TEST(TileTest, CenteredBasic) {
   FakeScreen<Argb4444> screen(10, 10, color::Black);
   auto interior = SolidRect(0, 0, 2, 1, color::Gray);
@@ -29,15 +30,17 @@ TEST(TileTest, CenteredBasic) {
                                      "          "
                                      "          "
                                      "   *****  "
+                                     "   *777*  "
+                                     "   *777*  "
                                      "   *****  "
-                                     "   *777*  "
-                                     "   *777*  "
                                      "   *****  "
                                      "          "
                                      "          "
                                      "          "));
 }
 
+// Verifies centering with a negative horizontal offset and a positive
+// vertical offset, including a subsequent draw translation.
 TEST(TileTest, CenteredOffset) {
   FakeScreen<Argb4444> screen(10, 10, color::Black);
   auto interior = SolidRect(32, -15, 34, -14, color::Gray);

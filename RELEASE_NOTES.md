@@ -1,3 +1,14 @@
+# roo_display 3.3.2
+
+- Fix a `SmoothFontV2` regression where visible-only rendering overwrote background pixels and erased overlapping glyphs.
+- Fix one-pixel alignment errors involving negative coordinates and half-pixel centers.
+- Adjust `TextLabel` and `StringViewLabel` anchoring so vertically centered text is centered by ascent height.
+- Correct the built-in Noto Serif Italic 12 font’s line gap from 2 to 3 pixels, increasing line spacing from 15 to 16 pixels.
+- Add regression tests for alignment and transparent glyph rendering.
+- Upgrade the Bazel dependency `roo_testing` from 2.3.0 to 2.3.1.
+
+---
+
 # roo_display 3.3.1
 
 - Upgrade dependencies to `roo_collections` 1.4.8, `roo_io` 2.4.0, `roo_icons` 1.2.5, `roo_fonts_basic` 1.0.5, and `roo_testing` 2.3.0.

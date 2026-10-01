@@ -73,7 +73,7 @@ class TextLabel : public Drawable {
 
   Box anchorExtents() const override {
     return Box(0, -font().metrics().ascent() - font().metrics().linegap(),
-               metrics_.advance() - 1, -font().metrics().descent());
+               metrics_.advance() - 1, font().metrics().linegap() - 1);
   }
 
   /// Return the font used by the label.
@@ -171,7 +171,7 @@ class StringViewLabel : public Drawable {
 
   Box anchorExtents() const override {
     return Box(0, -font().metrics().ascent() - font().metrics().linegap(),
-               metrics_.advance() - 1, -font().metrics().descent());
+               metrics_.advance() - 1, font().metrics().linegap() - 1);
   }
 
   /// Return the font used by the label.

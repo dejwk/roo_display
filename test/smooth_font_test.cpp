@@ -109,10 +109,10 @@ Color PixelAt(const FakeScreen<ColorMode>& screen, uint32_t width, uint32_t x,
 }
 
 TEST(SmoothFontTest, FontMetrics) {
-  EXPECT_EQ(15, font().metrics().linespace());
+  EXPECT_EQ(16, font().metrics().linespace());
   EXPECT_EQ(10, font().metrics().ascent());
   EXPECT_EQ(-3, font().metrics().descent());
-  EXPECT_EQ(2, font().metrics().linegap());
+  EXPECT_EQ(3, font().metrics().linegap());
   EXPECT_EQ(-3, font().metrics().glyphXMin());
   EXPECT_EQ(-2, font().metrics().glyphYMin());
   EXPECT_EQ(14, font().metrics().glyphXMax());

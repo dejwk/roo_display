@@ -54,19 +54,6 @@ void ExpectSamePixels(const FakeScreen<ColorMode>& actual,
   }
 }
 
-TEST(SmoothFontTest, FontMetrics) {
-  EXPECT_EQ(15, font12().metrics().linespace());
-  EXPECT_EQ(10, font12().metrics().ascent());
-  EXPECT_EQ(-3, font12().metrics().descent());
-  EXPECT_EQ(2, font12().metrics().linegap());
-  EXPECT_EQ(-3, font12().metrics().glyphXMin());
-  EXPECT_EQ(-2, font12().metrics().glyphYMin());
-  EXPECT_EQ(14, font12().metrics().glyphXMax());
-  EXPECT_EQ(12, font12().metrics().glyphYMax());
-  EXPECT_EQ(18, font12().metrics().maxWidth());
-  EXPECT_EQ(15, font12().metrics().maxHeight());
-}
-
 // Absolute extents.
 
 TEST(TextLabel, SimpleTextNoBackground) {

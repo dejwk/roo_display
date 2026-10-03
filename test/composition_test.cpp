@@ -17,7 +17,8 @@ Color Sample(int seed, int16_t x, int16_t y) {
                           Color(0x00123456),  Color(0x80654321),
                           color::Red,         color::Green,
                           color::Blue,        color::White};
-  return colors[static_cast<uint32_t>(x + 17 * y + seed) % 8];
+  Color sample = colors[static_cast<uint32_t>(x + 17 * y + seed) % 8];
+  return (seed & 256) != 0 ? sample.toOpaque() : sample;
 }
 
 struct Layer {
@@ -420,6 +421,112 @@ TEST(Composition, OpacityPreservingOperations) {
       stream.setInput(1, &solid, Box(1, 2, 7, 9)).withMode(mask);
       EXPECT_EQ(raster.getTransparencyMode(), TransparencyMode::kFull);
       EXPECT_EQ(stream.getTransparencyMode(), TransparencyMode::kFull);
+    }
+  }
+}
+
+namespace {
+
+// Fixed generator keeps randomized regressions reproducible across platforms.
+class SceneRandom {
+ public:
+  uint32_t next(uint32_t limit) {
+    state_ = state_ * 1664525u + 1013904223u;
+    return (state_ >> 8) % limit;
+  }
+
+ private:
+  uint32_t state_ = 0xC0A90517;
+};
+
+// Verifies interleaved reads and skips, including run promises extending past
+// the read buffer, against the independently evaluated scene.
+void CheckRandomAccess(const Streamable& stack, const Box& clip,
+                       const std::vector<Layer>& layers, SceneRandom& random) {
+  std::unique_ptr<PixelStream> stream = stack.createStream(clip);
+  for (int offset = 0; offset < clip.area();) {
+    int skip = random.next(std::min(71, clip.area() - offset) + 1);
+    stream->skip(skip);
+    offset += skip;
+    Color pixels[67];
+    int count = std::min<int>(1 + random.next(67), clip.area() - offset);
+    uint32_t run = 123;
+    stream->read(pixels, count, run);
+    for (int i = 0; i < count; ++i) {
+      int index = offset + i;
+      ASSERT_EQ(pixels[i], Evaluate(layers, clip.xMin() + index % clip.width(),
+                                    clip.yMin() + index / clip.width()));
+    }
+    ASSERT_LE(run, static_cast<uint32_t>(clip.area() - offset));
+    for (uint32_t i = 0; i < run; ++i) {
+      int index = offset + i;
+      ASSERT_EQ(pixels[0], Evaluate(layers, clip.xMin() + index % clip.width(),
+                                    clip.yMin() + index / clip.width()));
+    }
+    offset += count;
+  }
+}
+
+}  // namespace
+
+// Verifies deterministic randomized clips, translations, mode sequences,
+// opacity hints, nesting, and consumption schedules across both backends.
+TEST(Composition, RandomizedScenesMatchScalarOracle) {
+  SceneRandom random;
+  for (int scene = 0; scene < 96; ++scene) {
+    SCOPED_TRACE(scene);
+    Box bounds(0, 0, random.next(43), random.next(19));
+    RasterizableStack raster(bounds);
+    StreamableStack stream(bounds);
+    std::vector<std::unique_ptr<Rasterizable>> sources;
+    std::vector<Layer> layers;
+    int count = random.next(17);
+    for (int i = 0; i < count; ++i) {
+      int seed = random.next(8) | (random.next(3) == 0 ? 256 : 0);
+      int16_t x = static_cast<int>(random.next(55)) - 8;
+      int16_t y = static_cast<int>(random.next(27)) - 5;
+      Box extents(x, y, x + random.next(40), y + random.next(18));
+      int16_t dx = static_cast<int>(random.next(15)) - 7;
+      int16_t dy = static_cast<int>(random.next(9)) - 4;
+      Box clip(-3, -2, random.next(46), random.next(22));
+      BlendingMode mode = static_cast<BlendingMode>(random.next(12));
+      auto source = MakeRasterizable(
+          extents, [seed](int16_t x, int16_t y) { return Sample(seed, x, y); },
+          (seed & 256) != 0 ? TransparencyMode::kNone
+                            : TransparencyMode::kFull);
+      sources.emplace_back(new decltype(source)(source));
+      layers.push_back({Box::Intersect(extents, clip).translate(dx, dy), dx, dy,
+                        seed, mode});
+      raster.addInput(sources.back().get(), clip, dx, dy).withMode(mode);
+      stream.addInput(sources.back().get(), clip, dx, dy).withMode(mode);
+    }
+    int16_t x = random.next(bounds.width());
+    int16_t y = random.next(bounds.height());
+    Box clip(x, y, bounds.xMax(), bounds.yMax());
+    std::vector<Color> pixels(clip.area());
+    bool uniform = raster.readColorRect(clip.xMin(), clip.yMin(), clip.xMax(),
+                                        clip.yMax(), pixels.data());
+    for (int i = 0; i < clip.area(); ++i) {
+      Color expected =
+          Evaluate(layers, x + i % clip.width(), y + i / clip.width());
+      ASSERT_EQ(pixels[uniform ? 0 : i], expected);
+      if (raster.getTransparencyMode() == TransparencyMode::kNone) {
+        ASSERT_TRUE(expected.isOpaque());
+      }
+    }
+    RasterizableStack nested(bounds);
+    nested.addInput(&raster).withMode(BlendingMode::kSource);
+    CheckStream(raster, clip, layers);
+    CheckStream(stream, clip, layers);
+    CheckRandomAccess(raster, clip, layers, random);
+    CheckRandomAccess(stream, clip, layers, random);
+    CheckRandomAccess(nested, clip, layers, random);
+    CheckFilter(raster, clip, layers);
+    Color background = Sample(random.next(8), 0, 0);
+    BlendingMode output = static_cast<BlendingMode>(random.next(12));
+    for (FillMode fill : {FillMode::kExtents, FillMode::kVisible}) {
+      CheckDrawing(raster, clip, layers, fill, background, output);
+      CheckDrawing(stream, clip, layers, fill, background, output);
     }
   }
 }

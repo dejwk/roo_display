@@ -9,8 +9,16 @@
 namespace roo_display {
 
 /// Multi-layer stack of streamables composited in order.
+///
+/// Drawing and stream creation for nonempty output support at most kMaxInputs
+/// registered inputs, including clipped-out inputs. Exceeding this limit fails
+/// a release-enabled CHECK before creating child streams. Empty output is
+/// exempt.
 class StreamableStack : public Streamable {
  public:
+  /// Maximum registered inputs in a nonempty compiled composition.
+  static constexpr size_t kMaxInputs = 16;
+
   /// An input layer in the stack.
   class Input {
    public:
@@ -106,9 +114,13 @@ class StreamableStack : public Streamable {
   }
 
   /// Create a stream for the full stack.
+  /// Fails a CHECK if nonempty output has more than kMaxInputs registered
+  /// inputs.
   std::unique_ptr<PixelStream> createStream() const override;
 
   /// Create a stream for a clipped box.
+  /// Fails a CHECK if nonempty output has more than kMaxInputs registered
+  /// inputs, including inputs outside the clip box.
   std::unique_ptr<PixelStream> createStream(const Box& clip_box) const override;
 
   /// Set the stack extents.

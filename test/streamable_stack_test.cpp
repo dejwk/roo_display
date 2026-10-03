@@ -604,6 +604,64 @@ TEST(StreamableStack, EmptyOutputAndZeroSizeReads) {
   EXPECT_EQ(run, 0u);
 }
 
+// Verifies all sixteen registered bits survive, including the final translucent
+// layer.
+TEST(StreamableStack, InputCapacityBoundary) {
+  Box bounds(0, 0, 19, 9);
+  FilledRect red(bounds, color::Red);
+  FilledRect blue(bounds, Color(0x800000FF));
+  StreamableStack stack(bounds);
+  for (int i = 0; i < 15; ++i) stack.addInput(&red);
+  stack.addInput(&blue);
+  Color want = AlphaBlend(color::Red, Color(0x800000FF));
+  auto expected = [want](int16_t, int16_t) { return want; };
+  CheckStackStream(*stack.createStream(), bounds, expected);
+  CheckStackStream(*stack.createStream(bounds), bounds, expected);
+  for (FillMode fill : {FillMode::kExtents, FillMode::kVisible}) {
+    CheckStackDrawing(stack, bounds, fill, color::Green, expected);
+  }
+}
+
+// Verifies release-enabled rejection counts clipped-out inputs in every entry
+// point.
+TEST(StreamableStackDeathTest, InputCapacityRejectedBeforeCompilation) {
+  Box bounds(0, 0, 19, 9);
+  FilledRect input(bounds, color::Red);
+  for (int count : {17, 32}) {
+    for (int visible : {0, 1, count}) {
+      StreamableStack stack(bounds);
+      for (int i = 0; i < count; ++i) {
+        stack.addInput(&input, i < visible ? 0 : 100, 0);
+      }
+      std::string diagnostic =
+          "StreamableStack.*" + std::to_string(count) + ".*16";
+      EXPECT_DEATH(stack.createStream(), diagnostic);
+      EXPECT_DEATH(stack.createStream(Box(1, 0, 18, 9)), diagnostic);
+      for (FillMode fill : {FillMode::kExtents, FillMode::kVisible}) {
+        EXPECT_DEATH(
+            CheckStackDrawing(stack, bounds, fill, color::Green,
+                              [](int16_t, int16_t) { return color::Red; }),
+            diagnostic);
+      }
+    }
+  }
+}
+
+// Verifies empty output returns before the compiled-input limit is checked.
+TEST(StreamableStack, EmptyOutputAllowsExcessRegisteredInputs) {
+  FilledRect input(Box(0, 0, 19, 9), color::Red);
+  StreamableStack stack(Box(0, 0, -1, -1));
+  for (int i = 0; i < 32; ++i) stack.addInput(&input);
+  uint32_t run = 123;
+  stack.createStream()->read(nullptr, 0, run);
+  EXPECT_EQ(run, 0u);
+  stack.setExtents(input.extents());
+  stack.createStream(Box(30, 30, 39, 39))->read(nullptr, 0, run);
+  EXPECT_EQ(run, 0u);
+  CheckStackDrawing(stack, Box(30, 30, 39, 39), FillMode::kVisible,
+                    color::Green, [](int16_t, int16_t) { return color::Red; });
+}
+
 // Verifies a maximum-sized public read crosses split operands without
 // truncation.
 TEST(StreamableStack, LargeReadCrossesInstructionBoundary) {
@@ -618,6 +676,56 @@ TEST(StreamableStack, LargeReadCrossesInstructionBoundary) {
   FillColor(buffer.data(), 11265, Color(0xDEADBEEF));
   stream->read(buffer.data(), 11265);
   for (int i = 0; i < 11265; ++i) ASSERT_EQ(buffer[i], color::Red);
+}
+
+namespace {
+
+// Makes accidental child-stream preparation observable in empty and invalid
+// stacks.
+class ForbiddenStreamSource : public Streamable {
+ public:
+  Box extents() const override { return Box(0, 0, 19, 9); }
+
+  std::unique_ptr<PixelStream> createStream() const override {
+    CHECK(false) << "Unexpected child stream creation";
+    return nullptr;
+  }
+
+  std::unique_ptr<PixelStream> createStream(const Box&) const override {
+    return createStream();
+  }
+};
+
+}  // namespace
+
+// Verifies limit validation happens before preparing even the first child
+// stream.
+TEST(StreamableStackDeathTest, InputCapacityCheckedBeforeChildStreams) {
+  ForbiddenStreamSource input;
+  StreamableStack stack(input.extents());
+  for (int i = 0; i < 17; ++i) stack.addInput(&input);
+  EXPECT_DEATH(stack.createStream(), "StreamableStack.*17.*16");
+  EXPECT_DEATH(stack.createStream(input.extents()), "StreamableStack.*17.*16");
+  EXPECT_DEATH(CheckStackDrawing(stack, input.extents(), FillMode::kVisible,
+                                 color::Green,
+                                 [](int16_t, int16_t) { return color::Red; }),
+               "StreamableStack.*17.*16");
+}
+
+// Verifies empty output prepares no child streams, including with excess
+// inputs.
+TEST(StreamableStack, EmptyOutputDoesNotPrepareChildren) {
+  ForbiddenStreamSource input;
+  StreamableStack stack(Box(0, 0, -1, -1));
+  for (int i = 0; i < 17; ++i) stack.addInput(&input);
+  uint32_t run = 123;
+  stack.createStream()->read(nullptr, 0, run);
+  EXPECT_EQ(run, 0u);
+  stack.setExtents(input.extents());
+  stack.createStream(Box(30, 30, 39, 39))->read(nullptr, 0, run);
+  EXPECT_EQ(run, 0u);
+  CheckStackDrawing(stack, Box(30, 30, 39, 39), FillMode::kVisible,
+                    color::Green, [](int16_t, int16_t) { return color::Red; });
 }
 
 }  // namespace roo_display

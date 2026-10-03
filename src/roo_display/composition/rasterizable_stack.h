@@ -103,9 +103,15 @@ class RasterizableStack : public Rasterizable {
   Box anchorExtents() const override { return anchor_extents_; }
 
   /// Create a stream for the full stack.
+  /// Above 128 output pixels, delegates to StreamableStack and fails a CHECK
+  /// if more than StreamableStack::kMaxInputs (16) inputs are registered,
+  /// including clipped-out inputs. Raster reads and drawing retain no such
+  /// limit.
   std::unique_ptr<PixelStream> createStream() const override;
 
   /// Create a stream for a clipped box.
+  /// Above 128 clipped output pixels, enforces the same registered-input limit
+  /// as createStream(), including inputs outside the clip box.
   std::unique_ptr<PixelStream> createStream(const Box& clip_box) const override;
 
   /// Return minimal extents that fit all inputs without clipping.

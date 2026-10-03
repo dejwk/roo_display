@@ -1,5 +1,7 @@
 #include "roo_display/composition/streamable_stack.h"
 
+#include "roo_logging.h"
+
 namespace roo_display {
 
 namespace {
@@ -122,8 +124,12 @@ void EmitCount(std::vector<uint16_t>* code, Instruction instruction,
 
 class Composition {
  public:
-  Composition(const Box& bounds) : bounds_(bounds), input_count_(0) {
+  Composition(const Box& bounds, size_t registered_inputs)
+      : bounds_(bounds), input_count_(0) {
     if (bounds.empty()) return;
+    CHECK_LE(registered_inputs, StreamableStack::kMaxInputs)
+        << "StreamableStack has " << registered_inputs << " registered inputs; "
+        << "supports at most " << StreamableStack::kMaxInputs;
     data_.emplace_back(bounds.height());
     data_.back().AddChunk(bounds.width(), 0);
   }
@@ -239,7 +245,7 @@ inline void Composition::Compile(Program* prg) {
     // First, emit potential left skips.
     i = 0;
     for (const auto& input : input_extents_) {
-      if (input.xMin() < bounds_.xMin() && block.all_inputs_ & (1 << i)) {
+      if (input.xMin() < bounds_.xMin() && block.all_inputs_ & (1u << i)) {
         code->push_back(SKIP);
         code->push_back(i);
         code->push_back(bounds_.xMin() - input.xMin());
@@ -264,7 +270,7 @@ inline void Composition::Compile(Program* prg) {
           }
           skip_mask >>= 1;
         }
-        int skip_mask_mask = ((1 << max_skipped_index) - 1);
+        int skip_mask_mask = ((1u << max_skipped_index) - 1);
         skip_mask = mask & skip_mask_mask;
         mask &= ~skip_mask_mask;
         index = 0;
@@ -290,7 +296,7 @@ inline void Composition::Compile(Program* prg) {
               code->push_back(SKIP);
               code->push_back(index);
               code->push_back(chunk.width_);
-              mask &= ~(1 << index);
+              mask &= ~(1u << index);
             } else {
               dst_clear = false;
             }
@@ -323,7 +329,7 @@ inline void Composition::Compile(Program* prg) {
     // Finally, emit potential right skips.
     i = 0;
     for (const auto& input : input_extents_) {
-      if (input.xMax() > bounds_.xMax() && block.all_inputs_ & (1 << i)) {
+      if (input.xMax() > bounds_.xMax() && block.all_inputs_ & (1u << i)) {
         code->push_back(SKIP);
         code->push_back(i);
         code->push_back(input.xMax() - bounds_.xMax());
@@ -375,10 +381,13 @@ class Engine {
 };
 
 inline bool Composition::Add(const Box& extents, BlendingMode blending_mode) {
+  CHECK_LT(static_cast<size_t>(input_count_), StreamableStack::kMaxInputs)
+      << "StreamableStack has " << input_count_ + 1u << " registered inputs; "
+      << "supports at most " << StreamableStack::kMaxInputs;
   input_extents_.push_back(extents);
   blending_modes_.push_back(blending_mode);
   int input_idx = input_count_;
-  uint16_t input_mask = 1 << input_idx;
+  uint16_t input_mask = 1u << input_idx;
   input_count_++;
   // Box extents = Box::Intersect(bounds_, full_extents);
   if (extents.empty()) return false;
@@ -769,7 +778,7 @@ void StreamableStack::drawTo(const Surface& s) const {
   if (bounds.empty()) return;
   std::vector<internal::BufferingStream> streams;
   std::vector<BlendingMode> blending_modes;
-  Composition composition(bounds);
+  Composition composition(bounds, inputs_.size());
   for (const auto& input : inputs_) {
     Box extents =
         Box::Intersect(input.extents(), bounds.translate(-s.dx(), -s.dy()));
@@ -801,7 +810,7 @@ std::unique_ptr<PixelStream> StreamableStack::createStream(
   Box bounds = Box::Intersect(extents(), clip_box);
   std::vector<internal::BufferingStream> streams;
   std::vector<BlendingMode> blending_modes;
-  Composition composition(bounds);
+  Composition composition(bounds, inputs_.size());
   if (!bounds.empty()) {
     for (const auto& input : inputs_) {
       Box extents = Box::Intersect(input.extents(), bounds);

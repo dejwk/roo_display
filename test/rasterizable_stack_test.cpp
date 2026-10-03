@@ -3,6 +3,7 @@
 
 #include "roo_display.h"
 #include "roo_display/color/color.h"
+#include "roo_display/shape/basic.h"
 #include "testing.h"
 
 using namespace testing;
@@ -453,6 +454,47 @@ TEST(RasterizableStack, ReadColorRectDoesNotSkipTransparentPartialClearLayer) {
   EXPECT_EQ(result[6], color::Red);
   EXPECT_EQ(result[7], color::Red);
   EXPECT_EQ(result[8], color::Red);
+}
+
+// Verifies compiler delegation retains the registered-input limit in both
+// factories.
+TEST(RasterizableStackDeathTest, CompiledInputCapacity) {
+  Box bounds(0, 0, 19, 9);
+  FilledRect red(bounds, color::Red);
+  for (int count : {17, 32}) {
+    for (int visible : {0, 1, count}) {
+      RasterizableStack stack(bounds);
+      for (int i = 0; i < count; ++i) {
+        stack.addInput(&red, i < visible ? 0 : 100, 0);
+      }
+      std::string diagnostic =
+          "StreamableStack.*" + std::to_string(count) + ".*16";
+      EXPECT_DEATH(stack.createStream(), diagnostic);
+      EXPECT_DEATH(stack.createStream(Box(1, 0, 18, 9)), diagnostic);
+    }
+  }
+}
+
+// Verifies raster reads and small streams keep supporting more than sixteen
+// inputs.
+TEST(RasterizableStack, RasterInputCapacityIsUnchanged) {
+  Box bounds(0, 0, 127, 0);
+  FilledRect red(bounds, color::Red);
+  FilledRect blue(bounds, color::Blue);
+  RasterizableStack stack(bounds);
+  for (int i = 0; i < 16; ++i) stack.addInput(&red);
+  stack.addInput(&blue);
+  int16_t x = 0;
+  int16_t y = 0;
+  Color result;
+  stack.readColors(&x, &y, 1, &result);
+  EXPECT_EQ(result, color::Blue);
+  for (bool clipped : {false, true}) {
+    std::unique_ptr<PixelStream> stream =
+        clipped ? stack.createStream(bounds) : stack.createStream();
+    stream->read(&result, 1);
+    EXPECT_EQ(result, color::Blue);
+  }
 }
 
 }  // namespace roo_display

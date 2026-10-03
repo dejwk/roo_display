@@ -2948,6 +2948,14 @@ Bad news is that you cannot do that with arbitrary drawables. Good news is that 
 
 Dynamic composition produces a drawable that combines multiple inputs, and is drawn in one pass, without any flicker.
 
+Compiled compositions support at most `StreamableStack::kMaxInputs` (16)
+registered inputs, including inputs clipped out of the output. Drawing or
+creating a stream from a nonempty `StreamableStack` with more inputs fails a
+release-enabled `CHECK`. This limit also applies to `RasterizableStack` stream
+creation above 128 output pixels, where it delegates to `StreamableStack`.
+Raster reads and ordinary raster drawing keep their existing behavior; empty
+compiled output is exempt.
+
 If all the inputs are rasterizables (i.e. if they all extend `Rasterizable`), you can combine them into a logical 'stack' that is itself a rasterizable. During rendering, it needs only a little bit of stack memory (less than 1 KB) - i.e. no more need to preallocate an offscreen.
 
 #### Rasterizable stack

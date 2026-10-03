@@ -1,6 +1,7 @@
 #include "roo_display/composition/rasterizable_stack.h"
 
 #include "roo_display/composition/streamable_stack.h"
+#include "roo_display/internal/composition.h"
 #include "roo_logging.h"
 
 namespace roo_display {
@@ -8,18 +9,21 @@ namespace roo_display {
 namespace {
 static const int kMaxBufSize = 64;
 
-bool TransparentSourcePreservesDestination(BlendingMode mode) {
-  switch (mode) {
-    case BlendingMode::kSourceOver:
-    case BlendingMode::kSourceAtop:
-    case BlendingMode::kDestination:
-    case BlendingMode::kDestinationOver:
-    case BlendingMode::kSourceOverOpaque:
-    case BlendingMode::kDestinationOut:
-    case BlendingMode::kXor:
-      return true;
-    default:
-      return false;
+// Clears the four strips outside a nonempty source rectangle contained in box.
+// The destination buffer must already contain one color per pixel.
+void ClearOutsideRect(const Box& box, const Box& source, Color* result) {
+  int32_t stride = box.width();
+  int32_t top_count = (source.yMin() - box.yMin()) * stride;
+  int32_t bottom_offset = (source.yMax() - box.yMin() + 1) * stride;
+  FillColor(result, top_count, color::Transparent);
+  FillColor(result + bottom_offset, box.area() - bottom_offset,
+            color::Transparent);
+  int32_t left_count = source.xMin() - box.xMin();
+  int32_t right_offset = source.xMax() - box.xMin() + 1;
+  for (int32_t row = top_count; row < bottom_offset; row += stride) {
+    FillColor(result + row, left_count, color::Transparent);
+    FillColor(result + row + right_offset, stride - right_offset,
+              color::Transparent);
   }
 }
 }  // namespace
@@ -33,6 +37,7 @@ void RasterizableStack::readColors(const int16_t* x, const int16_t* y,
   uint32_t offsets[kMaxBufSize];
   for (auto r = inputs_.begin(); r != inputs_.end(); r++) {
     Box bounds = r->extents();
+    bool clears_outside = internal::IsAbsentSourceClearing(r->blending_mode());
     uint32_t offset = 0;
     while (offset < count) {
       int buf_size = 0;
@@ -42,9 +47,12 @@ void RasterizableStack::readColors(const int16_t* x, const int16_t* y,
           newy[buf_size] = y[offset] - r->dy();
           offsets[buf_size] = offset;
           ++buf_size;
+        } else if (clears_outside) {
+          result[offset] = color::Transparent;
         }
         offset++;
       } while (offset < count && buf_size < kMaxBufSize);
+      if (buf_size == 0) continue;
       r->source()->readColors(newx, newy, buf_size, newresult);
       ApplyBlendingInPlaceIndexed(r->blending_mode(), result, newresult,
                                   buf_size, offsets);
@@ -101,34 +109,42 @@ bool RasterizableStack::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
   };
 
   for (const auto& input : inputs_) {
+    BlendingMode mode = input.blending_mode();
+    bool clears_outside = internal::IsAbsentSourceClearing(mode);
     Box clipped = Box::Intersect(input.extents(), box);
     if (clipped.empty()) {
-      // This rect does not contribute to the outcome.
+      if (clears_outside) {
+        is_uniform_color = true;
+        *result = color::Transparent;
+      }
       continue;
     }
     int16_t src_x_min = clipped.xMin() - input.dx();
     int16_t src_y_min = clipped.yMin() - input.dy();
     int16_t src_x_max = clipped.xMax() - input.dx();
     int16_t src_y_max = clipped.yMax() - input.dy();
-    BlendingMode mode = input.blending_mode();
+    bool partial = !clipped.contains(box);
 
-    if (is_uniform_color && !clipped.contains(box)) {
+    if (is_uniform_color && partial) {
       Color layer_color;
       if (input.source()->readUniformColorRect(src_x_min, src_y_min, src_x_max,
                                                src_y_max, &layer_color)) {
-        if (layer_color.a() == 0 &&
-            TransparentSourcePreservesDestination(mode)) {
+        Color inside = ApplyBlending(mode, *result, layer_color);
+        Color outside = clears_outside ? color::Transparent : *result;
+        if (inside == outside) {
+          *result = inside;
           continue;
         }
         expand_result();
+        if (clears_outside) ClearOutsideRect(box, clipped, result);
         blend_uniform_rect(clipped, mode, layer_color);
         continue;
       }
 
-      // This rect does not fill the entire box; we can no longer use fast
-      // path unless it proved uniformly transparent.
+      // Covered and uncovered pixels may now differ.
       expand_result();
     }
+    if (clears_outside && partial) ClearOutsideRect(box, clipped, result);
 
     if (input.source()->readColorRect(src_x_min, src_y_min, src_x_max,
                                       src_y_max, buffer)) {
@@ -159,25 +175,25 @@ bool RasterizableStack::readUniformColorRect(int16_t xMin, int16_t yMin,
   Color accumulated = color::Transparent;
   Box box(xMin, yMin, xMax, yMax);
   for (auto r = inputs_.begin(); r != inputs_.end(); r++) {
+    BlendingMode mode = r->blending_mode();
+    bool clears_outside = internal::IsAbsentSourceClearing(mode);
     Box clipped = Box::Intersect(r->extents(), box);
-    if (clipped.empty()) continue;
+    if (clipped.empty()) {
+      if (clears_outside) accumulated = color::Transparent;
+      continue;
+    }
     Color layer_color;
     if (!r->source()->readUniformColorRect(
             clipped.xMin() - r->dx(), clipped.yMin() - r->dy(),
             clipped.xMax() - r->dx(), clipped.yMax() - r->dy(), &layer_color)) {
       return false;
     }
+    Color inside = ApplyBlending(mode, accumulated, layer_color);
     if (!clipped.contains(box)) {
-      // This input doesn't fully cover the rect. It's OK only if the
-      // layer is fully transparent over the covered part, since that
-      // can't affect the result regardless of partial coverage.
-      if (layer_color.a() != 0 ||
-          !TransparentSourcePreservesDestination(r->blending_mode())) {
-        return false;
-      }
-      continue;
+      Color outside = clears_outside ? color::Transparent : accumulated;
+      if (inside != outside) return false;
     }
-    accumulated = ApplyBlending(r->blending_mode(), accumulated, layer_color);
+    accumulated = inside;
   }
   *result = accumulated;
   return true;
@@ -211,7 +227,7 @@ std::unique_ptr<PixelStream> RasterizableStack::createStream(
   // based on benchmarks.
   Box clipped_extents = Box::Intersect(extents_, clip_box);
   if (clipped_extents.area() <= 128) {
-    return Rasterizable::createStream(clip_box);
+    return Rasterizable::createStream(clipped_extents);
   }
   StreamableStack stack(clipped_extents);
   stack.setAnchorExtents(anchor_extents_);

@@ -88,6 +88,24 @@ void ExpectTransparentDstEquivalent(Color dst, Color src) {
   }
 }
 
+// Verifies the constant-source optimization preserves exact transparent colors,
+// including the Transparent and Background placeholders, just like blend().
+TEST(Color, DestinationOverTransparentSourcePreservesExactColors) {
+  for (Color src : {color::Transparent, color::Background, Color(0x00123456)}) {
+    Color destinations[] = {color::Transparent, color::Background,
+                            Color(0x00654321), Color(0x80654321),
+                            Color(0xFFFF0000)};
+    Color expected[5];
+    for (int i = 0; i < 5; ++i) {
+      expected[i] =
+          ApplyBlending(BlendingMode::kDestinationOver, destinations[i], src);
+    }
+    ApplyBlendingSingleSourceInPlace(BlendingMode::kDestinationOver,
+                                     destinations, src, 5);
+    for (int i = 0; i < 5; ++i) EXPECT_EQ(destinations[i], expected[i]);
+  }
+}
+
 TEST(Color, AlphaBlendSimple) {
   EXPECT_EQ(Color(0xFFFFFFFF),
             AlphaBlend(Color(0xFFFFFFFF), Color(0x00000000)));

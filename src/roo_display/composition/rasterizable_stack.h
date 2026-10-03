@@ -9,6 +9,15 @@
 namespace roo_display {
 
 /// Multi-layer stack of rasterizables composited in order.
+///
+/// Each input's blending operation covers the entire stack extents. Outside
+/// the input's translated, source-clipped extents, kSource, kSourceIn,
+/// kSourceOut, kDestinationIn, kDestinationAtop, and kClear reset the
+/// accumulated result to color::Transparent; other modes leave it unchanged.
+/// Inside those extents, samples use normal blending, including
+/// color::Background semantics. A source clip limits available samples, not the
+/// blending operation's bounds. Output clipping limits evaluation without
+/// changing these rules.
 class RasterizableStack : public Rasterizable {
  public:
   /// An input layer in the stack.

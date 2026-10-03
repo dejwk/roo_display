@@ -401,7 +401,10 @@ struct BlendOp<BlendingMode::kDestinationOver> {
     return BlendOp<BlendingMode::kSourceOver>().blend(src, dst);
   }
 
-  inline Color blendTransparentSrc(Color dst, Color src) const { return dst; }
+  inline Color blendTransparentSrc(Color dst, Color src) const {
+    // When both alphas are zero, blend() preserves the source's exact value.
+    return dst.a() == 0 ? src : dst;
+  }
 
   inline Color blendTransparentDst(Color dst, Color src) const { return src; }
 };

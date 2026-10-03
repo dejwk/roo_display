@@ -1,5 +1,6 @@
 #include "roo_display/composition/streamable_stack.h"
 
+#include "roo_display/internal/composition.h"
 #include "roo_logging.h"
 
 namespace roo_display {
@@ -149,31 +150,13 @@ class Composition {
   int input_count_;
 };
 
-// Returns true for a blending mode when a transparent source implies
-// transparent result.
-bool IsBlendingModeSourceClearing(BlendingMode blending_mode) {
-  switch (blending_mode) {
-    case BlendingMode::kSource:
-    case BlendingMode::kSourceIn:
-    case BlendingMode::kSourceOut:
-    case BlendingMode::kDestinationIn:
-    case BlendingMode::kDestinationAtop:
-    case BlendingMode::kClear: {
-      return true;
-    }
-    default: {
-      return false;
-    }
-  }
-}
-
 // Applies the existing absent-source rule, then removes exact no-ops over
 // Transparent. Other alpha-zero results can carry RGB or Background.
 uint16_t Composition::analyzeInputs(uint16_t mask) const {
   int last_absent_clear = 0;
   for (int index = 0; index < input_count_; ++index) {
     if ((mask & (1u << index)) == 0 &&
-        IsBlendingModeSourceClearing(blending_modes_[index])) {
+        internal::IsAbsentSourceClearing(blending_modes_[index])) {
       last_absent_clear = index;
     }
   }

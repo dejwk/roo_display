@@ -545,21 +545,24 @@ TEST(RasterizableStack, ReadColorRectDoesNotSkipTransparentPartialClearLayer) {
   EXPECT_EQ(result[8], color::Transparent);
 }
 
-// Verifies compiler delegation retains the registered-input limit in both
-// factories.
-TEST(RasterizableStackDeathTest, CompiledInputCapacity) {
-  Box bounds(0, 0, 19, 9);
-  FilledRect red(bounds, color::Red);
-  for (int count : {17, 32}) {
-    for (int visible : {0, 1, count}) {
+// Verifies arbitrary input counts retain all blend operations across the
+// compiler threshold, including absent sources which clear previous layers.
+TEST(RasterizableStack, ExcessInputsUseRasterStreaming) {
+  for (int width : {128, 129, 320}) {
+    Box bounds(0, 0, width - 1, 0);
+    FilledRect red(bounds, color::Red);
+    FilledRect blue(Box(7, 0, width - 4, 0), color::Blue);
+    for (int count : {17, 32}) {
       RasterizableStack stack(bounds);
-      for (int i = 0; i < count; ++i) {
-        stack.addInput(&red, i < visible ? 0 : 100, 0);
-      }
-      std::string diagnostic =
-          "StreamableStack.*" + std::to_string(count) + ".*16";
-      EXPECT_DEATH(stack.createStream(), diagnostic);
-      EXPECT_DEATH(stack.createStream(Box(1, 0, 18, 9)), diagnostic);
+      for (int i = 0; i < count - 2; ++i) stack.addInput(&red);
+      stack.addInput(&red, 0, 2).withMode(BlendingMode::kDestinationIn);
+      stack.addInput(&blue);
+      auto expected = [&blue](int16_t x, int16_t y) {
+        return blue.extents().contains(x, y) ? color::Blue : color::Transparent;
+      };
+      CheckCompositionStream(*stack.createStream(), bounds, expected);
+      Box clip(3, 0, width - 2, 0);
+      CheckCompositionStream(*stack.createStream(clip), clip, expected);
     }
   }
 }

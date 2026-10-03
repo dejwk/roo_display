@@ -2951,10 +2951,11 @@ Dynamic composition produces a drawable that combines multiple inputs, and is dr
 Compiled compositions support at most `StreamableStack::kMaxInputs` (16)
 registered inputs, including inputs clipped out of the output. Drawing or
 creating a stream from a nonempty `StreamableStack` with more inputs fails a
-release-enabled `CHECK`. This limit also applies to `RasterizableStack` stream
-creation above 128 output pixels, where it delegates to `StreamableStack`.
-Raster reads and ordinary raster drawing keep their existing behavior; empty
-compiled output is exempt.
+release-enabled `CHECK`; empty compiled output is exempt. `RasterizableStack`
+has no input-count limit: it uses compiled streaming above 128 output pixels
+when there are at most 16 inputs, and otherwise falls back to bounded raster
+reads. Changing a raster stack's clip does not change which input counts are
+supported.
 
 If all the inputs are rasterizables (i.e. if they all extend `Rasterizable`), you can combine them into a logical 'stack' that is itself a rasterizable. Raster drawing uses small tiles instead of a full offscreen. Large stack rectangle reads are split into 8×8 tiles, with 64 colors of layer scratch and, for a large request, a 64-color tile buffer. Default raster reads use coordinate batches of at most 64 points. Scratch space grows with nested call depth; the caller still supplies the complete output buffer for a rectangle read. Compiled streams additionally allocate a 64-color buffer per registered input in production, plus child streams and the composition program.
 

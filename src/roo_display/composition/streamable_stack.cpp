@@ -182,6 +182,19 @@ uint16_t Composition::analyzeInputs(uint16_t mask) const {
   return mask;
 }
 
+// Removes unused input positions while retaining the order of surviving bits.
+// Geometry analysis keeps original indices; execution stores only live streams.
+uint16_t CompactMask(uint16_t mask, uint16_t used) {
+  uint16_t result = 0;
+  uint16_t bit = 1;
+  for (; used != 0; used >>= 1, mask >>= 1) {
+    if ((used & 1u) == 0) continue;
+    if ((mask & 1u) != 0) result |= bit;
+    bit <<= 1;
+  }
+  return result;
+}
+
 // Advances eliminated streams and emits the surviving inputs in insertion
 // order.
 void EmitSpan(std::vector<uint16_t>* code, uint16_t original_mask,
@@ -223,7 +236,8 @@ uint16_t Composition::Compile(Program* prg) {
       uint16_t mask = block.chunks_[0].input_mask_;
       uint32_t count =
           static_cast<uint32_t>(block.chunks_[0].width_) * block.height_;
-      EmitSpan(code, mask & used_inputs, analyzeInputs(mask), count);
+      EmitSpan(code, CompactMask(mask, used_inputs),
+               CompactMask(analyzeInputs(mask), used_inputs), count);
       continue;
     }
     if (block.height_ > 1) {
@@ -231,8 +245,9 @@ uint16_t Composition::Compile(Program* prg) {
       code->push_back(block.height_);
     }
     for (const Chunk& chunk : block.chunks_) {
-      EmitSpan(code, chunk.input_mask_ & used_inputs,
-               analyzeInputs(chunk.input_mask_), chunk.width_);
+      EmitSpan(code, CompactMask(chunk.input_mask_, used_inputs),
+               CompactMask(analyzeInputs(chunk.input_mask_), used_inputs),
+               chunk.width_);
     }
     if (block.height_ > 1) code->push_back(RET);
   }
@@ -793,16 +808,17 @@ void PrepareComposition(const std::vector<StreamableStack::Input>& inputs,
   }
   uint16_t used = composition.Compile(program);
   if (bounds.empty()) return;
-  streams->reserve(inputs.size());
-  modes->reserve(inputs.size());
+  size_t live_count = 0;
+  for (uint16_t mask = used; mask != 0; mask >>= 1) {
+    live_count += mask & 1u;
+  }
+  streams->reserve(live_count);
+  modes->reserve(live_count);
   for (size_t i = 0; i < inputs.size(); ++i) {
+    if ((used & (1u << i)) == 0) continue;
     const StreamableStack::Input& input = inputs[i];
-    if ((used & (1u << i)) != 0) {
-      Box clipped = Box::Intersect(input.extents(), bounds);
-      streams->emplace_back(input.createStream(clipped), clipped.area());
-    } else {
-      streams->emplace_back(nullptr, 0);
-    }
+    Box clipped = Box::Intersect(input.extents(), bounds);
+    streams->emplace_back(input.createStream(clipped), clipped.area());
     modes->push_back(input.blending_mode());
   }
 }

@@ -1332,4 +1332,38 @@ TEST(StreamableStack, FullCoverageAfterFragmentedInputs) {
                     expected);
 }
 
+// Verifies removing dead input slots remaps both sampled masks and skip
+// operands, including a live source at the last registered index and row loops.
+TEST(StreamableStack, CompactedInputsPreserveModesAndSkipPositions) {
+  Box bounds(0, 0, 95, 3);
+  ForbiddenStreamSource forbidden;
+  CoordinateSource source(bounds);
+  FilledRect cover(Box(0, 0, 39, 3), color::Blue);
+  FilledRect tint(Box(20, 0, 95, 3), Color(0x80123456));
+  StreamableStack stack(bounds);
+  stack.addInput(&forbidden);
+  stack.addInput(&source).withMode(BlendingMode::kSource);
+  for (int i = 2; i < 14; ++i) {
+    stack.addInput(&forbidden, Box(100, 100, 101, 101));
+  }
+  stack.addInput(&cover);
+  stack.addInput(&tint).withMode(BlendingMode::kSourceAtop);
+  auto expected = [&cover, &tint](int16_t x, int16_t y) {
+    Color result =
+        cover.extents().contains(x, y) ? color::Blue : CoordinateColor(x, y);
+    return tint.extents().contains(x, y)
+               ? ApplyBlending(BlendingMode::kSourceAtop, result, tint.color())
+               : result;
+  };
+  CheckStackStream(*stack.createStream(), bounds, expected);
+  std::unique_ptr<PixelStream> stream = stack.createStream();
+  stream->skip(96 + 53);
+  Color pixel;
+  stream->read(&pixel, 1);
+  EXPECT_EQ(pixel, expected(53, 1));
+  for (FillMode fill : {FillMode::kExtents, FillMode::kVisible}) {
+    CheckStackDrawing(stack, bounds, fill, color::Transparent, expected);
+  }
+}
+
 }  // namespace roo_display

@@ -381,6 +381,7 @@ class BufferingStream {
   }
 
   void skip(uint32_t count) {
+    if (count == 0) return;
     uint16_t buffered = kPixelWritingBufferSize - idx_;
     if (count < buffered) {
       idx_ += count;
@@ -389,6 +390,7 @@ class BufferingStream {
     count -= buffered;
     idx_ = kPixelWritingBufferSize;
     buffered_run_length_ = 0;
+    if (count == 0) return;
     if (count >= kDelegateSkipThreshold) {
       if (count > remaining_) count = remaining_;
       stream_->skip(count);

@@ -1076,4 +1076,108 @@ TEST(StreamableStack, CapacityPreflight) {
   EXPECT_TRUE(stack.canCreateStream());
 }
 
+namespace {
+
+struct StreamConsumption {
+  uint32_t read = 0;
+  uint32_t skipped = 0;
+};
+
+class CountingCoordinateStream : public CoordinateStream {
+ public:
+  CountingCoordinateStream(Box bounds, StreamConsumption* counts)
+      : CoordinateStream(bounds), counts_(counts) {}
+
+  void read(Color* pixels, uint16_t count, uint32_t& run) override {
+    counts_->read += count;
+    CoordinateStream::read(pixels, count, run);
+  }
+
+  void skip(uint32_t count) override {
+    counts_->skipped += count;
+    CoordinateStream::skip(count);
+  }
+
+ private:
+  StreamConsumption* counts_;
+};
+
+class CountingCoordinateSource : public Streamable {
+ public:
+  CountingCoordinateSource(Box bounds, StreamConsumption* counts)
+      : bounds_(bounds), counts_(counts) {}
+
+  Box extents() const override { return bounds_; }
+
+  std::unique_ptr<PixelStream> createStream() const override {
+    return createStream(bounds_);
+  }
+
+  std::unique_ptr<PixelStream> createStream(const Box& clip) const override {
+    return std::unique_ptr<PixelStream>(
+        new CountingCoordinateStream(Box::Intersect(bounds_, clip), counts_));
+  }
+
+ private:
+  Box bounds_;
+  StreamConsumption* counts_;
+};
+
+}  // namespace
+
+// Verifies nested skipping advances source streams without evaluating the
+// skipped pixels, including counts exceeding an instruction's 16-bit operand.
+TEST(StreamableStack, NestedSkipAvoidsPixelReads) {
+  Box bounds(0, 0, 299, 299);
+  StreamConsumption counts;
+  CountingCoordinateSource source(bounds, &counts);
+  StreamableStack inner(bounds);
+  inner.addInput(&source);
+  StreamableStack outer(bounds);
+  outer.addInput(&inner);
+  auto stream = outer.createStream();
+  stream->skip(0);
+  EXPECT_EQ(counts.read, 0u);
+  stream->skip(70000);
+  EXPECT_EQ(counts.read, 0u);
+  EXPECT_EQ(counts.skipped, 70000u);
+  Color pixel;
+  stream->read(&pixel, 1);
+  EXPECT_EQ(pixel, CoordinateColor(70000 % 300, 70000 / 300));
+}
+
+// Verifies skipping part of a span and across blank, overlapping, and masked
+// spans preserves child positions and later pixels through compiled row loops.
+TEST(StreamableStack, InterleavedReadsAndSkips) {
+  Box bounds(0, 0, 31, 19);
+  CoordinateSource source(bounds);
+  FilledRect tint(Box(3, 2, 27, 18), Color(0x800000FF));
+  FilledRect mask(Box(6, 1, 29, 19), color::White);
+  StreamableStack stack(bounds);
+  stack.addInput(&source);
+  stack.addInput(&tint);
+  stack.addInput(&mask).withMode(BlendingMode::kDestinationIn);
+  auto stream = stack.createStream();
+  int offset = 0;
+  for (int step = 0; offset < bounds.area(); ++step) {
+    int skip = std::min((step * 17) % 43, bounds.area() - offset);
+    stream->skip(skip);
+    offset += skip;
+    int count = std::min(7, bounds.area() - offset);
+    Color pixels[7];
+    stream->read(pixels, count);
+    for (int i = 0; i < count; ++i) {
+      int x = (offset + i) % bounds.width();
+      int y = (offset + i) / bounds.width();
+      Color expected = CoordinateColor(x, y);
+      if (tint.extents().contains(x, y))
+        expected = AlphaBlend(expected, tint.color());
+      if (!mask.extents().contains(x, y)) expected = color::Transparent;
+      ASSERT_EQ(pixels[i], expected) << offset + i;
+    }
+    offset += count;
+  }
+  stream->skip(0);
+}
+
 }  // namespace roo_display

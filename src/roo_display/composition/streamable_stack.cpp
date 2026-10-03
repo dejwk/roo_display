@@ -657,6 +657,8 @@ class StreamableComboStream : public PixelStream {
         engine_(&prg_),
         streams_(std::move(streams)),
         blending_modes_(std::move(blending_modes)),
+        last_instruction_(BLANK),
+        input_(0),
         remaining_count_(0) {}
 
   void read(Color* buf, uint16_t size, uint32_t& run_length) override {
@@ -665,38 +667,7 @@ class StreamableComboStream : public PixelStream {
     Color* result = buf;
     bool first_batch = true;
     do {
-      while (remaining_count_ == 0) {
-        last_instruction_ = engine_.fetch();
-        switch (last_instruction_) {
-          case EXIT: {
-            return;
-          }
-          case BLANK: {
-            remaining_count_ = engine_.read_word();
-            break;
-          }
-          case SKIP: {
-            uint16_t input = engine_.read_word();
-            uint16_t count = engine_.read_word();
-            streams_[input].skip(count);
-            continue;
-          }
-          case WRITE_SINGLE: {
-            input_ = engine_.read_word();
-            remaining_count_ = engine_.read_word();
-            break;
-          }
-          case WRITE: {
-            input_ = engine_.read_word();
-            remaining_count_ = engine_.read_word();
-            break;
-          }
-          default: {
-            // Unexpected.
-            return;
-          }
-        }
-      }
+      if (!prepareSpan()) return;
       uint16_t batch = std::min(size, remaining_count_);
       switch (last_instruction_) {
         case BLANK: {
@@ -735,7 +706,54 @@ class StreamableComboStream : public PixelStream {
     } while (size > 0);
   }
 
+  void skip(uint32_t count) override {
+    while (count > 0) {
+      if (!prepareSpan()) return;
+      uint16_t batch = std::min<uint32_t>(count, remaining_count_);
+      if (last_instruction_ == WRITE_SINGLE) {
+        streams_[input_].skip(batch);
+      } else if (last_instruction_ == WRITE) {
+        uint16_t mask = input_;
+        for (size_t i = 0; mask != 0; ++i, mask >>= 1) {
+          if ((mask & 1u) != 0) streams_[i].skip(batch);
+        }
+      }
+      remaining_count_ -= batch;
+      count -= batch;
+    }
+  }
+
  private:
+  // Advances program control and eliminated inputs to the next output span.
+  // Both reading and skipping must execute exactly the same cursor updates.
+  bool prepareSpan() {
+    if (last_instruction_ == EXIT) return false;
+    while (remaining_count_ == 0) {
+      last_instruction_ = engine_.fetch();
+      switch (last_instruction_) {
+        case EXIT:
+          return false;
+        case BLANK:
+          remaining_count_ = engine_.read_word();
+          break;
+        case SKIP: {
+          uint16_t input = engine_.read_word();
+          uint16_t count = engine_.read_word();
+          streams_[input].skip(count);
+          break;
+        }
+        case WRITE_SINGLE:
+        case WRITE:
+          input_ = engine_.read_word();
+          remaining_count_ = engine_.read_word();
+          break;
+        default:
+          return false;
+      }
+    }
+    return true;
+  }
+
   Program prg_;
   Engine engine_;
   std::vector<internal::BufferingStream> streams_;

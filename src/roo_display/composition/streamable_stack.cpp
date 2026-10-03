@@ -24,6 +24,12 @@ class Block {
     all_inputs_ |= input_mask;
   }
 
+  // Full coverage adds no boundaries; retain existing partition storage.
+  void AddFullWidthInput(uint16_t input_mask) {
+    all_inputs_ |= input_mask;
+    for (Chunk& chunk : chunks_) chunk.input_mask_ |= input_mask;
+  }
+
   void Merge(uint16_t x_offset, uint16_t width, uint16_t input_mask);
 
  private:
@@ -284,6 +290,10 @@ inline bool Composition::Add(const Box& extents, BlendingMode blending_mode,
     replacing_inputs_ |= input_mask;
   }
   if (extents.empty()) return false;
+  if (extents == bounds_) {
+    for (Block& block : data_) block.AddFullWidthInput(input_mask);
+    return true;
+  }
   std::vector<Block> newdata;
   newdata.reserve(data_.capacity());
   auto i = data_.begin();

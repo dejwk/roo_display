@@ -1307,4 +1307,29 @@ TEST(StreamableStack, FragmentedCapacityAfterRebuild) {
   }
 }
 
+// Verifies full-coverage layers update an already fragmented partition while
+// preserving earlier color variation, subsequent masking, and row loops.
+TEST(StreamableStack, FullCoverageAfterFragmentedInputs) {
+  Box bounds(0, 0, 31, 15);
+  CoordinateSource base(bounds);
+  FilledRect patch(Box(2, 3, 17, 11), Color(0x80FF0000));
+  FilledRect cover(bounds, Color(0x800000FF));
+  FilledRect mask(Box(5, 1, 29, 14), color::White);
+  StreamableStack stack(bounds);
+  stack.addInput(&base);
+  stack.addInput(&patch);
+  stack.addInput(&cover);
+  stack.addInput(&mask).withMode(BlendingMode::kDestinationIn);
+  auto expected = [&patch, &cover, &mask](int16_t x, int16_t y) {
+    if (!mask.extents().contains(x, y)) return color::Transparent;
+    Color result = CoordinateColor(x, y);
+    if (patch.extents().contains(x, y))
+      result = AlphaBlend(result, patch.color());
+    return AlphaBlend(result, cover.color());
+  };
+  CheckStackStream(*stack.createStream(), bounds, expected);
+  CheckStackDrawing(stack, bounds, FillMode::kExtents, color::Transparent,
+                    expected);
+}
+
 }  // namespace roo_display

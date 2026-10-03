@@ -254,6 +254,28 @@ bool RasterizableStack::readUniformColorRect(int16_t xMin, int16_t yMin,
   return true;
 }
 
+// A uniform stack needs one fill, independent of tile count. Failed probes
+// retain the bounded, allocation-free raster drawing path.
+void RasterizableStack::drawTo(const Surface& surface) const {
+  Box bounds = surface.clip_box().translate(-surface.dx(), -surface.dy());
+  Color color;
+  if (!readUniformColorRect(bounds.xMin(), bounds.yMin(), bounds.xMax(),
+                            bounds.yMax(), &color)) {
+    Rasterizable::drawTo(surface);
+    return;
+  }
+  if (surface.fill_mode() == FillMode::kVisible && color.a() == 0 &&
+      color != color::Background) {
+    return;
+  }
+  if (color == color::Background) {
+    color = surface.bgcolor();
+  } else if (surface.bgcolor() != color::Transparent) {
+    color = AlphaBlend(surface.bgcolor(), color);
+  }
+  surface.out().fillRect(surface.blending_mode(), surface.clip_box(), color);
+}
+
 std::unique_ptr<PixelStream> RasterizableStack::createStream() const {
   return createStream(extents_);
 }

@@ -1023,4 +1023,84 @@ TEST(RasterizableStack, ClearRetainsDestinationDependency) {
                         [](int16_t, int16_t) { return color::Background; });
 }
 
+namespace {
+
+// Distinguishes the cheap uniform probe from raster pixel evaluation.
+class UniformDrawProbe : public FilledRect {
+ public:
+  UniformDrawProbe(Box bounds, Color color) : FilledRect(bounds, color) {}
+
+  bool readUniformColorRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+                            Color* result) const override {
+    ++uniform_calls;
+    EXPECT_TRUE(extents().contains(Box(x0, y0, x1, y1)));
+    *result = color();
+    return true;
+  }
+
+  bool readColorRect(int16_t, int16_t, int16_t, int16_t,
+                     Color*) const override {
+    ADD_FAILURE() << "Uniform draw unexpectedly sampled a tile";
+    return false;
+  }
+
+  mutable int uniform_calls = 0;
+};
+
+class RectangleCountingOutput : public FakeOffscreen<Argb8888> {
+ public:
+  RectangleCountingOutput() : FakeOffscreen<Argb8888>(50, 40, color::Magenta) {}
+
+  void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
+                 int16_t* x1, int16_t* y1, uint16_t count) override {
+    fills += count;
+    FakeOffscreen<Argb8888>::fillRects(mode, color, x0, y0, x1, y1, count);
+  }
+
+  int fills = 0;
+};
+
+}  // namespace
+
+// Verifies a translated, clipped uniform stack uses one probe and one fill,
+// preserving visible transparency, Background, and destination blending.
+TEST(RasterizableStack, UniformDrawBypassesTiles) {
+  Box bounds(-5, -4, 26, 19);
+  Box clip(8, 9, 32, 25);
+  for (Color color : {color::Transparent, color::Background, Color(0x00123456),
+                      Color(0x80776655), color::Blue}) {
+    for (FillMode fill : {FillMode::kVisible, FillMode::kExtents}) {
+      for (Color background : {color::Transparent, Color(0x00443322),
+                               Color(0x80445566), color::Green}) {
+        for (BlendingMode mode :
+             {BlendingMode::kSource, BlendingMode::kSourceOver}) {
+          UniformDrawProbe source(bounds, color);
+          RasterizableStack stack(bounds);
+          stack.addInput(&source).withMode(BlendingMode::kSource);
+          RectangleCountingOutput output;
+          Surface surface(output, 10, 11, clip, false, background, fill, mode);
+          surface.drawObject(stack);
+          bool visible = fill == FillMode::kExtents || color.a() != 0 ||
+                         color == color::Background;
+          EXPECT_EQ(source.uniform_calls, 1);
+          EXPECT_EQ(output.fills, visible ? 1 : 0);
+          EXPECT_EQ(output.pixelDrawCount(),
+                    visible ? static_cast<uint64_t>(clip.area()) : 0u);
+          Color resolved = color == color::Background ? background
+                           : background == color::Transparent
+                               ? color
+                               : AlphaBlend(background, color);
+          Color want = ApplyBlending(mode, color::Magenta, resolved);
+          for (int y = 0; y < 40; ++y) {
+            for (int x = 0; x < 50; ++x) {
+              ASSERT_EQ(output.buffer()[y * 50 + x],
+                        visible && clip.contains(x, y) ? want : color::Magenta);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 }  // namespace roo_display

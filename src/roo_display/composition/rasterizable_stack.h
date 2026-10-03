@@ -180,6 +180,8 @@ class RasterizableStack : public Rasterizable {
                             int16_t yMax, Color* result) const override;
 
  private:
+  void drawTo(const Surface& surface) const override;
+
   Box extents_;
   Box anchor_extents_;
   std::vector<Input> inputs_;

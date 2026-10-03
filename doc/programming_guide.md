@@ -2959,7 +2959,7 @@ when there are at most 16 inputs, and otherwise falls back to bounded raster
 reads. Changing a raster stack's clip does not change which input counts are
 supported.
 
-If all the inputs are rasterizables (i.e. if they all extend `Rasterizable`), you can combine them into a logical 'stack' that is itself a rasterizable. Raster drawing uses small tiles instead of a full offscreen. Large stack rectangle reads are split into 8×8 tiles, with 64 colors of layer scratch and, for a large request, a 64-color tile buffer. Default raster reads use coordinate batches of at most 64 points. Scratch space grows with nested call depth; the caller still supplies the complete output buffer for a rectangle read. Compiled streams additionally allocate a 64-color buffer per surviving input in production, plus child streams and the composition program.
+If all the inputs are rasterizables (i.e. if they all extend `Rasterizable`), you can combine them into a logical 'stack' that is itself a rasterizable. Raster drawing first checks for a uniform rectangle, which it emits as one fill; otherwise it uses small tiles instead of a full offscreen. Large stack rectangle reads are split into 8×8 tiles, with 64 colors of layer scratch and, for a large request, a 64-color tile buffer. Default raster reads use coordinate batches of at most 64 points. Scratch space grows with nested call depth; the caller still supplies the complete output buffer for a rectangle read. Compiled drawing emits long uniform spans as fills and skips redundant source samples. Compiled streams additionally allocate a 64-color buffer per surviving input in production, plus child streams and the composition program.
 
 #### Reusing a composition
 

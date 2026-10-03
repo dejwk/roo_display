@@ -22,9 +22,11 @@ preserves destination, and `readUniformColorRect()` applies the same rule.
 Focused regression coverage in `rasterizable_stack_test` now covers both the
 source-over fast path and a non-no-op blend mode (`kClear`).
 
-Phase 3 remains pending. Phase 4 is now only optional API follow-up if the
-descriptor-driven clipper migration exposes a reusable helper worth
-generalizing.
+Phase 3 is complete in `roo_windows` (commit `7e61ea41`). `ClipperOutput::sync()`
+rebuilds a reusable `RasterizableStack` from clipped descriptors in reverse
+insertion order; the separate `OverlayStack` and `bounded_overlays_` are gone.
+Phase 4 remains optional API follow-up if the descriptor-to-stack translation
+exposes a reusable helper worth generalizing.
 
 ## Objective
 
@@ -463,7 +465,11 @@ Current status: complete in `roo_display`, with matching mode-aware behavior in
 - and remove `OverlayStack` as part of that same direct rebuild once the stack
   reuse API is in place.
 
-Current status: not started.
+Current status: complete in `roo_windows` (commit `7e61ea41`). `ClippedOverlay`
+is descriptor metadata rather than a `Rasterizable` wrapper. Overlay ordering,
+translated source clips, and rounded child clipping are covered by the current
+`overlay_test`, `rounded_child_clip_test`, and `rounded_child_clip_resource_test`
+integration targets.
 
 ### Phase 4: Reassess Whether Clip Translation Should Become Public API
 

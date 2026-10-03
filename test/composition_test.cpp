@@ -243,4 +243,46 @@ TEST(Composition, NestedGroupOpacityAndOffscreenSnapshot) {
             AlphaBlend(color::Red.withA(128), color::Blue.withA(128)));
 }
 
+// Verifies clipped-out inputs cannot enlarge the input envelope, in either
+// insertion order, while their composition-wide clearing effects remain live.
+TEST(Composition, NaturalExtentsIgnoreEmptyInputs) {
+  FilledRect source(Box(0, 0, 9, 9), color::Red);
+  RasterizableStack raster(source.extents());
+  StreamableStack stream(source.extents());
+  for (bool empty_first : {false, true}) {
+    raster.clearInputs();
+    stream.clearInputs();
+    for (int i = 0; i < 2; ++i) {
+      Box clip =
+          (i == 0) == empty_first ? Box(100, 100, 109, 109) : source.extents();
+      raster.addInput(&source, clip, -3, -2);
+      stream.addInput(&source, clip, -3, -2);
+    }
+    EXPECT_EQ(raster.naturalExtents(), Box(-3, -2, 6, 7));
+    EXPECT_EQ(stream.naturalExtents(), raster.naturalExtents());
+  }
+  raster.clearInputs();
+  stream.clearInputs();
+  for (Box clip : {Box(100, 100, 109, 109), Box(-20, -20, -11, -11)}) {
+    raster.addInput(&source, clip);
+    stream.addInput(&source, clip);
+  }
+  EXPECT_EQ(raster.naturalExtents(), Box(0, 0, -1, -1));
+  EXPECT_EQ(stream.naturalExtents(), raster.naturalExtents());
+
+  raster.addInput(&source);
+  stream.addInput(&source);
+  raster.addInput(&source, Box(100, 100, 109, 109))
+      .withMode(BlendingMode::kDestinationIn);
+  stream.addInput(&source, Box(100, 100, 109, 109))
+      .withMode(BlendingMode::kDestinationIn);
+  EXPECT_EQ(raster.naturalExtents(), source.extents());
+  EXPECT_EQ(stream.naturalExtents(), source.extents());
+  Color pixel;
+  raster.createStream()->read(&pixel, 1);
+  EXPECT_EQ(pixel, color::Transparent);
+  stream.createStream()->read(&pixel, 1);
+  EXPECT_EQ(pixel, color::Transparent);
+}
+
 }  // namespace roo_display

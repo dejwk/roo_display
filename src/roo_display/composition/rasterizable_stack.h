@@ -147,12 +147,14 @@ class RasterizableStack : public Rasterizable {
   /// an input limit. The clip is intersected with the stack extents.
   std::unique_ptr<PixelStream> createStream(const Box& clip_box) const override;
 
-  /// Return minimal extents that fit all inputs without clipping.
+  /// Return the envelope of nonempty input extents, or an empty box.
+  /// Empty inputs still retain their blending effects within the stack.
   Box naturalExtents() const {
-    if (inputs_.empty()) return Box(0, 0, -1, -1);
-    Box result = inputs_[0].extents();
-    for (size_t i = 1; i < inputs_.size(); i++) {
-      result = Box::Extent(result, inputs_[i].extents());
+    Box result(0, 0, -1, -1);
+    for (const Input& input : inputs_) {
+      if (input.extents().empty()) continue;
+      result = result.empty() ? input.extents()
+                              : Box::Extent(result, input.extents());
     }
     return result;
   }

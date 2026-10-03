@@ -199,26 +199,22 @@ class BufferedColorWriter {
   }
 
   /// Write `count` pixels with the same color.
+  /// Long runs flush pending pixels and use the output's uniform fill path.
   void writeColorN(Color color, uint16_t count) {
-    uint16_t batch = kPixelWritingBufferSize - buffer_size_;
-    if (count < batch) {
-      FillColor(color_buffer_ + buffer_size_, count, color);
-      buffer_size_ += count;
+    if (count >= kPixelWritingBufferSize) {
+      flush();
+      device_.fill(color, count);
       return;
     }
-    FillColor(color_buffer_ + buffer_size_, batch, color);
-    device_.write(color_buffer_, kPixelWritingBufferSize);
-    count -= batch;
-    while (true) {
-      if (count < kPixelWritingBufferSize) {
-        FillColor(color_buffer_, count, color);
-        buffer_size_ = count;
-        return;
-      }
-      FillColor(color_buffer_, kPixelWritingBufferSize, color);
+    uint16_t batch = kPixelWritingBufferSize - buffer_size_;
+    if (count >= batch) {
+      FillColor(color_buffer_ + buffer_size_, batch, color);
       device_.write(color_buffer_, kPixelWritingBufferSize);
-      count -= kPixelWritingBufferSize;
+      buffer_size_ = 0;
+      count -= batch;
     }
+    FillColor(color_buffer_ + buffer_size_, count, color);
+    buffer_size_ += count;
   }
 
   /// Write `count` pixels with distinct colors.

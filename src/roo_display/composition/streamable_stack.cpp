@@ -433,6 +433,21 @@ void ReadInputsWithRuns(uint16_t mask, internal::BufferingStream* streams,
   }
 }
 
+// Advances selected streams after a composed uniform prefix is emitted.
+void SkipInputs(uint16_t mask, internal::BufferingStream* streams,
+                uint32_t count) {
+  for (size_t i = 0; mask != 0; ++i, mask >>= 1) {
+    if ((mask & 1u) != 0) streams[i].skip(count);
+  }
+}
+
+// Only replace a whole read batch, keeping short runs on the dense path.
+uint16_t UniformSpan(uint32_t run, uint16_t batch, uint16_t remaining) {
+  return run >= batch && run >= internal::kRunLengthFillThreshold
+             ? std::min<uint32_t>(run, remaining)
+             : 0;
+}
+
 // Resolves a composed color with a background operation selected outside pixel
 // loops. Source selects transparent backgrounds and must still replace explicit
 // Background.
@@ -485,56 +500,82 @@ __attribute__((always_inline)) inline void WriteVisiblePixel(
   }
 }
 
-// Consumes source/source-over directly. Nonzero-alpha samples are unchanged by
-// either first-input mode; zero-alpha samples only paint Background in source
-// mode. This folds first-input evaluation into the visibility check.
-template <BlendingMode input_mode, BlendingMode background_mode>
-void WriteSingleVisible(internal::BufferingStream& stream, uint16_t count,
-                        BufferedPixelWriter& writer, const Box& bounds,
-                        int32_t& x, int32_t& y, Color background) {
-  static_assert(input_mode == BlendingMode::kSource ||
-                    input_mode == BlendingMode::kSourceOver,
-                "Direct visible reads require source or source-over");
-  while (count-- > 0) {
-    WriteVisiblePixel<background_mode, input_mode == BlendingMode::kSource>(
-        writer, bounds, x, y, stream.next(), background);
+// Emits a visible uniform span as a partial row, full rows, and a final
+// partial row. Pending pixel writes finish before these rectangle writes.
+// Transparent samples only advance the cursor; Background still paints.
+void WriteVisibleRun(BufferedPixelWriter& writer, const Surface& surface,
+                     const Box& bounds, int32_t& x, int32_t& y, Color color,
+                     uint16_t count) {
+  if (color.a() == 0 && color != color::Background) {
+    int32_t offset = x - bounds.xMin() + count;
+    y += offset / bounds.width();
+    x = bounds.xMin() + offset % bounds.width();
+    return;
+  }
+  ResolveBackground(&color, 1, surface.bgcolor());
+  writer.flush();
+  while (count > 0) {
+    int32_t rows = x == bounds.xMin() ? count / bounds.width() : 0;
+    int32_t width = rows > 0 ? bounds.width()
+                             : std::min<int32_t>(count, bounds.xMax() - x + 1);
+    int32_t height = std::max<int32_t>(rows, 1);
+    surface.out().fillRect(surface.blending_mode(),
+                           Box(x, y, x + width - 1, y + height - 1), color);
+    count -= width * height;
+    x += width;
+    if (x > bounds.xMax()) {
+      x = bounds.xMin();
+      y += height;
+    }
   }
 }
 
 // Emits a composed batch with a fixed background operation. Inlining keeps
 // cursor references from escaping, so the enclosing loops can keep registers.
-template <BlendingMode background_mode>
+template <BlendingMode background_mode, bool allow_background = true>
 __attribute__((always_inline)) inline void WriteVisiblePixels(
     const Color* buffer, uint16_t count, BufferedPixelWriter& writer,
     const Box& bounds, int32_t& x, int32_t& y, Color background) {
   for (uint16_t i = 0; i < count; ++i) {
-    WriteVisiblePixel<background_mode>(writer, bounds, x, y, buffer[i],
-                                       background);
+    WriteVisiblePixel<background_mode, allow_background>(writer, bounds, x, y,
+                                                         buffer[i], background);
   }
 }
 
-// Keeps common modes on the direct path; other modes share batched evaluation
-// to avoid specializing the entire drawing loop for every blend mode.
+// Keeps source/source-over visibility checks fused with initialization; other
+// modes initialize a batch before testing its visibility. Uniform spans bypass
+// further sampling and per-pixel output in either case.
 template <BlendingMode background_mode>
 void WriteSingleVisible(internal::BufferingStream& stream, BlendingMode mode,
                         uint16_t count, BufferedPixelWriter& writer,
-                        const Box& bounds, int32_t& x, int32_t& y,
-                        Color background) {
-  if (mode == BlendingMode::kSource) {
-    WriteSingleVisible<BlendingMode::kSource, background_mode>(
-        stream, count, writer, bounds, x, y, background);
-  } else if (mode == BlendingMode::kSourceOver) {
-    WriteSingleVisible<BlendingMode::kSourceOver, background_mode>(
-        stream, count, writer, bounds, x, y, background);
-  } else {
-    Color buffer[kPixelWritingBufferSize];
-    do {
-      uint16_t batch = std::min<uint32_t>(kPixelWritingBufferSize, count);
-      ReadFirstInput(stream, mode, buffer, batch);
-      WriteVisiblePixels<background_mode>(buffer, batch, writer, bounds, x, y,
-                                          background);
+                        const Surface& surface, const Box& bounds, int32_t& x,
+                        int32_t& y) {
+  Color buffer[kPixelWritingBufferSize];
+  while (count > 0) {
+    uint16_t batch = std::min<uint32_t>(kPixelWritingBufferSize, count);
+    uint32_t run = 0;
+    stream.read(buffer, batch, run);
+    if (mode != BlendingMode::kSource && mode != BlendingMode::kSourceOver) {
+      internal::BlenderSpecialization<FirstInputBlender>(mode, buffer, batch);
+    }
+    uint16_t uniform = UniformSpan(run, batch, count);
+    if (uniform > 0) {
+      Color color = mode == BlendingMode::kSourceOver && buffer[0].a() == 0
+                        ? color::Transparent
+                        : buffer[0];
+      WriteVisibleRun(writer, surface, bounds, x, y, color, uniform);
+      stream.skip(uniform - batch);
+      count -= uniform;
+    } else {
+      if (mode == BlendingMode::kSourceOver) {
+        WriteVisiblePixels<background_mode, false>(
+            buffer, batch, writer, bounds, x, y, surface.bgcolor());
+      } else {
+        WriteVisiblePixels<background_mode>(buffer, batch, writer, bounds, x, y,
+                                            surface.bgcolor());
+      }
       count -= batch;
-    } while (count > 0);
+    }
   }
 }
 
@@ -567,22 +608,30 @@ void WriteRect(Engine* engine, const Box& bounds,
           Color* buffer = writer.buffer_ptr();
           uint16_t batch =
               std::min<uint32_t>(writer.remaining_buffer_space(), count);
+          uint32_t run = 0;
           if (mode == BlendingMode::kSourceOver &&
               background != color::Transparent) {
             // Source-over against transparent, then the surface background,
             // equals source-over directly onto that background.
             FillColor(buffer, batch, background);
-            streams[input].blend(buffer, batch, BlendingMode::kSourceOver);
+            streams[input].blend(buffer, batch, BlendingMode::kSourceOver, run);
           } else {
-            ReadFirstInput(streams[input], mode, buffer, batch);
+            ReadFirstInput(streams[input], mode, buffer, batch, run);
             // Source-over initialized against transparent cannot produce
             // Background.
             if (mode != BlendingMode::kSourceOver) {
               ResolveBackground(buffer, batch, background);
             }
           }
-          writer.advance_buffer_ptr(batch);
-          count -= batch;
+          uint16_t uniform = UniformSpan(run, batch, count);
+          if (uniform > 0) {
+            writer.writeColorN(buffer[0], uniform);
+            streams[input].skip(uniform - batch);
+            count -= uniform;
+          } else {
+            writer.advance_buffer_ptr(batch);
+            count -= batch;
+          }
         } while (count > 0);
         break;
       }
@@ -593,11 +642,20 @@ void WriteRect(Engine* engine, const Box& bounds,
           Color* buffer = writer.buffer_ptr();
           uint16_t batch =
               std::min<uint32_t>(writer.remaining_buffer_space(), count);
-          ReadInputs(inputs, streams, blending_modes, buffer, batch);
+          uint32_t run = 0;
+          ReadInputsWithRuns(inputs, streams, blending_modes, buffer, batch,
+                             run);
           // Blend onto the background once, after combining the input layers.
           ResolveBackground(buffer, batch, background);
-          writer.advance_buffer_ptr(batch);
-          count -= batch;
+          uint16_t uniform = UniformSpan(run, batch, count);
+          if (uniform > 0) {
+            writer.writeColorN(buffer[0], uniform);
+            SkipInputs(inputs, streams, uniform - batch);
+            count -= uniform;
+          } else {
+            writer.advance_buffer_ptr(batch);
+            count -= batch;
+          }
         } while (count > 0);
         break;
       }
@@ -635,12 +693,12 @@ void WriteVisible(Engine* engine, const Box& bounds,
         uint16_t count = engine->read_word();
         if (background == color::Transparent) {
           WriteSingleVisible<BlendingMode::kSource>(
-              streams[input], blending_modes[input], count, writer, bounds, x,
-              y, background);
+              streams[input], blending_modes[input], count, writer, s, bounds,
+              x, y);
         } else {
           WriteSingleVisible<BlendingMode::kSourceOver>(
-              streams[input], blending_modes[input], count, writer, bounds, x,
-              y, background);
+              streams[input], blending_modes[input], count, writer, s, bounds,
+              x, y);
         }
         break;
       }
@@ -650,7 +708,16 @@ void WriteVisible(Engine* engine, const Box& bounds,
         Color buffer[kPixelWritingBufferSize];
         do {
           uint16_t batch = std::min<uint32_t>(kPixelWritingBufferSize, count);
-          ReadInputs(inputs, streams, blending_modes, buffer, batch);
+          uint32_t run = 0;
+          ReadInputsWithRuns(inputs, streams, blending_modes, buffer, batch,
+                             run);
+          uint16_t uniform = UniformSpan(run, batch, count);
+          if (uniform > 0) {
+            WriteVisibleRun(writer, s, bounds, x, y, buffer[0], uniform);
+            SkipInputs(inputs, streams, uniform - batch);
+            count -= uniform;
+            continue;
+          }
           if (background == color::Transparent) {
             WriteVisiblePixels<BlendingMode::kSource>(buffer, batch, writer,
                                                       bounds, x, y, background);
@@ -741,10 +808,7 @@ class StreamableComboStream : public PixelStream {
       if (last_instruction_ == WRITE_SINGLE) {
         streams_[input_].skip(batch);
       } else if (last_instruction_ == WRITE) {
-        uint16_t mask = input_;
-        for (size_t i = 0; mask != 0; ++i, mask >>= 1) {
-          if ((mask & 1u) != 0) streams_[i].skip(batch);
-        }
+        SkipInputs(input_, streams_.data(), batch);
       }
       remaining_count_ -= batch;
       count -= batch;

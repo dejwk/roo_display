@@ -1366,4 +1366,164 @@ TEST(StreamableStack, CompactedInputsPreserveModesAndSkipPositions) {
   }
 }
 
+namespace {
+
+class CountingUniformStream : public PixelStream {
+ public:
+  CountingUniformStream(std::unique_ptr<PixelStream> source,
+                        StreamConsumption* counts)
+      : source_(std::move(source)), counts_(counts) {}
+
+  void read(Color* pixels, uint16_t count, uint32_t& run) override {
+    counts_->read += count;
+    source_->read(pixels, count, run);
+  }
+
+  void skip(uint32_t count) override {
+    counts_->skipped += count;
+    source_->skip(count);
+  }
+
+ private:
+  std::unique_ptr<PixelStream> source_;
+  StreamConsumption* counts_;
+};
+
+class CountingUniformSource : public FilledRect {
+ public:
+  CountingUniformSource(Box bounds, Color color, StreamConsumption* counts)
+      : FilledRect(bounds, color), counts_(counts) {}
+
+  std::unique_ptr<PixelStream> createStream() const override {
+    return createStream(extents());
+  }
+
+  std::unique_ptr<PixelStream> createStream(const Box& clip) const override {
+    return std::unique_ptr<PixelStream>(
+        new CountingUniformStream(FilledRect::createStream(clip), counts_));
+  }
+
+ private:
+  StreamConsumption* counts_;
+};
+
+class FillCountingOutput : public FakeOffscreen<Argb8888> {
+ public:
+  FillCountingOutput(int width, int height)
+      : FakeOffscreen<Argb8888>(width, height, color::Magenta) {}
+
+  void fill(Color color, uint32_t count) override {
+    ++stream_fills;
+    FakeOffscreen<Argb8888>::fill(color, count);
+  }
+
+  void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
+                 int16_t* x1, int16_t* y1, uint16_t count) override {
+    rect_fills += count;
+    FakeOffscreen<Argb8888>::fillRects(mode, color, x0, y0, x1, y1, count);
+  }
+
+  int stream_fills = 0;
+  int rect_fills = 0;
+};
+
+}  // namespace
+
+// Verifies direct drawing uses uniform runs to skip both single and overlapping
+// sources, emits fills, and writes each settled pixel exactly once.
+TEST(StreamableStack, UniformDrawingSkipsSamplesAndEmitsFills) {
+  Box bounds(3, 4, 75, 11);
+  for (FillMode fill : {FillMode::kExtents, FillMode::kVisible}) {
+    for (bool overlap : {false, true}) {
+      StreamConsumption base_counts;
+      StreamConsumption upper_counts;
+      CountingUniformSource base(bounds, Color(0x80654321), &base_counts);
+      CountingUniformSource upper(bounds, Color(0x80123456), &upper_counts);
+      StreamableStack stack(bounds);
+      stack.addInput(&base);
+      if (overlap) stack.addInput(&upper);
+      FillCountingOutput output(80, 16);
+      Surface surface(output, 0, 0, bounds, false, color::Green, fill,
+                      BlendingMode::kSource);
+      surface.drawObject(stack);
+      EXPECT_EQ(base_counts.read, kPixelWritingBufferSize);
+      EXPECT_EQ(base_counts.skipped,
+                static_cast<uint32_t>(bounds.area() - kPixelWritingBufferSize));
+      if (overlap) {
+        EXPECT_EQ(upper_counts.read, base_counts.read);
+        EXPECT_EQ(upper_counts.skipped, base_counts.skipped);
+      }
+      EXPECT_EQ(output.pixelDrawCount(), static_cast<uint64_t>(bounds.area()));
+      EXPECT_EQ(output.stream_fills, fill == FillMode::kExtents ? 1 : 0);
+      EXPECT_EQ(output.rect_fills, fill == FillMode::kVisible ? 1 : 0);
+      Color want = AlphaBlend(
+          color::Green,
+          overlap ? AlphaBlend(base.color(), upper.color()) : base.color());
+      for (int y = 0; y < 16; ++y) {
+        for (int x = 0; x < 80; ++x) {
+          EXPECT_EQ(output.buffer()[y * 80 + x],
+                    bounds.contains(x, y) ? want : color::Magenta);
+        }
+      }
+    }
+  }
+}
+
+// Verifies long uniform spans preserve all ordinary input modes, Background,
+// zero-alpha RGB, and surface blending after nonuniform buffered prefixes.
+TEST(StreamableStack, UniformDrawingPreservesModesAndPendingPixels) {
+  Box bounds(0, 0, 199, 2);
+  CoordinateSource prefix(Box(0, 0, 2, 2));
+  for (Color color : {color::Transparent, color::Background, Color(0x00123456),
+                      Color(0x80123456), color::Blue}) {
+    FilledRect base(bounds, Color(0x80654321));
+    FilledRect upper(bounds, color);
+    for (int m = 0; m < 12; ++m) {
+      BlendingMode mode = static_cast<BlendingMode>(m);
+      StreamableStack stack(bounds);
+      stack.addInput(&base).withMode(BlendingMode::kSource);
+      stack.addInput(&upper).withMode(mode);
+      stack.addInput(&prefix);
+      auto expected = [&base, &prefix, color, mode](int16_t x, int16_t y) {
+        Color result = ApplyBlending(mode, base.color(), color);
+        return prefix.extents().contains(x, y)
+                   ? AlphaBlend(result, CoordinateColor(x, y))
+                   : result;
+      };
+      for (FillMode fill : {FillMode::kExtents, FillMode::kVisible}) {
+        for (Color background : {color::Transparent, Color(0x00443322),
+                                 Color(0x80334455), color::Green}) {
+          for (BlendingMode output :
+               {BlendingMode::kSource, BlendingMode::kSourceOver}) {
+            CheckStackDrawing(stack, bounds, fill, background, expected,
+                              output);
+          }
+        }
+      }
+    }
+  }
+}
+
+// Verifies a long buffered fill is emitted after pending colors, followed by
+// later colors, including fills just below and at the direct-fill threshold.
+TEST(StreamableStack, BufferedUniformWritesPreserveOrdering) {
+  for (int run :
+       {kPixelWritingBufferSize - 1, static_cast<int>(kPixelWritingBufferSize),
+        3 * kPixelWritingBufferSize}) {
+    FillCountingOutput output(run + 2, 1);
+    output.setAddress(0, 0, run + 1, 0, BlendingMode::kSource);
+    {
+      BufferedColorWriter writer(output);
+      writer.writeColor(color::Red);
+      writer.writeColorN(color::Green, run);
+      writer.writeColor(color::Blue);
+    }
+    EXPECT_EQ(output.stream_fills, run >= kPixelWritingBufferSize ? 1 : 0);
+    EXPECT_EQ(output.pixelDrawCount(), static_cast<uint64_t>(run + 2));
+    EXPECT_EQ(output.buffer()[0], color::Red);
+    for (int x = 1; x <= run; ++x) EXPECT_EQ(output.buffer()[x], color::Green);
+    EXPECT_EQ(output.buffer()[run + 1], color::Blue);
+  }
+}
+
 }  // namespace roo_display

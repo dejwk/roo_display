@@ -662,6 +662,84 @@ TEST(StreamableStack, EmptyOutputAllowsExcessRegisteredInputs) {
                     color::Green, [](int16_t, int16_t) { return color::Red; });
 }
 
+namespace {
+
+Color CoordinateColor(int16_t x, int16_t y) {
+  return Color(0xFF000000u | (static_cast<uint32_t>(x + 1) << 8) | y);
+}
+
+// Checks logical consumption while allowing BufferingStream to read ahead.
+class CoordinateStream : public PixelStream {
+ public:
+  explicit CoordinateStream(Box bounds) : bounds_(bounds), position_(0) {}
+
+  void read(Color* buffer, uint16_t size, uint32_t& run) override {
+    run = 0;
+    ASSERT_LE(position_ + size, static_cast<uint32_t>(bounds_.area()));
+    for (uint16_t i = 0; i < size; ++i, ++position_) {
+      buffer[i] = CoordinateColor(bounds_.xMin() + position_ % bounds_.width(),
+                                  bounds_.yMin() + position_ / bounds_.width());
+    }
+  }
+
+  void skip(uint32_t count) override {
+    ASSERT_LE(position_ + count, static_cast<uint32_t>(bounds_.area()));
+    position_ += count;
+  }
+
+ private:
+  Box bounds_;
+  uint32_t position_;
+};
+
+class CoordinateSource : public Streamable {
+ public:
+  explicit CoordinateSource(Box bounds) : bounds_(bounds) {}
+
+  Box extents() const override { return bounds_; }
+
+  std::unique_ptr<PixelStream> createStream() const override {
+    return createStream(bounds_);
+  }
+
+  std::unique_ptr<PixelStream> createStream(const Box& clip) const override {
+    return std::unique_ptr<PixelStream>(
+        new CoordinateStream(Box::Intersect(bounds_, clip)));
+  }
+
+ private:
+  Box bounds_;
+};
+
+}  // namespace
+
+// Verifies consecutive and sparse skip masks preserve samples across chunks and
+// rows.
+TEST(StreamableStack, SkipIndicesPreserveCoordinateSamples) {
+  Box bounds(0, 0, 8, 19);
+  FilledRect red(bounds, color::Red);
+  CoordinateSource ramp(bounds);
+  FilledRect hole(Box(8, 0, 8, 19), color::Blue);
+  FilledRect mask(Box(3, 0, 5, 19), color::White);
+  for (bool sparse : {false, true}) {
+    SCOPED_TRACE(sparse);
+    StreamableStack stack(bounds);
+    stack.addInput(&red);
+    if (sparse) stack.addInput(&hole);
+    stack.addInput(&ramp);
+    stack.addInput(&mask).withMode(BlendingMode::kDestinationIn);
+    auto expected = [](int16_t x, int16_t y) {
+      return x >= 3 && x <= 5 ? CoordinateColor(x, y) : color::Transparent;
+    };
+    CheckStackStream(*stack.createStream(), bounds, expected);
+    CheckStackStream(*stack.createStream(Box(1, 1, 7, 18)), Box(1, 1, 7, 18),
+                     expected);
+    for (FillMode fill : {FillMode::kExtents, FillMode::kVisible}) {
+      CheckStackDrawing(stack, bounds, fill, color::Green, expected);
+    }
+  }
+}
+
 // Verifies a maximum-sized public read crosses split operands without
 // truncation.
 TEST(StreamableStack, LargeReadCrossesInstructionBoundary) {
@@ -676,6 +754,22 @@ TEST(StreamableStack, LargeReadCrossesInstructionBoundary) {
   FillColor(buffer.data(), 11265, Color(0xDEADBEEF));
   stream->read(buffer.data(), 11265);
   for (int i = 0; i < 11265; ++i) ASSERT_EQ(buffer[i], color::Red);
+}
+
+// Verifies clipping and translation keep coordinate samples in row-major order.
+TEST(StreamableStack, ClippedTranslatedCoordinateSamples) {
+  CoordinateSource input(Box(0, 0, 19, 19));
+  StreamableStack stack(Box(3, 4, 13, 16));
+  stack.addInput(&input, Box(2, 3, 14, 17), 1, 1);
+  auto expected = [](int16_t x, int16_t y) {
+    return CoordinateColor(x - 1, y - 1);
+  };
+  CheckStackStream(*stack.createStream(), stack.extents(), expected);
+  Box clip(4, 6, 11, 15);
+  CheckStackStream(*stack.createStream(clip), clip, expected);
+  for (FillMode fill : {FillMode::kExtents, FillMode::kVisible}) {
+    CheckStackDrawing(stack, clip, fill, color::Green, expected);
+  }
 }
 
 namespace {

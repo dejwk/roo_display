@@ -280,6 +280,7 @@ inline void Composition::Compile(Program* prg) {
             code->push_back(index);
             code->push_back(chunk.width_);
           }
+          ++index;
           skip_mask >>= 1;
         }
       }

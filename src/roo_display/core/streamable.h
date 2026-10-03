@@ -343,18 +343,7 @@ class BufferingStream {
   void read(Color* buf, uint16_t count, uint32_t& run_length) {
     run_length = 0;
     if (count == 0) return;
-    if (idx_ >= kPixelWritingBufferSize) {
-      idx_ = 0;
-      fetch();
-    }
-    if (buffered_run_length_ != 0 &&
-        static_cast<uint32_t>(idx_) < buffered_run_length_) {
-      if (buffered_run_length_ == PixelStream::kUnlimitedRunLength) {
-        run_length = PixelStream::kUnlimitedRunLength;
-      } else {
-        run_length = buffered_run_length_ - static_cast<uint32_t>(idx_);
-      }
-    }
+    run_length = currentRunLength();
     read(buf, count);
   }
 
@@ -378,6 +367,16 @@ class BufferingStream {
       in = buf_;
       batch = fetch();
     }
+  }
+
+  // Reports the source prefix before blending; blending is deterministic for
+  // uniform destination/source prefixes, even with alpha-zero placeholders.
+  void blend(Color* buf, uint16_t count, BlendingMode blending_mode,
+             uint32_t& run_length) {
+    run_length = 0;
+    if (count == 0) return;
+    run_length = currentRunLength();
+    blend(buf, count, blending_mode);
   }
 
   void skip(uint32_t count) {
@@ -409,6 +408,20 @@ class BufferingStream {
   }
 
  private:
+  // Returns the remaining guaranteed prefix at the logical buffer position.
+  uint32_t currentRunLength() {
+    if (idx_ >= kPixelWritingBufferSize) {
+      idx_ = 0;
+      fetch();
+    }
+    if (buffered_run_length_ == PixelStream::kUnlimitedRunLength) {
+      return PixelStream::kUnlimitedRunLength;
+    }
+    return buffered_run_length_ > static_cast<uint32_t>(idx_)
+               ? buffered_run_length_ - idx_
+               : 0;
+  }
+
   uint16_t fetch() {
     uint16_t n = kPixelWritingBufferSize;
     if (n > remaining_) n = remaining_;

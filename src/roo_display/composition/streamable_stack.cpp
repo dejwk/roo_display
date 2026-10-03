@@ -386,6 +386,26 @@ void ReadInputs(uint16_t mask, internal::BufferingStream* streams,
   }
 }
 
+// The minimum of the contributing uniform prefixes is a guaranteed uniform
+// prefix of their composition. Unknown metadata conservatively suppresses it.
+void ReadInputsWithRuns(uint16_t mask, internal::BufferingStream* streams,
+                        const BlendingMode* modes, Color* buffer,
+                        uint16_t count, uint32_t& run_length) {
+  uint16_t input = 0;
+  while ((mask & 1u) == 0) {
+    ++input;
+    mask >>= 1;
+  }
+  ReadFirstInput(streams[input], modes[input], buffer, count, run_length);
+  while ((mask >>= 1) != 0) {
+    ++input;
+    if ((mask & 1u) == 0) continue;
+    uint32_t source_run = 0;
+    streams[input].blend(buffer, count, modes[input], source_run);
+    run_length = std::min(run_length, source_run);
+  }
+}
+
 // Resolves a composed color with a background operation selected outside pixel
 // loops. Source selects transparent backgrounds and must still replace explicit
 // Background.
@@ -665,8 +685,14 @@ class StreamableComboStream : public PixelStream {
           break;
         }
         case WRITE: {
-          ReadInputs(input_, streams_.data(), blending_modes_.data(), result,
-                     batch);
+          if (first_batch) {
+            ReadInputsWithRuns(input_, streams_.data(), blending_modes_.data(),
+                               result, batch, run_length);
+            run_length = std::min<uint32_t>(run_length, remaining_count_);
+          } else {
+            ReadInputs(input_, streams_.data(), blending_modes_.data(), result,
+                       batch);
+          }
           break;
         }
         default: {

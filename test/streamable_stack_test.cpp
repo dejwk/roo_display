@@ -1219,4 +1219,57 @@ TEST(StreamableStack, OpaquePrefixSkipsHiddenSamples) {
   EXPECT_EQ(pixels[0], CoordinateColor(100, 0));
 }
 
+// Verifies overlapping uniform streams retain a composed run, clipped at the
+// next geometry boundary, for all ordinary blend modes including Background.
+TEST(StreamableStack, OverlappingUniformInputsReportRuns) {
+  Box bounds(0, 0, 199, 0);
+  FilledRect base(bounds, Color(0x80654321));
+  for (int m = static_cast<int>(BlendingMode::kSource);
+       m <= static_cast<int>(BlendingMode::kXor); ++m) {
+    BlendingMode mode = static_cast<BlendingMode>(m);
+    for (Color sample : {Color(0x80123456), color::Background}) {
+      FilledRect upper(Box(0, 0, 99, 0), sample);
+      StreamableStack stack(bounds);
+      stack.addInput(&base).withMode(BlendingMode::kSource);
+      stack.addInput(&upper).withMode(mode);
+      auto stream = stack.createStream();
+      Color pixels[3];
+      uint32_t run = 0;
+      stream->read(pixels, 3, run);
+      EXPECT_EQ(run, 100u);
+      for (Color pixel : pixels) {
+        EXPECT_EQ(pixel, ApplyBlending(mode, base.color(), sample));
+      }
+      stream->skip(97);
+      stream->read(pixels, 3, run);
+      bool clears = mode == BlendingMode::kSource ||
+                    mode == BlendingMode::kSourceIn ||
+                    mode == BlendingMode::kSourceOut ||
+                    mode == BlendingMode::kDestinationIn ||
+                    mode == BlendingMode::kDestinationAtop ||
+                    mode == BlendingMode::kClear;
+      EXPECT_EQ(pixels[0], clears ? color::Transparent : base.color());
+    }
+  }
+}
+
+// Verifies one unknown source prefix suppresses a composed run even when
+// another input reports an unlimited uniform run.
+TEST(StreamableStack, UnknownInputRunSuppressesComposedRun) {
+  Box bounds(0, 0, 19, 9);
+  CoordinateSource source(bounds);
+  FilledRect tint(bounds, Color(0x800000FF));
+  StreamableStack stack(bounds);
+  stack.addInput(&source);
+  stack.addInput(&tint);
+  auto stream = stack.createStream();
+  Color pixels[3];
+  uint32_t run = 999;
+  stream->read(pixels, 3, run);
+  EXPECT_EQ(run, 0u);
+  for (int i = 0; i < 3; ++i) {
+    EXPECT_EQ(pixels[i], AlphaBlend(CoordinateColor(i, 0), tint.color()));
+  }
+}
+
 }  // namespace roo_display

@@ -405,11 +405,11 @@ void Rasterizable::drawTo(const Surface &s) const {
   BlendingMode mode = s.blending_mode();
   if (fill_mode == FillMode::kExtents ||
       transparency == TransparencyMode::kNone) {
-    if (pixel_count <= 64) {
-      FillReplaceRect(output, box, s.dx(), s.dy(), *this, mode);
-      return;
-    }
     if (bgcolor.a() == 0 || transparency == TransparencyMode::kNone) {
+      if (pixel_count <= 64) {
+        FillReplaceRect(output, box, s.dx(), s.dy(), *this, mode);
+        return;
+      }
       for (int16_t y = yMinOuter; y < yMaxOuter; y += 8) {
         for (int16_t x = xMinOuter; x < xMaxOuter; x += 8) {
           FillReplaceRect(output,

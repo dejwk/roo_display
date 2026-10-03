@@ -173,4 +173,33 @@ TEST(Rasterizable, StreamReportsZeroRunLengthForFallbackPaths) {
   }
 }
 
+// Verifies small rectangles resolve the background exactly as tiled drawing
+// and streaming do, including partially transparent backgrounds.
+TEST(Rasterizable, BackgroundAcrossTileThreshold) {
+  for (int width : {8, 9}) {
+    Box bounds(0, 0, width - 1, 7);
+    auto input = MakeRasterizable(bounds, [](int16_t x, int16_t y) {
+      return x % 2 == 0 ? Color(0x80FF0000) : color::Transparent;
+    });
+    for (Color background :
+         {color::Transparent, Color(0x800000FF), color::Blue}) {
+      SCOPED_TRACE(width);
+      SCOPED_TRACE(background);
+      FakeOffscreen<Argb8888> raster(width, 8, color::Magenta);
+      FakeOffscreen<Argb8888> streamed(width, 8, color::Magenta);
+      Draw(raster, 0, 0, input, FillMode::kExtents, BlendingMode::kSource,
+           background);
+      Draw(streamed, 0, 0, ForcedStreamable(&input), FillMode::kExtents,
+           BlendingMode::kSource, background);
+      for (int i = 0; i < bounds.area(); ++i) {
+        Color source =
+            i % width % 2 == 0 ? Color(0x80FF0000) : color::Transparent;
+        Color expected = AlphaBlend(background, source);
+        EXPECT_EQ(raster.buffer()[i], expected);
+        EXPECT_EQ(streamed.buffer()[i], expected);
+      }
+    }
+  }
+}
+
 }  // namespace roo_display

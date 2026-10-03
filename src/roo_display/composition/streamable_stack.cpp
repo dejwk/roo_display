@@ -37,7 +37,8 @@ class Block {
 inline void Block::Merge(uint16_t x_offset, uint16_t width,
                          uint16_t input_mask) {
   std::vector<Chunk> newchunks;
-  newchunks.reserve(chunks_.size());
+  // Intersecting one interval introduces at most two new boundaries.
+  newchunks.reserve(chunks_.size() + 2);
 
   auto i = chunks_.begin();
   int16_t cursor = 0;
@@ -131,6 +132,7 @@ class Composition {
     CHECK_LE(registered_inputs, StreamableStack::kMaxInputs)
         << "StreamableStack has " << registered_inputs << " registered inputs; "
         << "supports at most " << StreamableStack::kMaxInputs;
+    blending_modes_.reserve(registered_inputs);
     data_.emplace_back(bounds.height());
     data_.back().AddChunk(bounds.width(), 0);
   }
@@ -781,6 +783,8 @@ void PrepareComposition(const std::vector<StreamableStack::Input>& inputs,
   }
   uint16_t used = composition.Compile(program);
   if (bounds.empty()) return;
+  streams->reserve(inputs.size());
+  modes->reserve(inputs.size());
   for (size_t i = 0; i < inputs.size(); ++i) {
     const StreamableStack::Input& input = inputs[i];
     if ((used & (1u << i)) != 0) {

@@ -1272,4 +1272,39 @@ TEST(StreamableStack, UnknownInputRunSuppressesComposedRun) {
   }
 }
 
+// Verifies all sixteen inputs survive fragmented geometry preparation and
+// repeated descriptor rebuilding, including their distinct modes and clips.
+TEST(StreamableStack, FragmentedCapacityAfterRebuild) {
+  Box bounds(0, 0, 63, 31);
+  std::vector<FilledRect> sources;
+  sources.reserve(16);
+  for (int i = 0; i < 16; ++i) {
+    sources.emplace_back(Box(i, i % 5, 63 - i, 31 - i % 7),
+                         Color(128, i * 15, 255 - i * 13, i * 7));
+  }
+  StreamableStack stack(bounds);
+  stack.reserveInputs(sources.size());
+  for (int pass = 0; pass < 2; ++pass) {
+    stack.clearInputs();
+    for (int i = 0; i < 16; ++i) {
+      stack.addInput(&sources[i])
+          .withMode(i % 3 == 1 ? BlendingMode::kSourceAtop
+                               : BlendingMode::kSourceOver);
+    }
+    auto expected = [&sources](int16_t x, int16_t y) {
+      Color result = color::Transparent;
+      for (int i = 0; i < 16; ++i) {
+        if (!sources[i].extents().contains(x, y)) continue;
+        result = ApplyBlending(
+            i % 3 == 1 ? BlendingMode::kSourceAtop : BlendingMode::kSourceOver,
+            result, sources[i].color());
+      }
+      return result;
+    };
+    CheckStackStream(*stack.createStream(), bounds, expected);
+    CheckStackDrawing(stack, bounds, FillMode::kExtents, color::Transparent,
+                      expected);
+  }
+}
+
 }  // namespace roo_display

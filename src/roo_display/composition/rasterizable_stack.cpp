@@ -268,6 +268,7 @@ std::unique_ptr<PixelStream> RasterizableStack::createStream(
     return Rasterizable::createStream(clipped_extents);
   }
   StreamableStack stack(clipped_extents);
+  stack.reserveInputs(inputs_.size());
   stack.setAnchorExtents(anchor_extents_);
   for (const auto& input : inputs_) {
     Box source_extents = input.extents().translate(-input.dx(), -input.dy());

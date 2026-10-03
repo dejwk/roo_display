@@ -587,3 +587,10 @@ cc_test(
     linkstatic = 1,
     deps = UNIT_TEST_DEPS,
 )
+
+cc_test(
+    name = "composition_test",
+    srcs = ["test/composition_test.cpp"],
+    linkstatic = 1,
+    deps = UNIT_TEST_DEPS,
+)

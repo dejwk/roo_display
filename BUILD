@@ -1,4 +1,5 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 UNIT_TEST_DEPS = [
@@ -593,4 +594,11 @@ cc_test(
     srcs = ["test/composition_test.cpp"],
     linkstatic = 1,
     deps = UNIT_TEST_DEPS,
+)
+
+cc_binary(
+    name = "composition_benchmark",
+    srcs = ["benchmarks/composition_benchmark.cpp"],
+    linkstatic = 1,
+    deps = [":roo_display"],
 )

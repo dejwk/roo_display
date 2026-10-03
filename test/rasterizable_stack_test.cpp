@@ -985,4 +985,42 @@ TEST(RasterizableStackDeathTest, InvalidReplacementIndex) {
   EXPECT_DEATH(stack.setInput(0, &red), "index");
 }
 
+// Verifies full-coverage replacements and opaque layers bypass earlier reads
+// in all raster entry points, while preserving exact alpha-zero source values.
+TEST(RasterizableStack, ReplacementSkipsEarlierReads) {
+  Box bounds(0, 0, 7, 7);
+  auto varying = MakeRasterizable(bounds, [](int16_t x, int16_t y) {
+    return x % 2 == 0 ? color::Red : color::Blue;
+  });
+  for (BlendingMode mode : {BlendingMode::kSource, BlendingMode::kSourceOver}) {
+    for (Color color : {color::Green, color::Background, Color(0x00123456)}) {
+      if (mode == BlendingMode::kSourceOver && !color.isOpaque()) continue;
+      ReadCountingRasterizable lower(varying);
+      FilledRect upper(bounds, color);
+      RasterizableStack stack(bounds);
+      stack.addInput(&lower);
+      stack.addInput(&upper).withMode(mode);
+      CheckCompositionReads(stack, bounds,
+                            [color](int16_t, int16_t) { return color; });
+      Color uniform;
+      EXPECT_TRUE(stack.readUniformColorRect(0, 0, 7, 7, &uniform));
+      EXPECT_EQ(uniform, color);
+      EXPECT_EQ(lower.readCalls(), 0);
+    }
+  }
+}
+
+// Verifies Clear still distinguishes a previously painted destination from an
+// untouched transparent one; it cannot be treated as a simple replacement.
+TEST(RasterizableStack, ClearRetainsDestinationDependency) {
+  Box bounds(0, 0, 7, 7);
+  FilledRect lower(bounds, color::Red);
+  FilledRect clear(bounds, color::Transparent);
+  RasterizableStack stack(bounds);
+  stack.addInput(&lower);
+  stack.addInput(&clear).withMode(BlendingMode::kClear);
+  CheckCompositionReads(stack, bounds,
+                        [](int16_t, int16_t) { return color::Background; });
+}
+
 }  // namespace roo_display

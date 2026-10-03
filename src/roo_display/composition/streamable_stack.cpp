@@ -126,7 +126,7 @@ void EmitCount(std::vector<uint16_t>* code, Instruction instruction,
 class Composition {
  public:
   Composition(const Box& bounds, size_t registered_inputs)
-      : bounds_(bounds), input_count_(0) {
+      : bounds_(bounds), replacing_inputs_(0), input_count_(0) {
     if (bounds.empty()) return;
     CHECK_LE(registered_inputs, StreamableStack::kMaxInputs)
         << "StreamableStack has " << registered_inputs << " registered inputs; "
@@ -136,31 +136,34 @@ class Composition {
   }
 
   // Extents must be pre-intersected with bounds_.
-  bool Add(const Box& extents, BlendingMode blending_mode);
+  bool Add(const Box& extents, BlendingMode blending_mode, bool opaque);
 
-  void Compile(Program* prg);
+  // Compiles clipped spans and returns the mask of sources actually sampled.
+  uint16_t Compile(Program* prg);
 
  private:
   uint16_t analyzeInputs(uint16_t mask) const;
 
   Box bounds_;
-  std::vector<Box> input_extents_;
   std::vector<BlendingMode> blending_modes_;
   std::vector<Block> data_;
+  uint16_t replacing_inputs_;
   int input_count_;
 };
 
 // Applies the existing absent-source rule, then removes exact no-ops over
 // Transparent. Other alpha-zero results can carry RGB or Background.
 uint16_t Composition::analyzeInputs(uint16_t mask) const {
-  int last_absent_clear = 0;
+  int first_input = 0;
   for (int index = 0; index < input_count_; ++index) {
-    if ((mask & (1u << index)) == 0 &&
-        internal::IsAbsentSourceClearing(blending_modes_[index])) {
-      last_absent_clear = index;
+    uint16_t bit = 1u << index;
+    if (((mask & bit) == 0 &&
+         internal::IsAbsentSourceClearing(blending_modes_[index])) ||
+        (mask & replacing_inputs_ & bit) != 0) {
+      first_input = index;
     }
   }
-  mask &= ~((1u << last_absent_clear) - 1);
+  mask &= ~((1u << first_input) - 1);
   for (int index = 0; index < input_count_; ++index) {
     if ((mask & (1u << index)) == 0) continue;
     // Of the original transparent-destination eliminations, only Destination
@@ -196,68 +199,37 @@ void EmitSpan(std::vector<uint16_t>* code, uint16_t original_mask,
   }
 }
 
-inline void Composition::Compile(Program* prg) {
-  std::vector<uint16_t>* code = &prg->prg_;
-  // First, emit initial skips.
-  int i = 0;
-  for (const auto& input : input_extents_) {
-    if (input.yMin() < bounds_.yMin()) {
-      EmitCount(
-          code, SKIP,
-          static_cast<uint32_t>(bounds_.yMin() - input.yMin()) * input.width(),
-          i);
+uint16_t Composition::Compile(Program* prg) {
+  // A source erased everywhere needs neither a stream nor cursor advances.
+  uint16_t used_inputs = 0;
+  for (const Block& block : data_) {
+    for (const Chunk& chunk : block.chunks_) {
+      used_inputs |= analyzeInputs(chunk.input_mask_);
     }
-    ++i;
   }
-  for (const auto& block : data_) {
+  std::vector<uint16_t>* code = &prg->prg_;
+  for (const Block& block : data_) {
+    // Inputs are already clipped to bounds, so a full-width span is contiguous
+    // in every contributing stream and can combine all rows of the block.
     if (block.chunks_.size() == 1) {
-      uint16_t original_mask = block.chunks_[0].input_mask_;
-      uint16_t mask = analyzeInputs(original_mask);
-      bool contiguous = true;
-      for (int index = 0; index < input_count_; ++index) {
-        if ((original_mask & (1u << index)) == 0) continue;
-        const Box& input = input_extents_[index];
-        if (input.xMin() < bounds_.xMin() || input.xMax() > bounds_.xMax()) {
-          contiguous = false;
-          break;
-        }
-      }
-      if (contiguous) {
-        uint32_t total =
-            static_cast<uint32_t>(block.chunks_[0].width_) * block.height_;
-        EmitSpan(code, original_mask, mask, total);
-        continue;
-      }
+      uint16_t mask = block.chunks_[0].input_mask_;
+      uint32_t count =
+          static_cast<uint32_t>(block.chunks_[0].width_) * block.height_;
+      EmitSpan(code, mask & used_inputs, analyzeInputs(mask), count);
+      continue;
     }
-
     if (block.height_ > 1) {
       code->push_back(LOOP);
       code->push_back(block.height_);
     }
-    // Left and right skips keep row chunks aligned in extending streams.
-    i = 0;
-    for (const auto& input : input_extents_) {
-      if (input.xMin() < bounds_.xMin() &&
-          (block.all_inputs_ & (1u << i)) != 0) {
-        EmitCount(code, SKIP, bounds_.xMin() - input.xMin(), i);
-      }
-      ++i;
-    }
-    for (const auto& chunk : block.chunks_) {
-      EmitSpan(code, chunk.input_mask_, analyzeInputs(chunk.input_mask_),
-               chunk.width_);
-    }
-    i = 0;
-    for (const auto& input : input_extents_) {
-      if (input.xMax() > bounds_.xMax() &&
-          (block.all_inputs_ & (1u << i)) != 0) {
-        EmitCount(code, SKIP, input.xMax() - bounds_.xMax(), i);
-      }
-      ++i;
+    for (const Chunk& chunk : block.chunks_) {
+      EmitSpan(code, chunk.input_mask_ & used_inputs,
+               analyzeInputs(chunk.input_mask_), chunk.width_);
     }
     if (block.height_ > 1) code->push_back(RET);
   }
   code->push_back(EXIT);
+  return used_inputs;
 }
 
 class Engine {
@@ -296,16 +268,19 @@ class Engine {
   uint16_t loop_counter_;
 };
 
-inline bool Composition::Add(const Box& extents, BlendingMode blending_mode) {
+inline bool Composition::Add(const Box& extents, BlendingMode blending_mode,
+                             bool opaque) {
   CHECK_LT(static_cast<size_t>(input_count_), StreamableStack::kMaxInputs)
       << "StreamableStack has " << input_count_ + 1u << " registered inputs; "
       << "supports at most " << StreamableStack::kMaxInputs;
-  input_extents_.push_back(extents);
   blending_modes_.push_back(blending_mode);
   int input_idx = input_count_;
   uint16_t input_mask = 1u << input_idx;
   input_count_++;
-  // Box extents = Box::Intersect(bounds_, full_extents);
+  if (blending_mode == BlendingMode::kSource ||
+      (blending_mode == BlendingMode::kSourceOver && opaque)) {
+    replacing_inputs_ |= input_mask;
+  }
   if (extents.empty()) return false;
   std::vector<Block> newdata;
   newdata.reserve(data_.capacity());
@@ -763,6 +738,35 @@ class StreamableComboStream : public PixelStream {
   uint16_t remaining_count_;
 };
 
+// Compile geometry before opening sources so wholly erased layers do not
+// allocate decoders or read pixels. All geometry is in stack coordinates.
+void PrepareComposition(const std::vector<StreamableStack::Input>& inputs,
+                        const Box& bounds, Program* program,
+                        std::vector<internal::BufferingStream>* streams,
+                        std::vector<BlendingMode>* modes) {
+  Composition composition(bounds, inputs.size());
+  if (!bounds.empty()) {
+    for (const StreamableStack::Input& input : inputs) {
+      Box clipped = Box::Intersect(input.extents(), bounds);
+      bool opaque = !clipped.empty() && input.source()->getTransparencyMode() ==
+                                            TransparencyMode::kNone;
+      composition.Add(clipped, input.blending_mode(), opaque);
+    }
+  }
+  uint16_t used = composition.Compile(program);
+  if (bounds.empty()) return;
+  for (size_t i = 0; i < inputs.size(); ++i) {
+    const StreamableStack::Input& input = inputs[i];
+    if ((used & (1u << i)) != 0) {
+      Box clipped = Box::Intersect(input.extents(), bounds);
+      streams->emplace_back(input.createStream(clipped), clipped.area());
+    } else {
+      streams->emplace_back(nullptr, 0);
+    }
+    modes->push_back(input.blending_mode());
+  }
+}
+
 }  // namespace
 
 void StreamableStack::drawTo(const Surface& s) const {
@@ -770,21 +774,9 @@ void StreamableStack::drawTo(const Surface& s) const {
   if (bounds.empty()) return;
   std::vector<internal::BufferingStream> streams;
   std::vector<BlendingMode> blending_modes;
-  Composition composition(bounds, inputs_.size());
-  for (const auto& input : inputs_) {
-    Box extents =
-        Box::Intersect(input.extents(), bounds.translate(-s.dx(), -s.dy()));
-    if (composition.Add(extents.translate(s.dx(), s.dy()),
-                        input.blending_mode())) {
-      streams.emplace_back(input.createStream(extents), extents.area());
-    } else {
-      streams.emplace_back(nullptr, 0);
-    }
-    blending_modes.push_back(input.blending_mode());
-  }
-
   Program prg;
-  composition.Compile(&prg);
+  PrepareComposition(inputs_, bounds.translate(-s.dx(), -s.dy()), &prg,
+                     &streams, &blending_modes);
   Engine engine(&prg);
   if (s.fill_mode() == FillMode::kExtents) {
     WriteRect(&engine, bounds, streams.data(), blending_modes.data(), s);
@@ -802,21 +794,8 @@ std::unique_ptr<PixelStream> StreamableStack::createStream(
   Box bounds = Box::Intersect(extents(), clip_box);
   std::vector<internal::BufferingStream> streams;
   std::vector<BlendingMode> blending_modes;
-  Composition composition(bounds, inputs_.size());
-  if (!bounds.empty()) {
-    for (const auto& input : inputs_) {
-      Box extents = Box::Intersect(input.extents(), bounds);
-      if (composition.Add(extents, input.blending_mode())) {
-        streams.emplace_back(input.createStream(extents), extents.area());
-      } else {
-        streams.emplace_back(nullptr, 0);
-      }
-      blending_modes.push_back(input.blending_mode());
-    }
-  }
-
   Program prg;
-  composition.Compile(&prg);
+  PrepareComposition(inputs_, bounds, &prg, &streams, &blending_modes);
   return std::unique_ptr<PixelStream>(new StreamableComboStream(
       std::move(prg), std::move(streams), std::move(blending_modes)));
 }

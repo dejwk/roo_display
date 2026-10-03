@@ -1180,4 +1180,43 @@ TEST(StreamableStack, InterleavedReadsAndSkips) {
   stream->skip(0);
 }
 
+// Verifies wholly replaced sources are never opened, even when their bounds
+// intersect the output; tests exact source replacement and opacity hints.
+TEST(StreamableStack, WhollyReplacedSourcesAreNotOpened) {
+  Box bounds(0, 0, 19, 9);
+  ForbiddenStreamSource forbidden;
+  for (BlendingMode mode : {BlendingMode::kSource, BlendingMode::kSourceOver}) {
+    for (Color color : {color::Blue, color::Background, Color(0x00123456)}) {
+      if (mode == BlendingMode::kSourceOver && !color.isOpaque()) continue;
+      FilledRect upper(bounds, color);
+      StreamableStack stack(bounds);
+      stack.addInput(&forbidden);
+      stack.addInput(&upper).withMode(mode);
+      auto expected = [color](int16_t, int16_t) { return color; };
+      CheckStackStream(*stack.createStream(), bounds, expected);
+      CheckStackDrawing(stack, bounds, FillMode::kExtents, color::Transparent,
+                        expected);
+    }
+  }
+}
+
+// Verifies a partially hidden coordinate source is skipped then resumes at the
+// right pixel, without reading a long opaque prefix.
+TEST(StreamableStack, OpaquePrefixSkipsHiddenSamples) {
+  Box bounds(0, 0, 199, 0);
+  StreamConsumption counts;
+  CountingCoordinateSource source(bounds, &counts);
+  FilledRect opaque(Box(0, 0, 99, 0), color::Red);
+  StreamableStack stack(bounds);
+  stack.addInput(&source);
+  stack.addInput(&opaque);
+  auto stream = stack.createStream();
+  Color pixels[100];
+  stream->read(pixels, 100);
+  EXPECT_EQ(counts.read, 0u);
+  EXPECT_EQ(counts.skipped, 100u);
+  stream->read(pixels, 1);
+  EXPECT_EQ(pixels[0], CoordinateColor(100, 0));
+}
+
 }  // namespace roo_display

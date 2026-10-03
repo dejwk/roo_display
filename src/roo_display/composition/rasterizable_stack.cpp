@@ -9,16 +9,23 @@ namespace roo_display {
 namespace {
 static const int kMaxBufSize = 64;
 
-// Finds where to resume with Transparent after the last input that clears the
-// entire query. Inspect only stored bounds and modes, so erased sources are
-// never asked for pixels or uniform colors.
-size_t FirstInputAfterLastClear(
-    const std::vector<RasterizableStack::Input>& inputs, const Box& box) {
+// Finds the last operation that makes all earlier pixels irrelevant. Bounds,
+// modes, and opacity hints suffice; erased sources are never sampled. Clear is
+// not an unconditional replacement because it can produce Background.
+size_t FirstRelevantInput(const std::vector<RasterizableStack::Input>& inputs,
+                          const Box& box) {
   for (size_t i = inputs.size(); i > 0; --i) {
     const RasterizableStack::Input& input = inputs[i - 1];
-    if (internal::IsAbsentSourceClearing(input.blending_mode()) &&
+    BlendingMode mode = input.blending_mode();
+    if (internal::IsAbsentSourceClearing(mode) &&
         Box::Intersect(input.extents(), box).empty()) {
       return i;
+    }
+    if (input.extents().contains(box) &&
+        (mode == BlendingMode::kSource ||
+         (mode == BlendingMode::kSourceOver &&
+          input.source()->getTransparencyMode() == TransparencyMode::kNone))) {
+      return i - 1;
     }
   }
   return 0;
@@ -78,11 +85,15 @@ void ClearOutsideRect(const Box& box, const Box& source, Color* result) {
 void RasterizableStack::readColors(const int16_t* x, const int16_t* y,
                                    uint32_t count, Color* result) const {
   FillColor(result, count, color::Transparent);
+  if (count == 0) return;
+  Box query(x[0], y[0], x[0], y[0]);
+  for (uint32_t i = 1; i < count; ++i) query = query.extend(x[i], y[i]);
+  size_t first_input = FirstRelevantInput(inputs_, query);
   int16_t newx[kMaxBufSize];
   int16_t newy[kMaxBufSize];
   Color newresult[kMaxBufSize];
   uint32_t offsets[kMaxBufSize];
-  for (auto r = inputs_.begin(); r != inputs_.end(); r++) {
+  for (auto r = inputs_.begin() + first_input; r != inputs_.end(); ++r) {
     Box bounds = r->extents();
     bool clears_outside = internal::IsAbsentSourceClearing(r->blending_mode());
     uint32_t offset = 0;
@@ -111,7 +122,7 @@ bool RasterizableStack::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
                                       int16_t yMax, Color* result) const {
   *result = color::Transparent;
   Box box(xMin, yMin, xMax, yMax);
-  size_t first_input = FirstInputAfterLastClear(inputs_, box);
+  size_t first_input = FirstRelevantInput(inputs_, box);
   if (first_input == inputs_.size()) return true;
   if (box.area() > kMaxBufSize) return ReadTiledColorRect(*this, box, result);
 
@@ -220,7 +231,7 @@ bool RasterizableStack::readUniformColorRect(int16_t xMin, int16_t yMin,
                                              Color* result) const {
   Color accumulated = color::Transparent;
   Box box(xMin, yMin, xMax, yMax);
-  size_t first_input = FirstInputAfterLastClear(inputs_, box);
+  size_t first_input = FirstRelevantInput(inputs_, box);
   for (auto r = inputs_.begin() + first_input; r != inputs_.end(); ++r) {
     BlendingMode mode = r->blending_mode();
     bool clears_outside = internal::IsAbsentSourceClearing(mode);

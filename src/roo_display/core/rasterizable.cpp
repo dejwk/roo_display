@@ -14,7 +14,9 @@ class Stream : public PixelStream {
         x_(bounds_.xMin()),
         y_(bounds_.yMin()) {}
 
-  void read(Color *buf, uint16_t size, uint32_t &run_length) override {
+  void read(Color* buf, uint16_t size, uint32_t& run_length) override {
+    run_length = 0;
+    if (size == 0) return;
     if (x_ + size - 1 <= bounds_.xMax()) {
       // Fast path: all pixels are on the same row, so we can use readColorRect
       // which may be optimized for this case.
@@ -75,7 +77,9 @@ class NarrowStream : public PixelStream {
         x_(bounds_.xMin()),
         y_(bounds_.yMin()) {}
 
-  void read(Color *buf, uint16_t size, uint32_t &run_length) override {
+  void read(Color* buf, uint16_t size, uint32_t& run_length) override {
+    run_length = 0;
+    if (size == 0) return;
     if (x_ == bounds_.xMin() && size % bounds_.width() == 0) {
       // Fast path: we're at the start of a row and reading an integral number
       // of rows, so we can use readColorRect which may be optimized for

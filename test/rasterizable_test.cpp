@@ -202,4 +202,27 @@ TEST(Rasterizable, BackgroundAcrossTileThreshold) {
   }
 }
 
+// Verifies every raster stream fast path clears previous run metadata when
+// a uniform read is followed by a nonuniform read, and empty reads do nothing.
+TEST(Rasterizable, StreamResetsRunMetadata) {
+  for (int width : {1, 16, 40}) {
+    auto input = MakeRasterizable(
+        Box(0, 0, width - 1, 15), [width](int16_t x, int16_t y) {
+          int index = y * width + x;
+          return index < 4 ? color::Red
+                           : (index % 2 == 0 ? color::Green : color::Blue);
+        });
+    auto stream = input.createStream();
+    Color pixels[4];
+    uint32_t run = 123;
+    stream->read(nullptr, 0, run);
+    EXPECT_EQ(run, 0u);
+    stream->read(pixels, 4, run);
+    ASSERT_EQ(run, 4u);
+    stream->read(pixels, 4, run);
+    EXPECT_EQ(run, 0u);
+    EXPECT_NE(pixels[0], pixels[1]);
+  }
+}
+
 }  // namespace roo_display

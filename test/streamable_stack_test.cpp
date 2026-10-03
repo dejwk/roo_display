@@ -1002,4 +1002,25 @@ TEST(StreamableStack, EmptyOutputDoesNotPrepareChildren) {
                     color::Green, [](int16_t, int16_t) { return color::Red; });
 }
 
+// Verifies buffering a raster input does not reuse the previous batch's run
+// metadata when the next batch varies. Uses the configured production/test
+// size.
+TEST(StreamableStack, UniformThenVaryingRunMetadata) {
+  constexpr int kBatch = kPixelWritingBufferSize;
+  Box bounds(0, 0, 4 * kBatch - 1, 0);
+  auto layer = MakeRasterizable(bounds, [](int16_t x, int16_t y) {
+    return x < kBatch ? color::Red : (x % 2 == 0 ? color::Blue : color::Green);
+  });
+  StreamableStack stack(bounds);
+  stack.addInput(&layer);
+  auto stream = stack.createStream();
+  Color pixels[kBatch];
+  uint32_t run = 0;
+  stream->read(pixels, kBatch, run);
+  ASSERT_EQ(run, static_cast<uint32_t>(kBatch));
+  stream->read(pixels, kBatch, run);
+  EXPECT_NE(pixels[0], pixels[1]);
+  EXPECT_EQ(run, 0u);
+}
+
 }  // namespace roo_display

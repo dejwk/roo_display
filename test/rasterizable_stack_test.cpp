@@ -59,6 +59,40 @@ class TransparentUniformProbeRasterizable : public Rasterizable {
   mutable int read_uniform_color_rect_calls_ = 0;
 };
 
+// Counts every pixel-reading entry point, including conservative uniform
+// checks.
+class ReadCountingRasterizable : public Rasterizable {
+ public:
+  explicit ReadCountingRasterizable(const Rasterizable& source)
+      : source_(source) {}
+
+  Box extents() const override { return source_.extents(); }
+
+  void readColors(const int16_t* x, const int16_t* y, uint32_t count,
+                  Color* result) const override {
+    ++read_calls_;
+    source_.readColors(x, y, count, result);
+  }
+
+  bool readColorRect(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax,
+                     Color* result) const override {
+    ++read_calls_;
+    return source_.readColorRect(xMin, yMin, xMax, yMax, result);
+  }
+
+  bool readUniformColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
+                            int16_t yMax, Color* result) const override {
+    ++read_calls_;
+    return source_.readUniformColorRect(xMin, yMin, xMax, yMax, result);
+  }
+
+  int readCalls() const { return read_calls_; }
+
+ private:
+  const Rasterizable& source_;
+  mutable int read_calls_ = 0;
+};
+
 // Checks point reads, rectangular reads, and any claimed uniform result against
 // the same pixel oracle. Rectangles may cover only part of the composition.
 template <typename Expected>
@@ -724,6 +758,87 @@ TEST(RasterizableStack, UniformReadsRespectAbsentSourcesAndBackground) {
   EXPECT_TRUE(stack.readColorRect(0, 0, 3, 3, &result));
   EXPECT_EQ(result, color::Transparent);
   EXPECT_EQ(overlay.readColorRectCalls(), 0);
+}
+
+// Verifies both rectangle methods skip all source reads when a final absent
+// source clears the query, including translated, clipped, and empty sources.
+TEST(RasterizableStack, RectangleClearSkipsAllSourceReads) {
+  Box bounds(0, 0, 7, 7);
+  auto nonuniform = MakeRasterizable(bounds, [](int16_t x, int16_t y) {
+    return (x + y) % 2 == 0 ? color::Red : color::Green;
+  });
+  FilledRect white(bounds, color::White);
+  for (BlendingMode mode :
+       {BlendingMode::kSource, BlendingMode::kSourceIn,
+        BlendingMode::kSourceOut, BlendingMode::kDestinationIn,
+        BlendingMode::kDestinationAtop, BlendingMode::kClear}) {
+    for (Box source_clip : {bounds, Box(4, 4, 7, 7), Box(2, 2, 1, 1)}) {
+      SCOPED_TRACE(static_cast<int>(mode));
+      SCOPED_TRACE(source_clip);
+      ReadCountingRasterizable lower(nonuniform);
+      ReadCountingRasterizable clearing(white);
+      RasterizableStack stack(bounds);
+      stack.addInput(&lower);
+      int16_t offset = source_clip == bounds ? 4 : 0;
+      stack.addInput(&clearing, source_clip, offset, offset).withMode(mode);
+
+      Color uniform;
+      EXPECT_TRUE(stack.readUniformColorRect(0, 0, 3, 3, &uniform));
+      EXPECT_EQ(uniform, color::Transparent);
+      Color pixels[16];
+      FillColor(pixels, 16, Color(0xDEADBEEF));
+      EXPECT_TRUE(stack.readColorRect(0, 0, 3, 3, pixels));
+      EXPECT_EQ(pixels[0], color::Transparent);
+      // The fully cleared result stays uniform without materializing pixels.
+      for (int i = 1; i < 16; ++i) EXPECT_EQ(pixels[i], Color(0xDEADBEEF));
+      EXPECT_EQ(lower.readCalls(), 0);
+      EXPECT_EQ(clearing.readCalls(), 0);
+    }
+  }
+}
+
+// Verifies the last complete clear skips every earlier source, while later
+// layers still blend and can make the result uniform or nonuniform.
+TEST(RasterizableStack, RectangleReadsStartAfterLastCompleteClear) {
+  Box bounds(0, 0, 7, 7);
+  auto nonuniform = MakeRasterizable(bounds, [](int16_t x, int16_t y) {
+    return (x + y) % 2 == 0 ? color::Red : color::Green;
+  });
+  FilledRect missing(Box(10, 10, 11, 11), color::White);
+  FilledRect blue(bounds, color::Blue);
+  ReadCountingRasterizable lower(nonuniform);
+  ReadCountingRasterizable middle(nonuniform);
+  ReadCountingRasterizable clearing(missing);
+  ReadCountingRasterizable upper(blue);
+  RasterizableStack stack(bounds);
+  stack.addInput(&lower);
+  stack.addInput(&clearing).withMode(BlendingMode::kSource);
+  stack.addInput(&middle);
+  stack.addInput(&clearing).withMode(BlendingMode::kDestinationIn);
+  stack.addInput(&upper);
+  stack.addInput(&clearing);  // An absent SourceOver input leaves blue intact.
+
+  Color uniform;
+  EXPECT_TRUE(stack.readUniformColorRect(0, 0, 7, 7, &uniform));
+  EXPECT_EQ(uniform, color::Blue);
+  Color pixels[64];
+  EXPECT_TRUE(stack.readColorRect(0, 0, 7, 7, pixels));
+  EXPECT_EQ(pixels[0], color::Blue);
+  EXPECT_EQ(upper.readCalls(), 2);
+
+  // A later mask that covers part of the query must retain the blue beneath it.
+  FilledRect mask(Box(2, 2, 5, 5), color::White);
+  stack.addInput(&mask).withMode(BlendingMode::kDestinationIn);
+  EXPECT_FALSE(stack.readUniformColorRect(0, 0, 7, 7, &uniform));
+  EXPECT_FALSE(stack.readColorRect(0, 0, 7, 7, pixels));
+  for (int i = 0; i < 64; ++i) {
+    EXPECT_EQ(pixels[i], mask.extents().contains(i % 8, i / 8)
+                             ? color::Blue
+                             : color::Transparent);
+  }
+  EXPECT_EQ(lower.readCalls(), 0);
+  EXPECT_EQ(middle.readCalls(), 0);
+  EXPECT_EQ(clearing.readCalls(), 0);
 }
 
 // Verifies drawing clips evaluation without shrinking a mask's operation bounds

@@ -364,4 +364,25 @@ TEST(RleStream4bppxBiased, ReportsRunLengthOnlyForRunGroups) {
 }
 
 }  // namespace internal
+// Verifies 8-bit RLE accepts byte-returning memory iterators and preserves
+// decoded alpha values and run metadata through source clipping.
+TEST(Image, RleAlpha8MemoryStream) {
+  const uint8_t data[] = {0x83, 128, 0x82, 32};
+  RleImage<Alpha8, ConstDramPtr> image(7, 1, data, Alpha8(color::Red));
+  Color pixels[7];
+  uint32_t run = 0;
+  auto stream = image.createStream();
+  stream->read(pixels, 7, run);
+  EXPECT_EQ(run, 4u);
+  for (int i = 0; i < 7; ++i) {
+    EXPECT_EQ(pixels[i], color::Red.withA(i < 4 ? 128 : 32));
+  }
+  stream = image.createStream(Box(2, 0, 5, 0));
+  stream->read(pixels, 4, run);
+  EXPECT_EQ(run, 2u);
+  for (int i = 0; i < 4; ++i) {
+    EXPECT_EQ(pixels[i], color::Red.withA(i < 2 ? 128 : 32));
+  }
+}
+
 }  // namespace roo_display

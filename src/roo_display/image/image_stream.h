@@ -23,7 +23,9 @@ struct RawColorReader;
 
 template <typename StreamType>
 struct RawColorReader<StreamType, 8> {
-  uint8_t operator()(StreamType& in) const { return in.read(); }
+  uint8_t operator()(StreamType& in) const {
+    return static_cast<uint8_t>(in.read());
+  }
 };
 
 template <typename StreamType>

@@ -948,4 +948,41 @@ TEST(RasterizableStack, LargeNestedRectangleUsesBoundedTiles) {
   }
 }
 
+// Verifies rebuilding and replacing inputs preserves stack/anchor bounds,
+// refreshes clips and offsets, and resets an old mode without changing order.
+TEST(RasterizableStack, ReuseAndReplaceInputs) {
+  Box bounds(0, 0, 19, 9);
+  FilledRect red(bounds, color::Red);
+  FilledRect blue(Box(10, 10, 29, 19), color::Blue);
+  RasterizableStack stack(bounds);
+  stack.setAnchorExtents(Box(2, 2, 7, 7));
+  stack.reserveInputs(4);
+  stack.addInput(&red);
+  stack.addInput(&blue).withMode(BlendingMode::kDestinationIn);
+  EXPECT_EQ(stack.inputCount(), 2u);
+  const auto& replaced =
+      stack.setInput(1, &blue, Box(12, 12, 16, 16), -10, -10);
+  EXPECT_EQ(replaced.extents(), Box(2, 2, 6, 6));
+  EXPECT_EQ(replaced.blending_mode(), BlendingMode::kSourceOver);
+  auto expected = [](int16_t x, int16_t y) {
+    return Box(2, 2, 6, 6).contains(x, y) ? color::Blue : color::Red;
+  };
+  CheckCompositionStream(*stack.createStream(), bounds, expected);
+  stack.clearInputs();
+  EXPECT_EQ(stack.inputCount(), 0u);
+  EXPECT_EQ(stack.extents(), bounds);
+  EXPECT_EQ(stack.anchorExtents(), Box(2, 2, 7, 7));
+  stack.addInput(&blue);
+  stack.setInput(0, &red);
+  CheckCompositionStream(*stack.createStream(), bounds,
+                         [](int16_t, int16_t) { return color::Red; });
+}
+
+// Verifies replacing a missing layer is rejected before writing storage.
+TEST(RasterizableStackDeathTest, InvalidReplacementIndex) {
+  FilledRect red(Box(0, 0, 1, 1), color::Red);
+  RasterizableStack stack(red.extents());
+  EXPECT_DEATH(stack.setInput(0, &red), "index");
+}
+
 }  // namespace roo_display

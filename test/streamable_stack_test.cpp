@@ -1023,4 +1023,57 @@ TEST(StreamableStack, UniformThenVaryingRunMetadata) {
   EXPECT_EQ(run, 0u);
 }
 
+// Verifies rebuilding and replacing inputs preserves stack/anchor bounds,
+// refreshes clips and offsets, and resets an old mode without changing order.
+TEST(StreamableStack, ReuseAndReplaceInputs) {
+  Box bounds(0, 0, 19, 9);
+  FilledRect red(bounds, color::Red);
+  FilledRect blue(Box(10, 10, 29, 19), color::Blue);
+  StreamableStack stack(bounds);
+  stack.setAnchorExtents(Box(2, 2, 7, 7));
+  stack.reserveInputs(4);
+  stack.addInput(&red);
+  stack.addInput(&blue).withMode(BlendingMode::kDestinationIn);
+  EXPECT_EQ(stack.inputCount(), 2u);
+  const auto& replaced =
+      stack.setInput(1, &blue, Box(12, 12, 16, 16), -10, -10);
+  EXPECT_EQ(replaced.extents(), Box(2, 2, 6, 6));
+  EXPECT_EQ(replaced.blending_mode(), BlendingMode::kSourceOver);
+  auto expected = [](int16_t x, int16_t y) {
+    return Box(2, 2, 6, 6).contains(x, y) ? color::Blue : color::Red;
+  };
+  CheckStackStream(*stack.createStream(), bounds, expected);
+  stack.clearInputs();
+  EXPECT_EQ(stack.inputCount(), 0u);
+  EXPECT_EQ(stack.extents(), bounds);
+  EXPECT_EQ(stack.anchorExtents(), Box(2, 2, 7, 7));
+  stack.addInput(&blue);
+  stack.setInput(0, &red);
+  CheckStackStream(*stack.createStream(), bounds,
+                   [](int16_t, int16_t) { return color::Red; });
+}
+
+// Verifies replacing a missing layer is rejected before writing storage.
+TEST(StreamableStackDeathTest, InvalidReplacementIndex) {
+  FilledRect red(Box(0, 0, 1, 1), color::Red);
+  StreamableStack stack(red.extents());
+  EXPECT_DEATH(stack.setInput(0, &red), "index");
+}
+
+// Verifies capacity can be checked before drawing or creating child streams,
+// while preserving the exemption for empty output and counting absent inputs.
+TEST(StreamableStack, CapacityPreflight) {
+  FilledRect source(Box(100, 100, 101, 101), color::Red);
+  StreamableStack stack(Box(0, 0, 9, 9));
+  for (size_t i = 0; i < StreamableStack::kMaxInputs; ++i)
+    stack.addInput(&source);
+  EXPECT_TRUE(stack.canCreateStream());
+  stack.addInput(&source);
+  EXPECT_FALSE(stack.canCreateStream());
+  EXPECT_FALSE(stack.canCreateStream(Box(1, 1, 2, 2)));
+  EXPECT_TRUE(stack.canCreateStream(Box(20, 20, 21, 21)));
+  stack.clearInputs();
+  EXPECT_TRUE(stack.canCreateStream());
+}
+
 }  // namespace roo_display

@@ -18,6 +18,13 @@ namespace roo_display {
 /// color::Background semantics. A source clip limits available samples, not the
 /// blending operation's bounds. Output clipping limits evaluation without
 /// changing these rules.
+/// Inputs are borrowed and their extents are captured when added or replaced.
+/// Keep the stack and its sources alive and unchanged while consuming a stream.
+/// Between draws, rebuild or replace inputs after changing source geometry.
+/// References returned by addInput()/setInput() are for immediate
+/// configuration; additions and reserveInputs() can invalidate them.
+/// clearInputs() invalidates all of them. These objects are not synchronized
+/// for concurrent mutation.
 class RasterizableStack : public Rasterizable {
  public:
   /// An input layer in the stack.
@@ -97,6 +104,25 @@ class RasterizableStack : public Rasterizable {
     return inputs_.back();
   }
 
+  /// Replace an existing layer with a borrowed source and signed translation.
+  /// Refreshes captured source extents and resets the mode to kSourceOver.
+  /// Fails a CHECK for an invalid index; preserves input order and capacity.
+  Input& setInput(size_t index, const Rasterizable* input, int16_t dx = 0,
+                  int16_t dy = 0) {
+    return setInput(index, input, input->extents(), dx, dy);
+  }
+
+  /// Replace an existing layer with a source-coordinate clip and translation.
+  /// Refreshes captured extents and resets the mode to kSourceOver.
+  /// Fails a CHECK for an invalid index; the source is borrowed.
+  Input& setInput(size_t index, const Rasterizable* input, Box clip_box,
+                  int16_t dx = 0, int16_t dy = 0) {
+    CHECK_LT(index, inputs_.size());
+    inputs_[index] =
+        Input(input, Box::Intersect(input->extents(), clip_box), dx, dy);
+    return inputs_[index];
+  }
+
   /// Remove all inputs while preserving allocated storage for reuse.
   void clearInputs() { inputs_.clear(); }
 
@@ -122,7 +148,7 @@ class RasterizableStack : public Rasterizable {
   std::unique_ptr<PixelStream> createStream(const Box& clip_box) const override;
 
   /// Return minimal extents that fit all inputs without clipping.
-  Box naturalExtents() {
+  Box naturalExtents() const {
     if (inputs_.empty()) return Box(0, 0, -1, -1);
     Box result = inputs_[0].extents();
     for (size_t i = 1; i < inputs_.size(); i++) {

@@ -23,6 +23,13 @@ namespace roo_display {
 /// registered inputs, including clipped-out inputs. Exceeding this limit fails
 /// a release-enabled CHECK before creating child streams. Empty output is
 /// exempt.
+/// Inputs are borrowed and their extents are captured when added or replaced.
+/// Keep the stack and its sources alive and unchanged while consuming a stream.
+/// Between draws, rebuild or replace inputs after changing source geometry.
+/// References returned by addInput()/setInput() are for immediate
+/// configuration; additions and reserveInputs() can invalidate them.
+/// clearInputs() invalidates all of them. These objects are not synchronized
+/// for concurrent mutation.
 class StreamableStack : public Streamable {
  public:
   /// Maximum registered inputs in a nonempty compiled composition.
@@ -59,6 +66,9 @@ class StreamableStack : public Streamable {
     std::unique_ptr<PixelStream> createStream(const Box& extents) const {
       return obj_->createStream(extents.translate(-dx_, -dy_));
     }
+
+    /// Return the borrowed source.
+    const Streamable* source() const { return obj_; }
 
     /// Set blending mode for this input.
     Input& withMode(BlendingMode mode) {
@@ -107,13 +117,53 @@ class StreamableStack : public Streamable {
     return inputs_.back();
   }
 
+  /// Replace an existing layer with a borrowed source and signed translation.
+  /// Refreshes captured source extents and resets the mode to kSourceOver.
+  /// Fails a CHECK for an invalid index; preserves input order and capacity.
+  Input& setInput(size_t index, const Streamable* input, int16_t dx = 0,
+                  int16_t dy = 0) {
+    return setInput(index, input, input->extents(), dx, dy);
+  }
+
+  /// Replace an existing layer with a source-coordinate clip and translation.
+  /// Refreshes captured extents and resets the mode to kSourceOver.
+  /// Fails a CHECK for an invalid index; the source is borrowed.
+  Input& setInput(size_t index, const Streamable* input, Box clip_box,
+                  int16_t dx = 0, int16_t dy = 0) {
+    CHECK_LT(index, inputs_.size());
+    inputs_[index] =
+        Input(input, Box::Intersect(input->extents(), clip_box), dx, dy);
+    return inputs_[index];
+  }
+
+  /// Remove all inputs while preserving allocated storage for reuse.
+  void clearInputs() { inputs_.clear(); }
+
+  /// Reserve storage for at least @p capacity inputs.
+  void reserveInputs(size_t capacity) { inputs_.reserve(capacity); }
+
+  /// Return the number of registered inputs, including clipped-out layers.
+  size_t inputCount() const { return inputs_.size(); }
+
+  /// Check the compiler's input capacity for the full output without
+  /// allocating.
+  bool canCreateStream() const { return canCreateStream(extents_); }
+
+  /// Check input capacity after intersecting a stack-coordinate output clip.
+  /// Empty output is always supported. This does not validate source lifetimes
+  /// or guarantee allocation success; drawing has the same capacity limit.
+  bool canCreateStream(const Box& clip_box) const {
+    return inputs_.size() <= kMaxInputs ||
+           Box::Intersect(extents_, clip_box).empty();
+  }
+
   /// Return the overall extents of the stack.
   Box extents() const override { return extents_; }
 
   Box anchorExtents() const override { return anchor_extents_; }
 
   /// Return minimal extents that fit all inputs without clipping.
-  Box naturalExtents() {
+  Box naturalExtents() const {
     if (inputs_.empty()) return Box(0, 0, -1, -1);
     Box result = inputs_[0].extents();
     for (size_t i = 1; i < inputs_.size(); i++) {

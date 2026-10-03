@@ -285,4 +285,143 @@ TEST(Composition, NaturalExtentsIgnoreEmptyInputs) {
   EXPECT_EQ(pixel, color::Transparent);
 }
 
+namespace {
+
+// Records evaluation separately from metadata queries.
+class EvaluationProbe : public FilledRect {
+ public:
+  EvaluationProbe(Box bounds, Color color) : FilledRect(bounds, color) {}
+
+  void readColors(const int16_t* x, const int16_t* y, uint32_t count,
+                  Color* result) const override {
+    ++evaluations;
+    FilledRect::readColors(x, y, count, result);
+  }
+
+  bool readUniformColorRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+                            Color* result) const override {
+    ++evaluations;
+    return FilledRect::readUniformColorRect(x0, y0, x1, y1, result);
+  }
+
+  std::unique_ptr<PixelStream> createStream(const Box& clip) const override {
+    ++evaluations;
+    return FilledRect::createStream(clip);
+  }
+
+  mutable int evaluations = 0;
+};
+
+}  // namespace
+
+// Verifies conservative opacity claims against actual alpha across ordinary
+// modes, partial/absent sources, and transparent samples including Background.
+TEST(Composition, OpacityHintsAgreeWithPixels) {
+  Box bounds(0, 0, 3, 2);
+  for (Color bottom : {color::Red, Color(0x80654321), color::Transparent}) {
+    EvaluationProbe base(bounds, bottom);
+    for (Color top : {color::Blue, Color(0x80123456), color::Background,
+                      color::Transparent}) {
+      EvaluationProbe upper(bounds, top);
+      for (Box clip : {bounds, Box(1, 1, 2, 2), Box(20, 20, 30, 30)}) {
+        for (int m = 0; m < 12; ++m) {
+          BlendingMode mode = static_cast<BlendingMode>(m);
+          RasterizableStack raster(bounds);
+          StreamableStack stream(bounds);
+          raster.addInput(&base);
+          stream.addInput(&base);
+          raster.addInput(&upper, clip).withMode(mode);
+          stream.addInput(&upper, clip).withMode(mode);
+          int before = base.evaluations + upper.evaluations;
+          TransparencyMode hint = raster.getTransparencyMode();
+          ASSERT_EQ(stream.getTransparencyMode(), hint);
+          EXPECT_EQ(base.evaluations + upper.evaluations, before);
+          if (hint != TransparencyMode::kNone) continue;
+          Color pixels[12];
+          stream.createStream()->read(pixels, 12);
+          for (Color pixel : pixels) EXPECT_TRUE(pixel.isOpaque());
+        }
+      }
+    }
+  }
+}
+
+// Verifies nested opaque groups suppress hidden reads and that live color,
+// blend-mode, source-clip, translation, and stack-bound changes refresh hints.
+TEST(Composition, NestedOpacityTracksCurrentSourcesAndGeometry) {
+  Box bounds(0, 0, 31, 15);
+  EvaluationProbe hidden(bounds, color::Green);
+  FilledRect leaf(bounds, color::Red);
+  RasterizableStack inner(bounds);
+  inner.addInput(&leaf);
+  RasterizableStack raster(bounds);
+  StreamableStack stream(bounds);
+  raster.addInput(&hidden);
+  stream.addInput(&hidden);
+  raster.addInput(&inner);
+  stream.addInput(&inner);
+  EXPECT_EQ(inner.getTransparencyMode(), TransparencyMode::kNone);
+  EXPECT_EQ(raster.getTransparencyMode(), TransparencyMode::kNone);
+  EXPECT_EQ(stream.getTransparencyMode(), TransparencyMode::kNone);
+  Color pixel;
+  raster.createStream()->read(&pixel, 1);
+  stream.createStream()->read(&pixel, 1);
+  Color tile[16];
+  EXPECT_TRUE(raster.readColorRect(0, 0, 3, 3, tile));
+  EXPECT_EQ(hidden.evaluations, 0);
+
+  leaf = FilledRect(bounds, Color(0x80FF0000));
+  EXPECT_EQ(inner.getTransparencyMode(), TransparencyMode::kFull);
+  raster.createStream()->read(&pixel, 1);
+  EXPECT_EQ(pixel, AlphaBlend(color::Green, leaf.color()));
+  EXPECT_GT(hidden.evaluations, 0);
+  leaf = FilledRect(bounds, color::Red);
+  inner.setInput(0, &leaf).withMode(BlendingMode::kDestinationOut);
+  EXPECT_EQ(inner.getTransparencyMode(), TransparencyMode::kFull);
+  inner.setInput(0, &leaf, Box(1, 0, 31, 15));
+  EXPECT_EQ(inner.getTransparencyMode(), TransparencyMode::kFull);
+  inner.setInput(0, &leaf, 1, 0);
+  EXPECT_EQ(inner.getTransparencyMode(), TransparencyMode::kFull);
+  inner.setInput(0, &leaf);
+  inner.setExtents(Box(0, 0, 32, 15));
+  EXPECT_EQ(inner.getTransparencyMode(), TransparencyMode::kFull);
+  inner.setExtents(bounds);
+  EXPECT_EQ(inner.getTransparencyMode(), TransparencyMode::kNone);
+  inner.addInput(&leaf, Box(100, 100, 101, 101))
+      .withMode(BlendingMode::kDestinationIn);
+  EXPECT_EQ(inner.getTransparencyMode(), TransparencyMode::kFull);
+}
+
+// Verifies known opaque results survive ordinary foreground/background
+// overlays and full opaque masks, while partial masks revoke the guarantee.
+TEST(Composition, OpacityPreservingOperations) {
+  Box bounds(0, 0, 31, 15);
+  FilledRect solid(bounds, color::Red);
+  FilledRect translucent(bounds, Color(0x80123456));
+  for (BlendingMode mode :
+       {BlendingMode::kSourceOver, BlendingMode::kDestinationOver,
+        BlendingMode::kSourceAtop, BlendingMode::kDestination}) {
+    RasterizableStack raster(bounds);
+    StreamableStack stream(bounds);
+    raster.addInput(&solid);
+    stream.addInput(&solid);
+    raster.addInput(&translucent, Box(1, 2, 7, 9)).withMode(mode);
+    stream.addInput(&translucent, Box(1, 2, 7, 9)).withMode(mode);
+    EXPECT_EQ(raster.getTransparencyMode(), TransparencyMode::kNone);
+    EXPECT_EQ(stream.getTransparencyMode(), TransparencyMode::kNone);
+    for (BlendingMode mask :
+         {BlendingMode::kSourceIn, BlendingMode::kDestinationIn,
+          BlendingMode::kDestinationAtop}) {
+      raster.setInput(1, &solid).withMode(mask);
+      stream.setInput(1, &solid).withMode(mask);
+      EXPECT_EQ(raster.getTransparencyMode(), TransparencyMode::kNone);
+      EXPECT_EQ(stream.getTransparencyMode(), TransparencyMode::kNone);
+      raster.setInput(1, &solid, Box(1, 2, 7, 9)).withMode(mask);
+      stream.setInput(1, &solid, Box(1, 2, 7, 9)).withMode(mask);
+      EXPECT_EQ(raster.getTransparencyMode(), TransparencyMode::kFull);
+      EXPECT_EQ(stream.getTransparencyMode(), TransparencyMode::kFull);
+    }
+  }
+}
+
 }  // namespace roo_display

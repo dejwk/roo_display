@@ -174,6 +174,11 @@ class StreamableStack : public Streamable {
     return result;
   }
 
+  /// Return kNone when coverage and current source hints prove every pixel
+  /// opaque; otherwise return kFull. This query does not read source pixels,
+  /// allocate storage, or retain metadata across source changes.
+  TransparencyMode getTransparencyMode() const override;
+
   /// Create a stream for the full stack.
   /// Fails a CHECK if nonempty output has more than kMaxInputs registered
   /// inputs.

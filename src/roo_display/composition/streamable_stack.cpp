@@ -905,6 +905,10 @@ void StreamableStack::drawTo(const Surface& s) const {
   }
 }
 
+TransparencyMode StreamableStack::getTransparencyMode() const {
+  return internal::CompositionTransparency(inputs_, extents_);
+}
+
 std::unique_ptr<PixelStream> StreamableStack::createStream() const {
   return createStream(extents());
 }

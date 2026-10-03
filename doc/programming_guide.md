@@ -2995,6 +2995,12 @@ Changing the output clip does not change these semantics. Stack extents and
 anchor extents are independent; `naturalExtents()` reports the input envelope
 without changing either one.
 
+Both stacks infer a conservative opacity hint from current source metadata,
+coverage, and blending modes. A provably opaque nested group can hide earlier
+layers without opening their streams or sampling their pixels. The query does
+not cache source hints; partial masks and alpha-reducing operations revoke the
+proof. Unknown results keep the conservative full-transparency hint.
+
 #### Cached content and group opacity
 
 Use the existing `Offscreen` drawable constructor to cache arbitrary drawable

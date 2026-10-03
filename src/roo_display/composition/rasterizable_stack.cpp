@@ -276,6 +276,10 @@ void RasterizableStack::drawTo(const Surface& surface) const {
   surface.out().fillRect(surface.blending_mode(), surface.clip_box(), color);
 }
 
+TransparencyMode RasterizableStack::getTransparencyMode() const {
+  return internal::CompositionTransparency(inputs_, extents_);
+}
+
 std::unique_ptr<PixelStream> RasterizableStack::createStream() const {
   return createStream(extents_);
 }

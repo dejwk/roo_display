@@ -4,7 +4,9 @@
 
 #include "roo_display/composition/rasterizable_stack.h"
 #include "roo_display/composition/streamable_stack.h"
+#include "roo_display/core/offscreen.h"
 #include "roo_display/filter/foreground.h"
+#include "roo_display/shape/basic.h"
 #include "testing.h"
 
 namespace roo_display {
@@ -211,6 +213,34 @@ TEST(Composition, ConsumptionPathsMatchScalarOracle) {
       }
     }
   }
+}
+
+// Verifies group opacity is applied after overlap resolution using existing
+// nesting, and the existing Offscreen constructor snapshots the same result.
+TEST(Composition, NestedGroupOpacityAndOffscreenSnapshot) {
+  Box bounds(0, 0, 31, 15);
+  FilledRect base(bounds, color::Red);
+  FilledRect detail(Box(8, 0, 23, 15), color::Blue);
+  RasterizableStack content(bounds);
+  content.addInput(&base);
+  content.addInput(&detail);
+  FilledRect opacity(bounds, Color(128, 0, 0, 0));
+  RasterizableStack faded(bounds);
+  faded.addInput(&content);
+  faded.addInput(&opacity).withMode(BlendingMode::kDestinationIn);
+  Offscreen<Argb8888> cached(faded);
+  Color pixels[32];
+  auto stream = faded.createStream();
+  stream->read(pixels, 32);
+  Color snapshot[32];
+  cached.readColorRect(0, 0, 31, 0, snapshot);
+  for (int x = 0; x < 32; ++x) {
+    Color want = (x >= 8 && x <= 23 ? color::Blue : color::Red).withA(128);
+    EXPECT_EQ(pixels[x], want);
+    EXPECT_EQ(snapshot[x], want);
+  }
+  EXPECT_NE(pixels[8],
+            AlphaBlend(color::Red.withA(128), color::Blue.withA(128)));
 }
 
 }  // namespace roo_display

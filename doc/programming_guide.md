@@ -2946,7 +2946,9 @@ Wouldn't it be great if you could compose drawables using blending modes, as we 
 
 Bad news is that you cannot do that with arbitrary drawables. Good news is that you can do that if your drawables are streamables or rasterizables.
 
-Dynamic composition produces a drawable that combines multiple inputs, and is drawn in one pass, without any flicker.
+Dynamic composition produces a drawable that combines its inputs before
+writing the output. This avoids displaying intermediate layers. Display scanout
+and frame synchronization still determine whether an update can tear.
 
 Compiled compositions support at most `StreamableStack::kMaxInputs` (16)
 registered inputs, including inputs clipped out of the output. Drawing or
@@ -2958,6 +2960,111 @@ reads. Changing a raster stack's clip does not change which input counts are
 supported.
 
 If all the inputs are rasterizables (i.e. if they all extend `Rasterizable`), you can combine them into a logical 'stack' that is itself a rasterizable. Raster drawing uses small tiles instead of a full offscreen. Large stack rectangle reads are split into 8×8 tiles, with 64 colors of layer scratch and, for a large request, a 64-color tile buffer. Default raster reads use coordinate batches of at most 64 points. Scratch space grows with nested call depth; the caller still supplies the complete output buffer for a rectangle read. Compiled streams additionally allocate a 64-color buffer per registered input in production, plus child streams and the composition program.
+
+#### Reusing a composition
+
+Both stacks borrow their sources. Keep the stack and all sources alive and
+unchanged while consuming a stream created from it. Input extents are captured
+when a source is added or replaced; after changing source geometry, call
+`setInput()` or rebuild the inputs.
+
+`reserveInputs(n)` reserves descriptor storage, and `clearInputs()` retains it.
+`setInput(index, source, clip, dx, dy)` replaces a layer in place, preserving its
+position and resetting its mode to `kSourceOver`. Chain `.withMode(...)` to select
+another mode. References returned from these calls are for immediate
+configuration: adding inputs or reserving more storage can invalidate them.
+`clearInputs()` invalidates all input references. `inputCount()` includes
+clipped-out layers. Use `StreamableStack::canCreateStream(clip)` to check the
+compiler's capacity before rendering; this does not guarantee allocation success.
+
+Source clipping, translation, composition bounds, and output clipping have
+different purposes. For example:
+
+| Setting | Coordinates | Effect |
+| --- | --- | --- |
+| Source extents | `(10,20)..(19,29)` | Available source pixels |
+| Source clip | `(12,22)..(17,25)` | Restricts available samples |
+| Translation | `(-12,-20)` | Places those samples at `(0,2)..(5,5)` in the stack |
+| Stack extents | `(0,0)..(7,7)` | Bounds each layer's blending operation |
+| Output clip | `(2,3)..(4,4)` in stack coordinates | Restricts evaluation of the existing composition |
+
+Outside a source's translated clip, `kSource`, `kSourceIn`, `kSourceOut`,
+`kDestinationIn`, `kDestinationAtop`, and `kClear` clear the accumulated result.
+Other modes preserve it. An entirely clipped-out mask can therefore still matter.
+Changing the output clip does not change these semantics. Stack extents and
+anchor extents are independent; `naturalExtents()` reports the input envelope
+without changing either one.
+
+#### Cached content and group opacity
+
+Use the existing `Offscreen` drawable constructor to cache arbitrary drawable
+content as a rasterizable snapshot:
+
+```cpp
+Offscreen<Argb8888> cached(artwork);
+RasterizableStack scene(cached.extents());
+scene.addInput(&cached);
+// Add live overlays, then draw scene. Keep cached alive while it is referenced.
+```
+
+The snapshot no longer depends on the original drawable after construction.
+Recreate or redraw the cache explicitly when the original content changes.
+Choose an alpha-capable format when the snapshot must retain transparency;
+`Argb8888` costs four bytes per pixel and `Argb4444` costs two with lower precision.
+
+Nesting already supports group opacity. Compose the group first, then apply a
+uniform alpha mask with `kDestinationIn` to the group's result:
+
+```cpp
+Box bounds(0, 0, 31, 15);
+FilledRect base(bounds, color::Red);
+FilledRect detail(Box(8, 0, 23, 15), color::Blue);
+RasterizableStack content(bounds);
+content.addInput(&base);
+content.addInput(&detail);
+
+FilledRect opacity(bounds, Color(128, 0, 0, 0));
+RasterizableStack faded(bounds);
+faded.addInput(&content);
+faded.addInput(&opacity).withMode(BlendingMode::kDestinationIn);
+dc.draw(faded);
+```
+
+The mask's RGB is irrelevant; its alpha scales the already-composited group.
+In the overlap, the blue detail has alpha 128. Applying alpha 128 to both original
+layers instead would leave the overlap more opaque. The same nesting works with
+`StreamableStack`; no dedicated group-opacity class is needed.
+
+#### Measuring composition
+
+The host benchmark separates fresh descriptor setup, rebuilding reserved inputs,
+stream preparation, stream consumption, and drawing into an ARGB8888 offscreen:
+
+```sh
+bazel run -c opt //:composition_benchmark \
+  --per_file_copt=roo_testing/frameworks/esp32_shims/wifi.cpp@-Wno-error=stringop-truncation
+```
+
+The per-file option downgrades an existing optimized-build warning in the host
+Wi-Fi shim. CSV output reports mean microseconds and allocation counts over ten
+iterations, plus the maximum requested C++ heap bytes allocated within each
+phase. It excludes fixture storage, earlier-phase allocations, allocator
+bookkeeping, C allocations, and stack memory. The harness checks that streamed
+and drawn pixel checksums agree. Cases cover 1/4/16 inputs, two output sizes,
+overlap, opacity, sparse coverage, masks, nesting, and compressed RLE images.
+
+These host measurements separate CPU and allocation costs; they do not measure
+display transfer time. Use `benchmarks/composition.ino` on the target hardware
+for the end-to-end drawing cost, including the display interface.
+
+Run the composition regression suite with both unusual test buffers and the
+production buffer size:
+
+```sh
+bazel test //:composition_test //:rasterizable_stack_test //:streamable_stack_test
+bazel test //:composition_test //:rasterizable_stack_test //:streamable_stack_test \
+  --copt=-UROO_DISPLAY_TESTING
+```
 
 #### Rasterizable stack
 

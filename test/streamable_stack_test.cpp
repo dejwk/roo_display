@@ -740,6 +740,170 @@ TEST(StreamableStack, SkipIndicesPreserveCoordinateSamples) {
   }
 }
 
+namespace {
+
+// Varies alpha and placeholder values across rows and stream-buffer boundaries.
+Color VariedStackColor(int16_t x, int16_t y) {
+  const Color colors[] = {color::Transparent, Color(0x00123456),
+                          Color(0x80654321),  color::Red,
+                          color::Background,  color::Blue};
+  return colors[(x + 3 * y) % 6];
+}
+
+class VariedStackSource : public Rasterizable {
+ public:
+  Box extents() const override { return Box(0, 0, 16, 9); }
+
+  void readColors(const int16_t* x, const int16_t* y, uint32_t count,
+                  Color* result) const override {
+    for (uint32_t i = 0; i < count; ++i) {
+      result[i] = VariedStackColor(x[i], y[i]);
+    }
+  }
+};
+
+}  // namespace
+
+class StackBlendTest : public TestWithParam<BlendingMode> {};
+
+// Verifies exact first-input evaluation and ordered two-input blends in every
+// executor.
+TEST_P(StackBlendTest, ExactColorsWithAndWithoutCoalescing) {
+  const Color colors[] = {color::Transparent, Color(0x00123456),
+                          Color(0x80654321), color::Red, color::Background};
+  const BlendingMode mode = GetParam();
+  Box interior(0, 0, 6, 2);
+  for (Color first : colors) {
+    for (int layers : {1, 2}) {
+      for (int second_index = 0;
+           second_index <= static_cast<int>(BlendingMode::kXor);
+           ++second_index) {
+        if (layers == 1 && second_index != 0) continue;
+        BlendingMode second_mode = static_cast<BlendingMode>(second_index);
+        SCOPED_TRACE(second_index);
+        for (Color second : colors) {
+          if (layers == 1 && second != colors[0]) continue;
+          SCOPED_TRACE(first.asArgb());
+          SCOPED_TRACE(second.asArgb());
+          SCOPED_TRACE(layers);
+          for (bool chunked : {false, true}) {
+            SCOPED_TRACE(chunked);
+            Box bounds(0, 0, chunked ? 8 : 6, 2);
+            FilledRect input1(interior, first);
+            FilledRect input2(interior, second);
+            FilledRect disjoint(Box(8, 0, 8, 2), color::Blue);
+            StreamableStack stack(bounds);
+            stack.addInput(&input1).withMode(mode);
+            if (layers == 2) stack.addInput(&input2).withMode(second_mode);
+            if (chunked) stack.addInput(&disjoint);
+            Color want = color::Transparent;
+            for (int i = 0; i < layers; ++i) {
+              want = ApplyBlending(i == 0 ? mode : second_mode, want,
+                                   i == 0 ? first : second);
+            }
+            auto expected = [want](int16_t x, int16_t) {
+              return x < 7 ? want : x == 7 ? color::Transparent : color::Blue;
+            };
+            CheckStackStream(*stack.createStream(), bounds, expected);
+            Box clip(1, 1, bounds.xMax(), 2);
+            CheckStackStream(*stack.createStream(clip), clip, expected);
+            for (FillMode fill : {FillMode::kExtents, FillMode::kVisible}) {
+              for (Color background : {color::Transparent, color::Green,
+                                       Color(0x40778899), Color(0x00123456)}) {
+                CheckStackDrawing(stack, bounds, fill, background, expected);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// Verifies direct single-input reads and batched multi-input reads keep exact
+// colors across changing alpha, placeholders, clips, and background branches.
+TEST_P(StackBlendTest, VaryingSamplesWithEveryBackground) {
+  VariedStackSource input;
+  const Box bounds = input.extents();
+  const BlendingMode mode = GetParam();
+  const Color overlay_color(0x80432165);
+  FilledRect overlay(bounds, overlay_color);
+  for (bool multiple : {false, true}) {
+    SCOPED_TRACE(multiple);
+    StreamableStack stack(bounds);
+    stack.addInput(&input).withMode(mode);
+    if (multiple) stack.addInput(&overlay);
+    auto expected = [mode, multiple, overlay_color](int16_t x, int16_t y) {
+      Color result =
+          ApplyBlending(mode, color::Transparent, VariedStackColor(x, y));
+      return multiple ? ApplyBlending(BlendingMode::kSourceOver, result,
+                                      overlay_color)
+                      : result;
+    };
+    CheckStackStream(*stack.createStream(), bounds, expected);
+    for (Box clip : {bounds, Box(2, 1, 14, 8)}) {
+      CheckStackStream(*stack.createStream(clip), clip, expected);
+      for (FillMode fill : {FillMode::kExtents, FillMode::kVisible}) {
+        for (Color background : {color::Transparent, color::Green,
+                                 Color(0x40778899), Color(0x00123456)}) {
+          for (BlendingMode output_mode :
+               {BlendingMode::kSource, BlendingMode::kSourceOver}) {
+            CheckStackDrawing(stack, clip, fill, background, expected,
+                              output_mode);
+          }
+        }
+      }
+    }
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    OrdinaryModes, StackBlendTest,
+    Values(BlendingMode::kSource, BlendingMode::kSourceOver,
+           BlendingMode::kSourceIn, BlendingMode::kSourceAtop,
+           BlendingMode::kDestination, BlendingMode::kDestinationOver,
+           BlendingMode::kDestinationIn, BlendingMode::kDestinationAtop,
+           BlendingMode::kClear, BlendingMode::kSourceOut,
+           BlendingMode::kDestinationOut, BlendingMode::kXor));
+
+// Verifies the source-over initialization shortcut preserves every nonzero
+// alpha and clears zero-alpha RGB in streams and both drawing executors.
+TEST(StreamableStack, SourceOverFirstInputMatchesEveryAlpha) {
+  const Box bounds(0, 0, 16, 2);
+  for (uint32_t alpha = 0; alpha <= 255; ++alpha) {
+    SCOPED_TRACE(alpha);
+    const Color sample((alpha << 24) | 0x00123456);
+    FilledRect input(bounds, sample);
+    StreamableStack stack(bounds);
+    stack.addInput(&input);
+    const Color want =
+        ApplyBlending(BlendingMode::kSourceOver, color::Transparent, sample);
+    auto expected = [want](int16_t, int16_t) { return want; };
+    CheckStackStream(*stack.createStream(), bounds, expected);
+    for (FillMode fill : {FillMode::kExtents, FillMode::kVisible}) {
+      for (Color background : {color::Transparent, color::Green,
+                               Color(0x40778899), Color(0x00123456)}) {
+        CheckStackDrawing(stack, bounds, fill, background, expected);
+      }
+    }
+  }
+}
+
+// Verifies the device's blend mode is applied after internal composition and
+// background.
+TEST(StreamableStack, OutputModeIsSeparateFromInputMode) {
+  Box bounds(0, 0, 8, 2);
+  FilledRect input(bounds, Color(0x80334455));
+  StreamableStack stack(bounds);
+  stack.addInput(&input).withMode(BlendingMode::kSource);
+  for (FillMode fill : {FillMode::kExtents, FillMode::kVisible}) {
+    CheckStackDrawing(
+        stack, bounds, fill, Color(0x40778899),
+        [](int16_t, int16_t) { return Color(0x80334455); },
+        BlendingMode::kDestinationOver);
+  }
+}
+
 // Verifies a maximum-sized public read crosses split operands without
 // truncation.
 TEST(StreamableStack, LargeReadCrossesInstructionBoundary) {
@@ -754,6 +918,22 @@ TEST(StreamableStack, LargeReadCrossesInstructionBoundary) {
   FillColor(buffer.data(), 11265, Color(0xDEADBEEF));
   stream->read(buffer.data(), 11265);
   for (int i = 0; i < 11265; ++i) ASSERT_EQ(buffer[i], color::Red);
+}
+
+// Verifies instruction positions beyond 65,535 words without a large pixel
+// buffer.
+TEST(StreamableStack, ProgramPositionsExceedWordRange) {
+  Box bounds(0, 0, 32766, 32766);
+  FilledRect input(bounds, color::Blue);
+  StreamableStack stack(bounds);
+  // Each eliminated full input needs over 49,000 words of split SKIPs.
+  stack.addInput(&input).withMode(BlendingMode::kDestination);
+  stack.addInput(&input).withMode(BlendingMode::kDestination);
+  stack.addInput(&input);
+  std::unique_ptr<PixelStream> stream = stack.createStream();
+  Color pixels[7];
+  stream->read(pixels, 7);
+  for (Color pixel : pixels) EXPECT_EQ(pixel, color::Blue);
 }
 
 // Verifies clipping and translation keep coordinate samples in row-major order.

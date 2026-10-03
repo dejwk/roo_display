@@ -475,6 +475,35 @@ TEST(RasterizableStackDeathTest, CompiledInputCapacity) {
   }
 }
 
+// Verifies all ordinary first-input modes agree across the 128/129-pixel
+// threshold.
+TEST(RasterizableStack, FirstInputBlendingAcrossCompilerThreshold) {
+  for (int width : {128, 129}) {
+    Box bounds(0, 0, width - 1, 0);
+    for (int mode_index = static_cast<int>(BlendingMode::kSource);
+         mode_index <= static_cast<int>(BlendingMode::kXor); ++mode_index) {
+      BlendingMode mode = static_cast<BlendingMode>(mode_index);
+      for (Color source : {color::Transparent, Color(0x80654321), color::Red,
+                           color::Background}) {
+        SCOPED_TRACE(width);
+        SCOPED_TRACE(mode_index);
+        FilledRect input(bounds, source);
+        RasterizableStack stack(bounds);
+        stack.addInput(&input).withMode(mode);
+        Color want = ApplyBlending(mode, color::Transparent, source);
+        for (bool clipped : {false, true}) {
+          std::unique_ptr<PixelStream> stream =
+              clipped ? stack.createStream(bounds) : stack.createStream();
+          Color pixels[129];
+          FillColor(pixels, width, Color(0xDEADBEEF));
+          stream->read(pixels, width);
+          for (int i = 0; i < width; ++i) ASSERT_EQ(pixels[i], want);
+        }
+      }
+    }
+  }
+}
+
 // Verifies raster reads and small streams keep supporting more than sixteen
 // inputs.
 TEST(RasterizableStack, RasterInputCapacityIsUnchanged) {

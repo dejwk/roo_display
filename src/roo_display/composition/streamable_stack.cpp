@@ -140,6 +140,8 @@ class Composition {
   void Compile(Program* prg);
 
  private:
+  uint16_t analyzeInputs(uint16_t mask) const;
+
   Box bounds_;
   std::vector<Box> input_extents_;
   std::vector<BlendingMode> blending_modes_;
@@ -165,21 +167,49 @@ bool IsBlendingModeSourceClearing(BlendingMode blending_mode) {
   }
 }
 
-// Returns true for a blending mode when a transparent destination implies
-// transparent result.
-bool IsBlendingModeDestinationClearing(BlendingMode blending_mode) {
-  switch (blending_mode) {
-    case BlendingMode::kSourceIn:
-    case BlendingMode::kSourceAtop:
-    case BlendingMode::kDestination:
-    case BlendingMode::kDestinationIn:
-    case BlendingMode::kDestinationOut:
-    case BlendingMode::kClear: {
-      return true;
+// Applies the existing absent-source rule, then removes exact no-ops over
+// Transparent. Other alpha-zero results can carry RGB or Background.
+uint16_t Composition::analyzeInputs(uint16_t mask) const {
+  int last_absent_clear = 0;
+  for (int index = 0; index < input_count_; ++index) {
+    if ((mask & (1u << index)) == 0 &&
+        IsBlendingModeSourceClearing(blending_modes_[index])) {
+      last_absent_clear = index;
     }
-    default: {
-      return false;
-    }
+  }
+  mask &= ~((1u << last_absent_clear) - 1);
+  for (int index = 0; index < input_count_; ++index) {
+    if ((mask & (1u << index)) == 0) continue;
+    // Of the original transparent-destination eliminations, only Destination
+    // always leaves the exact initial Transparent value unchanged.
+    if (blending_modes_[index] != BlendingMode::kDestination) break;
+    mask &= ~(1u << index);
+  }
+  return mask;
+}
+
+// Advances eliminated streams and emits the surviving inputs in insertion
+// order.
+void EmitSpan(std::vector<uint16_t>* code, uint16_t original_mask,
+              uint16_t mask, uint32_t count) {
+  uint16_t skip_mask = original_mask & ~mask;
+  for (uint16_t index = 0; skip_mask != 0; ++index, skip_mask >>= 1) {
+    if ((skip_mask & 1u) != 0) EmitCount(code, SKIP, count, index);
+  }
+  if (mask == 0) {
+    EmitCount(code, BLANK, count);
+    return;
+  }
+  uint16_t first = 0;
+  uint16_t remaining = mask;
+  while ((remaining & 1u) == 0) {
+    ++first;
+    remaining >>= 1;
+  }
+  if (remaining == 1) {
+    EmitCount(code, WRITE_SINGLE, count, first);
+  } else {
+    EmitCount(code, WRITE, count, mask);
   }
 }
 
@@ -194,153 +224,55 @@ inline void Composition::Compile(Program* prg) {
           static_cast<uint32_t>(bounds_.yMin() - input.yMin()) * input.width(),
           i);
     }
-    i++;
+    ++i;
   }
-  // Then, go block-by-block.
   for (const auto& block : data_) {
     if (block.chunks_.size() == 1) {
-      uint16_t mask = block.chunks_[0].input_mask_;
-      uint32_t total = (uint32_t)block.chunks_[0].width_ * block.height_;
-      // Handle empty blocks before searching for an input bit.
-      if (mask == 0) {
-        EmitCount(code, BLANK, total);
+      uint16_t original_mask = block.chunks_[0].input_mask_;
+      uint16_t mask = analyzeInputs(original_mask);
+      bool contiguous = true;
+      for (int index = 0; index < input_count_; ++index) {
+        if ((original_mask & (1u << index)) == 0) continue;
+        const Box& input = input_extents_[index];
+        if (input.xMin() < bounds_.xMin() || input.xMax() > bounds_.xMax()) {
+          contiguous = false;
+          break;
+        }
+      }
+      if (contiguous) {
+        uint32_t total =
+            static_cast<uint32_t>(block.chunks_[0].width_) * block.height_;
+        EmitSpan(code, original_mask, mask, total);
         continue;
       }
-      // See if we can merge, which is OK if all affected inputs are
-      // non-extending.
-      int i = 0;
-      while (!(mask & 1)) {
-        ++i;
-        mask >>= 1;
-      }
-      int first = i;
-      while (true) {
-        const auto& input = input_extents_[i];
-        if (input.xMin() < bounds_.xMin() || input.xMax() > bounds_.xMax())
-          break;
-        mask >>= 1;
-        if (mask == 0) {
-          // Success. Merge.
-          if (i == first) {
-            EmitCount(code, WRITE_SINGLE, total, first);
-          } else {
-            EmitCount(code, WRITE, total, block.chunks_[0].input_mask_);
-          }
-          break;
-        }
-        while (true) {
-          ++i;
-          if (mask & 1) break;
-          mask >>= 1;
-        }
-      }
-      if (mask == 0) continue;
     }
 
-    // Emit the loop code.
     if (block.height_ > 1) {
       code->push_back(LOOP);
       code->push_back(block.height_);
     }
-    // First, emit potential left skips.
+    // Left and right skips keep row chunks aligned in extending streams.
     i = 0;
     for (const auto& input : input_extents_) {
-      if (input.xMin() < bounds_.xMin() && block.all_inputs_ & (1u << i)) {
-        code->push_back(SKIP);
-        code->push_back(i);
-        code->push_back(bounds_.xMin() - input.xMin());
+      if (input.xMin() < bounds_.xMin() &&
+          (block.all_inputs_ & (1u << i)) != 0) {
+        EmitCount(code, SKIP, bounds_.xMin() - input.xMin(), i);
       }
-      i++;
+      ++i;
     }
-    // Now, the chunks.
     for (const auto& chunk : block.chunks_) {
-      uint16_t mask = chunk.input_mask_;
-      // See if some inputs should be skipped because they get completely
-      // overwritten due to blending modes.
-      {
-        uint16_t skip_mask = mask;
-        int index = 0;
-        int max_skipped_index = 0;
-        for (int index = 0; index < this->input_count_; ++index) {
-          if ((skip_mask & 1) == 0) {
-            BlendingMode blending_mode = blending_modes_[index];
-            if (IsBlendingModeSourceClearing(blending_mode)) {
-              max_skipped_index = index;
-            }
-          }
-          skip_mask >>= 1;
-        }
-        int skip_mask_mask = ((1u << max_skipped_index) - 1);
-        skip_mask = mask & skip_mask_mask;
-        mask &= ~skip_mask_mask;
-        index = 0;
-        while (skip_mask > 0) {
-          if (skip_mask & 1) {
-            code->push_back(SKIP);
-            code->push_back(index);
-            code->push_back(chunk.width_);
-          }
-          ++index;
-          skip_mask >>= 1;
-        }
-      }
-      // See if some inputs should be skipped because they are drawn over
-      // transparent destinations in drawing modes that result in clearance.
-      {
-        int index = 0;
-        uint16_t m = mask;
-        bool dst_clear = true;
-        while (m > 0) {
-          if ((m & 1) != 0) {
-            if (dst_clear &&
-                IsBlendingModeDestinationClearing(blending_modes_[index])) {
-              code->push_back(SKIP);
-              code->push_back(index);
-              code->push_back(chunk.width_);
-              mask &= ~(1u << index);
-            } else {
-              dst_clear = false;
-            }
-          }
-          ++index;
-          m >>= 1;
-        }
-      }
-      if (mask == 0) {
-        code->push_back(BLANK);
-        code->push_back(chunk.width_);
-      } else {
-        uint16_t mask_copy = mask;
-        int index = 0;
-        while (!(mask_copy & 1)) {
-          mask_copy >>= 1;
-          ++index;
-        }
-        if (mask_copy == 1) {
-          code->push_back(WRITE_SINGLE);
-          code->push_back(index);
-          code->push_back(chunk.width_);
-        } else {
-          code->push_back(WRITE);
-          code->push_back(mask);
-          code->push_back(chunk.width_);
-        }
-      }
+      EmitSpan(code, chunk.input_mask_, analyzeInputs(chunk.input_mask_),
+               chunk.width_);
     }
-    // Finally, emit potential right skips.
     i = 0;
     for (const auto& input : input_extents_) {
-      if (input.xMax() > bounds_.xMax() && block.all_inputs_ & (1u << i)) {
-        code->push_back(SKIP);
-        code->push_back(i);
-        code->push_back(input.xMax() - bounds_.xMax());
+      if (input.xMax() > bounds_.xMax() &&
+          (block.all_inputs_ & (1u << i)) != 0) {
+        EmitCount(code, SKIP, input.xMax() - bounds_.xMax(), i);
       }
-      i++;
+      ++i;
     }
-    if (block.height_ > 1) {
-      // We emitted the loop code, so we need to emit the RET.
-      code->push_back(RET);
-    }
+    if (block.height_ > 1) code->push_back(RET);
   }
   code->push_back(EXIT);
 }
@@ -446,19 +378,174 @@ inline bool Composition::Add(const Box& extents, BlendingMode blending_mode) {
   }
 }
 
+// Initializes the stack with the ordinary blend operation, preserving
+// alpha-zero RGB.
+template <BlendingMode mode>
+__attribute__((always_inline)) inline Color InitializeFirstInput(Color sample) {
+  if (mode == BlendingMode::kSourceOver) {
+    // Keep source-over initialization to an alpha test even in size-optimized
+    // builds, which may otherwise retain a call to the general blend operator.
+    return sample.a() == 0 ? color::Transparent : sample;
+  }
+  return BlendOp<mode>().blend(color::Transparent, sample);
+}
+
+struct FirstInputBlender {
+  template <BlendingMode mode>
+  void operator()(Color* buffer, uint16_t count) const {
+    for (uint16_t i = 0; i < count; ++i) {
+      buffer[i] = InitializeFirstInput<mode>(buffer[i]);
+    }
+  }
+};
+
+// Initializes a batch without requesting unused run metadata from the input.
+void ReadFirstInput(internal::BufferingStream& stream, BlendingMode mode,
+                    Color* buffer, uint16_t count) {
+  stream.read(buffer, count);
+  internal::BlenderSpecialization<FirstInputBlender>(mode, buffer, count);
+}
+
+// A deterministic blend preserves any uniform run reported by the source.
+void ReadFirstInput(internal::BufferingStream& stream, BlendingMode mode,
+                    Color* buffer, uint16_t count, uint32_t& run_length) {
+  stream.read(buffer, count, run_length);
+  internal::BlenderSpecialization<FirstInputBlender>(mode, buffer, count);
+}
+
+// Composes all selected inputs against the initially transparent stack result.
+void ReadInputs(uint16_t mask, internal::BufferingStream* streams,
+                const BlendingMode* modes, Color* buffer, uint16_t count) {
+  uint16_t input = 0;
+  while ((mask & 1u) == 0) {
+    ++input;
+    mask >>= 1;
+  }
+  ReadFirstInput(streams[input], modes[input], buffer, count);
+  while ((mask >>= 1) != 0) {
+    ++input;
+    if ((mask & 1u) != 0) streams[input].blend(buffer, count, modes[input]);
+  }
+}
+
+// Resolves a composed color with a background operation selected outside pixel
+// loops. Source selects transparent backgrounds and must still replace explicit
+// Background.
+template <BlendingMode background_mode>
+__attribute__((always_inline)) inline Color ResolveBackground(
+    Color composed, Color background) {
+  if (background_mode == BlendingMode::kSource &&
+      composed == color::Background) {
+    return background;
+  }
+  return BlendOp<background_mode>().blend(background, composed);
+}
+
+// Selects the background operation once per composed batch.
+void ResolveBackground(Color* buffer, uint16_t count, Color background) {
+  if (background == color::Transparent) {
+    for (uint16_t i = 0; i < count; ++i) {
+      buffer[i] =
+          ResolveBackground<BlendingMode::kSource>(buffer[i], background);
+    }
+  } else if (background.isOpaque()) {
+    for (uint16_t i = 0; i < count; ++i) {
+      buffer[i] = ResolveBackground<BlendingMode::kSourceOverOpaque>(
+          buffer[i], background);
+    }
+  } else {
+    for (uint16_t i = 0; i < count; ++i) {
+      buffer[i] =
+          ResolveBackground<BlendingMode::kSourceOver>(buffer[i], background);
+    }
+  }
+}
+
+// Keeps visibility checks and cursor advancement inside the caller's pixel
+// loop, including in size-optimized embedded builds. Source-over inputs cannot
+// contribute an explicit Background placeholder to visible coverage.
+template <BlendingMode background_mode, bool allow_background = true>
+__attribute__((always_inline)) inline void WriteVisiblePixel(
+    BufferedPixelWriter& writer, const Box& bounds, int32_t& x, int32_t& y,
+    Color composed, Color background) {
+  if (composed.a() != 0) {
+    writer.writePixel(x, y,
+                      BlendOp<background_mode>().blend(background, composed));
+  } else if (allow_background && composed == color::Background) {
+    writer.writePixel(x, y, background);
+  }
+  if (++x > bounds.xMax()) {
+    x = bounds.xMin();
+    ++y;
+  }
+}
+
+// Consumes source/source-over directly. Nonzero-alpha samples are unchanged by
+// either first-input mode; zero-alpha samples only paint Background in source
+// mode. This folds first-input evaluation into the visibility check.
+template <BlendingMode input_mode, BlendingMode background_mode>
+void WriteSingleVisible(internal::BufferingStream& stream, uint16_t count,
+                        BufferedPixelWriter& writer, const Box& bounds,
+                        int32_t& x, int32_t& y, Color background) {
+  static_assert(input_mode == BlendingMode::kSource ||
+                    input_mode == BlendingMode::kSourceOver,
+                "Direct visible reads require source or source-over");
+  while (count-- > 0) {
+    WriteVisiblePixel<background_mode, input_mode == BlendingMode::kSource>(
+        writer, bounds, x, y, stream.next(), background);
+  }
+}
+
+// Emits a composed batch with a fixed background operation. Inlining keeps
+// cursor references from escaping, so the enclosing loops can keep registers.
+template <BlendingMode background_mode>
+__attribute__((always_inline)) inline void WriteVisiblePixels(
+    const Color* buffer, uint16_t count, BufferedPixelWriter& writer,
+    const Box& bounds, int32_t& x, int32_t& y, Color background) {
+  for (uint16_t i = 0; i < count; ++i) {
+    WriteVisiblePixel<background_mode>(writer, bounds, x, y, buffer[i],
+                                       background);
+  }
+}
+
+// Keeps common modes on the direct path; other modes share batched evaluation
+// to avoid specializing the entire drawing loop for every blend mode.
+template <BlendingMode background_mode>
+void WriteSingleVisible(internal::BufferingStream& stream, BlendingMode mode,
+                        uint16_t count, BufferedPixelWriter& writer,
+                        const Box& bounds, int32_t& x, int32_t& y,
+                        Color background) {
+  if (mode == BlendingMode::kSource) {
+    WriteSingleVisible<BlendingMode::kSource, background_mode>(
+        stream, count, writer, bounds, x, y, background);
+  } else if (mode == BlendingMode::kSourceOver) {
+    WriteSingleVisible<BlendingMode::kSourceOver, background_mode>(
+        stream, count, writer, bounds, x, y, background);
+  } else {
+    Color buffer[kPixelWritingBufferSize];
+    do {
+      uint16_t batch = std::min<uint32_t>(kPixelWritingBufferSize, count);
+      ReadFirstInput(stream, mode, buffer, batch);
+      WriteVisiblePixels<background_mode>(buffer, batch, writer, bounds, x, y,
+                                          background);
+      count -= batch;
+    } while (count > 0);
+  }
+}
+
 void WriteRect(Engine* engine, const Box& bounds,
                internal::BufferingStream* streams,
                const BlendingMode* blending_modes, const Surface& s) {
   s.out().setAddress(bounds, s.blending_mode());
   BufferedColorWriter writer(s.out());
+  const Color background = s.bgcolor();
   while (true) {
     switch (engine->fetch()) {
-      case EXIT: {
+      case EXIT:
         return;
-      }
       case BLANK: {
         uint16_t count = engine->read_word();
-        writer.writeColorN(s.bgcolor(), count);
+        writer.writeColorN(background, count);
         break;
       }
       case SKIP: {
@@ -470,15 +557,24 @@ void WriteRect(Engine* engine, const Box& bounds,
       case WRITE_SINGLE: {
         uint16_t input = engine->read_word();
         uint16_t count = engine->read_word();
+        BlendingMode mode = blending_modes[input];
         do {
-          Color* buf = writer.buffer_ptr();
-          uint16_t batch = writer.remaining_buffer_space();
-          if (batch > count) batch = count;
-          if (s.bgcolor() == color::Transparent) {
-            streams[input].read(buf, batch);
+          Color* buffer = writer.buffer_ptr();
+          uint16_t batch =
+              std::min<uint32_t>(writer.remaining_buffer_space(), count);
+          if (mode == BlendingMode::kSourceOver &&
+              background != color::Transparent) {
+            // Source-over against transparent, then the surface background,
+            // equals source-over directly onto that background.
+            FillColor(buffer, batch, background);
+            streams[input].blend(buffer, batch, BlendingMode::kSourceOver);
           } else {
-            FillColor(buf, batch, s.bgcolor());
-            streams[input].blend(buf, batch, blending_modes[input]);
+            ReadFirstInput(streams[input], mode, buffer, batch);
+            // Source-over initialized against transparent cannot produce
+            // Background.
+            if (mode != BlendingMode::kSourceOver) {
+              ResolveBackground(buffer, batch, background);
+            }
           }
           writer.advance_buffer_ptr(batch);
           count -= batch;
@@ -489,51 +585,19 @@ void WriteRect(Engine* engine, const Box& bounds,
         uint16_t inputs = engine->read_word();
         uint16_t count = engine->read_word();
         do {
-          uint16_t input = 0;
-          uint16_t input_mask = inputs;
-          Color* buf = writer.buffer_ptr();
-          uint16_t batch = writer.remaining_buffer_space();
-          if (batch > count) batch = count;
-          while (true) {
-            if (input_mask & 1) {
-              streams[input].read(buf, batch);
-              break;
-            }
-            input++;
-            input_mask >>= 1;
-          }
-          while (true) {
-            input++;
-            input_mask >>= 1;
-            if (input_mask == 0) break;
-            if (input_mask & 1) {
-              streams[input].blend(buf, batch, blending_modes[input]);
-            }
-          }
-          // NOTE(dawidk): alpha-blending is expensive, and it is usually
-          // better to blend all inputs together, and only then blend the
-          // results onto the background.
-          if (s.bgcolor() != color::Transparent) {
-            Color bg = s.bgcolor();
-            if (bg.isOpaque()) {
-              for (int i = 0; i < batch; ++i) {
-                buf[i] = AlphaBlendOverOpaque(bg, buf[i]);
-              }
-            } else {
-              for (int i = 0; i < batch; ++i) {
-                buf[i] = AlphaBlend(bg, buf[i]);
-              }
-            }
-          }
+          Color* buffer = writer.buffer_ptr();
+          uint16_t batch =
+              std::min<uint32_t>(writer.remaining_buffer_space(), count);
+          ReadInputs(inputs, streams, blending_modes, buffer, batch);
+          // Blend onto the background once, after combining the input layers.
+          ResolveBackground(buffer, batch, background);
           writer.advance_buffer_ptr(batch);
           count -= batch;
         } while (count > 0);
         break;
       }
-      default: {
-        // Unexpected.
+      default:
         return;
-      }
     }
   }
 }
@@ -542,13 +606,13 @@ void WriteVisible(Engine* engine, const Box& bounds,
                   internal::BufferingStream* streams,
                   const BlendingMode* blending_modes, const Surface& s) {
   BufferedPixelWriter writer(s.out(), s.blending_mode());
+  const Color background = s.bgcolor();
   int32_t x = bounds.xMin();
   int32_t y = bounds.yMin();
   while (true) {
     switch (engine->fetch()) {
-      case EXIT: {
+      case EXIT:
         return;
-      }
       case BLANK: {
         int32_t offset = x - bounds.xMin() + engine->read_word();
         y += offset / bounds.width();
@@ -564,92 +628,37 @@ void WriteVisible(Engine* engine, const Box& bounds,
       case WRITE_SINGLE: {
         uint16_t input = engine->read_word();
         uint16_t count = engine->read_word();
-        if (s.bgcolor() == color::Transparent) {
-          while (count-- > 0) {
-            Color c = streams[input].next();
-            if (c.a() != 0) {
-              writer.writePixel(x, y, c);
-            }
-            ++x;
-            if (x > bounds.xMax()) {
-              x = bounds.xMin();
-              ++y;
-            }
-          }
+        if (background == color::Transparent) {
+          WriteSingleVisible<BlendingMode::kSource>(
+              streams[input], blending_modes[input], count, writer, bounds, x,
+              y, background);
         } else {
-          while (count-- > 0) {
-            Color c = streams[input].next();
-            if (c.a() != 0) {
-              writer.writePixel(x, y, AlphaBlend(s.bgcolor(), c));
-            }
-            ++x;
-            if (x > bounds.xMax()) {
-              x = bounds.xMin();
-              ++y;
-            }
-          }
+          WriteSingleVisible<BlendingMode::kSourceOver>(
+              streams[input], blending_modes[input], count, writer, bounds, x,
+              y, background);
         }
         break;
       }
       case WRITE: {
         uint16_t inputs = engine->read_word();
         uint16_t count = engine->read_word();
-        Color buf[kPixelWritingBufferSize];
+        Color buffer[kPixelWritingBufferSize];
         do {
-          uint16_t input = 0;
-          uint16_t input_mask = inputs;
-          uint16_t batch = kPixelWritingBufferSize;
-          if (batch > count) batch = count;
-          while (true) {
-            if (input_mask & 1) {
-              streams[input].read(buf, batch);
-              break;
-            }
-            input++;
-            input_mask >>= 1;
-          }
-          while (true) {
-            input++;
-            input_mask >>= 1;
-            if (input_mask == 0) break;
-            if (input_mask & 1) {
-              streams[input].blend(buf, batch, blending_modes[input]);
-            }
-          }
-          // NOTE(dawidk): alpha-blending is expensive, and it is usually
-          // better to blend all inputs together, and only then blend the
-          // results onto the background.
-          if (s.bgcolor() == color::Transparent) {
-            for (int i = 0; i < batch; ++i) {
-              if (buf[i].a() != 0) {
-                writer.writePixel(x, y, buf[i]);
-              }
-              ++x;
-              if (x > bounds.xMax()) {
-                x = bounds.xMin();
-                ++y;
-              }
-            }
+          uint16_t batch = std::min<uint32_t>(kPixelWritingBufferSize, count);
+          ReadInputs(inputs, streams, blending_modes, buffer, batch);
+          if (background == color::Transparent) {
+            WriteVisiblePixels<BlendingMode::kSource>(buffer, batch, writer,
+                                                      bounds, x, y, background);
           } else {
-            for (int i = 0; i < batch; ++i) {
-              if (buf[i].a() != 0) {
-                writer.writePixel(x, y, AlphaBlend(s.bgcolor(), buf[i]));
-              }
-              ++x;
-              if (x > bounds.xMax()) {
-                x = bounds.xMin();
-                ++y;
-              }
-            }
+            WriteVisiblePixels<BlendingMode::kSourceOver>(
+                buffer, batch, writer, bounds, x, y, background);
           }
           count -= batch;
         } while (count > 0);
         break;
       }
-      default: {
-        // Unexpected.
+      default:
         return;
-      }
     }
   }
 }
@@ -717,37 +726,18 @@ class StreamableComboStream : public PixelStream {
         case WRITE_SINGLE: {
           if (first_batch) {
             uint32_t input_run_length = 0;
-            streams_[input_].read(result, batch, input_run_length);
-            if (input_run_length == PixelStream::kUnlimitedRunLength) {
-              run_length = remaining_count_;
-            } else if (input_run_length > 0) {
-              run_length = input_run_length;
-              if (run_length > remaining_count_) run_length = remaining_count_;
-            }
+            ReadFirstInput(streams_[input_], blending_modes_[input_], result,
+                           batch, input_run_length);
+            run_length = std::min<uint32_t>(input_run_length, remaining_count_);
           } else {
-            streams_[input_].read(result, batch);
+            ReadFirstInput(streams_[input_], blending_modes_[input_], result,
+                           batch);
           }
           break;
         }
         case WRITE: {
-          uint16_t input = 0;
-          uint16_t input_mask = input_;
-          while (true) {
-            if (input_mask & 1) {
-              streams_[input].read(result, batch);
-              break;
-            }
-            input++;
-            input_mask >>= 1;
-          }
-          while (true) {
-            input++;
-            input_mask >>= 1;
-            if (input_mask == 0) break;
-            if (input_mask & 1) {
-              streams_[input].blend(result, batch, blending_modes_[input]);
-            }
-          }
+          ReadInputs(input_, streams_.data(), blending_modes_.data(), result,
+                     batch);
           break;
         }
         default: {

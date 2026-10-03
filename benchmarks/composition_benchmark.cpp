@@ -16,55 +16,7 @@
 #include "roo_display/core/offscreen.h"
 #include "roo_display/image/image.h"
 #include "roo_display/shape/basic.h"
-
-namespace allocation {
-
-struct Stats {
-  size_t count = 0;
-  size_t live = 0;
-  size_t peak = 0;
-};
-
-struct alignas(std::max_align_t) Header {
-  size_t size;
-  size_t generation;
-};
-
-thread_local Stats stats;
-thread_local size_t generation = 0;
-thread_local bool enabled = false;
-
-// Generations keep objects allocated in earlier phases out of this phase's
-// peak, even when their lifetime ends during the measured operation.
-void* Allocate(size_t size) {
-  if (size > static_cast<size_t>(-1) - sizeof(Header)) std::abort();
-  Header* header = static_cast<Header*>(std::malloc(size + sizeof(Header)));
-  if (header == nullptr) std::abort();
-  header->size = size;
-  header->generation = enabled ? generation : 0;
-  if (enabled) {
-    ++stats.count;
-    stats.live += size;
-    stats.peak = std::max(stats.peak, stats.live);
-  }
-  return header + 1;
-}
-
-void Free(void* ptr) {
-  if (ptr == nullptr) return;
-  Header* header = static_cast<Header*>(ptr) - 1;
-  if (enabled && header->generation == generation) stats.live -= header->size;
-  std::free(header);
-}
-
-}  // namespace allocation
-
-void* operator new(size_t size) { return allocation::Allocate(size); }
-void* operator new[](size_t size) { return allocation::Allocate(size); }
-void operator delete(void* ptr) noexcept { allocation::Free(ptr); }
-void operator delete[](void* ptr) noexcept { allocation::Free(ptr); }
-void operator delete(void* ptr, size_t) noexcept { allocation::Free(ptr); }
-void operator delete[](void* ptr, size_t) noexcept { allocation::Free(ptr); }
+#include "test/composition_heap_tracking.h"
 
 namespace {
 using namespace roo_display;
@@ -77,16 +29,12 @@ struct Measurement {
 
 template <typename Fn>
 void Measure(Measurement& total, Fn fn) {
-  allocation::stats = {};
-  ++allocation::generation;
-  allocation::enabled = true;
   auto start = std::chrono::steady_clock::now();
-  fn();
+  allocation::Stats stats = allocation::Measure(fn);
   auto end = std::chrono::steady_clock::now();
-  allocation::enabled = false;
   total.us += std::chrono::duration<double, std::micro>(end - start).count();
-  total.allocations += allocation::stats.count;
-  total.peak = std::max(total.peak, allocation::stats.peak);
+  total.allocations += stats.count;
+  total.peak = std::max(total.peak, stats.peak);
 }
 
 struct Input {
@@ -127,7 +75,7 @@ Scene MakeScene(const char* name, int width, int height, int count) {
       int y = (i / 4) * height / 4;
       clip = Box(x, y, x + width / 4 - 1, y + height / 4 - 1);
     }
-    if (kind == "mask" && i == count - 1) {
+    if ((kind == "mask" || kind == "uniform_mask") && i == count - 1) {
       clip = Box(width / 4, height / 4, width * 3 / 4 - 1, height * 3 / 4 - 1);
       mode = BlendingMode::kDestinationIn;
     }
@@ -140,11 +88,15 @@ Scene MakeScene(const char* name, int width, int height, int count) {
     });
     scene.rasters.emplace_back(new decltype(raster)(raster));
     const Rasterizable* source = scene.rasters.back().get();
-    if (kind == "opaque" && i == count - 1) {
-      scene.rasters.emplace_back(new FilledRect(scene.bounds, color::Blue));
+    if ((kind == "opaque" && i == count - 1) || kind == "nested_opaque" ||
+        kind == "uniform" || kind == "uniform_mask") {
+      Color color = kind == "uniform" || kind == "uniform_mask"
+                        ? Color(96, i * 13, 128, 192)
+                        : color::Blue;
+      scene.rasters.emplace_back(new FilledRect(scene.bounds, color));
       source = scene.rasters.back().get();
     }
-    if (kind == "nested") {
+    if (kind == "nested" || kind == "nested_opaque") {
       std::unique_ptr<RasterizableStack> inner(
           new RasterizableStack(scene.bounds));
       inner->addInput(source);
@@ -251,7 +203,8 @@ int main() {
   for (int width : {32, 160}) {
     for (int layers : {1, 4, 16}) {
       for (const char* kind :
-           {"overlap", "opaque", "sparse", "mask", "nested", "rle"}) {
+           {"overlap", "opaque", "sparse", "mask", "nested", "rle", "uniform",
+            "uniform_mask", "nested_opaque"}) {
         Scene scene = MakeScene(kind, width, width * 3 / 4, layers);
         Run<StreamableStack>("stream", kind, scene);
         if (std::string(kind) != "rle")

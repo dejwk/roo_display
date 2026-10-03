@@ -2977,6 +2977,10 @@ configuration: adding inputs or reserving more storage can invalidate them.
 clipped-out layers. Use `StreamableStack::canCreateStream(clip)` to check the
 compiler's capacity before rendering; this does not guarantee allocation success.
 
+This reuses input descriptors only. Each compiled draw or stream creation still
+builds fresh compiler vectors, bytecode, surviving-input buffers, and child
+streams. There is no reusable compiler workspace or cached compiled program.
+
 Source clipping, translation, composition bounds, and output clipping have
 different purposes. For example:
 
@@ -2993,7 +2997,8 @@ Outside a source's translated clip, `kSource`, `kSourceIn`, `kSourceOut`,
 Other modes preserve it. An entirely clipped-out mask can therefore still matter.
 Changing the output clip does not change these semantics. Stack extents and
 anchor extents are independent; `naturalExtents()` reports the input envelope
-without changing either one.
+without changing either one. Empty input clips do not enlarge that envelope,
+even when their blending operation still matters.
 
 Both stacks infer a conservative opacity hint from current source metadata,
 coverage, and blending modes. A provably opaque nested group can hide earlier
@@ -3055,9 +3060,19 @@ The per-file option downgrades an existing optimized-build warning in the host
 Wi-Fi shim. CSV output reports mean microseconds and allocation counts over ten
 iterations, plus the maximum requested C++ heap bytes allocated within each
 phase. It excludes fixture storage, earlier-phase allocations, allocator
-bookkeeping, C allocations, and stack memory. The harness checks that streamed
-and drawn pixel checksums agree. Cases cover 1/4/16 inputs, two output sizes,
+bookkeeping, C allocations, over-aligned allocations, and stack memory. The
+harness checks that streamed and drawn pixel checksums agree. Cases cover 1/4/16 inputs, two output sizes,
 overlap, opacity, sparse coverage, masks, nesting, and compressed RLE images.
+Uniform layers, uniform masks, and nested opaque groups exercise metadata-driven
+skipping separately from pixel-heavy scenes.
+
+In one production-buffer host run, the 160×120 scene with 16 layers and an
+opaque top layer reduced `StreamableStack` preparation peak heap from 4,688 to
+428 bytes relative to revision `b4b5c68`; drawing averaged 14.74 versus 2.01 µs.
+The raster stack's compiled preparation dropped from 5,072 to 812 bytes, while
+its allocation-free direct draw averaged 47.47 versus 1.19 µs. These are a
+specific opaque-uniform case, not a general speedup claim. Dense scenes still
+sample and blend their contributing inputs.
 
 These host measurements separate CPU and allocation costs; they do not measure
 display transfer time. Use `benchmarks/composition.ino` on the target hardware
@@ -3067,10 +3082,55 @@ Run the composition regression suite with both unusual test buffers and the
 production buffer size:
 
 ```sh
-bazel test //:composition_test //:rasterizable_stack_test //:streamable_stack_test
-bazel test //:composition_test //:rasterizable_stack_test //:streamable_stack_test \
-  --copt=-UROO_DISPLAY_TESTING
+bazel test //:composition_test //:composition_resource_test \
+  //:rasterizable_stack_test //:streamable_stack_test
+bazel test //:composition_test //:composition_resource_test \
+  //:rasterizable_stack_test //:streamable_stack_test --copt=-UROO_DISPLAY_TESTING
 ```
+
+Append `--config=asan` to check memory safety. Keep debug assertions enabled
+when running the full library suite: some unrelated death tests depend on them.
+The deterministic randomized composition test compares rendering, filtering,
+stream reads/skips, and uniform-run promises with a per-pixel oracle across all
+ordinary blending modes. Resource tests check retained storage after hidden
+inputs are eliminated and verify allocation-free reserved-descriptor rebuilds
+and nested raster drawing. They avoid host-specific byte-count thresholds.
+
+To inspect target ABI sizes and compiler stack frames without flashing, run:
+
+```sh
+python3 benchmarks/composition_stack_usage.py \
+  ~/.platformio/packages/toolchain-xtensa-esp-elf/bin/xtensa-esp32-elf-g++ \
+  --idf-include ~/.platformio/packages/framework-arduinoespressif32-libs/esp32/include/newlib/platform_include \
+  --idf-include ~/.platformio/packages/framework-arduinoespressif32-libs/esp32/qio_qspi/include \
+  --output-dir /tmp/roo_display_composition_frames
+```
+
+Adjust the compiler and ESP-IDF header paths to your installation. The script
+uses actual target headers and `-Os -fno-exceptions -fno-rtti`, prints object
+sizes, and retains `.su` files and a `frames.tsv` report. `--source-root` can
+select an older source checkout for comparison; `--roo-root` selects the sibling
+dependency repositories.
+
+With ESP32 Xtensa GCC 14.2.0 and production buffers, selected measurements are:
+
+| Object or individual function frame | Bytes |
+| --- | ---: |
+| `StreamableStack` / `RasterizableStack` object, each | 32 |
+| `BufferingStream` object, including its pixel buffer | 272 |
+| `RasterizableStack::readColorRect()` frame | 448 |
+| `RasterizableStack::readColors()` outlined implementation frame | 864 |
+| `StreamableStack::drawTo()` frame | 400 |
+| `RasterizableStack::drawTo()` uniform-probe wrapper frame | 80 |
+
+The first five measurements are unchanged from revision `b4b5c68`. The final
+frame is new and also precedes the nonuniform raster fallback. These are
+individual compiler-reported frames, not total call-chain use or measured
+runtime stack high-water marks. Callees, nested groups, output drivers, and
+interrupts add their own cost; the full report also includes wrapper and helper
+frames. Bounded scratch per call does not bound arbitrary nesting depth. Check
+runtime stack high-water on the target application before choosing its task
+stack size.
 
 #### Rasterizable stack
 

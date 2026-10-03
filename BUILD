@@ -600,5 +600,20 @@ cc_binary(
     name = "composition_benchmark",
     srcs = ["benchmarks/composition_benchmark.cpp"],
     linkstatic = 1,
-    deps = [":roo_display"],
+    deps = [
+        ":composition_heap_tracking",
+        ":roo_display",
+    ],
+)
+
+cc_library(
+    name = "composition_heap_tracking",
+    hdrs = ["test/composition_heap_tracking.h"],
+)
+
+cc_test(
+    name = "composition_resource_test",
+    srcs = ["test/composition_resource_test.cpp"],
+    linkstatic = 1,
+    deps = UNIT_TEST_DEPS + [":composition_heap_tracking"],
 )

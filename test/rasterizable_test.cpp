@@ -225,4 +225,39 @@ TEST(Rasterizable, StreamResetsRunMetadata) {
   }
 }
 
+namespace {
+
+// Rejects oversized coordinate batches while preserving a coordinate oracle.
+class BoundedPointRasterizable : public Rasterizable {
+ public:
+  Box extents() const override { return Box(0, 0, 319, 239); }
+
+  void readColors(const int16_t* x, const int16_t* y, uint32_t count,
+                  Color* result) const override {
+    EXPECT_LE(count, 64u);
+    for (uint32_t i = 0; i < count; ++i) {
+      result[i] = Color(0xFF000000u | (y[i] * 320 + x[i]));
+    }
+  }
+};
+
+}  // namespace
+
+// Verifies full-screen rectangle reads and large cross-row stream reads use
+// bounded coordinate batches without losing row-major position.
+TEST(Rasterizable, LargeReadsUseBoundedPointBatches) {
+  BoundedPointRasterizable input;
+  std::vector<Color> pixels(input.extents().area());
+  EXPECT_FALSE(input.readColorRect(0, 0, 319, 239, pixels.data()));
+  for (size_t i = 0; i < pixels.size(); ++i) {
+    ASSERT_EQ(pixels[i], Color(0xFF000000u | i));
+  }
+  auto stream = input.createStream();
+  stream->skip(3);
+  stream->read(pixels.data(), 65535);
+  for (int i = 0; i < 65535; ++i) {
+    ASSERT_EQ(pixels[i], Color(0xFF000000u | (i + 3)));
+  }
+}
+
 }  // namespace roo_display

@@ -4,6 +4,32 @@ namespace roo_display {
 
 namespace {
 
+// Reads row-major points using bounded coordinate scratch space, advancing
+// the caller's cursor even when a batch crosses a row boundary.
+void ReadRasterPoints(const Rasterizable& raster, const Box& bounds,
+                      int16_t& cursor_x, int16_t& cursor_y, Color* result,
+                      uint32_t count) {
+  constexpr uint32_t kBatchSize = 64;
+  int16_t x[kBatchSize];
+  int16_t y[kBatchSize];
+  while (count > 0) {
+    uint32_t batch = std::min(count, kBatchSize);
+    for (uint32_t i = 0; i < batch; ++i) {
+      x[i] = cursor_x;
+      y[i] = cursor_y;
+      if (cursor_x < bounds.xMax()) {
+        ++cursor_x;
+      } else {
+        cursor_x = bounds.xMin();
+        ++cursor_y;
+      }
+    }
+    raster.readColors(x, y, batch, result);
+    result += batch;
+    count -= batch;
+  }
+}
+
 class Stream : public PixelStream {
  public:
   using PixelStream::read;
@@ -34,21 +60,7 @@ class Stream : public PixelStream {
       }
       return;
     }
-    // Slow path: general case.
-    int16_t x[size];
-    int16_t y[size];
-    for (int i = 0; i < size; ++i) {
-      x[i] = x_;
-      y[i] = y_;
-      if (x_ < bounds_.xMax()) {
-        ++x_;
-      } else {
-        x_ = bounds_.xMin();
-        ++y_;
-      }
-    }
-    data_->readColors(x, y, size, buf);
-    run_length = 0;
+    ReadRasterPoints(*data_, bounds_, x_, y_, buf, size);
   }
 
   void skip(uint32_t count) override {
@@ -112,21 +124,7 @@ class NarrowStream : public PixelStream {
       }
       return;
     }
-    // Slow path: general case.
-    int16_t x[size];
-    int16_t y[size];
-    for (int i = 0; i < size; ++i) {
-      x[i] = x_;
-      y[i] = y_;
-      if (x_ < bounds_.xMax()) {
-        ++x_;
-      } else {
-        x_ = bounds_.xMin();
-        ++y_;
-      }
-    }
-    data_->readColors(x, y, size, buf);
-    run_length = 0;
+    ReadRasterPoints(*data_, bounds_, x_, y_, buf, size);
   }
 
   void skip(uint32_t count) override {
@@ -206,17 +204,10 @@ void Rasterizable::readColorsMaybeOutOfBounds(const int16_t *x,
 bool Rasterizable::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
                                  int16_t yMax, Color *result) const {
   uint32_t pixel_count = (xMax - xMin + 1) * (yMax - yMin + 1);
-  int16_t x[pixel_count];
-  int16_t y[pixel_count];
-  int16_t *cx = x;
-  int16_t *cy = y;
-  for (int16_t y_cursor = yMin; y_cursor <= yMax; ++y_cursor) {
-    for (int16_t x_cursor = xMin; x_cursor <= xMax; ++x_cursor) {
-      *cx++ = x_cursor;
-      *cy++ = y_cursor;
-    }
-  }
-  readColors(x, y, pixel_count, result);
+  int16_t x = xMin;
+  int16_t y = yMin;
+  ReadRasterPoints(*this, Box(xMin, yMin, xMax, yMax), x, y, result,
+                   pixel_count);
   Color c = result[0];
   for (uint32_t i = 1; i < pixel_count; i++) {
     if (result[i] != c) return false;

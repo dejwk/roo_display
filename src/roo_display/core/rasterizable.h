@@ -34,7 +34,9 @@ class Rasterizable : public virtual Streamable {
   /// Read colors for a rectangle.
   ///
   /// Returns true if all colors are identical (then only result[0] is valid).
-  /// The caller must ensure the rectangle is within bounds.
+  /// The caller must ensure the rectangle is within bounds and provide room
+  /// for its area in colors. The default implementation uses bounded coordinate
+  /// scratch space (64 points), independent of the rectangle's area.
   virtual bool readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
                              int16_t yMax, Color* result) const;
 

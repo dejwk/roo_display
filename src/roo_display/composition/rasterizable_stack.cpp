@@ -24,6 +24,38 @@ size_t FirstInputAfterLastClear(
   return 0;
 }
 
+// Evaluates a large rectangle in bounded tiles. Keep a uniform prefix implicit
+// until the first differing tile; then materialize it once in caller storage.
+bool ReadTiledColorRect(const Rasterizable& raster, const Box& box,
+                        Color* result) {
+  constexpr int kTileSize = 8;
+  Color tile[kTileSize * kTileSize];
+  bool uniform = true;
+  for (int32_t y = box.yMin(); y <= box.yMax(); y += kTileSize) {
+    int32_t y_max = std::min<int32_t>(y + kTileSize - 1, box.yMax());
+    for (int32_t x = box.xMin(); x <= box.xMax(); x += kTileSize) {
+      int32_t x_max = std::min<int32_t>(x + kTileSize - 1, box.xMax());
+      bool tile_uniform = raster.readColorRect(x, y, x_max, y_max, tile);
+      if (x == box.xMin() && y == box.yMin()) *result = tile[0];
+      if (uniform && tile_uniform && tile[0] == *result) continue;
+      if (uniform) {
+        FillColor(result, box.area(), *result);
+        uniform = false;
+      }
+      int32_t width = x_max - x + 1;
+      for (int32_t row = y; row <= y_max; ++row) {
+        Color* dst = result + (row - box.yMin()) * box.width() + x - box.xMin();
+        if (tile_uniform) {
+          FillColor(dst, width, tile[0]);
+        } else {
+          std::copy_n(tile + (row - y) * width, width, dst);
+        }
+      }
+    }
+  }
+  return uniform;
+}
+
 // Clears the four strips outside a nonempty source rectangle contained in box.
 // The destination buffer must already contain one color per pixel.
 void ClearOutsideRect(const Box& box, const Box& source, Color* result) {
@@ -81,11 +113,12 @@ bool RasterizableStack::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
   Box box(xMin, yMin, xMax, yMax);
   size_t first_input = FirstInputAfterLastClear(inputs_, box);
   if (first_input == inputs_.size()) return true;
+  if (box.area() > kMaxBufSize) return ReadTiledColorRect(*this, box, result);
 
   bool is_uniform_color = true;
   int16_t row_stride = box.width();
   int32_t pixel_count = box.area();
-  Color buffer[pixel_count];
+  Color buffer[kMaxBufSize];
 
   // Materialize the current uniform result into the full destination buffer.
   auto expand_result = [&]() {

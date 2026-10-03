@@ -892,4 +892,57 @@ TEST(RasterizableStack, SmallStreamClipsToCompositionBounds) {
                          expected);
 }
 
+namespace {
+
+// Checks the stack never forwards an unbounded rectangle to its children.
+class BoundedRectangleRasterizable : public Rasterizable {
+ public:
+  explicit BoundedRectangleRasterizable(bool uniform) : uniform_(uniform) {}
+
+  Box extents() const override { return Box(-5, -3, 314, 236); }
+
+  void readColors(const int16_t* x, const int16_t* y, uint32_t count,
+                  Color* result) const override {
+    for (uint32_t i = 0; i < count; ++i) {
+      result[i] = uniform_ ? color::Red
+                           : Color(0xFF000000u | ((y[i] + 3) * 320 + x[i] + 5));
+    }
+  }
+
+  bool readColorRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+                     Color* result) const override {
+    EXPECT_LE(Box(x0, y0, x1, y1).area(), 64);
+    return Rasterizable::readColorRect(x0, y0, x1, y1, result);
+  }
+
+ private:
+  bool uniform_;
+};
+
+}  // namespace
+
+// Verifies large nested reads keep child requests bounded, copy edge tiles
+// correctly, and retain an implicit uniform result without writing its tail.
+TEST(RasterizableStack, LargeNestedRectangleUsesBoundedTiles) {
+  Box bounds(0, 0, 319, 239);
+  for (bool uniform : {false, true}) {
+    BoundedRectangleRasterizable source(uniform);
+    RasterizableStack inner(bounds);
+    inner.addInput(&source, 5, 3);
+    RasterizableStack outer(bounds);
+    outer.addInput(&inner);
+    std::vector<Color> pixels(bounds.area(), Color(0xDEADBEEF));
+    EXPECT_EQ(outer.readColorRect(1, 2, 318, 238, pixels.data()), uniform);
+    if (uniform) {
+      EXPECT_EQ(pixels[0], color::Red);
+      EXPECT_EQ(pixels[1], Color(0xDEADBEEF));
+    } else {
+      for (int i = 0; i < 318 * 237; ++i) {
+        ASSERT_EQ(pixels[i],
+                  Color(0xFF000000u | ((i / 318 + 2) * 320 + i % 318 + 1)));
+      }
+    }
+  }
+}
+
 }  // namespace roo_display

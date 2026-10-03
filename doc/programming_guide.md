@@ -2956,7 +2956,7 @@ creation above 128 output pixels, where it delegates to `StreamableStack`.
 Raster reads and ordinary raster drawing keep their existing behavior; empty
 compiled output is exempt.
 
-If all the inputs are rasterizables (i.e. if they all extend `Rasterizable`), you can combine them into a logical 'stack' that is itself a rasterizable. During rendering, it needs only a little bit of stack memory (less than 1 KB) - i.e. no more need to preallocate an offscreen.
+If all the inputs are rasterizables (i.e. if they all extend `Rasterizable`), you can combine them into a logical 'stack' that is itself a rasterizable. Raster drawing uses small tiles instead of a full offscreen. Large stack rectangle reads are split into 8×8 tiles, with 64 colors of layer scratch and, for a large request, a 64-color tile buffer. Default raster reads use coordinate batches of at most 64 points. Scratch space grows with nested call depth; the caller still supplies the complete output buffer for a rectangle read. Compiled streams additionally allocate a 64-color buffer per registered input in production, plus child streams and the composition program.
 
 #### Rasterizable stack
 

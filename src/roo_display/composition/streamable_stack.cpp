@@ -89,7 +89,7 @@ inline void Block::Merge(uint16_t x_offset, uint16_t width,
 
 class Program {
  public:
-  uint16_t get(uint16_t idx) const { return prg_[idx]; }
+  uint16_t get(size_t idx) const { return prg_[idx]; }
   std::size_t size() const { return prg_.size(); }
 
  private:
@@ -108,9 +108,22 @@ enum Instruction {
   SKIP = 10004
 };
 
+// Splits pixel counts without widening the compact instruction encoding.
+void EmitCount(std::vector<uint16_t>* code, Instruction instruction,
+               uint32_t count, uint16_t input = 0) {
+  while (count > 0) {
+    uint16_t batch = std::min<uint32_t>(count, 65535);
+    code->push_back(instruction);
+    if (instruction != BLANK) code->push_back(input);
+    code->push_back(batch);
+    count -= batch;
+  }
+}
+
 class Composition {
  public:
   Composition(const Box& bounds) : bounds_(bounds), input_count_(0) {
+    if (bounds.empty()) return;
     data_.emplace_back(bounds.height());
     data_.back().AddChunk(bounds.width(), 0);
   }
@@ -170,9 +183,10 @@ inline void Composition::Compile(Program* prg) {
   int i = 0;
   for (const auto& input : input_extents_) {
     if (input.yMin() < bounds_.yMin()) {
-      code->push_back(SKIP);
-      code->push_back(i);
-      code->push_back((bounds_.yMin() - input.yMin()) * input.width());
+      EmitCount(
+          code, SKIP,
+          static_cast<uint32_t>(bounds_.yMin() - input.yMin()) * input.width(),
+          i);
     }
     i++;
   }
@@ -181,13 +195,10 @@ inline void Composition::Compile(Program* prg) {
     if (block.chunks_.size() == 1) {
       uint16_t mask = block.chunks_[0].input_mask_;
       uint32_t total = (uint32_t)block.chunks_[0].width_ * block.height_;
-      if (total <= 65535) {
-        // Optimize fully empty blocks.
-        if (mask == 0) {
-          code->push_back(BLANK);
-          code->push_back(total);
-          continue;
-        }
+      // Handle empty blocks before searching for an input bit.
+      if (mask == 0) {
+        EmitCount(code, BLANK, total);
+        continue;
       }
       // See if we can merge, which is OK if all affected inputs are
       // non-extending.
@@ -205,13 +216,9 @@ inline void Composition::Compile(Program* prg) {
         if (mask == 0) {
           // Success. Merge.
           if (i == first) {
-            code->push_back(WRITE_SINGLE);
-            code->push_back(first);
-            code->push_back(total);
+            EmitCount(code, WRITE_SINGLE, total, first);
           } else {
-            code->push_back(WRITE);
-            code->push_back(block.chunks_[0].input_mask_);
-            code->push_back(total);
+            EmitCount(code, WRITE, total, block.chunks_[0].input_mask_);
           }
           break;
         }
@@ -333,7 +340,8 @@ inline void Composition::Compile(Program* prg) {
 
 class Engine {
  public:
-  Engine(const Program* program) : program_(program), pc_(0) {}
+  Engine(const Program* program)
+      : program_(program), pc_(0), loop_ret_(0), loop_counter_(0) {}
 
   Instruction fetch() {
     while (true) {
@@ -361,8 +369,8 @@ class Engine {
 
  private:
   const Program* program_;
-  uint16_t pc_;
-  uint16_t loop_ret_;
+  size_t pc_;
+  size_t loop_ret_;
   uint16_t loop_counter_;
 };
 
@@ -524,20 +532,17 @@ void WriteVisible(Engine* engine, const Box& bounds,
                   internal::BufferingStream* streams,
                   const BlendingMode* blending_modes, const Surface& s) {
   BufferedPixelWriter writer(s.out(), s.blending_mode());
-  uint16_t x = bounds.xMin();
-  uint16_t y = bounds.yMin();
+  int32_t x = bounds.xMin();
+  int32_t y = bounds.yMin();
   while (true) {
     switch (engine->fetch()) {
       case EXIT: {
         return;
       }
       case BLANK: {
-        uint16_t count = engine->read_word();
-        x += count;
-        if (x > bounds.xMax()) {
-          y += (x - bounds.xMin()) / bounds.width();
-          x = (x - bounds.xMin()) % bounds.width() + bounds.xMin();
-        }
+        int32_t offset = x - bounds.xMin() + engine->read_word();
+        y += offset / bounds.width();
+        x = bounds.xMin() + offset % bounds.width();
         break;
       }
       case SKIP: {
@@ -654,6 +659,7 @@ class StreamableComboStream : public PixelStream {
 
   void read(Color* buf, uint16_t size, uint32_t& run_length) override {
     run_length = 0;
+    if (size == 0) return;
     Color* result = buf;
     bool first_batch = true;
     do {
@@ -780,32 +786,14 @@ void StreamableStack::drawTo(const Surface& s) const {
   composition.Compile(&prg);
   Engine engine(&prg);
   if (s.fill_mode() == FillMode::kExtents) {
-    WriteRect(&engine, bounds, &*streams.begin(), &*blending_modes.begin(), s);
+    WriteRect(&engine, bounds, streams.data(), blending_modes.data(), s);
   } else {
-    WriteVisible(&engine, bounds, &*streams.begin(), &*blending_modes.begin(),
-                 s);
+    WriteVisible(&engine, bounds, streams.data(), blending_modes.data(), s);
   }
 }
 
 std::unique_ptr<PixelStream> StreamableStack::createStream() const {
-  Box bounds = extents();
-  std::vector<internal::BufferingStream> streams;
-  std::vector<BlendingMode> blending_modes;
-  Composition composition(bounds);
-  for (const auto& input : inputs_) {
-    Box extents = Box::Intersect(input.extents(), bounds);
-    if (composition.Add(extents, input.blending_mode())) {
-      streams.emplace_back(input.createStream(extents), extents.area());
-    } else {
-      streams.emplace_back(nullptr, 0);
-    }
-    blending_modes.push_back(input.blending_mode());
-  }
-
-  Program prg;
-  composition.Compile(&prg);
-  return std::unique_ptr<PixelStream>(new StreamableComboStream(
-      std::move(prg), std::move(streams), std::move(blending_modes)));
+  return createStream(extents());
 }
 
 std::unique_ptr<PixelStream> StreamableStack::createStream(
@@ -814,14 +802,16 @@ std::unique_ptr<PixelStream> StreamableStack::createStream(
   std::vector<internal::BufferingStream> streams;
   std::vector<BlendingMode> blending_modes;
   Composition composition(bounds);
-  for (const auto& input : inputs_) {
-    Box extents = Box::Intersect(input.extents(), bounds);
-    if (composition.Add(extents, input.blending_mode())) {
-      streams.emplace_back(input.createStream(extents), extents.area());
-    } else {
-      streams.emplace_back(nullptr, 0);
+  if (!bounds.empty()) {
+    for (const auto& input : inputs_) {
+      Box extents = Box::Intersect(input.extents(), bounds);
+      if (composition.Add(extents, input.blending_mode())) {
+        streams.emplace_back(input.createStream(extents), extents.area());
+      } else {
+        streams.emplace_back(nullptr, 0);
+      }
+      blending_modes.push_back(input.blending_mode());
     }
-    blending_modes.push_back(input.blending_mode());
   }
 
   Program prg;

@@ -444,4 +444,180 @@ TEST(StreamableStack, StreamReportsRunLengthForDisjointSingleInputSpans) {
   EXPECT_EQ(pixel[0], color::Green);
 }
 
+namespace {
+
+// Checks complete initialization, sample order, and any advertised uniform
+// runs.
+template <typename Expected>
+void CheckStackStream(PixelStream& stream, const Box& bounds,
+                      Expected expected) {
+  Color buffer[131];
+  uint32_t offset = 0;
+  uint32_t pending_run = 0;
+  Color run_color;
+  const uint32_t area = bounds.area();
+  while (offset < area) {
+    uint32_t run = 123;
+    stream.read(buffer, 0, run);
+    ASSERT_EQ(run, 0u);
+    FillColor(buffer, 131, Color(0xDEADBEEF));
+    uint16_t batch = std::min<uint32_t>(131, area - offset);
+    stream.read(buffer, batch, run);
+    ASSERT_LE(run, area - offset);
+    for (uint16_t i = 0; i < batch; ++i) {
+      int16_t x = bounds.xMin() + (offset + i) % bounds.width();
+      int16_t y = bounds.yMin() + (offset + i) / bounds.width();
+      ASSERT_EQ(buffer[i], expected(x, y)) << "at " << x << ", " << y;
+      if (pending_run > 0) {
+        ASSERT_EQ(buffer[i], run_color);
+        --pending_run;
+      }
+      if (i < run) {
+        ASSERT_EQ(buffer[i], buffer[0]);
+      }
+    }
+    if (run > batch) {
+      pending_run = run - batch;
+      run_color = buffer[0];
+    }
+    offset += batch;
+  }
+  uint32_t run = 123;
+  stream.read(buffer, 0, run);
+  EXPECT_EQ(run, 0u);
+}
+
+// Uses heap-backed output and checks the entire surface, including untouched
+// edges.
+template <typename Expected>
+void CheckStackDrawing(const StreamableStack& stack, const Box& clip,
+                       FillMode fill, Color background, Expected expected,
+                       BlendingMode output_mode = BlendingMode::kSource) {
+  FakeOffscreen<Argb8888> screen(clip.xMax() + 2, clip.yMax() + 2,
+                                 color::Magenta);
+  Display display(screen);
+  {
+    DrawingContext dc(display);
+    dc.setClipBox(clip);
+    dc.setFillMode(fill);
+    dc.setBackgroundColor(background);
+    dc.setBlendingMode(output_mode);
+    dc.draw(stack);
+  }
+  Box bounds = Box::Intersect(stack.extents(), clip);
+  for (int16_t y = 0; y < screen.raw_height(); ++y) {
+    for (int16_t x = 0; x < screen.raw_width(); ++x) {
+      Color want = color::Magenta;
+      if (bounds.contains(x, y)) {
+        Color composed = expected(x, y);
+        if (fill == FillMode::kExtents || composed.a() != 0 ||
+            composed == color::Background) {
+          Color resolved = composed == color::Background ? background
+                           : background == color::Transparent
+                               ? composed
+                               : AlphaBlend(background, composed);
+          want = ApplyBlending(output_mode, want, resolved);
+        }
+      }
+      ASSERT_EQ(screen.buffer()[y * screen.raw_width() + x], want)
+          << "at " << x << ", " << y;
+    }
+  }
+}
+
+}  // namespace
+
+class LargeStackTest : public TestWithParam<std::tuple<int, int>> {};
+
+// Verifies large blank, single-input, and multi-input spans through every
+// executor.
+TEST_P(LargeStackTest, AllExecutorsInitializeEveryPixel) {
+  const int width = std::get<0>(GetParam());
+  const int height = std::get<1>(GetParam());
+  Box bounds(7, 9, 7 + width - 1, 9 + height - 1);
+  FilledRect red(bounds, color::Red);
+  FilledRect blue(bounds, color::Blue);
+  for (int inputs = 0; inputs <= 2; ++inputs) {
+    SCOPED_TRACE(inputs);
+    StreamableStack stack(bounds);
+    if (inputs >= 1) stack.addInput(&red);
+    if (inputs >= 2) stack.addInput(&blue);
+    Color want = inputs == 0   ? color::Transparent
+                 : inputs == 1 ? color::Red
+                               : color::Blue;
+    auto expected = [want](int16_t, int16_t) { return want; };
+    CheckStackStream(*stack.createStream(), bounds, expected);
+    CheckStackStream(*stack.createStream(bounds), bounds, expected);
+    Box clipped(bounds.xMin() + 1, bounds.yMin(), bounds.xMax(), bounds.yMax());
+    CheckStackStream(*stack.createStream(clipped), clipped, expected);
+    for (FillMode fill : {FillMode::kExtents, FillMode::kVisible}) {
+      CheckStackDrawing(stack, bounds, fill, color::Green, expected);
+    }
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(OperandBoundaries, LargeStackTest,
+                         Values(std::make_tuple(255, 257),
+                                std::make_tuple(256, 256),
+                                std::make_tuple(320, 240)));
+
+// Verifies blank-run coordinate arithmetic with a translated 65,536-pixel
+// prefix.
+TEST(StreamableStack, LargeBlankPrefixFollowedByContent) {
+  Box bounds(7, 9, 262, 265);
+  FilledRect input(Box(7, 265, 262, 265), color::Red);
+  StreamableStack stack(bounds);
+  stack.addInput(&input);
+  auto expected = [](int16_t, int16_t y) {
+    return y == 265 ? color::Red : color::Transparent;
+  };
+  CheckStackStream(*stack.createStream(), bounds, expected);
+  CheckStackStream(*stack.createStream(bounds), bounds, expected);
+  for (FillMode fill : {FillMode::kExtents, FillMode::kVisible}) {
+    CheckStackDrawing(stack, bounds, fill, color::Green, expected);
+  }
+}
+
+// Verifies empty extents and disjoint clips create no child stream or pixel
+// demand.
+TEST(StreamableStack, EmptyOutputAndZeroSizeReads) {
+  for (Box bounds : {Box(3, 4, 2, 8), Box(3, 4, 8, 3)}) {
+    StreamableStack stack(bounds);
+    Color sentinel(0xDEADBEEF);
+    for (bool clipped : {false, true}) {
+      std::unique_ptr<PixelStream> stream =
+          clipped ? stack.createStream(bounds) : stack.createStream();
+      for (int i = 0; i < 3; ++i) {
+        uint32_t run = 123;
+        stream->read(&sentinel, 0, run);
+        EXPECT_EQ(run, 0u);
+        EXPECT_EQ(sentinel, Color(0xDEADBEEF));
+      }
+    }
+    CheckStackDrawing(stack, Box(0, 0, 9, 9), FillMode::kExtents, color::Green,
+                      [](int16_t, int16_t) { return color::Transparent; });
+  }
+  StreamableStack stack(Box(0, 0, 9, 9));
+  std::unique_ptr<PixelStream> stream = stack.createStream(Box(20, 20, 29, 29));
+  uint32_t run = 123;
+  stream->read(nullptr, 0, run);
+  EXPECT_EQ(run, 0u);
+}
+
+// Verifies a maximum-sized public read crosses split operands without
+// truncation.
+TEST(StreamableStack, LargeReadCrossesInstructionBoundary) {
+  Box bounds(0, 0, 319, 239);
+  FilledRect input(bounds, color::Red);
+  StreamableStack stack(bounds);
+  stack.addInput(&input);
+  std::unique_ptr<PixelStream> stream = stack.createStream();
+  std::vector<Color> buffer(65535, Color(0xDEADBEEF));
+  stream->read(buffer.data(), 65535);
+  for (Color pixel : buffer) ASSERT_EQ(pixel, color::Red);
+  FillColor(buffer.data(), 11265, Color(0xDEADBEEF));
+  stream->read(buffer.data(), 11265);
+  for (int i = 0; i < 11265; ++i) ASSERT_EQ(buffer[i], color::Red);
+}
+
 }  // namespace roo_display

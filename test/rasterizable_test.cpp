@@ -2,6 +2,7 @@
 #include "roo_display/core/rasterizable.h"
 
 #include "roo_display/color/color.h"
+#include "roo_display/composition/streamable_stack.h"
 #include "testing.h"
 
 // Tests drawing and clipping rasterizables via their default drawTo method, and
@@ -257,6 +258,47 @@ TEST(Rasterizable, LargeReadsUseBoundedPointBatches) {
   stream->read(pixels.data(), 65535);
   for (int i = 0; i < 65535; ++i) {
     ASSERT_EQ(pixels[i], Color(0xFF000000u | (i + 3)));
+  }
+}
+
+// Verifies raster and compiled drawing use the same visibility and Background
+// rules for alpha-zero RGB samples, regardless of tile size or output mode.
+TEST(Rasterizable, SpecialColorsMatchCompiledDrawing) {
+  const Color samples[] = {color::Transparent, color::Background,
+                           Color(0x00123456), Color(0x80654321), color::Red};
+  for (int width : {5, 17}) {
+    Box bounds(0, 0, width - 1, 7);
+    auto input = MakeRasterizable(bounds, [&samples](int16_t x, int16_t y) {
+      return samples[(x + y) % 5];
+    });
+    StreamableStack compiled(bounds);
+    compiled.addInput(&input).withMode(BlendingMode::kSource);
+    for (FillMode fill : {FillMode::kExtents, FillMode::kVisible}) {
+      for (Color background : {color::Transparent, Color(0x00112233),
+                               Color(0x80445566), color::Blue}) {
+        for (BlendingMode mode :
+             {BlendingMode::kSource, BlendingMode::kSourceOver}) {
+          FakeOffscreen<Argb8888> raster(width, 8, color::Magenta);
+          FakeOffscreen<Argb8888> streamed(width, 8, color::Magenta);
+          Draw(raster, 0, 0, input, fill, mode, background);
+          Draw(streamed, 0, 0, compiled, fill, mode, background);
+          for (int i = 0; i < bounds.area(); ++i) {
+            Color sample = samples[(i % width + i / width) % 5];
+            Color expected = color::Magenta;
+            if (fill == FillMode::kExtents || sample.a() != 0 ||
+                sample == color::Background) {
+              Color resolved = sample == color::Background ? background
+                               : background == color::Transparent
+                                   ? sample
+                                   : AlphaBlend(background, sample);
+              expected = ApplyBlending(mode, expected, resolved);
+            }
+            ASSERT_EQ(raster.buffer()[i], expected) << i;
+            ASSERT_EQ(streamed.buffer()[i], expected) << i;
+          }
+        }
+      }
+    }
   }
 }
 

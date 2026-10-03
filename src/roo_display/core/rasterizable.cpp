@@ -256,8 +256,12 @@ inline void FillReplaceRect(DisplayOutput &output, const Box &extents,
       object.readColorRect(extents.xMin() - dx, extents.yMin() - dy,
                            extents.xMax() - dx, extents.yMax() - dy, buf);
   if (same) {
-    output.fillRect(mode, extents, buf[0]);
+    output.fillRect(mode, extents,
+                    buf[0] == color::Background ? color::Transparent : buf[0]);
   } else {
+    for (int32_t i = 0; i < count; ++i) {
+      if (buf[i] == color::Background) buf[i] = color::Transparent;
+    }
     output.setAddress(extents, mode);
     output.write(buf, count);
   }
@@ -312,15 +316,20 @@ inline void WriteRectVisible(DisplayOutput &output, const Box &extents,
       object.readColorRect(extents.xMin() - dx, extents.yMin() - dy,
                            extents.xMax() - dx, extents.yMax() - dy, buf);
   if (same) {
-    if (buf[0] != color::Transparent) {
-      output.fillRect(mode, extents, buf[0]);
+    if (buf[0].a() != 0 || buf[0] == color::Background) {
+      output.fillRect(
+          mode, extents,
+          buf[0] == color::Background ? color::Transparent : buf[0]);
     }
   } else {
     BufferedPixelWriter writer(output, mode);
     Color *ptr = buf;
     for (int16_t j = extents.yMin(); j <= extents.yMax(); ++j) {
       for (int16_t i = extents.xMin(); i <= extents.xMax(); ++i) {
-        if (*ptr != color::Transparent) writer.writePixel(i, j, *ptr);
+        if (ptr->a() != 0 || *ptr == color::Background) {
+          writer.writePixel(
+              i, j, *ptr == color::Background ? color::Transparent : *ptr);
+        }
         ++ptr;
       }
     }
@@ -338,7 +347,7 @@ inline void WriteRectVisibleOverOpaqueBg(DisplayOutput &output,
       object.readColorRect(extents.xMin() - dx, extents.yMin() - dy,
                            extents.xMax() - dx, extents.yMax() - dy, buf);
   if (same) {
-    if (buf[0] != color::Transparent) {
+    if (buf[0].a() != 0 || buf[0] == color::Background) {
       output.fillRect(mode, extents, AlphaBlendOverOpaque(bgcolor, buf[0]));
     }
   } else {
@@ -346,8 +355,9 @@ inline void WriteRectVisibleOverOpaqueBg(DisplayOutput &output,
     Color *ptr = buf;
     for (int16_t j = extents.yMin(); j <= extents.yMax(); ++j) {
       for (int16_t i = extents.xMin(); i <= extents.xMax(); ++i) {
-        if (*ptr != color::Transparent)
+        if (ptr->a() != 0 || *ptr == color::Background) {
           writer.writePixel(i, j, AlphaBlendOverOpaque(bgcolor, *ptr));
+        }
         ++ptr;
       }
     }
@@ -364,7 +374,7 @@ inline void WriteRectVisibleOverBg(DisplayOutput &output, const Box &extents,
       object.readColorRect(extents.xMin() - dx, extents.yMin() - dy,
                            extents.xMax() - dx, extents.yMax() - dy, buf);
   if (same) {
-    if (buf[0] != color::Transparent) {
+    if (buf[0].a() != 0 || buf[0] == color::Background) {
       output.fillRect(mode, extents, AlphaBlend(bgcolor, buf[0]));
     }
   } else {
@@ -372,8 +382,9 @@ inline void WriteRectVisibleOverBg(DisplayOutput &output, const Box &extents,
     Color *ptr = buf;
     for (int16_t j = extents.yMin(); j <= extents.yMax(); ++j) {
       for (int16_t i = extents.xMin(); i <= extents.xMax(); ++i) {
-        if (*ptr != color::Transparent)
+        if (ptr->a() != 0 || *ptr == color::Background) {
           writer.writePixel(i, j, AlphaBlend(bgcolor, *ptr));
+        }
         ++ptr;
       }
     }
@@ -400,7 +411,8 @@ void Rasterizable::drawTo(const Surface &s) const {
   BlendingMode mode = s.blending_mode();
   if (fill_mode == FillMode::kExtents ||
       transparency == TransparencyMode::kNone) {
-    if (bgcolor.a() == 0 || transparency == TransparencyMode::kNone) {
+    if (bgcolor == color::Transparent ||
+        transparency == TransparencyMode::kNone) {
       if (pixel_count <= 64) {
         FillReplaceRect(output, box, s.dx(), s.dy(), *this, mode);
         return;
@@ -447,7 +459,7 @@ void Rasterizable::drawTo(const Surface &s) const {
       }
     }
   } else {
-    if (bgcolor.a() == 0) {
+    if (bgcolor == color::Transparent) {
       if (pixel_count <= 64) {
         WriteRectVisible(output, box, s.dx(), s.dy(), *this, mode);
         return;

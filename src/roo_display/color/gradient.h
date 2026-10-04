@@ -84,6 +84,11 @@ class RadialGradient : public Rasterizable {
 
   Box extents() const override { return extents_; }
 
+  /// Reports the alpha coverage of the gradient, including its boundary policy.
+  TransparencyMode getTransparencyMode() const override {
+    return gradient_.getTransparencyMode();
+  }
+
   void readColors(const int16_t* x, const int16_t* y, uint32_t count,
                   Color* result) const override;
 
@@ -104,6 +109,11 @@ class RadialGradientSq : public Rasterizable {
                    Box extents = Box::MaximumBox());
 
   Box extents() const override { return extents_; }
+
+  /// Reports the alpha coverage of the gradient, including its boundary policy.
+  TransparencyMode getTransparencyMode() const override {
+    return gradient_.getTransparencyMode();
+  }
 
   void readColors(const int16_t* x, const int16_t* y, uint32_t count,
                   Color* result) const override;
@@ -130,11 +140,20 @@ class LinearGradient : public Rasterizable {
 
   Box extents() const override { return extents_; }
 
+  /// Reports the alpha coverage of the gradient, including its boundary policy.
+  TransparencyMode getTransparencyMode() const override {
+    return gradient_.getTransparencyMode();
+  }
+
   void readColors(const int16_t* x, const int16_t* y, uint32_t count,
                   Color* result) const override;
 
   bool readColorRect(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax,
                      Color* result) const override;
+
+  /// Recognizes rectangles whose gradient coordinate is constant.
+  bool readUniformColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
+                            int16_t yMax, Color* result) const override;
 
  private:
   int16_t cx_;
@@ -171,6 +190,11 @@ class AngularGradient : public Rasterizable {
                   Box extents = Box::MaximumBox());
 
   Box extents() const override { return extents_; }
+
+  /// Reports the alpha coverage of the gradient, including its boundary policy.
+  TransparencyMode getTransparencyMode() const override {
+    return gradient_.getTransparencyMode();
+  }
 
   void readColors(const int16_t* x, const int16_t* y, uint32_t count,
                   Color* result) const override;

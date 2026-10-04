@@ -617,3 +617,10 @@ cc_test(
     linkstatic = 1,
     deps = UNIT_TEST_DEPS + [":composition_heap_tracking"],
 )
+
+cc_test(
+    name = "gradient_test",
+    srcs = ["test/gradient_test.cpp"],
+    linkstatic = 1,
+    deps = UNIT_TEST_DEPS,
+)

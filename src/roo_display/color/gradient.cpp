@@ -9,15 +9,17 @@ ColorGradient::ColorGradient(std::vector<Node> gradient, Boundary boundary)
       boundary_(boundary),
       transparency_mode_(TransparencyMode::kNone),
       inv_period_(1.0f / (gradient_.back().value - gradient_.front().value)) {
-  for (const Node& n : gradient_) {
-    uint8_t a = n.color.a();
-    if (a != 255) {
-      if (a != 0) {
-        transparency_mode_ = TransparencyMode::kFull;
-        break;
-      }
-      transparency_mode_ = TransparencyMode::kCrude;
-    }
+  uint8_t alpha = gradient_.front().color.a();
+  transparency_mode_ = alpha == 255 ? TransparencyMode::kNone
+                       : alpha == 0 ? TransparencyMode::kCrude
+                                    : TransparencyMode::kFull;
+  // Truncated ends fade, and differing endpoint alphas interpolate through
+  // fractional coverage even when every node is individually 0 or 255.
+  if (boundary_ == Boundary::kTruncated) {
+    transparency_mode_ = TransparencyMode::kFull;
+  }
+  for (const Node& node : gradient_) {
+    if (node.color.a() != alpha) transparency_mode_ = TransparencyMode::kFull;
   }
 }
 
@@ -177,6 +179,7 @@ void LinearGradient::readColors(const int16_t* x, const int16_t* y,
 
 bool LinearGradient::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
                                    int16_t yMax, Color* result) const {
+  if (readUniformColorRect(xMin, yMin, xMax, yMax, result)) return true;
   int16_t width = xMax - xMin + 1;
   if (dx_ == 0.0f) {
     if (dy_ == 1.0f) {
@@ -220,6 +223,16 @@ bool LinearGradient::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
   return false;
 }
 
+bool LinearGradient::readUniformColorRect(int16_t xMin, int16_t yMin,
+                                          int16_t xMax, int16_t yMax,
+                                          Color* result) const {
+  if ((dx_ != 0.0f && xMin != xMax) || (dy_ != 0.0f && yMin != yMax)) {
+    return false;
+  }
+  *result = gradient_.getColor((xMin - cx_) * dx_ + (yMin - cy_) * dy_);
+  return true;
+}
+
 AngularGradient::AngularGradient(FpPoint center, ColorGradient gradient,
                                  Box extents)
     : cx_(center.x),
@@ -234,7 +247,8 @@ void AngularGradient::readColors(const int16_t* x, const int16_t* y,
   }
 }
 
-roo_logging::Stream& operator<<(roo_logging::Stream& os, ColorGradient::Boundary boundary) {
+roo_logging::Stream& operator<<(roo_logging::Stream& os,
+                                ColorGradient::Boundary boundary) {
   switch (boundary) {
     case ColorGradient::Boundary::kExtended:
       os << "ColorGradient::Boundary::kExtended";

@@ -333,6 +333,73 @@ TEST(RleStreamUniform, ReportsSubByteRunLengthOnlyForUniformPattern) {
   }
 }
 
+// Checks every packed byte, including reads starting within its repeated
+// pattern.
+template <typename ColorMode>
+void CheckPackedRunPatterns(const ColorMode& mode) {
+  constexpr int kBits = ColorMode::bits_per_pixel;
+  constexpr int kPixelsPerByte = 8 / kBits;
+  for (int pattern = 0; pattern < 256; ++pattern) {
+    for (int groups : {1, 3, 64}) {
+      const uint8_t data[] = {static_cast<uint8_t>(0x80 | (groups - 1)),
+                              static_cast<uint8_t>(pattern)};
+      for (int batch : {1, 3, 5, 64}) {
+        RleStreamUniform<ConstDramPtr, ColorMode> stream(
+            ConstDramPtr(data).iterator(), mode);
+        std::vector<Color> expected(groups * kPixelsPerByte);
+        for (size_t i = 0; i < expected.size(); ++i) {
+          int shift = 8 - kBits * (i % kPixelsPerByte + 1);
+          expected[i] =
+              mode.toArgbColor((pattern >> shift) & ((1 << kBits) - 1));
+        }
+        for (size_t offset = 0; offset < expected.size();) {
+          uint32_t remaining = expected.size() - offset;
+          uint32_t expected_run = remaining;
+          for (size_t i = offset + 1; i < expected.size(); ++i) {
+            if (expected[i] != expected[offset]) {
+              expected_run = 0;
+              break;
+            }
+          }
+          uint16_t count = std::min<uint32_t>(batch, remaining);
+          Color pixels[64];
+          uint32_t run = 0;
+          stream.read(pixels, count, run);
+          ASSERT_EQ(run, expected_run) << pattern << "/" << offset;
+          for (uint16_t i = 0; i < count; ++i) {
+            ASSERT_EQ(pixels[i], expected[offset + i]);
+          }
+          offset += count;
+        }
+      }
+    }
+  }
+}
+
+// Verifies exact run promises and pixels for 1-, 2-, and 4-bit repeated bytes,
+// including nonuniform patterns and tails shorter than a complete byte.
+TEST(RleStreamUniform, PackedRunPatternsAndPartialTails) {
+  CheckPackedRunPatterns(Monochrome(color::White, color::Black));
+  const Color colors[] = {color::Black, color::Red, color::Green, color::Blue};
+  Palette palette = Palette::ReadOnly(colors, 4);
+  CheckPackedRunPatterns(Indexed2(&palette));
+  CheckPackedRunPatterns(Alpha4(color::Blue));
+}
+
+// Verifies repeated small reads keep the exact remaining length of a long run.
+TEST(RleStreamUniform, LongPackedRunInSmallBatches) {
+  const uint8_t data[] = {0xC1, 0xFF, 0x7F, 0x88};  // 65536 Alpha4 pixels.
+  RleStreamUniform<ConstDramPtr, Alpha4> stream(ConstDramPtr(data).iterator(),
+                                                Alpha4(color::Blue));
+  for (uint32_t remaining = 65536; remaining > 0; remaining -= 64) {
+    Color pixels[64];
+    uint32_t run = 0;
+    stream.read(pixels, 64, run);
+    ASSERT_EQ(run, remaining);
+    for (Color pixel : pixels) EXPECT_EQ(pixel, color::Blue.withA(0x88));
+  }
+}
+
 TEST(RleStream4bppxBiased, ReportsRunLengthOnlyForRunGroups) {
   {
     uint8_t data[] = {0xD0};  // Run of 5 opaque pixels.

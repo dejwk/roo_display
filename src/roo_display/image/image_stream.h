@@ -205,10 +205,13 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, true>
     if (!run_ || remaining_items_ == 0) return 0;
     // This is a real run only if all the pixels in the batch actually have the
     // same color.
-    int index = pixels_per_byte - 1 - remaining_items_ % pixels_per_byte;
+    int index = (pixels_per_byte - remaining_items_ % pixels_per_byte) %
+                pixels_per_byte;
     Color color = value_[index];
     uint32_t max = remaining_items_;
-    for (uint32_t i = 1; i < max; ++i) {
+    // The decoded byte repeats; checking one period proves the whole run.
+    uint32_t pattern_size = std::min<uint32_t>(max, pixels_per_byte);
+    for (uint32_t i = 1; i < pattern_size; ++i) {
       int next_index = (index + i) % pixels_per_byte;
       if (value_[next_index] != color) {
         return 0;

@@ -498,4 +498,43 @@ TEST(Streamable, BufferedRunReplayPreservesMixedAccessAndBoundaries) {
   }
 }
 
+namespace {
+struct BorrowedRunStream {
+  RunTrackingStream* stream;
+
+  void read(Color* out, uint16_t count, uint32_t& run) {
+    stream->read(out, count, run);
+  }
+
+  void skip(uint32_t count) { stream->skip(count); }
+};
+}  // namespace
+
+// Verifies zero, partial-row, multirow, and terminal skips preserve the next
+// pixel and never sample skipped pixels, including when a read buffer is live.
+TEST(Streamable, SubRectangleSkipAdvancesWithoutSampling) {
+  std::vector<Color> pixels(11 * 7);
+  for (size_t i = 0; i < pixels.size(); ++i) pixels[i] = Color(0xff000000u | i);
+  for (int prefix = 0; prefix <= 8; ++prefix) {
+    for (int skipped = 0; skipped <= 28 - prefix; ++skipped) {
+      RunTrackingStream trace(pixels, false);
+      auto clipped = internal::MakeSubRectangle(
+          BorrowedRunStream{&trace}, Box(0, 0, 10, 6), Box(2, 1, 8, 4));
+      Color buffer[28];
+      uint32_t run = 0;
+      clipped.read(buffer, prefix, run);
+      size_t sampled = trace.sampled;
+      clipped.skip(skipped);
+      EXPECT_EQ(trace.sampled, sampled);
+      int remaining = 28 - prefix - skipped;
+      clipped.read(buffer, remaining, run);
+      for (int i = 0; i < remaining; ++i) {
+        int offset = prefix + skipped + i;
+        EXPECT_EQ(buffer[i], pixels[(1 + offset / 7) * 11 + 2 + offset % 7]);
+      }
+      EXPECT_LE(trace.position, pixels.size());
+    }
+  }
+}
+
 }  // namespace roo_display

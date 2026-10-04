@@ -478,6 +478,7 @@ class SubRectangleStream : public PixelStream {
 
   void read(Color* buf, uint16_t count, uint32_t& run_length) override {
     run_length = 0;
+    if (count == 0) return;
     bool first = true;
     do {
       if (x_ >= width_) {
@@ -498,22 +499,18 @@ class SubRectangleStream : public PixelStream {
     } while (count > 0);
   }
 
-  // void skip(uint32_t count) {
-  //   // TODO: optimize
-  //   for (int i = 0; i < count; i++) next();
-  // }
+  void skip(uint32_t count) override {
+    if (count == 0) return;
+    // Keep a completed row pending, just as read() does. This excludes the gap
+    // after the final skipped row and never advances beyond the clipped image.
+    uint32_t last = static_cast<uint32_t>(x_) + count - 1;
+    uint32_t rows = last / width_;
+    dskip(count + rows * width_skip_);
+    x_ = last % width_ + 1;
+  }
 
  private:
-  // Color next() {
-  //   if (x_ >= width_) {
-  //     dskip(width_skip_);
-  //     x_ = 0;
-  //   }
-  //   Color result = dnext();
-  //   ++x_;
-  //   return result;
-  // }
-
+  // Consume buffered pixels first, then advance the source without decoding.
   void dskip(uint32_t count) {
     uint16_t buffered = kPixelWritingBufferSize - idx_;
     if (count <= buffered) {
@@ -523,16 +520,8 @@ class SubRectangleStream : public PixelStream {
     count -= buffered;
     idx_ = kPixelWritingBufferSize;
     buffered_run_length_ = 0;
-    if (count >= kPixelWritingBufferSize / 2) {
-      stream_.skip(count);
-      remaining_ -= count;
-      return;
-    }
-    uint16_t n = kPixelWritingBufferSize;
-    if (n > remaining_) n = remaining_;
-    stream_.read(buf_, n, buffered_run_length_);
-    remaining_ -= n;
-    idx_ = count;
+    stream_.skip(count);
+    remaining_ -= count;
   }
 
   uint16_t dnext(Color* buf, int16_t count, uint32_t* run_length = nullptr) {

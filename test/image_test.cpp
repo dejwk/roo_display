@@ -430,6 +430,90 @@ TEST(RleStream4bppxBiased, ReportsRunLengthOnlyForRunGroups) {
   }
 }
 
+// Compares every skip offset against decoding the same pixels normally.
+template <typename Stream, typename ColorMode>
+void CheckRleSkips(const std::vector<uint8_t>& bytes, const ColorMode& mode,
+                   int count) {
+  for (int prefix = 0; prefix <= std::min(count, 5); ++prefix) {
+    for (int skipped = 0; skipped <= count - prefix; ++skipped) {
+      Stream actual(ConstDramPtr(bytes.data()).iterator(), mode);
+      Stream expected(ConstDramPtr(bytes.data()).iterator(), mode);
+      for (int i = 0; i < prefix; ++i)
+        EXPECT_EQ(actual.next(), expected.next());
+      actual.skip(skipped);
+      for (int i = 0; i < skipped; ++i) expected.next();
+      int remaining = count - prefix - skipped;
+      std::vector<Color> result(remaining);
+      std::vector<Color> reference(remaining);
+      uint32_t run = 0;
+      uint32_t expected_run = 0;
+      actual.read(result.data(), remaining, run);
+      expected.read(reference.data(), remaining, expected_run);
+      EXPECT_EQ(run, expected_run) << prefix << "/" << skipped;
+      EXPECT_EQ(result, reference) << prefix << "/" << skipped;
+    }
+  }
+}
+
+// Verifies skips across literal/run groups and cached packed-byte boundaries.
+TEST(RleStreamUniform, SkipAcrossEncodedGroups) {
+  CheckRleSkips<RleStreamUniform<ConstDramPtr, Alpha8>>(
+      {0x03, 0x10, 0x20, 0x30, 0x40, 0x84, 0x90, 0x01, 0x40, 0xff},
+      Alpha8(color::Red), 11);
+  CheckRleSkips<RleStreamUniform<ConstDramPtr, Rgb565>>(
+      {0x02, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0x82, 0xcd, 0xef}, Rgb565(),
+      6);
+  const std::vector<uint8_t> packed = {0x02, 0x12, 0x34, 0x56, 0x83,
+                                       0x89, 0x01, 0xab, 0xcd};
+  CheckRleSkips<RleStreamUniform<ConstDramPtr, Alpha4>>(
+      packed, Alpha4(color::Blue), 18);
+  CheckRleSkips<RleStreamUniform<ConstDramPtr, Monochrome>>(
+      packed, Monochrome(color::White), 72);
+  const Color colors[] = {color::Black, color::Red, color::Green, color::Blue};
+  Palette palette = Palette::ReadOnly(colors, 4);
+  CheckRleSkips<RleStreamUniform<ConstDramPtr, Indexed2>>(
+      packed, Indexed2(&palette), 36);
+}
+
+// Verifies biased runs and literal nibbles preserve odd/even cursor alignment.
+TEST(RleStream4bppxBiased, SkipAcrossEncodedGroups) {
+  CheckRleSkips<RleStream4bppxBiased<ConstDramPtr, Alpha4>>(
+      {0x81, 0x34, 0x5d, 0x00, 0x78, 0x01, 0x98, 0x21, 0x23, 0x40},
+      Alpha4(color::Blue), 19);
+}
+
+class CountingAlpha8 : public Alpha8 {
+ public:
+  explicit CountingAlpha8(int* conversions)
+      : Alpha8(color::Blue), conversions_(conversions) {}
+
+  Color toArgbColor(uint8_t value) const {
+    ++*conversions_;
+    return Alpha8::toArgbColor(value);
+  }
+
+ private:
+  int* conversions_;
+};
+
+// Verifies literal skips do no color conversion and long runs decode once.
+TEST(RleStreamUniform, SkipDoesNotDecodeDiscardedPixels) {
+  int conversions = 0;
+  std::vector<uint8_t> bytes(65, 128);
+  bytes[0] = 0x3f;  // 64 literal pixels, then a 65536-pixel run.
+  bytes.insert(bytes.end(), {0xc3, 0xff, 0x7f, 192});
+  RleStreamUniform<ConstDramPtr, CountingAlpha8> stream(
+      ConstDramPtr(bytes.data()).iterator(), CountingAlpha8(&conversions));
+  stream.skip(0);
+  EXPECT_EQ(conversions, 0);
+  stream.skip(64);
+  EXPECT_EQ(conversions, 0);
+  stream.skip(65535);
+  EXPECT_EQ(conversions, 1);
+  EXPECT_EQ(stream.next(), color::Blue.withA(192));
+  EXPECT_EQ(conversions, 1);
+}
+
 }  // namespace internal
 // Verifies 8-bit RLE accepts byte-returning memory iterators and preserves
 // decoded alpha values and run metadata through source clipping.

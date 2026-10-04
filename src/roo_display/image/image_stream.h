@@ -91,7 +91,13 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, false>
   }
 
   void skip(uint32_t n) override {
-    while (n-- > 0) next();
+    while (n > 0) {
+      if (remaining_items_ == 0) decode_next_group();
+      uint32_t batch = std::min<uint32_t>(n, remaining_items_);
+      if (!run_) input_.skip(batch * (bits_per_pixel / 8));
+      remaining_items_ -= batch;
+      n -= batch;
+    }
   }
 
   Color next() {
@@ -170,7 +176,25 @@ class RleStreamUniform<Resource, ColorMode, bits_per_pixel, true>
   }
 
   void skip(uint32_t n) override {
-    while (n-- > 0) next();
+    while (n > 0) {
+      if (remaining_items_ == 0) decode_next_group();
+      uint32_t batch = std::min<uint32_t>(n, remaining_items_);
+      uint32_t unread_bytes = (remaining_items_ - 1) / pixels_per_byte;
+      remaining_items_ -= batch;
+      if (!run_) {
+        if (remaining_items_ == 0) {
+          input_.skip(unread_bytes);
+        } else {
+          uint32_t crossed =
+              unread_bytes - (remaining_items_ - 1) / pixels_per_byte;
+          if (crossed > 0) {
+            input_.skip(crossed - 1);
+            read_colors();
+          }
+        }
+      }
+      n -= batch;
+    }
   }
 
   Color next() {
@@ -380,6 +404,20 @@ class NibbleReader {
     }
   }
 
+  // Preserve a cached low nibble while skipping complete source bytes directly.
+  void skip(uint32_t count) {
+    if (count == 0) return;
+    if (half_byte_) {
+      half_byte_ = false;
+      --count;
+    }
+    input_.skip(count / 2);
+    if ((count & 1u) != 0) {
+      buffer_ = input_.read();
+      half_byte_ = true;
+    }
+  }
+
   bool ok() const { return input_.status() == roo_io::kOk; }
 
  private:
@@ -471,7 +509,13 @@ class RleStream4bppxBiased<Resource, ColorMode, 4> : public PixelStream {
   }
 
   void skip(uint32_t n) override {
-    while (n-- > 0) next();
+    while (n > 0) {
+      if (remaining_items_ == 0) decode_next_group();
+      uint32_t batch = std::min(n, remaining_items_);
+      if (!run_) reader_.skip(batch);
+      remaining_items_ -= batch;
+      n -= batch;
+    }
   }
 
   TransparencyMode transparency() const { return color_mode_.transparency(); }

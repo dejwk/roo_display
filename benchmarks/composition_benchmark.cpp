@@ -75,7 +75,9 @@ Scene MakeScene(const char* name, int width, int height, int count) {
       int y = (i / 4) * height / 4;
       clip = Box(x, y, x + width / 4 - 1, y + height / 4 - 1);
     }
-    if ((kind == "mask" || kind == "uniform_mask") && i == count - 1) {
+    if ((kind == "mask" || kind == "uniform_mask" || kind == "opaque_mask" ||
+         kind == "alpha_mask") &&
+        i == count - 1) {
       clip = Box(width / 4, height / 4, width * 3 / 4 - 1, height * 3 / 4 - 1);
       mode = BlendingMode::kDestinationIn;
     }
@@ -94,6 +96,11 @@ Scene MakeScene(const char* name, int width, int height, int count) {
                         ? Color(96, i * 13, 128, 192)
                         : color::Blue;
       scene.rasters.emplace_back(new FilledRect(scene.bounds, color));
+      source = scene.rasters.back().get();
+    }
+    if ((kind == "opaque_mask" || kind == "alpha_mask") && i == count - 1) {
+      scene.rasters.emplace_back(new FilledRect(
+          scene.bounds, Color(kind == "opaque_mask" ? 255 : 128, 0, 0, 0)));
       source = scene.rasters.back().get();
     }
     if (kind == "nested" || kind == "nested_opaque") {
@@ -204,7 +211,7 @@ int main() {
     for (int layers : {1, 4, 16}) {
       for (const char* kind :
            {"overlap", "opaque", "sparse", "mask", "nested", "rle", "uniform",
-            "uniform_mask", "nested_opaque"}) {
+            "uniform_mask", "nested_opaque", "opaque_mask", "alpha_mask"}) {
         Scene scene = MakeScene(kind, width, width * 3 / 4, layers);
         Run<StreamableStack>("stream", kind, scene);
         if (std::string(kind) != "rle")

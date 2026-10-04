@@ -112,4 +112,17 @@ TEST(CompositionResources, RebuildAndNestedRasterDrawingDoNotAllocate) {
   EXPECT_EQ(draw.peak, 0u);
 }
 
+// Verifies a fully open mask retains no additional source buffer or stream.
+TEST(CompositionResources, OpaqueMasksRetainOnlyGeometry) {
+  const Box bounds(0, 0, 159, 119);
+  FilledRect source(bounds, Color(0x80654321));
+  FilledRect mask(bounds, color::White);
+  StreamableStack plain(bounds);
+  plain.addInput(&source);
+  StreamableStack masked(bounds);
+  masked.addInput(&source);
+  masked.addInput(&mask).withMode(BlendingMode::kDestinationIn);
+  EXPECT_EQ(Prepare(plain).live, Prepare(masked).live);
+}
+
 }  // namespace roo_display

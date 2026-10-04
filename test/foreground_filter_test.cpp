@@ -128,4 +128,137 @@ TEST(Foreground, OptimizedFillMatchesWritableBufferFallback) {
   EXPECT_THAT(RasterOf(optimized), MatchesContent(RasterOf(fallback)));
 }
 
+namespace {
+
+class TrackedUniformRaster : public FilledRect {
+ public:
+  TrackedUniformRaster(Box bounds, Color color) : FilledRect(bounds, color) {}
+
+  std::unique_ptr<PixelStream> createStream(const Box& bounds) const override {
+    class Stream : public PixelStream {
+     public:
+      Stream(std::unique_ptr<PixelStream> delegate, uint32_t& sampled,
+             uint32_t& skipped)
+          : delegate_(std::move(delegate)),
+            sampled_(sampled),
+            skipped_(skipped) {}
+
+      void read(Color* result, uint16_t count, uint32_t& run) override {
+        sampled_ += count;
+        delegate_->read(result, count, run);
+      }
+
+      void skip(uint32_t count) override {
+        skipped_ += count;
+        delegate_->skip(count);
+      }
+
+     private:
+      std::unique_ptr<PixelStream> delegate_;
+      uint32_t& sampled_;
+      uint32_t& skipped_;
+    };
+    return std::make_unique<Stream>(FilledRect::createStream(bounds), sampled,
+                                    skipped);
+  }
+
+  mutable uint32_t sampled = 0;
+  mutable uint32_t skipped = 0;
+};
+
+template <BlendingMode mode>
+void CheckUniformRasterWrites() {
+  const Box bounds(0, 0, 159, 9);
+  const Color colors[] = {color::Transparent, color::Background,
+                          Color(0x00123456), Color(0x80987654), color::Blue};
+  for (Color uniform : {color::Transparent, color::Background,
+                        Color(0x00123456), Color(0x80654321), color::White}) {
+    for (Color background :
+         {color::Transparent, Color(0x80345678), color::White}) {
+      TrackedUniformRaster raster(bounds, uniform);
+      FakeOffscreen<Argb8888> output(160, 10);
+      BlendingFilter<BlendOp<mode>> filter(output, &raster, background);
+      std::vector<Color> pixels(bounds.area());
+      for (int i = 0; i < bounds.area(); ++i) pixels[i] = colors[i % 5];
+      filter.setAddress(0, 0, 159, 9, BlendingMode::kSource);
+      filter.write(pixels.data(), pixels.size());
+      for (int i = 0; i < bounds.area(); ++i) {
+        Color expected = ApplyBlending(mode, uniform, colors[i % 5]);
+        if (background != color::Transparent)
+          expected = AlphaBlend(background, expected);
+        EXPECT_EQ(output.buffer()[i], expected);
+      }
+      EXPECT_LE(raster.sampled, kPixelWritingBufferSize);
+      EXPECT_EQ(raster.sampled + raster.skipped,
+                static_cast<uint32_t>(bounds.area()));
+    }
+  }
+}
+
+}  // namespace
+
+// Verifies nonuniform writes reuse a uniform mask or foreground and preserve
+// special colors and backgrounds without allocating scratch for the full write.
+TEST(Foreground, UniformRasterWritesSkipRedundantSamples) {
+  CheckUniformRasterWrites<BlendingMode::kDestinationOver>();
+  CheckUniformRasterWrites<BlendingMode::kSourceIn>();
+}
+
+// Verifies an unlimited delegate run ends at the clipped row and cannot paint
+// into transparent gaps, through both fill() and nonuniform write() consumers.
+TEST(Foreground, UniformRunDoesNotCrossWindowGaps) {
+  const Box bounds(3, 0, 66, 9);
+  for (bool fill : {false, true}) {
+    TrackedUniformRaster raster(bounds, Color(0x80654321));
+    FakeOffscreen<Argb8888> output(80, 10);
+    ForegroundFilter filter(output, &raster);
+    filter.setAddress(0, 0, 79, 9, BlendingMode::kSource);
+    std::vector<Color> pixels(800, color::Blue);
+    filter.write(pixels.data(), 3);
+    if (fill) {
+      filter.fill(color::Blue, 797);
+    } else {
+      filter.write(pixels.data() + 3, 797);
+    }
+    for (int i = 0; i < 800; ++i) {
+      Color expected = bounds.contains(i % 80, i / 80)
+                           ? AlphaBlend(color::Blue, Color(0x80654321))
+                           : color::Blue;
+      EXPECT_EQ(output.buffer()[i], expected) << i;
+    }
+  }
+}
+
+// Verifies a read spanning the leading gap, entire mask, and trailing gap does
+// not advertise the interior color's run as a promise about the leading pixels.
+TEST(Foreground, SmallRasterBetweenGapsDoesNotAdvertiseInteriorRun) {
+  FilledRect foreground(Box(3, 0, 10, 0), Color(0x80654321));
+  internal::WindowedPixelStream stream(&foreground);
+  stream.reset(Box(0, 0, 79, 0));
+  Color pixels[80];
+  uint32_t run = 999;
+  stream.read(pixels, 80, run);
+  EXPECT_LE(run, 3u);
+  for (int i = 0; i < 80; ++i) {
+    EXPECT_EQ(pixels[i],
+              i >= 3 && i <= 10 ? Color(0x80654321) : color::Transparent);
+  }
+  for (bool fill : {false, true}) {
+    FakeOffscreen<Argb8888> output(80, 1);
+    ForegroundFilter filter(output, &foreground);
+    filter.setAddress(0, 0, 79, 0, BlendingMode::kSource);
+    if (fill) {
+      filter.fill(color::Blue, 80);
+    } else {
+      FillColor(pixels, 80, color::Blue);
+      filter.write(pixels, 80);
+    }
+    for (int i = 0; i < 80; ++i) {
+      EXPECT_EQ(output.buffer()[i],
+                i >= 3 && i <= 10 ? AlphaBlend(color::Blue, Color(0x80654321))
+                                  : color::Blue);
+    }
+  }
+}
+
 }  // namespace roo_display

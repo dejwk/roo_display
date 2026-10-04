@@ -348,24 +348,20 @@ class BufferingStream {
   }
 
   void blend(Color* buf, uint16_t count, BlendingMode blending_mode) {
-    if (idx_ >= kPixelWritingBufferSize) {
-      idx_ = 0;
-      fetch();
-    }
-    const Color* in = buf_ + idx_;
-    uint16_t batch = kPixelWritingBufferSize - idx_;
-    while (true) {
-      if (count <= batch) {
-        idx_ += count;
-        ApplyBlendingInPlace(blending_mode, buf, in, count);
-        return;
+    while (count > 0) {
+      uint32_t run = currentRunLength();
+      uint16_t batch =
+          std::min<uint16_t>(count, kPixelWritingBufferSize - idx_);
+      if (run >= batch) {
+        // A uniform mask can pass a whole batch through without per-pixel
+        // coverage blending; fractional coverage still uses the ordinary op.
+        ApplyBlendingSingleSourceInPlace(blending_mode, buf, buf_[idx_], batch);
+      } else {
+        ApplyBlendingInPlace(blending_mode, buf, buf_ + idx_, batch);
       }
-      count -= batch;
-      ApplyBlendingInPlace(blending_mode, buf, in, batch);
+      idx_ += batch;
       buf += batch;
-      idx_ = 0;
-      in = buf_;
-      batch = fetch();
+      count -= batch;
     }
   }
 
@@ -429,7 +425,18 @@ class BufferingStream {
       buffered_run_length_ = 0;
       return 0;
     }
-    stream_->read(buf_, n, buffered_run_length_);
+    // The previous buffer's promise can cover this refill, even when the
+    // consumer blends nonuniform content and cannot skip the composed result.
+    if (buffered_run_length_ >=
+        static_cast<uint32_t>(kPixelWritingBufferSize) + n) {
+      if (buffered_run_length_ != PixelStream::kUnlimitedRunLength) {
+        buffered_run_length_ -= kPixelWritingBufferSize;
+      }
+      stream_->skip(n);
+      FillColor(buf_, n, buf_[0]);
+    } else {
+      stream_->read(buf_, n, buffered_run_length_);
+    }
     remaining_ -= n;
     return n;
   }

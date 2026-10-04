@@ -3006,6 +3006,18 @@ layers without opening their streams or sampling their pixels. The query does
 not cache source hints; partial masks and alpha-reducing operations revoke the
 proof. Unknown results keep the conservative full-transparency hint.
 
+A provably opaque `kDestinationIn` mask only contributes its clipped geometry.
+Both composition backends avoid sampling it; compiled compositions also omit
+its stream buffer. Uniform mask runs reuse existing samples while nonuniform
+content continues to be blended. Filter writes consume those runs with bounded
+scratch storage, including across clipped address windows.
+
+These shortcuts preserve ordinary blending semantics. A zero-alpha
+`kDestinationIn` sample can retain destination RGB or produce `Background`, so
+it cannot generally be replaced by a transparent constant. Geometry outside a
+mask's clip still clears the result. Apply masks to the composed group when
+that is the intended visual effect.
+
 #### Cached content and group opacity
 
 Use the existing `Offscreen` drawable constructor to cache arbitrary drawable
@@ -3064,7 +3076,9 @@ bookkeeping, C allocations, over-aligned allocations, and stack memory. The
 harness checks that streamed and drawn pixel checksums agree. Cases cover 1/4/16 inputs, two output sizes,
 overlap, opacity, sparse coverage, masks, nesting, and compressed RLE images.
 Uniform layers, uniform masks, and nested opaque groups exercise metadata-driven
-skipping separately from pixel-heavy scenes.
+skipping separately from pixel-heavy scenes. `opaque_mask` and `alpha_mask`
+place constant coverage over nonuniform content, exercising mask elimination
+and uniform mask replay without requiring a uniform composed result.
 
 In one production-buffer host run, the 160×120 scene with 16 layers and an
 opaque top layer reduced `StreamableStack` preparation peak heap from 4,688 to
@@ -3119,12 +3133,14 @@ With ESP32 Xtensa GCC 14.2.0 and production buffers, selected measurements are:
 | `StreamableStack` / `RasterizableStack` object, each | 32 |
 | `BufferingStream` object, including its pixel buffer | 272 |
 | `RasterizableStack::readColorRect()` frame | 448 |
-| `RasterizableStack::readColors()` outlined implementation frame | 864 |
+| `RasterizableStack::readColors()` outlined implementation frame | 880 |
 | `StreamableStack::drawTo()` frame | 400 |
 | `RasterizableStack::drawTo()` uniform-probe wrapper frame | 80 |
 
-The first five measurements are unchanged from revision `b4b5c68`. The final
-frame is new and also precedes the nonuniform raster fallback. These are
+The object sizes and the rectangle-read and direct-stream-draw frames are
+unchanged from revision `b4b5c68`. The coordinate-read implementation frame grew
+from 864 to 880 bytes with opaque-mask elimination. The uniform-probe wrapper
+frame also precedes the nonuniform raster fallback. These are
 individual compiler-reported frames, not total call-chain use or measured
 runtime stack high-water marks. Callees, nested groups, output drivers, and
 interrupts add their own cost; the full report also includes wrapper and helper

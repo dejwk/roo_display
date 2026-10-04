@@ -381,4 +381,121 @@ TEST(Streamable, SubRectangleStreamPreservesDelegateZeroRunMetadata) {
   EXPECT_EQ(run_length, 0u);
 }
 
+namespace {
+
+class RunTrackingStream : public PixelStream {
+ public:
+  RunTrackingStream(const std::vector<Color>& pixels, bool report_runs)
+      : pixels_(pixels), report_runs_(report_runs) {}
+
+  void read(Color* result, uint16_t count, uint32_t& run) override {
+    ASSERT_LE(position + count, pixels_.size());
+    run = 0;
+    if (report_runs_ && count > 0) {
+      while (position + run < pixels_.size() &&
+             pixels_[position + run] == pixels_[position])
+        ++run;
+    }
+    std::copy_n(pixels_.data() + position, count, result);
+    position += count;
+    sampled += count;
+  }
+
+  void skip(uint32_t count) override {
+    ASSERT_LE(position + count, pixels_.size());
+    position += count;
+    skipped += count;
+  }
+
+  size_t position = 0;
+  size_t sampled = 0;
+  size_t skipped = 0;
+
+ private:
+  const std::vector<Color>& pixels_;
+  bool report_runs_;
+};
+
+}  // namespace
+
+// Verifies uniform masks avoid delegate refills while retaining exact ordinary
+// blend semantics, including alpha-zero RGB and the Background sentinel.
+TEST(Streamable, BufferedUniformMasksReuseSamplesForNonuniformContent) {
+  const int count = kPixelWritingBufferSize * 5 + 3;
+  const Color colors[] = {color::Transparent, color::Background,
+                          Color(0x00123456), Color(0x80987654), color::Blue};
+  for (Color mask : {color::White, color::Transparent, color::Background,
+                     Color(0x00123456), Color(0x80543210)}) {
+    for (BlendingMode mode :
+         {BlendingMode::kSource, BlendingMode::kSourceOver,
+          BlendingMode::kSourceIn, BlendingMode::kSourceOut,
+          BlendingMode::kSourceAtop, BlendingMode::kDestination,
+          BlendingMode::kDestinationOver, BlendingMode::kDestinationIn,
+          BlendingMode::kDestinationOut, BlendingMode::kDestinationAtop,
+          BlendingMode::kClear, BlendingMode::kXor}) {
+      std::vector<Color> pixels(count, mask);
+      auto delegate = std::make_unique<RunTrackingStream>(pixels, true);
+      RunTrackingStream* trace = delegate.get();
+      internal::BufferingStream stream(std::move(delegate), count);
+      std::vector<Color> result(count);
+      for (int i = 0; i < count; ++i) result[i] = colors[i % 5];
+      for (int offset = 0; offset < count;) {
+        int batch = std::min(count - offset, kPixelWritingBufferSize + 3);
+        stream.blend(result.data() + offset, batch, mode);
+        offset += batch;
+      }
+      for (int i = 0; i < count; ++i) {
+        EXPECT_EQ(result[i], ApplyBlending(mode, colors[i % 5], mask));
+      }
+      EXPECT_EQ(trace->sampled, kPixelWritingBufferSize);
+      EXPECT_EQ(trace->skipped,
+                static_cast<size_t>(count - kPixelWritingBufferSize));
+      EXPECT_EQ(trace->position, static_cast<size_t>(count));
+    }
+  }
+}
+
+// Verifies replay stops at finite run boundaries, survives explicit skips and
+// mixed read/next/blend calls, and also accepts sources with unknown runs.
+TEST(Streamable, BufferedRunReplayPreservesMixedAccessAndBoundaries) {
+  std::vector<Color> pixels(15 * kPixelWritingBufferSize + 17);
+  const Color colors[] = {color::Background, color::Blue, Color(0x80543210),
+                          Color(0x00123456), color::Transparent};
+  for (size_t i = 0; i < pixels.size(); ++i) {
+    pixels[i] = colors[(i / (3 * kPixelWritingBufferSize + 1)) % 5];
+  }
+  for (bool report_runs : {false, true}) {
+    auto delegate = std::make_unique<RunTrackingStream>(pixels, report_runs);
+    internal::BufferingStream stream(std::move(delegate), pixels.size());
+    size_t offset = 0;
+    while (offset < pixels.size()) {
+      EXPECT_EQ(stream.next(), pixels[offset++]);
+      int count =
+          std::min<size_t>(kPixelWritingBufferSize + 7, pixels.size() - offset);
+      std::vector<Color> result(count);
+      uint32_t run = 0;
+      stream.read(result.data(), count, run);
+      for (int i = 0; i < count; ++i) EXPECT_EQ(result[i], pixels[offset + i]);
+      for (size_t i = 0; i < std::min<size_t>(run, pixels.size() - offset);
+           ++i) {
+        EXPECT_EQ(pixels[offset + i], pixels[offset]);
+      }
+      offset += count;
+      size_t skip = std::min<size_t>(offset % 41, pixels.size() - offset);
+      stream.skip(skip);
+      offset += skip;
+      count =
+          std::min<size_t>(kPixelWritingBufferSize + 2, pixels.size() - offset);
+      result.assign(count, Color(0x80765432));
+      stream.blend(result.data(), count, BlendingMode::kDestinationIn);
+      for (int i = 0; i < count; ++i) {
+        EXPECT_EQ(result[i],
+                  ApplyBlending(BlendingMode::kDestinationIn, Color(0x80765432),
+                                pixels[offset + i]));
+      }
+      offset += count;
+    }
+  }
+}
+
 }  // namespace roo_display

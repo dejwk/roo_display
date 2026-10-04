@@ -591,6 +591,13 @@ struct Blender {
   }
 
   inline void applySingleSourceInPlace(Color* dst, Color src, int16_t count) {
+    // Fully open masks are identities, including for alpha-zero RGB and
+    // Background. Closed masks still use the ordinary operation: their result
+    // can retain destination RGB or distinguish Background from Transparent.
+    if ((mode == BlendingMode::kDestinationIn && src.a() == 255) ||
+        (mode == BlendingMode::kDestinationOut && src.a() == 0)) {
+      return;
+    }
     BlendOp<mode> op;
     if (src.a() == 0) {
       while (count-- > 0) {

@@ -63,15 +63,15 @@ class WindowedPixelStream {
     while (true) {
       if (current_run_ == 0) {
         FillColor(buf, count, color::Transparent);
-        if (first_batch) {
-          run_length = kUnlimitedRunLength;
-        }
+        run_length = first_batch ? kUnlimitedRunLength : 0;
         return;
       }
 
       uint32_t run = std::min<uint32_t>(count, current_run_);
       if (current_run_is_delegate_) {
         readDelegate(buf, run, run_length);
+        // Delegate runs cannot cross the transparent gap to the next row.
+        run_length = std::min<uint32_t>(run_length, current_run_);
       } else {
         FillColor(buf, run, color::Transparent);
         run_length = current_run_;
@@ -294,24 +294,31 @@ class BlendingFilter : public DisplayOutput {
   }
 
   void write(Color* color, uint32_t pixel_count) override {
-    if (pixel_count == 0) return;
-    Color raster_color[pixel_count];
-
-    // if (addr_stream_.has_stream()) {
-    uint32_t run_length = 0;
-    addr_stream_.read(raster_color, pixel_count, run_length);
-    uint32_t run = std::min(run_length, pixel_count);
-    if (run > 0) {
-      // Blend the run.
+    uint32_t processed = pixel_count;
+    Color raster_color[kPixelWritingBufferSize];
+    while (pixel_count > 0) {
+      uint16_t batch = std::min<uint32_t>(pixel_count, kPixelWritingBufferSize);
+      uint32_t run_length = 0;
+      addr_stream_.read(raster_color, batch, run_length);
+      uint32_t run = std::min(run_length, pixel_count);
+      // The incoming pixels can vary even when the mask/foreground is
+      // uniform. Reuse its promise instead of sampling it for every pixel.
       blendWithUniformRasterColorInPlace(color, run, raster_color[0]);
+      uint32_t consumed = batch;
+      if (run >= batch) {
+        addr_stream_.skip(run - batch);
+        consumed = run;
+      } else {
+        for (uint32_t i = run; i < batch; ++i) {
+          color[i] = blender_.blend(raster_color[i], color[i]);
+        }
+      }
+      internal::BlendWithBackground(color, consumed, bgcolor_);
+      output_->write(color, consumed);
+      color += consumed;
+      pixel_count -= consumed;
     }
-    // Blend the remaining pixels.
-    for (uint32_t i = run; i < pixel_count; ++i) {
-      color[i] = blender_.blend(raster_color[i], color[i]);
-    }
-    internal::BlendWithBackground(color, pixel_count, bgcolor_);
-    output_->write(color, pixel_count);
-    advanceCursor(pixel_count);
+    advanceCursor(processed);
   }
 
   void fill(Color color, uint32_t pixel_count) override {

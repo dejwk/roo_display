@@ -9,6 +9,12 @@ namespace roo_display {
 namespace {
 static const int kMaxBufSize = 64;
 
+// An opaque DestinationIn source only clips geometry; its RGB is irrelevant.
+bool IsOpaqueMask(const RasterizableStack::Input& input) {
+  return input.blending_mode() == BlendingMode::kDestinationIn &&
+         input.source()->getTransparencyMode() == TransparencyMode::kNone;
+}
+
 // Finds the last operation that makes all earlier pixels irrelevant. Bounds,
 // modes, and opacity hints suffice; erased sources are never sampled. Clear is
 // not an unconditional replacement because it can produce Background.
@@ -96,6 +102,14 @@ void RasterizableStack::readColors(const int16_t* x, const int16_t* y,
   for (auto r = inputs_.begin() + first_input; r != inputs_.end(); ++r) {
     Box bounds = r->extents();
     bool clears_outside = internal::IsAbsentSourceClearing(r->blending_mode());
+    if (IsOpaqueMask(*r)) {
+      if (!bounds.contains(query)) {
+        for (uint32_t i = 0; i < count; ++i) {
+          if (!bounds.contains(x[i], y[i])) result[i] = color::Transparent;
+        }
+      }
+      continue;
+    }
     uint32_t offset = 0;
     while (offset < count) {
       int buf_size = 0;
@@ -181,6 +195,16 @@ bool RasterizableStack::readColorRect(int16_t xMin, int16_t yMin, int16_t xMax,
     int16_t src_x_max = clipped.xMax() - input.dx();
     int16_t src_y_max = clipped.yMax() - input.dy();
     bool partial = !clipped.contains(box);
+    if (IsOpaqueMask(input)) {
+      if (partial) {
+        if (is_uniform_color) {
+          if (*result == color::Transparent) continue;
+          expand_result();
+        }
+        ClearOutsideRect(box, clipped, result);
+      }
+      continue;
+    }
 
     if (is_uniform_color && partial) {
       Color layer_color;
@@ -237,6 +261,12 @@ bool RasterizableStack::readUniformColorRect(int16_t xMin, int16_t yMin,
     bool clears_outside = internal::IsAbsentSourceClearing(mode);
     Box clipped = Box::Intersect(r->extents(), box);
     if (clipped.empty()) continue;
+    if (IsOpaqueMask(*r)) {
+      if (!clipped.contains(box) && accumulated != color::Transparent) {
+        return false;
+      }
+      continue;
+    }
     Color layer_color;
     if (!r->source()->readUniformColorRect(
             clipped.xMin() - r->dx(), clipped.yMin() - r->dy(),

@@ -531,4 +531,64 @@ TEST(Composition, RandomizedScenesMatchScalarOracle) {
   }
 }
 
+// Verifies opaque masks are geometry-only in both backends, including clipping,
+// translation, raw alpha-zero values, and a later change to fractional
+// coverage.
+TEST(Composition, OpaqueMasksClipWithoutSampling) {
+  const Box bounds(0, 0, 63, 15);
+  for (Color color : {color::Transparent, color::Background, Color(0x00123456),
+                      Color(0x80654321), color::Blue}) {
+    FilledRect source(bounds, color);
+    for (Box clip :
+         {Box(-3, -2, 66, 21), Box(10, 7, 40, 16), Box(90, 90, 99, 99)}) {
+      EvaluationProbe mask(Box(-3, -2, 66, 21), color::White);
+      const Box covered = Box::Intersect(clip, mask.extents()).translate(3, -2);
+      RasterizableStack raster(bounds);
+      StreamableStack stream(bounds);
+      raster.addInput(&source).withMode(BlendingMode::kSource);
+      stream.addInput(&source).withMode(BlendingMode::kSource);
+      raster.addInput(&mask, clip, 3, -2)
+          .withMode(BlendingMode::kDestinationIn);
+      stream.addInput(&mask, clip, 3, -2)
+          .withMode(BlendingMode::kDestinationIn);
+      for (int alpha : {255, 128}) {
+        mask = EvaluationProbe(mask.extents(), Color(alpha, 33, 55, 77));
+        mask.evaluations = 0;
+        std::vector<int16_t> x(bounds.area());
+        std::vector<int16_t> y(bounds.area());
+        std::vector<Color> expected(bounds.area());
+        for (int i = 0; i < bounds.area(); ++i) {
+          x[i] = i % bounds.width();
+          y[i] = i / bounds.width();
+          expected[i] = covered.contains(x[i], y[i])
+                            ? ApplyBlending(BlendingMode::kDestinationIn, color,
+                                            Color(alpha, 33, 55, 77))
+                            : color::Transparent;
+        }
+        std::vector<Color> result(bounds.area());
+        raster.readColors(x.data(), y.data(), x.size(), result.data());
+        EXPECT_EQ(result, expected);
+        bool uniform = raster.readColorRect(0, 0, 63, 15, result.data());
+        if (uniform) FillColor(result.data(), result.size(), result[0]);
+        EXPECT_EQ(result, expected);
+        for (const Streamable* stack :
+             {static_cast<const Streamable*>(&raster),
+              static_cast<const Streamable*>(&stream)}) {
+          stack->createStream()->read(result.data(), result.size());
+          EXPECT_EQ(result, expected);
+        }
+        Color uniform_color;
+        if (raster.readUniformColorRect(0, 0, 63, 15, &uniform_color)) {
+          for (Color pixel : expected) EXPECT_EQ(pixel, uniform_color);
+        }
+        if (alpha == 255) {
+          EXPECT_EQ(mask.evaluations, 0);
+        } else if (!Box::Intersect(covered, bounds).empty()) {
+          EXPECT_GT(mask.evaluations, 0);
+        }
+      }
+    }
+  }
+}
+
 }  // namespace roo_display

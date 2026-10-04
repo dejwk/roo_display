@@ -133,7 +133,10 @@ void EmitCount(std::vector<uint16_t>* code, Instruction instruction,
 class Composition {
  public:
   Composition(const Box& bounds, size_t registered_inputs)
-      : bounds_(bounds), replacing_inputs_(0), input_count_(0) {
+      : bounds_(bounds),
+        replacing_inputs_(0),
+        opaque_masks_(0),
+        input_count_(0) {
     if (bounds.empty()) return;
     CHECK_LE(registered_inputs, StreamableStack::kMaxInputs)
         << "StreamableStack has " << registered_inputs << " registered inputs; "
@@ -156,6 +159,7 @@ class Composition {
   std::vector<BlendingMode> blending_modes_;
   std::vector<Block> data_;
   uint16_t replacing_inputs_;
+  uint16_t opaque_masks_;
   int input_count_;
 };
 
@@ -172,6 +176,9 @@ uint16_t Composition::analyzeInputs(uint16_t mask) const {
     }
   }
   mask &= ~((1u << first_input) - 1);
+  // Opaque DestinationIn masks only contribute geometry: outside still clears,
+  // while covered spans are exact identities and never need a source stream.
+  mask &= ~opaque_masks_;
   for (int index = 0; index < input_count_; ++index) {
     if ((mask & (1u << index)) == 0) continue;
     // Of the original transparent-destination eliminations, only Destination
@@ -303,6 +310,9 @@ inline bool Composition::Add(const Box& extents, BlendingMode blending_mode,
   if (blending_mode == BlendingMode::kSource ||
       (blending_mode == BlendingMode::kSourceOver && opaque)) {
     replacing_inputs_ |= input_mask;
+  }
+  if (blending_mode == BlendingMode::kDestinationIn && opaque) {
+    opaque_masks_ |= input_mask;
   }
   if (extents.empty()) return false;
   if (extents == bounds_) {

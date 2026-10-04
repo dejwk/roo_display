@@ -18,7 +18,7 @@ class FrontToBackWriter : public DisplayOutput {
   /// The caller must guarantee bounds are within the output area and no writes
   /// go out of bounds.
   FrontToBackWriter(DisplayOutput& output, Box bounds)
-      : color_format_(output.getColorFormat()),
+      : output_(output),
         capabilities_(output.getCapabilities().supportsBlending(),
                       /*supports_blit_copy=*/false),
         offscreen_(bounds, color::Transparent),
@@ -77,54 +77,52 @@ class FrontToBackWriter : public DisplayOutput {
 
   void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
                    uint16_t pixel_count) override {
-    for (int i = 0; i < pixel_count; ++i) {
-      int16_t cx = x[i];
-      int16_t cy = y[i];
-      mask_filter_.fillPixels(mode, color[i], &x[i], &y[i], 1);
-      if (offscreen_.extents().contains(cx, cy)) {
-        cx -= offscreen_.extents().xMin();
-        cy -= offscreen_.extents().yMin();
-        offscreen_.output().fillPixels(mode, color::Black, &cx, &cy, 1);
-      }
+    uint16_t visible = 0;
+    for (uint16_t i = 0; i < pixel_count; ++i) {
+      bool masked = mask_.isMasked(x[i], y[i]);
+      markPixel(mode, x[i], y[i]);
+      if (masked) continue;
+      color[visible] = color[i];
+      x[visible] = x[i];
+      y[visible] = y[i];
+      ++visible;
     }
-    // // TODO: remove duplicates.
-    // int16_t x_copy[pixel_count];
-    // std::copy(x, x + pixel_count, x_copy);
-    // int16_t y_copy[pixel_count];
-    // std::copy(y, y + pixel_count, y_copy);
-    // mask_filter_.writePixels(mode, color, x, y, pixel_count);
-    // // offscreen_.output().fillPixels(mode, color::Black, x_copy, y_copy,
-    // //                                pixel_count);
+    if (visible != 0) output_.writePixels(mode, color, x, y, visible);
+    // Arbitrary writes may replace the output address window.
+    mask_filter_.invalidateOutputWindow();
   }
 
   void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override {
-    for (int i = 0; i < pixel_count; ++i) {
-      int16_t cx = x[i];
-      int16_t cy = y[i];
-      mask_filter_.fillPixels(mode, color, &x[i], &y[i], 1);
-      if (offscreen_.extents().contains(cx, cy)) {
-        cx -= offscreen_.extents().xMin();
-        cy -= offscreen_.extents().yMin();
-        offscreen_.output().fillPixels(mode, color::Black, &cx, &cy, 1);
-      }
+    uint16_t visible = 0;
+    for (uint16_t i = 0; i < pixel_count; ++i) {
+      bool masked = mask_.isMasked(x[i], y[i]);
+      markPixel(mode, x[i], y[i]);
+      if (masked) continue;
+      x[visible] = x[i];
+      y[visible] = y[i];
+      ++visible;
     }
-
-    // int16_t x_copy[pixel_count];
-    // std::copy(x, x + pixel_count, x_copy);
-    // int16_t y_copy[pixel_count];
-    // std::copy(y, y + pixel_count, y_copy);
-    // mask_filter_.fillPixels(mode, color, x, y, pixel_count);
-    // // offscreen_.output().fillPixels(mode, color::Black, x_copy, y_copy,
-    // //                                pixel_count);
+    if (visible != 0) output_.fillPixels(mode, color, x, y, visible);
+    mask_filter_.invalidateOutputWindow();
   }
 
-  const ColorFormat& getColorFormat() const override { return color_format_; }
+  const ColorFormat& getColorFormat() const override {
+    return output_.getColorFormat();
+  }
 
   const Capabilities& getCapabilities() const override { return capabilities_; }
 
  private:
-  const ColorFormat& color_format_;
+  // Mark before compacting so duplicates in this batch see earlier coverage.
+  void markPixel(BlendingMode mode, int16_t x, int16_t y) {
+    if (!mask_.bounds().contains(x, y)) return;
+    x -= mask_.bounds().xMin();
+    y -= mask_.bounds().yMin();
+    offscreen_.output().fillPixels(mode, color::Black, &x, &y, 1);
+  }
+
+  DisplayOutput& output_;
   Capabilities capabilities_;
   BitMaskOffscreen offscreen_;
   ClipMask mask_;

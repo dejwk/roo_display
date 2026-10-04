@@ -62,6 +62,46 @@ class ClipMask {
                      : isAllUnset(x, y, mask, lines);
   }
 
+  /// Returns the length of a same-state prefix on one row, bounded by @p count.
+  /// The prefix has the same masking state as `(x, y)`, including outside
+  /// bounds.
+  uint32_t sameStateCount(int16_t x, int16_t y, uint32_t count) const {
+    if (count == 0) return 0;
+    bool masked = isMasked(x, y);
+    int32_t cursor = x;
+    uint32_t remaining = count;
+    while (remaining > 0) {
+      if (y < bounds_.yMin() || y > bounds_.yMax() || cursor > bounds_.xMax()) {
+        return masked == inverted_ ? count : count - remaining;
+      }
+      if (cursor < bounds_.xMin()) {
+        if (masked != inverted_) break;
+        uint32_t batch = std::min<uint32_t>(remaining, bounds_.xMin() - cursor);
+        cursor += batch;
+        remaining -= batch;
+        continue;
+      }
+      uint32_t offset = cursor - bounds_.xMin();
+      uint32_t batch = std::min<uint32_t>(remaining, 8 - offset % 8);
+      batch = std::min<uint32_t>(batch, bounds_.xMax() - cursor + 1);
+      uint8_t bits = static_cast<uint8_t>(
+          data_[(y - bounds_.yMin()) * line_width_bytes_ + offset / 8]);
+      if (masked != inverted_) bits = ~bits;
+      uint8_t mask =
+          (0xFFu >> (offset % 8)) & (0xFFu << (8 - offset % 8 - batch));
+      if ((bits & mask) != 0) {
+        for (uint32_t i = 0; i < batch; ++i) {
+          if ((bits & (0x80u >> (offset % 8 + i))) != 0) {
+            return count - remaining + i;
+          }
+        }
+      }
+      cursor += batch;
+      remaining -= batch;
+    }
+    return count - remaining;
+  }
+
   /// Set inversion behavior.
   void setInverted(bool inverted) { inverted_ = inverted; }
 
@@ -121,41 +161,47 @@ class ClipMaskFilter : public DisplayOutput {
     blending_mode_ = mode;
     cursor_x_ = x0;
     cursor_y_ = y0;
+    output_remaining_ = 0;
   }
 
   void write(Color* color, uint32_t pixel_count) override {
-    // Naive implementation, for now.
-    uint32_t i = 0;
-    BufferedPixelWriter writer(output_, blending_mode_);
-    while (i < pixel_count) {
-      if (!clip_mask_.isMasked(cursor_x_, cursor_y_)) {
-        writer.writePixel(cursor_x_, cursor_y_, color[i]);
+    while (pixel_count > 0) {
+      bool masked = clip_mask_.isMasked(cursor_x_, cursor_y_);
+      uint32_t run = sameStateCount(pixel_count, masked);
+      if (masked) {
+        output_remaining_ = 0;
+      } else {
+        openOutputWindow();
+        run = std::min(run, output_remaining_);
+        output_.write(color, run);
+        output_remaining_ -= run;
       }
-      if (++cursor_x_ > address_window_.xMax()) {
-        ++cursor_y_;
-        cursor_x_ = address_window_.xMin();
-      }
-      ++i;
+      advanceCursor(run);
+      color += run;
+      pixel_count -= run;
     }
   }
 
   void fill(Color color, uint32_t pixel_count) override {
-    uint32_t i = 0;
-    BufferedPixelFiller filler(output_, color, blending_mode_);
-    while (i < pixel_count) {
-      if (!clip_mask_.isMasked(cursor_x_, cursor_y_)) {
-        filler.fillPixel(cursor_x_, cursor_y_);
+    while (pixel_count > 0) {
+      bool masked = clip_mask_.isMasked(cursor_x_, cursor_y_);
+      uint32_t run = sameStateCount(pixel_count, masked);
+      if (masked) {
+        output_remaining_ = 0;
+      } else {
+        openOutputWindow();
+        run = std::min(run, output_remaining_);
+        output_.fill(color, run);
+        output_remaining_ -= run;
       }
-      if (++cursor_x_ > address_window_.xMax()) {
-        ++cursor_y_;
-        cursor_x_ = address_window_.xMin();
-      }
-      ++i;
+      advanceCursor(run);
+      pixel_count -= run;
     }
   }
 
   void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
+    output_remaining_ = 0;
     while (count-- > 0) {
       fillSingleRect(mode, *color++, *x0++, *y0++, *x1++, *y1++);
     }
@@ -163,6 +209,7 @@ class ClipMaskFilter : public DisplayOutput {
 
   void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
+    output_remaining_ = 0;
     while (count-- > 0) {
       fillSingleRect(mode, color, *x0++, *y0++, *x1++, *y1++);
     }
@@ -170,6 +217,7 @@ class ClipMaskFilter : public DisplayOutput {
 
   void writePixels(BlendingMode mode, Color* color, int16_t* x, int16_t* y,
                    uint16_t pixel_count) override {
+    output_remaining_ = 0;
     int16_t* x_out = x;
     int16_t* y_out = y;
     Color* color_out = color;
@@ -189,6 +237,7 @@ class ClipMaskFilter : public DisplayOutput {
 
   void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
                   uint16_t pixel_count) override {
+    output_remaining_ = 0;
     int16_t* x_out = x;
     int16_t* y_out = y;
     uint16_t new_pixel_count = 0;
@@ -218,6 +267,46 @@ class ClipMaskFilter : public DisplayOutput {
   }
 
  private:
+  friend class FrontToBackWriter;
+
+  void invalidateOutputWindow() { output_remaining_ = 0; }
+
+  // Reinspect mask data on every call: front-to-back writers can mutate it.
+  uint32_t sameStateCount(uint32_t count, bool masked) const {
+    int16_t x = cursor_x_;
+    int32_t y = cursor_y_;
+    uint32_t total = 0;
+    while (total < count) {
+      if (clip_mask_.isMasked(x, y) != masked) break;
+      uint32_t row =
+          std::min<uint32_t>(count - total, address_window_.xMax() - x + 1);
+      uint32_t run = clip_mask_.sameStateCount(x, y, row);
+      total += run;
+      if (run < row) break;
+      x = address_window_.xMin();
+      ++y;
+    }
+    return total;
+  }
+
+  // A window may extend beyond the current visible run; no masked pixel is
+  // sent.
+  void openOutputWindow() {
+    if (output_remaining_ != 0) return;
+    int16_t y_max = cursor_x_ == address_window_.xMin() ? address_window_.yMax()
+                                                        : cursor_y_;
+    output_.setAddress(cursor_x_, cursor_y_, address_window_.xMax(), y_max,
+                       blending_mode_);
+    output_remaining_ =
+        (address_window_.xMax() - cursor_x_ + 1) * (y_max - cursor_y_ + 1);
+  }
+
+  void advanceCursor(uint32_t count) {
+    uint32_t offset = cursor_x_ - address_window_.xMin() + count;
+    cursor_y_ += offset / address_window_.width();
+    cursor_x_ = address_window_.xMin() + offset % address_window_.width();
+  }
+
   void fillSingleRect(BlendingMode mode, Color color, int16_t x0, int16_t y0,
                       int16_t x1, int16_t y1) {
     // Note: we need to flush these every rect, because the rectangles may
@@ -321,6 +410,7 @@ class ClipMaskFilter : public DisplayOutput {
   BlendingMode blending_mode_;
   int16_t cursor_x_;
   int16_t cursor_y_;
+  uint32_t output_remaining_ = 0;
   Capabilities capabilities_;
 };
 

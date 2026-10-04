@@ -104,8 +104,8 @@ Transformation Transformation::rotateCounterClockwise(int turns) const {
   }
 }
 
-void Transformation::transformRectNoSwap(int16_t &x0, int16_t &y0, int16_t &x1,
-                                         int16_t &y1) const {
+void Transformation::transformRectNoSwap(int16_t& x0, int16_t& y0, int16_t& x1,
+                                         int16_t& y1) const {
   x0 = x0 * x_scale_ + x_offset_;
   y0 = y0 * y_scale_ + y_offset_;
   x1 = (x1 + 1) * x_scale_ + x_offset_;
@@ -144,7 +144,7 @@ int floor_div(int a, int b) {
   return r ? (d - ((a < 0) ^ (b < 0))) : d;
 }
 
-Box Transformation::smallestEnclosingRect(const Box &rect) const {
+Box Transformation::smallestEnclosingRect(const Box& rect) const {
   int16_t x0 = rect.xMin() - x_offset_;
   int16_t y0 = rect.yMin() - y_offset_;
   int16_t x1 = rect.xMax() - x_offset_;
@@ -184,7 +184,7 @@ void TransformedDisplayOutput::setAddress(uint16_t x0, uint16_t y0, uint16_t x1,
   }
 }
 
-void TransformedDisplayOutput::write(Color *color, uint32_t pixel_count) {
+void TransformedDisplayOutput::write(Color* color, uint32_t pixel_count) {
   if (!transformation_.is_rescaled() && !transformation_.xy_swap()) {
     delegate_.write(color, pixel_count);
   } else if (!transformation_.is_abs_rescaled()) {
@@ -230,50 +230,37 @@ void TransformedDisplayOutput::write(Color *color, uint32_t pixel_count) {
 void TransformedDisplayOutput::fill(Color color, uint32_t pixel_count) {
   if (!transformation_.is_rescaled() && !transformation_.xy_swap()) {
     delegate_.fill(color, pixel_count);
-  } else if (!transformation_.is_abs_rescaled()) {
-    ClippingBufferedPixelFiller filler(delegate_, color, clip_box_,
-                                       blending_mode_);
-    while (pixel_count-- > 0) {
-      int16_t x = x_cursor_;
-      int16_t y = y_cursor_;
-      if (transformation_.xy_swap()) {
-        std::swap(x, y);
-      }
-      filler.fillPixel(
-          x * transformation_.x_scale() + transformation_.x_offset(),
-          y * transformation_.y_scale() + transformation_.y_offset());
-      if (x_cursor_ < addr_window_.xMax()) {
-        ++x_cursor_;
-      } else {
-        x_cursor_ = addr_window_.xMin();
-        ++y_cursor_;
-      }
-    }
-  } else {
-    ClippingBufferedRectFiller filler(delegate_, color, clip_box_,
-                                      blending_mode_);
-    while (pixel_count-- > 0) {
-      int16_t x0 = x_cursor_;
-      int16_t y0 = y_cursor_;
-      if (transformation_.xy_swap()) {
-        std::swap(x0, y0);
-      }
-      int16_t x1 = x0;
-      int16_t y1 = y0;
-      transformation_.transformRectNoSwap(x0, y0, x1, y1);
-      filler.fillRect(x0, y0, x1, y1);
-      if (x_cursor_ < addr_window_.xMax()) {
-        ++x_cursor_;
-      } else {
-        x_cursor_ = addr_window_.xMin();
-        ++y_cursor_;
-      }
+    return;
+  }
+  // A raster-order span is at most a partial row, full rows, and a final
+  // partial row. Transform these disjoint rectangles without expanding pixels.
+  ClippingBufferedRectFiller filler(delegate_, color, clip_box_,
+                                    blending_mode_);
+  uint32_t row_width = addr_window_.width();
+  while (pixel_count > 0) {
+    uint32_t rows =
+        x_cursor_ == addr_window_.xMin() ? pixel_count / row_width : 0;
+    uint32_t width = rows > 0
+                         ? row_width
+                         : std::min<uint32_t>(pixel_count, addr_window_.xMax() -
+                                                               x_cursor_ + 1);
+    uint32_t height = std::max<uint32_t>(rows, 1);
+    Box source(x_cursor_, y_cursor_, x_cursor_ + width - 1,
+               y_cursor_ + height - 1);
+    Box target = transformation_.transformBox(source);
+    filler.fillRect(target.xMin(), target.yMin(), target.xMax(), target.yMax());
+    pixel_count -= width * height;
+    if (source.xMax() == addr_window_.xMax()) {
+      x_cursor_ = addr_window_.xMin();
+      y_cursor_ += height;
+    } else {
+      x_cursor_ += width;
     }
   }
 }
 
-void TransformedDisplayOutput::writePixels(BlendingMode mode, Color *color,
-                                           int16_t *x, int16_t *y,
+void TransformedDisplayOutput::writePixels(BlendingMode mode, Color* color,
+                                           int16_t* x, int16_t* y,
                                            uint16_t pixel_count) {
   if (transformation_.xy_swap()) {
     std::swap(x, y);
@@ -314,7 +301,7 @@ void TransformedDisplayOutput::writePixels(BlendingMode mode, Color *color,
 }
 
 void TransformedDisplayOutput::fillPixels(BlendingMode mode, Color color,
-                                          int16_t *x, int16_t *y,
+                                          int16_t* x, int16_t* y,
                                           uint16_t pixel_count) {
   if (transformation_.xy_swap()) {
     std::swap(x, y);
@@ -352,9 +339,9 @@ void TransformedDisplayOutput::fillPixels(BlendingMode mode, Color color,
   }
 }
 
-void TransformedDisplayOutput::writeRects(BlendingMode mode, Color *color,
-                                          int16_t *x0, int16_t *y0, int16_t *x1,
-                                          int16_t *y1, uint16_t count) {
+void TransformedDisplayOutput::writeRects(BlendingMode mode, Color* color,
+                                          int16_t* x0, int16_t* y0, int16_t* x1,
+                                          int16_t* y1, uint16_t count) {
   ClippingBufferedRectWriter writer(delegate_, clip_box_, mode);
   if (transformation_.xy_swap()) {
     std::swap(x0, y0);
@@ -371,8 +358,8 @@ void TransformedDisplayOutput::writeRects(BlendingMode mode, Color *color,
 }
 
 void TransformedDisplayOutput::fillRects(BlendingMode mode, Color color,
-                                         int16_t *x0, int16_t *y0, int16_t *x1,
-                                         int16_t *y1, uint16_t count) {
+                                         int16_t* x0, int16_t* y0, int16_t* x1,
+                                         int16_t* y1, uint16_t count) {
   ClippingBufferedRectFiller filler(delegate_, color, clip_box_, mode);
   if (transformation_.xy_swap()) {
     std::swap(x0, y0);

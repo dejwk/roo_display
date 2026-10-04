@@ -1,8 +1,11 @@
 #include "roo_display/image/png/png.h"
 
 #include <cstdlib>
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "roo_display/color/color.h"
 #include "roo_display/core/streamable.h"
@@ -170,6 +173,103 @@ TEST(Png, RgbaMemoryResource) {
                              "00000000 FFFFCC00 80FFCC00 00000000"
                              "FF000000 80000000 00000000 FFFFFFFF "
                              "80FFFFFF 00000000 FFCC3366 80CC3366"));
+}
+
+namespace {
+struct PngReadStats {
+  size_t bytes = 0;
+  int closed = 0;
+};
+
+class TrackedPngInput : public roo_io::MemoryInputStream<const roo::byte*> {
+ public:
+  TrackedPngInput(const std::vector<char>& data, PngReadStats* stats)
+      : MemoryInputStream(
+            reinterpret_cast<const roo::byte*>(data.data()),
+            reinterpret_cast<const roo::byte*>(data.data()) + data.size()),
+        stats_(stats) {}
+
+  ~TrackedPngInput() override { ++stats_->closed; }
+
+  size_t read(roo::byte* result, size_t count) override {
+    size_t read = MemoryInputStream::read(result, count);
+    stats_->bytes += read;
+    return read;
+  }
+
+ private:
+  PngReadStats* stats_;
+};
+
+class TrackedPngResource : public roo_io::MultipassResource {
+ public:
+  explicit TrackedPngResource(const std::vector<char>& data) : data_(data) {}
+
+  std::unique_ptr<roo_io::MultipassInputStream> open() const override {
+    return std::unique_ptr<roo_io::MultipassInputStream>(
+        new TrackedPngInput(data_, &stats));
+  }
+
+  mutable PngReadStats stats;
+
+ private:
+  const std::vector<char>& data_;
+};
+}  // namespace
+
+// Verifies cropped draws stop reading below the last visible source row, retain
+// preceding rows for PNG filters, and release/reuse the decoder with full
+// extents.
+TEST(Png, CroppedDecodeStopsAfterVisibleRowsAndCanBeReused) {
+  std::ifstream file(RunfilesRoot() + "/test/testdata/rgba_filtered_32x128.png",
+                     std::ios::binary);
+  ASSERT_TRUE(file.is_open());
+  std::vector<char> data((std::istreambuf_iterator<char>(file)), {});
+  TrackedPngResource resource(data);
+  PngDecoder decoder;
+  PngImage image(decoder, resource);
+  ASSERT_EQ(image.extents(), Box(0, 0, 31, 127));
+  FakeOffscreen<Argb8888> reference(32, 128);
+  resource.stats = {};
+  Draw(reference, image, FillMode::kExtents, BlendingMode::kSource);
+  size_t full_bytes = resource.stats.bytes;
+  EXPECT_EQ(resource.stats.closed, 1);
+  struct Crop {
+    Box clip;
+    int16_t dx;
+    int16_t dy;
+  };
+  for (const Crop& crop :
+       {Crop{Box(0, 0, 31, 7), 0, 0}, Crop{Box(4, 2, 18, 9), 3, -10},
+        Crop{Box(0, 0, 13, 5), -5, -30}, Crop{Box(0, 0, 31, 7), 0, -120}}) {
+    FakeOffscreen<Argb8888> output(40, 16, color::Green);
+    Surface surface(output, crop.dx, crop.dy, crop.clip, false,
+                    color::Transparent, FillMode::kExtents,
+                    BlendingMode::kSource);
+    resource.stats = {};
+    surface.drawObject(image);
+    if (crop.clip.yMax() - crop.dy < 127) {
+      EXPECT_LT(resource.stats.bytes, full_bytes);
+    }
+    EXPECT_EQ(resource.stats.closed, 1);
+    EXPECT_EQ(image.extents(), Box(0, 0, 31, 127));
+    for (int y = 0; y < 16; ++y) {
+      for (int x = 0; x < 40; ++x) {
+        Color expected = color::Green;
+        if (crop.clip.contains(x, y) &&
+            image.extents().contains(x - crop.dx, y - crop.dy)) {
+          expected = reference.buffer()[(y - crop.dy) * 32 + x - crop.dx];
+        }
+        EXPECT_EQ(output.buffer()[y * 40 + x], expected) << x << "/" << y;
+      }
+    }
+  }
+  FakeOffscreen<Argb8888> repeated(32, 128);
+  resource.stats = {};
+  Draw(repeated, image, FillMode::kExtents, BlendingMode::kSource);
+  EXPECT_EQ(resource.stats.bytes, full_bytes);
+  EXPECT_EQ(resource.stats.closed, 1);
+  EXPECT_THAT(RasterOf(repeated), MatchesContent(RasterOf(reference)));
 }
 
 }  // namespace roo_display

@@ -4,20 +4,21 @@
 #include "roo_display/color/color_mode_indexed.h"
 #include "roo_display/image/png/lib/png.inl"
 
-PNG_STATIC int PNGInit(PNGIMAGE *pPNG);
-PNG_STATIC int DecodePNG(PNGIMAGE *pImage, void *pUser, int iOptions);
+PNG_STATIC int PNGInit(PNGIMAGE* pPNG);
+PNG_STATIC int DecodePNG(PNGIMAGE* pImage, void* pUser, int iOptions,
+                         int max_rows);
 // Include the C code which does the actual work
 // #include "png.inl"
 
 namespace roo_display {
 
-int32_t png_read(PNGFILE *pFile, uint8_t *pBuf, int32_t iLen) {
-  PngDecoder *decoder = (PngDecoder *)pFile->fHandle;
-  return decoder->input_->read((roo::byte *)pBuf, iLen);
+int32_t png_read(PNGFILE* pFile, uint8_t* pBuf, int32_t iLen) {
+  PngDecoder* decoder = (PngDecoder*)pFile->fHandle;
+  return decoder->input_->read((roo::byte*)pBuf, iLen);
 }
 
-int32_t png_seek(PNGFILE *pFile, int32_t iPosition) {
-  PngDecoder *decoder = (PngDecoder *)pFile->fHandle;
+int32_t png_seek(PNGFILE* pFile, int32_t iPosition) {
+  PngDecoder* decoder = (PngDecoder*)pFile->fHandle;
   decoder->input_->seek(iPosition);
   // The library ignores the return value anyway.
   return 1;
@@ -26,15 +27,15 @@ int32_t png_seek(PNGFILE *pFile, int32_t iPosition) {
 namespace {
 
 struct User {
-  const Surface *surface;
-  const Palette *palette;
+  const Surface* surface;
+  const Palette* palette;
 };
 
 }  // namespace
 
-void png_draw(PNGDRAW *pDraw) {
-  User &user = *((User *)pDraw->pUser);
-  const Surface *surface = user.surface;
+void png_draw(PNGDRAW* pDraw) {
+  User& user = *((User*)pDraw->pUser);
+  const Surface* surface = user.surface;
   int16_t y = pDraw->y;
   if (y + surface->dy() < surface->clip_box().yMin() ||
       y + surface->dy() > surface->clip_box().yMax()) {
@@ -44,24 +45,22 @@ void png_draw(PNGDRAW *pDraw) {
   ResumeOutput resume(surface->out());
   switch (pDraw->iPixelType) {
     case PNG_PIXEL_TRUECOLOR_ALPHA: {
-      ConstDramRaster<Rgba8888> raster(box, (const roo::byte *)pDraw->pPixels);
+      ConstDramRaster<Rgba8888> raster(box, (const roo::byte*)pDraw->pPixels);
       surface->drawObject(raster);
       break;
     }
     case PNG_PIXEL_TRUECOLOR: {
-      ConstDramRaster<Rgb888> raster(box, (const roo::byte *)pDraw->pPixels);
+      ConstDramRaster<Rgb888> raster(box, (const roo::byte*)pDraw->pPixels);
       surface->drawObject(raster);
       break;
     }
     case PNG_PIXEL_GRAYSCALE: {
-      ConstDramRaster<Grayscale8> raster(box,
-                                         (const roo::byte *)pDraw->pPixels);
+      ConstDramRaster<Grayscale8> raster(box, (const roo::byte*)pDraw->pPixels);
       surface->drawObject(raster);
       break;
     }
     case PNG_PIXEL_GRAY_ALPHA: {
-      ConstDramRaster<GrayAlpha8> raster(box,
-                                         (const roo::byte *)pDraw->pPixels);
+      ConstDramRaster<GrayAlpha8> raster(box, (const roo::byte*)pDraw->pPixels);
       surface->drawObject(raster);
       break;
     }
@@ -69,25 +68,25 @@ void png_draw(PNGDRAW *pDraw) {
       switch (pDraw->iBpp) {
         case 8: {
           ConstDramRaster<Indexed8> raster(
-              box, (const roo::byte *)pDraw->pPixels, Indexed8(user.palette));
+              box, (const roo::byte*)pDraw->pPixels, Indexed8(user.palette));
           surface->drawObject(raster);
           break;
         }
         case 4: {
           ConstDramRaster<Indexed4> raster(
-              box, (const roo::byte *)pDraw->pPixels, Indexed4(user.palette));
+              box, (const roo::byte*)pDraw->pPixels, Indexed4(user.palette));
           surface->drawObject(raster);
           break;
         }
         case 2: {
           ConstDramRaster<Indexed2> raster(
-              box, (const roo::byte *)pDraw->pPixels, Indexed2(user.palette));
+              box, (const roo::byte*)pDraw->pPixels, Indexed2(user.palette));
           surface->drawObject(raster);
           break;
         }
         case 1: {
           ConstDramRaster<Indexed1> raster(
-              box, (const roo::byte *)pDraw->pPixels, Indexed1(user.palette));
+              box, (const roo::byte*)pDraw->pPixels, Indexed1(user.palette));
           surface->drawObject(raster);
           break;
         }
@@ -98,8 +97,8 @@ void png_draw(PNGDRAW *pDraw) {
 
 PngDecoder::PngDecoder() : pngdec_(new PNGIMAGE()), input_(nullptr) {}
 
-bool PngDecoder::getDimensions(const roo_io::MultipassResource &resource,
-                               int16_t &width, int16_t &height) {
+bool PngDecoder::getDimensions(const roo_io::MultipassResource& resource,
+                               int16_t& width, int16_t& height) {
   if (!open(resource, width, height)) {
     width = 0;
     height = 0;
@@ -109,8 +108,8 @@ bool PngDecoder::getDimensions(const roo_io::MultipassResource &resource,
   return true;
 }
 
-bool PngDecoder::open(const roo_io::MultipassResource &resource, int16_t &width,
-                      int16_t &height) {
+bool PngDecoder::open(const roo_io::MultipassResource& resource, int16_t& width,
+                      int16_t& height) {
   input_ = resource.open();
   if (input_ == nullptr) return false;
   // Note: zeroing pnggec_ with memset causes compiler warnings; zeroing with =
@@ -137,24 +136,26 @@ bool PngDecoder::open(const roo_io::MultipassResource &resource, int16_t &width,
   return true;
 }
 
-void PngDecoder::draw(const roo_io::MultipassResource &resource,
-                      const Surface &s, uint8_t scale, int16_t &width,
-                      int16_t &height) {
+void PngDecoder::draw(const roo_io::MultipassResource& resource,
+                      const Surface& s, uint8_t scale, int16_t& width,
+                      int16_t& height) {
   PauseOutput pause(s.out());
   if (!open(resource, width, height)) {
     return;
   }
   Box extents(0, 0, pngdec_->iWidth - 1, pngdec_->iHeight - 1);
-  if (Box::Intersect(s.clip_box(), extents.translate(s.dx(), s.dy())).empty()) {
+  Box visible = Box::Intersect(s.clip_box(), extents.translate(s.dx(), s.dy()));
+  if (visible.empty()) {
     close();
     return;
   }
   if (pngdec_->ucPixelType == PNG_PIXEL_INDEXED) {
     palette_ =
-        Palette::ReadOnly((Color *)pngdec_->ucPalette, 1 << pngdec_->ucBpp);
+        Palette::ReadOnly((Color*)pngdec_->ucPalette, 1 << pngdec_->ucBpp);
   }
   User user{.surface = &s, .palette = &palette_};
-  DecodePNG(pngdec_.get(), (void *)&user, 0);
+  int max_rows = visible.yMax() - s.dy() + 1;
+  DecodePNG(pngdec_.get(), (void*)&user, 0, max_rows);
   close();
 }
 

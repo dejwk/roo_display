@@ -187,38 +187,41 @@ PNG_STATIC int PNGInit(PNGIMAGE *pPNG)
 // This function can be called repeatedly without having
 // to close and re-open the file
 //
-PNG_STATIC int DecodePNG(PNGIMAGE *pPage, void *pUser, int iOptions)
-{
-    int err, y, iLen=0;
-    int bDone, iOffset, iFileOffset, iBytesRead;
-    int iMarker=0;
-    uint8_t *tmp, *pCurr, *pPrev;
-    z_stream d_stream; /* decompression stream */
-    uint8_t *s = pPage->ucFileBuf;
-    struct inflate_state *state;
-    
-    // Either the image buffer must be allocated or a draw callback must be set before entering
-    if (pPage->pImage == NULL && pPage->pfnDraw == NULL) {
-        pPage->iError = PNG_NO_BUFFER;
-        return 0;
-    }
-    // Use internal buffer to maintain the current and previous lines
-    pCurr = pPage->ucPixels;
-    pPrev = &pPage->ucPixels[pPage->iPitch+1];
-    pPage->iError = PNG_SUCCESS;
-    // Start decoding the image
-    bDone = FALSE;
-    // Inflate the compressed image data
-    // The allocation functions are disabled and zlib has been modified
-    // to not use malloc/free and instead the buffer is part of the PNG class
-    d_stream.zalloc = (alloc_func)0;
-    d_stream.zfree = (free_func)0;
-    d_stream.opaque = (voidpf)0;
-    // Insert the memory pointer here to avoid having to use malloc() inside zlib
-    state = (struct inflate_state FAR *)pPage->ucZLIB;
-    d_stream.state = (struct internal_state FAR *)state;
-    state->window = &pPage->ucZLIB[sizeof(inflate_state)]; // point to 32k dictionary buffer
-    err = inflateInit(&d_stream);
+// Decode only the required row prefix; earlier rows still supply PNG filters.
+PNG_STATIC int DecodePNG(PNGIMAGE* pPage, void* pUser, int iOptions,
+                         int max_rows) {
+  int err, y, iLen = 0;
+  int bDone, iOffset, iFileOffset, iBytesRead;
+  int iMarker = 0;
+  uint8_t *tmp, *pCurr, *pPrev;
+  z_stream d_stream; /* decompression stream */
+  uint8_t* s = pPage->ucFileBuf;
+  struct inflate_state* state;
+
+  // Either the image buffer must be allocated or a draw callback must be set
+  // before entering
+  if (pPage->pImage == NULL && pPage->pfnDraw == NULL) {
+    pPage->iError = PNG_NO_BUFFER;
+    return 0;
+  }
+  // Use internal buffer to maintain the current and previous lines
+  pCurr = pPage->ucPixels;
+  pPrev = &pPage->ucPixels[pPage->iPitch + 1];
+  pPage->iError = PNG_SUCCESS;
+  // Start decoding the image
+  bDone = FALSE;
+  // Inflate the compressed image data
+  // The allocation functions are disabled and zlib has been modified
+  // to not use malloc/free and instead the buffer is part of the PNG class
+  d_stream.zalloc = (alloc_func)0;
+  d_stream.zfree = (free_func)0;
+  d_stream.opaque = (voidpf)0;
+  // Insert the memory pointer here to avoid having to use malloc() inside zlib
+  state = (struct inflate_state FAR*)pPage->ucZLIB;
+  d_stream.state = (struct internal_state FAR*)state;
+  state->window =
+      &pPage->ucZLIB[sizeof(inflate_state)];  // point to 32k dictionary buffer
+  err = inflateInit(&d_stream);
 #ifdef FUTURE
 //    if (inpage->cCompression == PIL_COMP_IPHONE_FLATE)
 //        err = mz_inflateInit2(&d_stream, -15); // undocumented option which ignores header and crcs
@@ -340,10 +343,18 @@ PNG_STATIC int DecodePNG(PNGIMAGE *pPage, void *pUser, int iOptions)
                                 memcpy(&pPage->pImage[y * pPage->iPitch], &pCurr[1], pPage->iPitch);
                             }
                             y++;
-                        // swap current and previous lines
-                        tmp = pCurr; pCurr = pPrev; pPrev = tmp;
-                        } else { // some error
-                            tmp = NULL;
+                            if (y >= max_rows && y < pPage->iHeight) {
+                              // A clipped prefix is successful; release inflate
+                              // state.
+                              inflateEnd(&d_stream);
+                              return PNG_SUCCESS;
+                            }
+                            // swap current and previous lines
+                            tmp = pCurr;
+                            pCurr = pPrev;
+                            pPrev = tmp;
+                        } else {  // some error
+                          tmp = NULL;
                         }
                     }
                     if (err == Z_STREAM_END && d_stream.avail_out == 0) {

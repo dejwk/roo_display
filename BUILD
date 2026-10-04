@@ -261,6 +261,7 @@ cc_test(
     ],
     data = [
         "test/testdata/palette_opaque_8x4.png",
+        "test/testdata/rgba_filtered_32x128.png",
         "test/testdata/rgba_alpha_8x4.png",
     ],
     linkstatic = 1,

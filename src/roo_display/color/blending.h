@@ -252,7 +252,7 @@ struct BlendOp<BlendingMode::kSourceOverOpaque> {
   }
 };
 
-#ifndef ROO_DISPLAY_BLENDING_PRECITION
+#ifndef ROO_DISPLAY_BLENDING_PRECISION
 #define ROO_DISPLAY_BLENDING_PRECISION 1
 #endif
 
@@ -332,36 +332,45 @@ struct BlendOp<BlendingMode::kSourceOver> {
 
 template <>
 struct BlendOp<BlendingMode::kSourceAtop> {
-  // Fa = αb; Fb = 1 – αs
-  // co = αs x Cs x αb + αb x Cb x (1 – αs)
-  // αo = αs x αb + αb x (1 – αs)
-
+  // Fa = αb; Fb = 1 – αs. For nonzero destination coverage, straight RGB is
+  // αs * Cs + (1 – αs) * Cb, while output alpha stays αb.
   inline Color blend(Color dst, Color src) const {
     uint16_t src_alpha = src.a();
     uint16_t dst_alpha = dst.a();
-    if (src_alpha == 0xFF) {
-      return src.withA(dst_alpha);
+    // Preserve the exact absent destination, including Background versus
+    // Transparent, in both scalar and bulk paths. No coverage is introduced.
+    if (dst_alpha == 0 || src_alpha == 0) return dst;
+    if (src_alpha == 0xFF) return src.withA(dst_alpha);
+    // SourceOver also uses exact opaque-destination blending at every
+    // precision.
+    if (dst_alpha == 0xFF) {
+      return BlendOp<BlendingMode::kSourceOverOpaque>().blend(dst, src);
     }
-    if (src_alpha == 0) {
-      return dst;
-    }
-    if (dst_alpha == 0) {
-      return color::Background;
-    }
-    uint16_t src_multi = src_alpha;
-    uint16_t dst_multi = 255 - src_alpha;
 
-    uint8_t r = (uint8_t)((src_multi * src.r() + dst_multi * dst.r()) >> 8);
-    uint8_t g = (uint8_t)((src_multi * src.g() + dst_multi * dst.g()) >> 8);
-    uint8_t b = (uint8_t)((src_multi * src.b() + dst_multi * dst.b()) >> 8);
+#if ROO_DISPLAY_BLENDING_PRECISION == 2 || ROO_DISPLAY_BLENDING_PRECISION == 1
+    // Unlike SourceOver, there is no division by a computed output alpha.
+    // Its high-precision weights therefore reduce to the same exact /255
+    // interpolation as precision 1; wider intermediates add no accuracy here.
+    uint16_t cs = src_alpha;
+    uint16_t cd = 255 - cs;
+    uint8_t r = internal::__div_255_rounded(cs * src.r() + cd * dst.r());
+    uint8_t g = internal::__div_255_rounded(cs * src.g() + cd * dst.g());
+    uint8_t b = internal::__div_255_rounded(cs * src.b() + cd * dst.b());
+#elif ROO_DISPLAY_BLENDING_PRECISION == 0
+    // Match SourceOver's approximate 256-weight interpolation and rounding,
+    // with its normalization denominator specialized to full RGB coverage.
+    uint16_t cs = src_alpha + 1;
+    uint16_t cd = 256 - cs;
+    uint8_t r = (cs * src.r() + cd * dst.r() + 128) >> 8;
+    uint8_t g = (cs * src.g() + cd * dst.g() + 128) >> 8;
+    uint8_t b = (cs * src.b() + cd * dst.b() + 128) >> 8;
+#endif
     return Color(dst_alpha << 24 | r << 16 | g << 8 | b);
   }
 
   inline Color blendTransparentSrc(Color dst, Color src) const { return dst; }
 
-  inline Color blendTransparentDst(Color dst, Color src) const {
-    return color::Background;
-  }
+  inline Color blendTransparentDst(Color dst, Color src) const { return dst; }
 };
 
 template <>
@@ -480,11 +489,8 @@ struct BlendOp<BlendingMode::kDestinationAtop> {
     return BlendOp<BlendingMode::kSourceAtop>().blend(src, dst);
   }
 
-  inline Color blendTransparentSrc(Color dst, Color src) const {
-    if (dst.a() == 0xFF) return dst.withA(0);
-    if (dst.a() == 0) return src;
-    return color::Background;
-  }
+  // SourceAtop with swapped inputs preserves this absent destination exactly.
+  inline Color blendTransparentSrc(Color dst, Color src) const { return src; }
 
   inline Color blendTransparentDst(Color dst, Color src) const { return src; }
 };

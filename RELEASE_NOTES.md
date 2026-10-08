@@ -1,3 +1,16 @@
+# roo_display 3.4.0
+
+- Fix composition rendering across raster and streaming paths, including first-layer blending, clipped masks, empty inputs, long spans, skipped pixels, and background handling.
+- Improve composition performance by skipping hidden layers and redundant mask samples, filling uniform regions directly, and allocating buffers only for surviving inputs.
+- Bound raster and filter scratch memory. Enforce the 16-input `StreamableStack` limit with capacity checks; retain support for arbitrary input counts in `RasterizableStack`.
+- Add reusable composition APIs for replacing inputs and retaining reserved storage, plus documentation on source lifetimes, caching, and group opacity.
+- Accelerate clipped bitmap and RLE reads, stop PNG decoding after the last visible row, and batch transformed uniform fills. Fix `RleImage<Alpha8>` compilation and packed-RLE uniform-run detection.
+- Expose gradient opacity and uniform-color hints. Correct `SourceAtop` rounding and transparent-color handling, and honor `ROO_DISPLAY_BLENDING_PRECISION` overrides.
+- Expand composition regression tests, benchmarks, and heap/ESP32 stack measurements.
+- Upgrade `roo_io` to 2.4.1 and the Bazel development dependency `roo_fonts_basic` to 1.0.6.
+
+---
+
 # roo_display 3.3.2
 
 - Fix a `SmoothFontV2` regression where visible-only rendering overwrote background pixels and erased overlapping glyphs.

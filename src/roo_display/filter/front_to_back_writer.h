@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstring>
+
 #include "roo_display/color/color.h"
 #include "roo_display/color/named.h"
 #include "roo_display/core/device.h"
@@ -46,32 +48,16 @@ class FrontToBackWriter : public DisplayOutput {
   void writeRects(BlendingMode mode, Color* color, int16_t* x0, int16_t* y0,
                   int16_t* x1, int16_t* y1, uint16_t count) override {
     for (int i = 0; i < count; i++) {
-      Box clipped =
-          Box::Intersect(offscreen_.extents(), Box(x0[i], y0[i], x1[i], y1[i]));
       mask_filter_.fillRect(mode, x0[i], y0[i], x1[i], y1[i], color[i]);
-      if (!clipped.empty()) {
-        offscreen_.output().fillRect(
-            mode,
-            clipped.translate(-offscreen_.extents().xMin(),
-                              -offscreen_.extents().yMin()),
-            color::Black);
-      }
+      markRect(mode, Box(x0[i], y0[i], x1[i], y1[i]));
     }
   }
 
   void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
                  int16_t* x1, int16_t* y1, uint16_t count) override {
     for (int i = 0; i < count; i++) {
-      Box clipped =
-          Box::Intersect(offscreen_.extents(), Box(x0[i], y0[i], x1[i], y1[i]));
       mask_filter_.fillRect(mode, x0[i], y0[i], x1[i], y1[i], color);
-      if (!clipped.empty()) {
-        offscreen_.output().fillRect(
-            mode,
-            clipped.translate(-offscreen_.extents().xMin(),
-                              -offscreen_.extents().yMin()),
-            color::Black);
-      }
+      markRect(mode, Box(x0[i], y0[i], x1[i], y1[i]));
     }
   }
 
@@ -119,7 +105,40 @@ class FrontToBackWriter : public DisplayOutput {
     if (!mask_.bounds().contains(x, y)) return;
     x -= mask_.bounds().xMin();
     y -= mask_.bounds().yMin();
-    offscreen_.output().fillPixels(mode, color::Black, &x, &y, 1);
+    if (mode == BlendingMode::kSource || mode == BlendingMode::kSourceOver) {
+      offscreen_.buffer()[y * ((mask_.bounds().width() + 7) / 8) + x / 8] |=
+          roo::byte{0x80} >> (x % 8);
+    } else {
+      offscreen_.output().fillPixels(mode, color::Black, &x, &y, 1);
+    }
+  }
+
+  // Common paints set opaque coverage. Mark whole bytes rather than sending
+  // every mask pixel through the generic offscreen color/blending pipeline.
+  void markRect(BlendingMode mode, const Box& rect) {
+    Box clipped = Box::Intersect(mask_.bounds(), rect);
+    if (clipped.empty()) return;
+    clipped = clipped.translate(-mask_.bounds().xMin(), -mask_.bounds().yMin());
+    // Preserve the existing mask-blending semantics for uncommon modes.
+    if (mode != BlendingMode::kSource && mode != BlendingMode::kSourceOver) {
+      offscreen_.output().fillRect(mode, clipped, color::Black);
+      return;
+    }
+    const int stride = (mask_.bounds().width() + 7) / 8;
+    const int first = clipped.xMin() / 8;
+    const int last = clipped.xMax() / 8;
+    const roo::byte head = roo::byte{0xFF} >> (clipped.xMin() % 8);
+    const roo::byte tail = roo::byte{0xFF} << (7 - clipped.xMax() % 8);
+    for (int y = clipped.yMin(); y <= clipped.yMax(); ++y) {
+      roo::byte* row = offscreen_.buffer() + y * stride;
+      if (first == last) {
+        row[first] |= head & tail;
+      } else {
+        row[first] |= head;
+        std::memset(row + first + 1, 0xFF, last - first - 1);
+        row[last] |= tail;
+      }
+    }
   }
 
   DisplayOutput& output_;

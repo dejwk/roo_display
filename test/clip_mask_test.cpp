@@ -3,6 +3,7 @@
 
 #include "roo_display.h"
 #include "roo_display/color/color.h"
+#include "roo_display/filter/background_fill_optimizer.h"
 #include "testing.h"
 #include "testing_display_device.h"
 
@@ -336,6 +337,134 @@ TEST(ClipMask, MutableMaskAndInterleavedOutput) {
   EXPECT_EQ(output.buffer()[5], color::Red);
   for (int i = 8; i < 16; ++i) EXPECT_EQ(output.buffer()[i], color::White);
   EXPECT_EQ(output.addresses, 3);
+}
+
+namespace {
+// Emulates the address-window traffic of a serial display for coordinate fills.
+class MaskSerialOutput : public MaskCountingOutput {
+ public:
+  using MaskCountingOutput::MaskCountingOutput;
+
+  void fill(Color color, uint32_t count) override {
+    pixels_written += count;
+    MaskCountingOutput::fill(color, count);
+  }
+
+  void fillRects(BlendingMode mode, Color color, int16_t* x0, int16_t* y0,
+                 int16_t* x1, int16_t* y1, uint16_t count) override {
+    rectangles += count;
+    for (int i = 0; i < count; ++i) {
+      setAddress(x0[i], y0[i], x1[i], y1[i], mode);
+      fill(color, (x1[i] - x0[i] + 1) * (y1[i] - y0[i] + 1));
+    }
+  }
+
+  void fillPixels(BlendingMode mode, Color color, int16_t* x, int16_t* y,
+                  uint16_t count) override {
+    for (int i = 0; i < count; ++i) {
+      setAddress(x[i], y[i], x[i], y[i], mode);
+      fill(color, 1);
+    }
+  }
+  int rectangles = 0;
+  uint32_t pixels_written = 0;
+};
+}  // namespace
+
+// Verifies adjacent unmasked blocks merge into larger rectangle fills,
+// including inverted masks, rather than falling back to individual pixels.
+TEST(ClipMask, RectFillsCoalesceUnmaskedBlocks) {
+  constexpr int kWidth = 160;
+  constexpr int kHeight = 80;
+  for (bool inverted : {false, true}) {
+    roo::byte bits[kHeight * kWidth / 8] = {};
+    for (int y = 0; y < kHeight; ++y) {
+      bits[y * kWidth / 8 + 9] = roo::byte{0x03};
+      bits[y * kWidth / 8 + 10] = roo::byte{0xC0};
+    }
+    ClipMask mask(bits, Box(0, 0, kWidth - 1, kHeight - 1), inverted);
+    MaskSerialOutput output(kWidth, kHeight);
+    ClipMaskFilter filter(output, &mask);
+    filter.fillRect(BlendingMode::kSource, 0, 0, kWidth - 1, kHeight - 1,
+                    color::Blue);
+    EXPECT_LE(output.addresses, 2 * kHeight);
+    EXPECT_GT(output.rectangles, 0);
+    for (int y = 0; y < kHeight; ++y) {
+      for (int x = 0; x < kWidth; ++x) {
+        EXPECT_EQ(output.buffer()[y * kWidth + x],
+                  mask.isMasked(x, y) ? color::Transparent : color::Blue);
+      }
+    }
+  }
+  roo::byte bits[kHeight * kWidth / 8] = {};
+  ClipMask mask(bits, Box(0, 0, kWidth - 1, kHeight - 1));
+  MaskSerialOutput output(kWidth, kHeight);
+  ClipMaskFilter filter(output, &mask);
+  filter.fillRect(BlendingMode::kSource, 0, 0, kWidth - 1, kHeight - 1,
+                  color::Red);
+  EXPECT_EQ(output.addresses, 1);
+  EXPECT_EQ(output.rectangles, 1);
+}
+
+// Verifies overlapping coordinate fills against a pixel oracle with arbitrary
+// mask bytes, nonzero origins, padding, inversion, and draws outside the mask.
+TEST(ClipMask, RectFillsMatchPixelOracle) {
+  for (bool inverted : {false, true}) {
+    for (int pattern = 0; pattern < 256; ++pattern) {
+      roo::byte bits[8];
+      for (int i = 0; i < 8; ++i) bits[i] = roo::byte((pattern + 29 * i) & 255);
+      ClipMask mask(bits, Box(3, 2, 12, 5), inverted);
+      MaskSerialOutput output(19, 7);
+      FakeOffscreen<Argb8888> expected(19, 7);
+      ClipMaskFilter filter(output, &mask);
+      for (const Box& rect : {Box(0, 0, 18, 6), Box(2, 1, 15, 6)}) {
+        Color color(128, rect.xMin() * 40, 40, 70);
+        filter.fillRect(BlendingMode::kSourceOver, rect, color);
+        for (int y = rect.yMin(); y <= rect.yMax(); ++y) {
+          for (int x = rect.xMin(); x <= rect.xMax(); ++x) {
+            if (!mask.isMasked(x, y)) {
+              expected.writePixel(BlendingMode::kSourceOver, x, y, color);
+            }
+          }
+        }
+      }
+      EXPECT_THAT(RasterOf(output), MatchesContent(RasterOf(expected)))
+          << pattern << "/" << inverted;
+    }
+  }
+}
+
+// Verifies coalesced fills preserve turbo's coarse-grid color knowledge so
+// repeated masked backgrounds skip all complete unchanged four-pixel cells.
+TEST(ClipMask, CoalescedRectFillsPreserveTurboSkipping) {
+  constexpr int kWidth = 160;
+  constexpr int kHeight = 80;
+  roo::byte bits[kHeight * kWidth / 8] = {};
+  for (int y = 0; y < kHeight; ++y) {
+    bits[y * kWidth / 8 + 9] = roo::byte{0x03};
+    bits[y * kWidth / 8 + 10] = roo::byte{0xC0};
+  }
+  ClipMask mask(bits, Box(0, 0, kWidth - 1, kHeight - 1));
+  MaskSerialOutput output(kWidth, kHeight);
+  BackgroundFillOptimizer::FrameBuffer buffer(kWidth, kHeight);
+  BackgroundFillOptimizer turbo(output, buffer);
+  turbo.setPalette({color::Blue});
+  ClipMaskFilter filter(turbo, &mask);
+  filter.fillRect(BlendingMode::kSource, mask.bounds(), color::Blue);
+  turbo.flush();
+  EXPECT_EQ(output.pixels_written,
+            static_cast<uint32_t>((kWidth - 4) * kHeight));
+  output.pixels_written = 0;
+  filter.fillRect(BlendingMode::kSource, mask.bounds(), color::Blue);
+  turbo.flush();
+  // Only the two partially masked coarse cells can require any repeated writes.
+  EXPECT_LE(output.pixels_written, 4u * kHeight);
+  for (int y = 0; y < kHeight; ++y) {
+    for (int x = 0; x < kWidth; ++x) {
+      EXPECT_EQ(output.buffer()[y * kWidth + x],
+                mask.isMasked(x, y) ? color::Transparent : color::Blue);
+    }
+  }
 }
 
 }  // namespace roo_display

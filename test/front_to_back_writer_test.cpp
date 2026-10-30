@@ -127,4 +127,16 @@ TEST(FrontToBackWriter, BatchesUniquePixelsAndPreservesFirstWrite) {
   EXPECT_EQ(output.fills, 1);
 }
 
+// Verifies byte-wise coverage marking preserves first writes for source-over
+// fills and streams, including partial bytes, overlapping rectangles and
+// pixels.
+TEST(FrontToBackWriter, SourceOverCoverageMatchesPixelOracle) {
+  TestFillRects<TestDeviceSimple, RefDeviceSimple>(BlendingMode::kSourceOver,
+                                                   Orientation());
+  TestWritePixelsStress<TestDeviceSimple, RefDeviceSimple>(
+      BlendingMode::kSourceOver, Orientation());
+  TestWriteRectWindowStress<TestDeviceSimple, RefDeviceSimple>(
+      BlendingMode::kSourceOver, Orientation());
+}
+
 }  // namespace roo_display

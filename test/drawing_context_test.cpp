@@ -304,4 +304,33 @@ TEST(DrawingContext, ContextOfSurface) {
                                           "          "));
 }
 
+// Verifies mask storage uses the drawable intersection without constraining
+// alignment bounds or later expansion of the current clip inside that area.
+TEST(DrawingContext, WriteOnceWithLargerBoundsAndExpandingClip) {
+  FakeOffscreen<Argb8888> output(10, 11);
+  Display display(output);
+  {
+    DrawingContext dc(display, 3, 2, Box(-5, -5, 20, 20));
+    dc.setClipBox(Box(0, 0, 1, 1));
+    dc.setWriteOnce();
+    dc.fill(color::Red);
+    dc.setClipBox(Box(-5, -5, 20, 20));
+    dc.fill(color::Blue);
+    EXPECT_EQ(dc.bounds(), Box(-5, -5, 20, 20));
+  }
+  for (int y = 0; y < 11; ++y) {
+    for (int x = 0; x < 10; ++x) {
+      EXPECT_EQ(output.buffer()[y * 10 + x],
+                Box(3, 2, 4, 3).contains(x, y) ? color::Red : color::Blue);
+    }
+  }
+  // A fully clipped-out context must also remain safe and emit nothing.
+  {
+    DrawingContext dc(display, Box(20, 20, 30, 30));
+    dc.setWriteOnce();
+    dc.fill(color::Green);
+  }
+  EXPECT_EQ(output.buffer()[0], color::Blue);
+}
+
 }  // namespace roo_display

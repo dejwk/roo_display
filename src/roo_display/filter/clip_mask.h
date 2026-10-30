@@ -51,14 +51,14 @@ class ClipMask {
   /// Return whether all bits in a block are masked.
   inline bool isAllMasked(int16_t x, int16_t y, roo::byte mask,
                           uint8_t lines) const {
-    return inverted_ ? isAllUnset(x, y, mask, ~lines)
+    return inverted_ ? isAllUnset(x, y, mask, lines)
                      : isAllSet(x, y, mask, lines);
   }
 
   /// Return whether all bits in a block are unmasked.
   inline bool isAllUnmasked(int16_t x, int16_t y, roo::byte mask,
                             uint8_t lines) const {
-    return inverted_ ? isAllSet(x, y, mask, ~lines)
+    return inverted_ ? isAllSet(x, y, mask, lines)
                      : isAllUnset(x, y, mask, lines);
   }
 
@@ -307,12 +307,32 @@ class ClipMaskFilter : public DisplayOutput {
     cursor_x_ = address_window_.xMin() + offset % address_window_.width();
   }
 
+  // Join adjacent same-color rectangles without changing their coverage.
+  // A single pending rectangle handles wide empty bands with constant RAM.
+  static void AppendRect(BufferedRectFiller& filler, Box& pending,
+                         const Box& rect) {
+    if (rect.empty()) return;
+    if (!pending.empty()) {
+      bool horizontal = pending.yMin() == rect.yMin() &&
+                        pending.yMax() == rect.yMax() &&
+                        pending.xMax() + 1 == rect.xMin();
+      bool vertical = pending.xMin() == rect.xMin() &&
+                      pending.xMax() == rect.xMax() &&
+                      pending.yMax() + 1 == rect.yMin();
+      if (horizontal || vertical) {
+        pending = Box::Extent(pending, rect);
+        return;
+      }
+      filler.fillRect(pending.xMin(), pending.yMin(), pending.xMax(),
+                      pending.yMax());
+    }
+    pending = rect;
+  }
+
   void fillSingleRect(BlendingMode mode, Color color, int16_t x0, int16_t y0,
                       int16_t x1, int16_t y1) {
-    // Note: we need to flush these every rect, because the rectangles may
-    // be overlapping. (A possible alternative would be to only use
-    // rectfiller).
-    BufferedPixelFiller pfiller(output_, color, mode);
+    // Flush per input rectangle: overlapping source-over fills must retain
+    // their original ordering. Keep output rectangular for turbo's coarse grid.
     BufferedRectFiller rfiller(output_, color, mode);
     const Box& bounds = clip_mask_.bounds();
     if (y0 < bounds.yMin()) {
@@ -363,42 +383,52 @@ class ClipMaskFilter : public DisplayOutput {
       }
       y1 = bounds.yMax();
     }
-    // Now, [x0, y0, x1, y1] is entirely within bounds.
-    // Iterate in 8x8 blocks, filling (or skipping) the entire block when at all
-    // possible.
+    Box pending(0, 0, -1, -1);
     uint8_t yshift = (y0 - bounds.yMin()) % 8;
     for (int16_t yc0 = y0; yc0 <= y1;) {
-      int16_t yc1 = yc0 - yshift + 7;
-      if (yc1 > y1) yc1 = y1;
+      int16_t yc1 = std::min<int16_t>(y1, yc0 - yshift + 7);
       uint8_t lines = yc1 - yc0 + 1;
       uint8_t xshift = (x0 - bounds.xMin()) % 8;
+      Box unmasked_run(0, 0, -1, -1);
       for (int16_t xc0 = x0; xc0 <= x1;) {
         int16_t xc1 = xc0 - xshift + 7;
-        roo::byte mask = roo::byte{0xFF} >> xshift;
+        roo::byte bits = roo::byte{0xFF} >> xshift;
         if (xc1 > x1) {
-          mask &= (roo::byte{0xFF} << (xc1 - x1));
+          bits &= roo::byte{0xFF} << (xc1 - x1);
           xc1 = x1;
         }
-        if (!clip_mask_.isAllMasked(xc0, yc0, mask, lines)) {
-          if (clip_mask_.isAllUnmasked(xc0, yc0, mask, lines)) {
-            rfiller.fillRect(xc0, yc0, xc1, yc1);
-          } else {
-            // Degenerate to the slow version.
+        if (clip_mask_.isAllUnmasked(xc0, yc0, bits, lines)) {
+          // Coalesce neighboring 8x8 blocks before handing them to the output.
+          unmasked_run = Box(unmasked_run.empty() ? xc0 : unmasked_run.xMin(),
+                             yc0, xc1, yc1);
+        } else {
+          AppendRect(rfiller, pending, unmasked_run);
+          unmasked_run = Box(0, 0, -1, -1);
+          if (!clip_mask_.isAllMasked(xc0, yc0, bits, lines)) {
+            // Only mixed blocks need a finer scan. Emit row rectangles rather
+            // than isolated pixels, merging equal spans vertically when
+            // possible.
             for (int16_t y = yc0; y <= yc1; ++y) {
-              for (int16_t x = xc0; x <= xc1; ++x) {
+              for (int16_t x = xc0; x <= xc1;) {
+                uint32_t run = clip_mask_.sameStateCount(x, y, xc1 - x + 1);
                 if (!clip_mask_.isMasked(x, y)) {
-                  pfiller.fillPixel(x, y);
+                  AppendRect(rfiller, pending, Box(x, y, x + run - 1, y));
                 }
+                x += run;
               }
             }
           }
         }
-
-        xc0 = xc0 - xshift + 8;
+        xc0 = xc1 + 1;
         xshift = 0;
       }
-      yc0 = yc0 - yshift + 8;
+      AppendRect(rfiller, pending, unmasked_run);
+      yc0 = yc1 + 1;
       yshift = 0;
+    }
+    if (!pending.empty()) {
+      rfiller.fillRect(pending.xMin(), pending.yMin(), pending.xMax(),
+                       pending.yMax());
     }
   }
 

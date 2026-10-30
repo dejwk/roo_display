@@ -162,8 +162,11 @@ DrawingContext::~DrawingContext() { unnest_(); }
 void DrawingContext::setWriteOnce() {
   if (write_once_) return;
   write_once_ = true;
+  if (max_clip_box_.empty()) return;
+  // Alignment bounds can exceed the drawable surface. Only reserve mask bits
+  // for pixels that can actually be drawn, including later clip expansion.
   front_to_back_writer_.reset(
-      new FrontToBackWriter(output(), bounds().translate(dx_, dy_)));
+      new FrontToBackWriter(output(), max_clip_box_.translate(dx_, dy_)));
 }
 
 void DrawingContext::drawPixels(

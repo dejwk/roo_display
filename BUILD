@@ -28,6 +28,7 @@ cc_library(
         "@roo_collections",
         "@roo_io",
         "@roo_io//:i2c",
+        "@roo_io//:spi",
     ] + select({
         "@roo_testing//roo_testing/platforms:is_arduino": [
             "@roo_io//:arduino_fs",
@@ -553,16 +554,26 @@ cc_test(
 
 cc_test(
     name = "touch_xpt2046_test",
+    size = "small",
     srcs = [
         "test/testing_viewport.h",
         "test/touch_xpt2046_test.cpp",
     ],
-    linkstatic = 1,
-    deps = UNIT_TEST_DEPS + [
+    linkopts = select({
+        "@roo_testing//roo_testing/platforms:is_idf": ["-Wl,--wrap=spi_device_polling_transmit"],
+        "//conditions:default": [],
+    }),
+    linkstatic = True,
+    deps = [
+        ":roo_display",
+        "@roo_testing//roo_testing/devices/display/ili9341:spi",
         "@roo_testing//roo_testing/devices/touch/xpt2046:spi",
         "@roo_testing//roo_testing/microcontrollers/esp32:core",
         "@roo_testing//roo_testing/transducers/ui/viewport",
-    ],
+    ] + select({
+        "@roo_testing//roo_testing/platforms:is_idf": ["@roo_testing//:esp_idf_gtest_main"],
+        "//conditions:default": ["@roo_testing//:arduino_gtest_main"],
+    }),
 )
 
 cc_test(
@@ -642,6 +653,7 @@ cc_library(
     deps = [
         "@roo_backport",
         "@roo_io",
+        "@roo_io//:spi_headers",
         "@roo_testing//:arduino",
     ],
 )

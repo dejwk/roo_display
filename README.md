@@ -105,6 +105,43 @@ source compatibility. Native IDF device registrations are released when their
 drivers are destroyed; keep externally owned buses alive until then. See the
 `roo_io` I2C documentation for bus initialization and ownership.
 
+### XPT2046 SPI transport
+
+The standard `TouchXpt2046<pinCS>` driver uses `roo_io` scoped SPI transactions
+at 2.5 MHz, MSB first, mode 0. Existing default and explicit `Spi` constructors
+remain available; the application initializes/owns the bus. `initTouch()`
+configures the device and CS without reinitializing that bus. Native IDF borrows
+the host used by the supplied display SPI object, so display and touch can share
+one bus with separate CS pins. Destroy devices before deinitializing the bus.
+
+Each hardware read holds one reservation/CS assertion through batched pressure
+and coordinate exchanges and the final PENIRQ restore command. ADC words are
+explicitly big-endian. Invalid ADC data or transport failures reject the sample;
+PENIRQ cleanup is attempted and the scope always releases CS/the bus. Pressure
+settling has a finite budget. `BasicTouchDevice` keeps its existing smoothing,
+sampling interval, and short lost-contact inertia for the public `getTouch()` API.
+
+Failed setup disables hardware reads. Call `initTouch()` again after correcting
+bus setup to retry. Standard SPI wrappers expose `busHandle()` as a borrowed
+`roo_io` view; custom SPI/GPIO policy types retain their legacy transaction path.
+Their existing byte-transfer API cannot report transport failure. Pixel drivers
+continue using their existing optimized transports.
+
+Bazel clients need the `@roo_io//:spi` implementation (included by `:roo_display`).
+Native firmware builds compile its SPI source and include `esp_driver_spi` and
+`esp_driver_gpio`. Until the scoped API is released, pass local overrides:
+
+```sh
+bazel test //:touch_xpt2046_test --override_module=roo_io=../roo_io \
+  --override_module=roo_testing=../roo_testing
+bazel test --config=roo_testing_idf_esp32 //:touch_xpt2046_test \
+  --override_module=roo_io=../roo_io --override_module=roo_testing=../roo_testing
+```
+
+The touch test checks coordinates/pressure, CS framing and PENIRQ cleanup,
+invalid data, every native transfer-failure position, initialization retry,
+custom policy compatibility, and alternating ILI9341/touch traffic on one bus.
+
 ### Pico host transport subset
 
 The `:arduino_spi` target exposes the synchronous Arduino SPI transport on the

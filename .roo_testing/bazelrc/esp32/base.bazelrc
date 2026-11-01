@@ -8,6 +8,9 @@
 # Emulator identity.
 build:roo_testing_esp32_base --copt=-DROO_TESTING=1
 
+# Application runtime, independent of frontend and SoC.
+build:roo_testing_esp32_base --copt=-DROO_TESTING_RUNTIME_FREERTOS=1
+
 # ESP-IDF frontend and version.
 build:roo_testing_esp32_base --copt=-DESP_PLATFORM=1
 build:roo_testing_esp32_base --copt=-DIDF_VER=\"v6.0.2\"

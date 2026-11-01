@@ -22,6 +22,7 @@
 #include "roo_display/hal/esp32/spi_reg.h"
 #include "roo_display/hal/spi_settings.h"
 #include "roo_io/data/byte_order.h"
+#include "roo_io/spi/spi.h"
 #include "roo_logging.h"
 #include "soc/spi_reg.h"
 
@@ -106,6 +107,12 @@ class Esp32Spi {
   }
 
 #endif
+
+  /// Borrows the initialized bus for synchronous peripheral drivers.
+  /// Keep this bus initialized until every borrowing device is destroyed.
+  roo_io::SpiMasterBusHandle busHandle() const {
+    return roo_io::SpiMasterBusHandle(spi_);
+  }
 
  private:
   template <uint8_t, typename SpiSettings>

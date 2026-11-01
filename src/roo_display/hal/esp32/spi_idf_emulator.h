@@ -10,6 +10,7 @@
 #include "roo_display/hal/spi_settings.h"
 #include "roo_io/data/byte_order.h"
 #include "roo_io/memory/fill.h"
+#include "roo_io/spi/spi.h"
 
 namespace roo_display {
 namespace esp32 {
@@ -47,6 +48,12 @@ class IdfEmulatorSpi {
     if (err != ESP_ERR_INVALID_STATE) {
       ESP_ERROR_CHECK(err);
     }
+  }
+
+  /// Borrows the initialized bus for synchronous peripheral drivers.
+  /// Keep this bus initialized until every borrowing device is destroyed.
+  roo_io::SpiMasterBusHandle busHandle() const {
+    return roo_io::SpiMasterBusHandle(host_);
   }
 
  private:

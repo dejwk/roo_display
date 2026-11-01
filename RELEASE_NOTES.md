@@ -1,3 +1,12 @@
+# Unreleased
+
+- Use roo_io scoped SPI transactions for standard XPT2046 touch transports,
+  preserving constructors and custom SPI/GPIO policies. Batch conversions,
+  reject invalid/failed samples, bound pressure settling, and attempt PENIRQ
+  restoration before releasing CS and the bus.
+- Expose borrowed bus handles from SPI wrappers and test Arduino/native IDF
+  touch behavior alongside an existing panel driver on the shared bus.
+
 # roo_display 3.4.0
 
 - Fix composition rendering across raster and streaming paths, including first-layer blending, clipped masks, empty inputs, long spans, skipped pixels, and background handling.

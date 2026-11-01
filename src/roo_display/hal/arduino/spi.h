@@ -11,6 +11,7 @@
 #include "roo_display/internal/byte_order.h"
 #include "roo_io/data/byte_order.h"
 #include "roo_io/memory/fill.h"
+#include "roo_io/spi/spi.h"
 
 namespace roo_display {
 
@@ -35,6 +36,12 @@ class ArduinoSpi {
 #else
     spi_.begin(sck, miso, mosi);
 #endif
+  }
+
+  /// Borrows the initialized bus for synchronous peripheral drivers.
+  /// Keep this bus initialized until every borrowing device is destroyed.
+  roo_io::SpiMasterBusHandle busHandle() const {
+    return roo_io::SpiMasterBusHandle(spi_);
   }
 
  private:

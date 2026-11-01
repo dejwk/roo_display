@@ -1,198 +1,184 @@
 #pragma once
+#include <stdlib.h>
 
 #include "roo_display/core/device.h"
 #include "roo_display/driver/common/basic_touch.h"
+#include "roo_display/driver/common/touch_spi.h"
 #include "roo_display/hal/gpio.h"
 #include "roo_display/hal/spi.h"
-#include "roo_display/transport/spi.h"
+#include "roo_display/hal/spi_settings.h"
 
 namespace roo_display {
-
 static const int kSpiTouchFrequency = 2500000;
+using TouchXpt2046SpiSettings =
+    SpiSettings<kSpiTouchFrequency, kSpiMsbFirst, kSpiMode0>;
 
-typedef SpiSettings<kSpiTouchFrequency, kSpiMsbFirst, kSpiMode0>
-    TouchXpt2046SpiSettings;
-
-// If two subsequent reads are further apart than this parameter, in either
-// X or Y direction, their conversion is rejected as UNSETTLED.
-// This parameter helps to filter out random noise. If the value is too small,
-// though, the panel may have a hard time registering touch.
+// Reject sample pairs further apart than this raw ADC distance in either axis.
+// This filters noise; reducing the distance too far can cause missed touches.
 static const int kMaxRawSettlingDistance = 200;
 
-// How many conversions we attempt in order to get to kMinSettledConversions.
-// If we reach this limit, we return the result based on however many settled
-// conversions we have seen, even if it is below the minimum.
+// Bound conversion/pressure settling attempts; reject reads that cannot obtain
+// kMinSettledConversions within this budget instead of holding the bus forever.
 static const int kMaxConversionAttempts = 100;
-
-// How many settled conversions is enough to consider the reading reliable.
 static const int kMinSettledConversions = 8;
 
-// How hard the press needs to be to count as touch.
+// Minimum pressure required to count as touch.
 static const int kInitialTouchZThreshold = 400;
 
-// // How hard the press needs to be to count as continued touch (i.e., once
-// // the display has been touched). See kTouchSensitivityLagMs.
-// static const int kSustainedTouchZThreshold = 300;
-
-// // To avoid spurious drops in drag touch, the driver is more sensitive to
-// touch
-// // (and thus more prone to picking up noise) for this many ms since last
-// // definitive touch.
-// static const int kTouchSensitivityLagMs = 250;
-
+/// Resistive XPT2046 touch driver with bounded settling and shared SPI scopes.
+/// Standard buses use roo_io; custom SPI/GPIO policies retain the legacy path.
 template <int pinCS, typename Spi = DefaultSpi, typename Gpio = DefaultGpio>
 class TouchXpt2046 : public BasicTouchDevice<1> {
  public:
+  /// Borrows the application-initialized bus supplied by @p spi. Keep its
+  /// underlying bus alive until the driver is destroyed; initTouch() configures
+  /// the device/CS and must precede reads. Existing default/explicit Spi
+  /// constructors and custom SPI/GPIO policy types remain supported.
   explicit TouchXpt2046(Spi spi = Spi());
 
-  virtual void initTouch() override {
-    Gpio::setOutput(pinCS);
-    Gpio::template setHigh<pinCS>();
-    device_.init();
-  }
+  /// Configures touch transport without initializing or taking over the bus.
+  /// Failed setup disables reads; call again to retry after fixing bus setup.
+  void initTouch() override { initialized_ = device_.init(); }
 
  protected:
   int readTouch(TouchPoint* points) override;
 
  private:
-  typename Spi::Device<TouchXpt2046SpiSettings> device_;
-
-  bool pressed_;
-  unsigned long latest_confirmed_pressed_timestamp_;
+  using Device =
+      internal::TouchSpiDevice<pinCS, Spi, Gpio, TouchXpt2046SpiSettings>;
+  Device device_;
+  bool initialized_ = false;
 };
 
-// Implementation follows.
+namespace internal {
+enum class XptConversion { kUntouched, kTouched, kUnsettled, kError };
+
+// Responses are big-endian words containing a 12-bit ADC sample shifted by 3.
+inline uint16_t DecodeXptSample(const uint8_t* bytes) {
+  return (static_cast<uint16_t>(bytes[0]) << 8 | bytes[1]) >> 3;
+}
+
+// Pipeline three samples per axis and retain the final settled conversion.
+template <typename Transaction>
+bool ReadXptXY(Transaction& spi, uint16_t& x, uint16_t& y) {
+  const uint8_t tx[] = {0xd3, 0,    0xd3, 0,    0xd3, 0, 0x93,
+                        0,    0x93, 0,    0x93, 0,    0};
+  uint8_t rx[sizeof(tx)];
+  if (!spi.transfer(tx, rx, sizeof(tx))) return false;
+  x = DecodeXptSample(rx + 5);
+  y = DecodeXptSample(rx + 11);
+  return x <= 4095 && y <= 4095;
+}
+
+// Read both pressure channels in one exchange, rejecting malformed ADC words.
+template <typename Transaction>
+bool ReadXptZ(Transaction& spi, uint16_t& z) {
+  const uint8_t tx[] = {0xb1, 0, 0xc1, 0, 0};
+  uint8_t rx[sizeof(tx)];
+  if (!spi.transfer(tx, rx, sizeof(tx))) return false;
+  const uint16_t z1 = DecodeXptSample(rx + 1);
+  const uint16_t z2 = DecodeXptSample(rx + 3);
+  if (z1 > 4095 || z2 > 4095) return false;
+  z = 4095 + z1 - z2;
+  return true;
+}
+
+// Require stable pressure and a nearby pair of coordinate samples. Every loop
+// has a finite budget, including a controller that never settles.
+template <typename Transaction>
+XptConversion ReadXptConversion(Transaction& spi, uint16_t threshold,
+                                uint16_t& x, uint16_t& y, uint16_t& z) {
+  uint16_t z1 = 1;
+  uint16_t z2 = 0;
+  for (int i = 0; i < kMaxConversionAttempts && z1 > z2; ++i) {
+    z2 = z1;
+    if (!ReadXptZ(spi, z1)) return XptConversion::kError;
+  }
+  if (z1 > z2) return XptConversion::kUnsettled;
+  if (z1 <= threshold) return XptConversion::kUntouched;
+  uint16_t x1;
+  uint16_t y1;
+  uint16_t x2;
+  uint16_t y2;
+  if (!ReadXptXY(spi, x1, y1) || !ReadXptXY(spi, x2, y2)) {
+    return XptConversion::kError;
+  }
+  if (abs(x1 - x2) > kMaxRawSettlingDistance ||
+      abs(y1 - y2) > kMaxRawSettlingDistance) {
+    return XptConversion::kUnsettled;
+  }
+  if (!ReadXptZ(spi, z)) return XptConversion::kError;
+  if (z <= threshold) return XptConversion::kUnsettled;
+  x = (x1 + x2) / 2;
+  y = (y1 + y2) / 2;
+  return XptConversion::kTouched;
+}
+}  // namespace internal
 
 template <int pinCS, typename Spi, typename Gpio>
 TouchXpt2046<pinCS, Spi, Gpio>::TouchXpt2046(Spi spi)
-    : BasicTouchDevice(Config{.min_sampling_interval_ms = 5,
-                              .touch_intertia_ms = 30,
-                              .smoothing_factor = 0.8}),
-      device_(spi),
-      pressed_(false),
-      latest_confirmed_pressed_timestamp_(0) {}
-
-template <typename Spi>
-void get_raw_touch_xy(Spi& spi, uint16_t* x, uint16_t* y) {
-  spi.transfer(roo::byte{0xd3});
-  *x = spi.transfer16(0xd3) >> 3;
-  *x = spi.transfer16(0xd3) >> 3;
-  *x = spi.transfer16(0x93) >> 3;
-
-  // Start bit + XP sample request for y position
-  // spi.transfer(0x93);
-  *y = spi.transfer16(0x93) >> 3;
-  *y = spi.transfer16(0x93) >> 3;
-  *y = spi.transfer16(0x00) >> 3;
-}
-
-template <typename Spi>
-uint16_t get_raw_touch_z(Spi& spi) {
-  int16_t tz = 0xFFF;
-  spi.transfer(roo::byte{0xb1});
-  tz += spi.transfer16(0xc1) >> 3;
-  tz -= spi.transfer16(0) >> 3;
-  return (uint16_t)tz;
-}
-
-enum ConversionResult { UNTOUCHED = 0, TOUCHED = 1, UNSETTLED = 2 };
-
-template <typename Spi>
-ConversionResult single_conversion(Spi& spi, uint16_t z_threshold, uint16_t* x,
-                                   uint16_t* y, uint16_t* z) {
-  // Wait until pressure stops increasing
-  uint16_t z1 = 1;
-  uint16_t z2 = 0;
-  while (z1 > z2) {
-    z2 = z1;
-    z1 = get_raw_touch_z(spi);
-  }
-
-  if (z1 <= z_threshold) {
-    return UNTOUCHED;
-  }
-
-  uint16_t x1, y1, x2, y2;
-  get_raw_touch_xy(spi, &x1, &y1);
-  get_raw_touch_xy(spi, &x2, &y2);
-  if (abs(x1 - x2) > kMaxRawSettlingDistance) return UNSETTLED;
-  if (abs(y1 - y2) > kMaxRawSettlingDistance) return UNSETTLED;
-  uint16_t z3 = get_raw_touch_z(spi);
-  if (z3 <= z_threshold) {
-    return UNSETTLED;
-  }
-
-  // We have a valid touch sample pair. Return an arithmetic average as the
-  // result.
-  *x = (x1 + x2) / 2;
-  *y = (y1 + y2) / 2;
-  *z = z3;
-  return TOUCHED;
-}
+    : BasicTouchDevice<1>(
+          typename BasicTouchDevice<1>::Config{.min_sampling_interval_ms = 5,
+                                               .touch_intertia_ms = 30,
+                                               .smoothing_factor = 0.8}),
+      device_(spi) {}
 
 template <int pinCS, typename Spi, typename Gpio>
-int TouchXpt2046<pinCS, Spi, Gpio>::readTouch(TouchPoint* touch_point) {
-  // long now = micros();
-  int z_threshold = kInitialTouchZThreshold;
-  // if (pressed_ &&
-  //     (now - latest_confirmed_pressed_timestamp_ < kTouchSensitivityLagMs) &&
-  //     z_threshold > kSustainedTouchZThreshold) {
-  //   z_threshold = kSustainedTouchZThreshold;
-  // }
-
-  SpiReadWriteTransaction<pinCS, decltype(device_), Gpio> transaction(device_);
-
-  int settled_conversions = 0;
-  uint16_t x_tmp, y_tmp, z_tmp;
-  int32_t x_sum = 0;
-  int32_t y_sum = 0;
-  int32_t z_max = 0;
-  int count = 0;
-
-  // Discard a few initial conversions so that the sensor settles.
+int TouchXpt2046<pinCS, Spi, Gpio>::readTouch(TouchPoint* point) {
+  if (!initialized_) return 0;
+  typename Device::Transaction spi = device_.transaction();
+  if (!spi.isOpen()) return 0;
+  using internal::ReadXptConversion;
+  using internal::XptConversion;
+  uint16_t x;
+  uint16_t y;
+  uint16_t z;
+  bool ok = true;
+  // Discard initial conversions so the sensor settles.
   for (int i = 0; i < 5; ++i) {
-    ConversionResult result =
-        single_conversion(device_, z_threshold, &x_tmp, &y_tmp, &z_tmp);
-    if (result == UNSETTLED) continue;
-  }
-
-  bool touched = false;
-  bool settled_enough = false;
-  for (int i = 0; i < kMaxConversionAttempts; ++i) {
-    ConversionResult result =
-        single_conversion(device_, z_threshold, &x_tmp, &y_tmp, &z_tmp);
-    if (result == UNSETTLED) continue;
-    settled_conversions++;
-    if (result == TOUCHED) {
-      touched = true;
-      x_sum += x_tmp;
-      y_sum += y_tmp;
-      if (z_max < z_tmp) z_max = z_tmp;
-      count++;
-    }
-    if (settled_conversions >= kMinSettledConversions) {
-      settled_enough = true;
+    if (ReadXptConversion(spi, kInitialTouchZThreshold, x, y, z) ==
+        XptConversion::kError) {
+      ok = false;
       break;
     }
   }
-
-  // Re-enable PENIRQ: send any control byte with PD0=0 while CS is still low.
-  device_.transfer(roo::byte{0x82});
-  device_.transfer16(0x0000);  // clock out response, discard
-
-  if (!settled_enough) {
-    pressed_ = false;
+  int settled = 0;
+  int count = 0;
+  int32_t x_sum = 0;
+  int32_t y_sum = 0;
+  uint16_t z_max = 0;
+  for (int i = 0;
+       ok && i < kMaxConversionAttempts && settled < kMinSettledConversions;
+       ++i) {
+    const XptConversion result =
+        ReadXptConversion(spi, kInitialTouchZThreshold, x, y, z);
+    if (result == XptConversion::kError) {
+      ok = false;
+      break;
+    }
+    if (result == XptConversion::kUnsettled) continue;
+    ++settled;
+    if (result == XptConversion::kTouched) {
+      ++count;
+      x_sum += x;
+      y_sum += y;
+      if (z_max < z) z_max = z;
+    }
+  }
+  // Re-enable PENIRQ while CS is still low. Attempt protocol cleanup even
+  // after an exchange error, then always release CS and the bus reservation.
+  const uint8_t power_down[] = {0x82, 0, 0};
+  const bool powered_down =
+      spi.transfer(power_down, nullptr, sizeof(power_down));
+  const bool closed = spi.close();
+  if (!ok || !powered_down || !closed || settled < kMinSettledConversions ||
+      count == 0) {
     return 0;
   }
-
-  if (touched) {
-    touch_point->id = 0;
-    touch_point->x = 4095 - (x_sum / count);
-    touch_point->y = 4095 - (y_sum / count);
-    touch_point->z = z_max;
-  }
-  pressed_ = touched;
-  return pressed_ ? 1 : 0;
+  point->id = 0;
+  point->x = 4095 - x_sum / count;
+  point->y = 4095 - y_sum / count;
+  point->z = z_max;
+  return 1;
 }
-
 }  // namespace roo_display

@@ -104,3 +104,17 @@ The existing `roo_display/hal/i2c.h` and backend headers retain type aliases for
 source compatibility. Native IDF device registrations are released when their
 drivers are destroyed; keep externally owned buses alive until then. See the
 `roo_io` I2C documentation for bus initialization and ownership.
+
+### Pico host transport subset
+
+The `:arduino_spi` target exposes the synchronous Arduino SPI transport on the
+original Pico's native roo_testing profile. It uses Pico's set-pin and transfer
+APIs while retaining the ESP32 transport path. `:pico_spi_transport_test` draws
+a headless frame through the shared ST77xx model, checking bulk/fill byte order
+and const input preservation. Use coordinated local roo_testing, roo_threads
+and roo_time overrides until their releases are available.
+
+This target covers the transport subset. The full library's filesystem,
+ESP32-specific graphics paths and thread-dependent touch/reset drivers have
+not been validated on the bare-metal Pico emulator. Pico SDK-only display
+clients and physical board behavior are outside this transport test.

@@ -1,5 +1,5 @@
-load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 UNIT_TEST_DEPS = [
@@ -261,8 +261,8 @@ cc_test(
     ],
     data = [
         "test/testdata/palette_opaque_8x4.png",
-        "test/testdata/rgba_filtered_32x128.png",
         "test/testdata/rgba_alpha_8x4.png",
+        "test/testdata/rgba_filtered_32x128.png",
     ],
     linkstatic = 1,
     deps = UNIT_TEST_DEPS,
@@ -624,4 +624,50 @@ cc_test(
     srcs = ["test/gradient_test.cpp"],
     linkstatic = 1,
     deps = UNIT_TEST_DEPS,
+)
+
+# Header-only Arduino transport subset, without filesystem or threaded drivers.
+cc_library(
+    name = "arduino_spi",
+    hdrs = [
+        "src/roo_display/hal/arduino/spi.h",
+        "src/roo_display/hal/config.h",
+        "src/roo_display/hal/gpio.h",
+        "src/roo_display/hal/spi_settings.h",
+        "src/roo_display/internal/byte_order.h",
+    ],
+    includes = ["src"],
+    target_compatible_with = ["@roo_testing//roo_testing/platforms:arduino"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@roo_backport",
+        "@roo_io",
+        "@roo_testing//:arduino",
+    ],
+)
+
+cc_test(
+    name = "pico_spi_transport_test",
+    size = "small",
+    srcs = ["test/pico_spi_transport_test.cpp"],
+    linkstatic = True,
+    target_compatible_with = [
+        "@roo_testing//roo_testing/platforms:arduino",
+        "@roo_testing//roo_testing/platforms:rp2040",
+    ],
+    deps = [
+        ":arduino_spi",
+        "@roo_testing//:arduino_gtest_main",
+        "@roo_testing//roo_testing/devices/display/st77xx:spi",
+        "@roo_testing//roo_testing/microcontrollers/rp2040:pico",
+        "@roo_testing//roo_testing/system:manual_time_mode",
+    ],
+)
+
+cc_library(
+    name = "arduino_spi_compile",
+    testonly = True,
+    srcs = ["test/arduino_spi_compile.cpp"],
+    target_compatible_with = ["@roo_testing//roo_testing/platforms:arduino"],
+    deps = [":arduino_spi"],
 )

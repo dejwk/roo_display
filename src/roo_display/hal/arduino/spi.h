@@ -27,7 +27,14 @@ class ArduinoSpi {
   void init() { spi_.begin(); }
 
   void init(uint8_t sck, uint8_t miso, uint8_t mosi) {
+#if defined(ARDUINO_ARCH_RP2040)
+    if (!spi_.setSCK(sck) || !spi_.setRX(miso) || !spi_.setTX(mosi)) {
+      panic("Invalid Arduino SPI pin assignment");
+    }
+    spi_.begin();
+#else
     spi_.begin(sck, miso, mosi);
+#endif
   }
 
  private:
@@ -50,33 +57,53 @@ class ArduinoSpiDevice {
   void init() {}
 
   void beginReadWriteTransaction() {
-    spi_.beginTransaction(SPISettings(
-        SpiSettings::clock, SpiSettings::bit_order, SpiSettings::data_mode));
+    spi_.beginTransaction(
+        SPISettings(SpiSettings::clock,
+                    static_cast<decltype(MSBFIRST)>(SpiSettings::bit_order),
+                    SpiSettings::data_mode));
   }
 
   void beginWriteOnlyTransaction() {
-    spi_.beginTransaction(SPISettings(
-        SpiSettings::clock, SpiSettings::bit_order, SpiSettings::data_mode));
+    spi_.beginTransaction(
+        SPISettings(SpiSettings::clock,
+                    static_cast<decltype(MSBFIRST)>(SpiSettings::bit_order),
+                    SpiSettings::data_mode));
   }
 
   void endTransaction() { spi_.endTransaction(); }
 
   void flush() {}
 
-  void write(uint8_t data) { spi_.write(data); }
-
-  void write16(uint16_t data) { spi_.write16(data); }
-
-  void write16x2(uint16_t a, uint16_t b) {
-    spi_.write16(a);
-    spi_.write16(b);
+  void write(uint8_t data) {
+#if defined(ARDUINO_ARCH_RP2040)
+    spi_.transfer(data);
+#else
+    spi_.write(data);
+#endif
   }
 
-  // For whatever reasons, SPI.h doesn't have a const version of writeBytes, but
-  // the data doesn't get mutated, so we can safely cast away constness here.
+  void write16(uint16_t data) {
+#if defined(ARDUINO_ARCH_RP2040)
+    spi_.transfer16(data);
+#else
+    spi_.write16(data);
+#endif
+  }
+
+  void write16x2(uint16_t a, uint16_t b) {
+    write16(a);
+    write16(b);
+  }
+
+  // Pico provides a const transmit buffer API; ESP32's writeBytes also
+  // preserves its input, but exposes it through a mutable pointer.
   void writeBytes(const roo::byte* data, uint32_t len) {
+#if defined(ARDUINO_ARCH_RP2040)
+    spi_.transfer(data, nullptr, len);
+#else
     auto* raw = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(data));
     spi_.writeBytes(raw, len);
+#endif
   }
 
   void fill16(const roo::byte* data, uint32_t repetitions) {
@@ -84,14 +111,14 @@ class ArduinoSpiDevice {
     if (repetitions >= 32) {
       roo_io::PatternFill<2>(buf, 32, data);
       while (repetitions >= 32) {
-        spi_.writeBytes(reinterpret_cast<uint8_t*>(buf), 64);
+        writeBytes(buf, 64);
         repetitions -= 32;
       }
-      spi_.writeBytes(reinterpret_cast<uint8_t*>(buf), repetitions * 2);
+      writeBytes(buf, repetitions * 2);
       return;
     }
     roo_io::PatternFill<2>(buf, repetitions, data);
-    spi_.writeBytes(reinterpret_cast<uint8_t*>(buf), repetitions * 2);
+    writeBytes(buf, repetitions * 2);
   }
 
   void fill24(const roo::byte* data, uint32_t repetitions) {
@@ -99,14 +126,14 @@ class ArduinoSpiDevice {
     if (repetitions >= 32) {
       roo_io::PatternFill<3>(buf, 32, data);
       while (repetitions >= 32) {
-        spi_.writeBytes(reinterpret_cast<uint8_t*>(buf), 96);
+        writeBytes(buf, 96);
         repetitions -= 32;
       }
-      spi_.writeBytes(reinterpret_cast<uint8_t*>(buf), repetitions * 3);
+      writeBytes(buf, repetitions * 3);
       return;
     }
     roo_io::PatternFill<3>(buf, repetitions, data);
-    spi_.writeBytes(reinterpret_cast<uint8_t*>(buf), repetitions * 3);
+    writeBytes(buf, repetitions * 3);
   }
 
   void fill16once(const roo::byte* data, uint32_t repetitions) {

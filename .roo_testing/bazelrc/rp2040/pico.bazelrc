@@ -1,0 +1,7 @@
+# Canonical source:
+# https://github.com/dejwk/roo_testing/blob/main/.roo_testing/bazelrc/rp2040/pico.bazelrc
+# Standalone workspaces vendor this file; keep every copy byte-for-byte identical.
+# SDK-only frontend; a future FreeRTOS profile selects its own runtime.
+build:roo_testing_pico_rp2040 --config=roo_testing_rp2040_base
+build:roo_testing_pico_rp2040 --platforms=@roo_testing//roo_testing/platforms:pico_rp2040
+build:roo_testing_pico_rp2040 --copt=-DROO_TESTING_RUNTIME_BARE_METAL=1

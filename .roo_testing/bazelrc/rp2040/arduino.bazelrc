@@ -1,0 +1,12 @@
+# Canonical source: https://github.com/dejwk/roo_testing/blob/main/.roo_testing/bazelrc/rp2040/arduino.bazelrc
+# Native Arduino-Pico frontend with the original non-wireless Pico variant.
+build:roo_testing_arduino_rp2040 --config=roo_testing_rp2040_base
+build:roo_testing_arduino_rp2040 --platforms=@roo_testing//roo_testing/platforms:arduino_rp2040
+build:roo_testing_arduino_rp2040 --copt=-DROO_TESTING_RUNTIME_BARE_METAL=1
+build:roo_testing_arduino_rp2040 --copt=-DARDUINO=10819
+build:roo_testing_arduino_rp2040 --copt=-DARDUINO_ARCH_RP2040=1
+build:roo_testing_arduino_rp2040 --copt=-DARDUINO_RASPBERRY_PI_PICO=1
+build:roo_testing_arduino_rp2040 --copt=-DARDUINO_BOARD=\"RASPBERRY_PI_PICO\"
+build:roo_testing_arduino_rp2040 --copt=-DARDUINO_VARIANT=\"rpipico\"
+build:roo_testing_arduino_rp2040 --copt=-DF_CPU=125000000L
+build:roo_testing_arduino_rp2040 --copt=-DHOST=1

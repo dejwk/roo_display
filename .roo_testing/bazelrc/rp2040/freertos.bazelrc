@@ -1,0 +1,13 @@
+# Canonical source: https://github.com/dejwk/roo_testing/blob/main/.roo_testing/bazelrc/rp2040/freertos.bazelrc
+# Arduino-Pico on a single-core native FreeRTOS scheduler.
+build:roo_testing_arduino_rp2040_freertos --config=roo_testing_rp2040_base
+build:roo_testing_arduino_rp2040_freertos --platforms=@roo_testing//roo_testing/platforms:arduino_rp2040_freertos
+build:roo_testing_arduino_rp2040_freertos --copt=-DROO_TESTING_RUNTIME_FREERTOS=1
+build:roo_testing_arduino_rp2040_freertos --copt=-D__FREERTOS=1
+build:roo_testing_arduino_rp2040_freertos --copt=-DARDUINO=10819
+build:roo_testing_arduino_rp2040_freertos --copt=-DARDUINO_ARCH_RP2040=1
+build:roo_testing_arduino_rp2040_freertos --copt=-DARDUINO_RASPBERRY_PI_PICO=1
+build:roo_testing_arduino_rp2040_freertos --copt=-DARDUINO_BOARD=\"RASPBERRY_PI_PICO\"
+build:roo_testing_arduino_rp2040_freertos --copt=-DARDUINO_VARIANT=\"rpipico\"
+build:roo_testing_arduino_rp2040_freertos --copt=-DF_CPU=125000000L
+build:roo_testing_arduino_rp2040_freertos --copt=-DHOST=1

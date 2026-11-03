@@ -15,3 +15,14 @@ test --test_output=errors
 
 # GCC 14 can emit spurious maybe-uninitialized warnings in std::regex with ASAN.
 build:asan --per_file_copt=src/logging.cc@-Wno-maybe-uninitialized
+
+import %workspace%/.roo_testing/bazelrc/esp32s3/base.bazelrc
+import %workspace%/.roo_testing/bazelrc/esp32s3/idf.bazelrc
+import %workspace%/.roo_testing/bazelrc/esp32s3/arduino.bazelrc
+import %workspace%/.roo_testing/bazelrc/esp32c3/base.bazelrc
+import %workspace%/.roo_testing/bazelrc/esp32c3/idf.bazelrc
+import %workspace%/.roo_testing/bazelrc/esp32c3/arduino.bazelrc
+import %workspace%/.roo_testing/bazelrc/rp2040/base.bazelrc
+import %workspace%/.roo_testing/bazelrc/rp2040/pico.bazelrc
+import %workspace%/.roo_testing/bazelrc/rp2040/arduino.bazelrc
+import %workspace%/.roo_testing/bazelrc/rp2040/freertos.bazelrc

@@ -21,6 +21,15 @@ cc_library(
         "src",
     ],
     linkstatic = 1,
+    # Full native display emulation is qualified on classic ESP32. Other
+    # profiles use focused targets such as touch_xpt2046 and arduino_spi.
+    target_compatible_with = select({
+        "@roo_testing//roo_testing/platforms:is_esp32s3": ["@platforms//:incompatible"],
+        "@roo_testing//roo_testing/platforms:is_esp32c3": ["@platforms//:incompatible"],
+        "@roo_testing//roo_testing/platforms:is_arduino_rp2040": ["@platforms//:incompatible"],
+        "@roo_testing//roo_testing/platforms:is_pico": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
     visibility = ["//visibility:public"],
     deps = [
         "//src/roo_display/image/png/lib:roo_display_png",
@@ -682,4 +691,57 @@ cc_library(
     srcs = ["test/arduino_spi_compile.cpp"],
     target_compatible_with = ["@roo_testing//roo_testing/platforms:arduino"],
     deps = [":arduino_spi"],
+)
+
+# Touch uses the portable core declarations and Roo's scoped SPI adapters.
+cc_library(
+    name = "touch_xpt2046",
+    hdrs = [
+        "src/roo_display/driver/common/basic_touch.h",
+        "src/roo_display/driver/common/touch_spi.h",
+        "src/roo_display/driver/touch_xpt2046.h",
+    ] + glob([
+        "src/roo_display/core/*.h",
+        "src/roo_display/color/**/*.h",
+        "src/roo_display/internal/**/*.h",
+        "src/roo_display/hal/**/*.h",
+    ]),
+    includes = ["src"],
+    target_compatible_with = select({
+        "@roo_testing//roo_testing/platforms:is_pico": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+    deps = [
+        "@roo_io",
+        "@roo_io//:spi",
+    ] + select({
+        "@roo_testing//roo_testing/platforms:is_arduino": ["@roo_testing//:arduino"],
+        "@roo_testing//roo_testing/platforms:is_idf": ["@roo_testing//roo_testing/frameworks/esp-idf"],
+        "//conditions:default": [],
+    }),
+)
+
+cc_test(
+    name = "xpt2046_transport_test",
+    size = "small",
+    srcs = [
+        "test/testing_viewport.h",
+        "test/xpt2046_transport_test.cpp",
+    ],
+    copts = [
+        "-fno-rtti",
+        "-fno-exceptions",
+    ],
+    deps = [
+        ":touch_xpt2046",
+        "@roo_testing//roo_testing/devices/touch/xpt2046:spi",
+        "@roo_testing//roo_testing/transducers/ui/viewport",
+    ] + select({
+        "@roo_testing//roo_testing/platforms:is_arduino_rp2040": ["@roo_testing//roo_testing/microcontrollers/rp2040:pico"],
+        "//conditions:default": ["@roo_testing//roo_testing/microcontrollers/esp32:core"],
+    }) + select({
+        "@roo_testing//roo_testing/platforms:is_arduino": ["@roo_testing//:arduino_gtest_main"],
+        "//conditions:default": ["@roo_testing//:esp_idf_gtest_main"],
+    }),
 )

@@ -9,6 +9,7 @@ set -euo pipefail
 
 arduino_config_prefix="roo_testing_arduino_"
 idf_config_prefix="roo_testing_idf_"
+pico_config_prefix="roo_testing_pico_"
 args=("$@")
 command_index=-1
 command=""
@@ -58,7 +59,7 @@ record_frontend_config() {
   local candidate="$1"
   local selected
   case "${candidate}" in
-    "${arduino_config_prefix}"*|"${idf_config_prefix}"*) ;;
+    "${arduino_config_prefix}"*|"${idf_config_prefix}"*|"${pico_config_prefix}"*) ;;
     *) return ;;
   esac
   for selected in "${frontend_configs[@]}"; do

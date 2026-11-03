@@ -1,4 +1,6 @@
-# Unreleased
+# roo_display 3.5.0
+
+- Add a focused XPT2046 target and verify scoped SPI touch behavior on ESP32/S3/C3 and both Arduino-Pico runtimes; align Roo I/O/testing dependencies.
 
 - Use roo_io scoped SPI transactions for standard XPT2046 touch transports,
   preserving constructors and custom SPI/GPIO policies. Batch conversions,
@@ -6,6 +8,8 @@
   restoration before releasing CS and the bus.
 - Expose borrowed bus handles from SPI wrappers and test Arduino/native IDF
   touch behavior alongside an existing panel driver on the shared bus.
+
+---
 
 # roo_display 3.4.0
 

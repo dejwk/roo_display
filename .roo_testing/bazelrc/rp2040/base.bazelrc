@@ -1,0 +1,14 @@
+# Canonical source:
+# https://github.com/dejwk/roo_testing/blob/main/.roo_testing/bazelrc/rp2040/base.bazelrc
+# Standalone workspaces vendor this file; keep every copy byte-for-byte identical.
+# Internal identity shared by future Pico frontends; select a public profile.
+build:roo_testing_rp2040_base --copt=-DROO_TESTING=1
+build:roo_testing_rp2040_base --copt=-DROO_TESTING_SOC=\"rp2040\"
+build:roo_testing_rp2040_base --copt=-DROO_TESTING_SOC_RP2040=1
+build:roo_testing_rp2040_base --copt=-DPICO_BUILD=1
+build:roo_testing_rp2040_base --copt=-DPICO_NO_HARDWARE=1
+build:roo_testing_rp2040_base --copt=-DPICO_ON_DEVICE=0
+build:roo_testing_rp2040_base --copt=-DPICO_RP2040=1
+build:roo_testing_rp2040_base --copt=-DPICO_RP2350=0
+build:roo_testing_rp2040_base --copt=-DPICO_PLATFORM_STRING=\"host\"
+build:roo_testing_rp2040_base --copt=-DPICO_BOARD=\"pico\"

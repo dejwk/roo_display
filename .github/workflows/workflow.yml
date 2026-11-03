@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   build_and_test:
-    uses: dejwk/roo_testing/.github/workflows/client-ci.yml@8ff9a74a900f6d1c2b7288416e1f4ca1024324b4 # roo_testing 2.3.1
+    uses: dejwk/roo_testing/.github/workflows/client-ci.yml@bc713e1ab7598be49b79ba5d9f69e7df59590814 # Pico profile support
     with:
       profiles: '["arduino", "idf"]'
       run_tests: true
@@ -26,3 +26,10 @@ jobs:
         --copt=-DHAVE_LIBUNWIND
         --linkopt=-lunwind
         --linkopt=-ldl
+
+  touch_transport:
+    uses: dejwk/roo_testing/.github/workflows/client-ci.yml@bc713e1ab7598be49b79ba5d9f69e7df59590814 # Pico profile support
+    with:
+      profiles: '["arduino", "idf", "arduino_esp32s3", "idf_esp32s3", "arduino_esp32c3", "idf_esp32c3", "arduino_rp2040", "arduino_rp2040_freertos"]'
+      build_targets: '//:touch_xpt2046'
+      test_targets: '//:xpt2046_transport_test'

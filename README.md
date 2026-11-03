@@ -155,3 +155,15 @@ This target covers the transport subset. The full library's filesystem,
 ESP32-specific graphics paths and thread-dependent touch/reset drivers have
 not been validated on the bare-metal Pico emulator. Pico SDK-only display
 clients and physical board behavior are outside this transport test.
+
+The `:touch_xpt2046` Bazel target exposes the touch driver and shared SPI
+transport independently of the full display implementation. It supports ESP32,
+ESP32-S3 and ESP32-C3 under Arduino/ESP-IDF, plus Arduino-Pico bare-metal and
+FreeRTOS. Initialize the SPI controller/pins in the application and keep the bus
+alive until the touch driver is destroyed. `:xpt2046_transport_test` exercises
+real sampling, coordinates, one-CS framing and PENIRQ cleanup through the chip
+fake on those profiles. SDK-only Pico display/touch HAL integration is separate.
+
+The full `:roo_display` native aggregate is qualified on classic ESP32;
+other emulated SoCs use the focused transport targets above. Firmware builds
+continue to compile their platform-specific implementations directly from src.

@@ -745,3 +745,20 @@ cc_test(
         "//conditions:default": ["@roo_testing//:esp_idf_gtest_main"],
     }),
 )
+
+# The routing contract is hardware independent and can be tested without RGB
+# peripheral emulation.
+cc_library(
+    name = "rgb_bounce_buffer",
+    hdrs = ["src/roo_display/driver/common/rgb_bounce_buffer.h"],
+    includes = ["src"],
+)
+
+cc_test(
+    name = "rgb_bounce_buffer_test",
+    srcs = ["test/rgb_bounce_buffer_test.cpp"],
+    deps = [
+        ":rgb_bounce_buffer",
+        "@roo_testing//:arduino_gtest_main",
+    ],
+)

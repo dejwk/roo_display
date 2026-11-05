@@ -270,9 +270,12 @@ struct Config {
 struct AllocatedPanel {
   roo::byte* buffer;
   esp_lcd_panel_handle_t handle;
+  void* context;
 };
 
 AllocatedPanel AllocatePanel(const Config& config);
+
+void DeletePanel(esp_lcd_panel_handle_t handle, void* context);
 
 template <FlushMode flush_mode>
 class ParallelRgb565 : public DisplayDevice {
@@ -283,6 +286,10 @@ class ParallelRgb565 : public DisplayDevice {
 
   ParallelRgb565(Config cfg)
       : DisplayDevice(cfg.width, cfg.height), cfg_(std::move(cfg)) {}
+
+  /// Stops scanout before releasing the framebuffer and callback state.
+  /// Destroy on the drawing task after all application drawing has stopped.
+  ~ParallelRgb565() override { releasePanel(); }
 
   void init() override;
 
@@ -333,8 +340,8 @@ class ParallelRgb565 : public DisplayDevice {
     return kCaps;
   }
 
-  void blitCopy(int16_t src_x0, int16_t src_y0, int16_t src_x1,
-                int16_t src_y1, int16_t dst_x0, int16_t dst_y0) override {
+  void blitCopy(int16_t src_x0, int16_t src_y0, int16_t src_x1, int16_t src_y1,
+                int16_t dst_x0, int16_t dst_y0) override {
     if (buffer_ != nullptr) {
       buffer_->blitCopy(src_x0, src_y0, src_x1, src_y1, dst_x0, dst_y0);
     }
@@ -359,6 +366,15 @@ class ParallelRgb565 : public DisplayDevice {
   }
 
  private:
+  // Drain rendering DMA before deleting the panel and its borrowed resources.
+  void releasePanel() {
+    if (buffer_ != nullptr) buffer_->end();
+    buffer_.reset();
+    DeletePanel(panel_handle_, panel_context_);
+    panel_handle_ = nullptr;
+    panel_context_ = nullptr;
+  }
+
   inline void flushCache() {
     uint32_t begin = (uint32_t)buffer_->buffer();
     uint32_t size = cfg_.width * cfg_.height * 2;
@@ -371,6 +387,7 @@ class ParallelRgb565 : public DisplayDevice {
 
   Config cfg_;
   esp_lcd_panel_handle_t panel_handle_{nullptr};
+  void* panel_context_{nullptr};
   std::unique_ptr<Dev> buffer_;
 };
 

@@ -2,14 +2,19 @@
 
 #if defined(ESP_PLATFORM) && CONFIG_IDF_TARGET_ESP32S3
 
+#include <cstring>
+#include <new>
+
 #include "esp_err.h"
 #include "esp_heap_caps.h"
 #include "esp_idf_version.h"
 #include "esp_lcd_panel_ops.h"
 #include "roo_backport.h"
 #include "roo_backport/byte.h"
+#include "roo_display/driver/common/rgb_bounce_buffer.h"
 #include "roo_display/driver/esp32s3_dma_parallel_rgb565.h"
 #include "roo_display/hal/async_blit.h"
+#include "roo_logging.h"
 
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 1, 0)
 #define LEGACY_RGBPANEL
@@ -24,6 +29,75 @@
 namespace roo_display {
 
 namespace esp32s3_dma {
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0) && \
+    !defined(ROO_DISPLAY_RGB565_TEST_NATIVE)
+#define ROO_DISPLAY_RGB_BOUNCE_CALLBACK 1
+#endif
+
+namespace {
+
+#if defined(ROO_DISPLAY_RGB565_TEST_INSTRUMENTATION)
+volatile uint32_t test_refills = 0;
+volatile uint32_t test_mismatches = 0;
+#endif
+
+#if defined(ROO_DISPLAY_RGB_BOUNCE_CALLBACK)
+// Kept in internal RAM until panel deletion has stopped all refill callbacks.
+struct BounceBufferContext {
+  BounceBufferContext(roo::byte* buffer, size_t frame_pixels,
+                      size_t bounce_pixels)
+      : buffer(buffer), frame_pixels(frame_pixels), router(bounce_pixels) {}
+
+  roo::byte* buffer;
+  size_t frame_pixels;
+  internal::BounceBufferRouter router;
+};
+
+// Source chunk parity survives SDK versions with a broken EOF destination
+// counter. SDK restart priming repairs the source cursor independently.
+bool IRAM_ATTR FillBounceBuffer(esp_lcd_panel_handle_t, void* supplied,
+                                int pos_px, int len_bytes, void* user_ctx) {
+  BounceBufferContext& context = *static_cast<BounceBufferContext*>(user_ctx);
+  void* destination = context.router.destination(supplied, pos_px);
+#if defined(ROO_DISPLAY_RGB565_TEST_INSTRUMENTATION)
+  ++test_refills;
+  if (destination != supplied) ++test_mismatches;
+#endif
+  memcpy(destination, context.buffer + static_cast<size_t>(pos_px) * 2,
+         len_bytes);
+  size_t next = static_cast<size_t>(pos_px) + context.router.bounce_pixels();
+  if (next >= context.frame_pixels) next = 0;
+  Cache_Start_DCache_Preload(
+      reinterpret_cast<uint32_t>(context.buffer + next * 2), len_bytes, 0);
+  return false;
+}
+#endif
+
+}  // namespace
+
+#if defined(ROO_DISPLAY_RGB565_TEST_INSTRUMENTATION)
+extern "C" uint32_t roo_display_rgb565_test_refills() { return test_refills; }
+
+extern "C" uint32_t roo_display_rgb565_test_mismatches() {
+  return test_mismatches;
+}
+#endif
+
+// Delete the panel before releasing the memory borrowed by its ISR callbacks.
+void DeletePanel(esp_lcd_panel_handle_t handle, void* context) {
+  if (handle != nullptr) ESP_ERROR_CHECK(esp_lcd_panel_del(handle));
+#if defined(ROO_DISPLAY_RGB_BOUNCE_CALLBACK)
+  if (context != nullptr) {
+    BounceBufferContext* state = static_cast<BounceBufferContext*>(context);
+    heap_caps_free(state->buffer);
+    state->~BounceBufferContext();
+    heap_caps_free(state);
+  }
+#else
+  (void)context;
+#endif
+}
 
 AllocatedPanel AllocatePanel(const Config& config) {
   esp_lcd_rgb_panel_config_t cfg = {};
@@ -62,8 +136,8 @@ AllocatedPanel AllocatePanel(const Config& config) {
   cfg.timings.flags.pclk_idle_high = 0;
 
   cfg.data_width = 16;  // RGB565 in parallel mode.
-#ifdef LEGACY_RGBPANEL
-  // Deprecated.
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 3, 0)
+  // Older SDKs expose alignment fields instead of a DMA burst size.
   cfg.sram_trans_align = 8;
   cfg.psram_trans_align = 64;
 #endif
@@ -73,8 +147,24 @@ AllocatedPanel AllocatePanel(const Config& config) {
   cfg.pclk_gpio_num = config.pclk;
 
 #ifndef LEGACY_RGBPANEL
-  cfg.bounce_buffer_size_px = 10 * config.width;
+  CHECK_GT(config.width, 0);
+  uint16_t bounce_lines = internal::SelectBounceBufferLines(config.height);
+  if (bounce_lines == 0) {
+    LOG(FATAL) << "RGB panel height must be divisible by 20 or 16: "
+               << config.height;
+  }
+#if defined(ROO_DISPLAY_RGB565_TEST_BOUNCE_LINES)
+  bounce_lines = ROO_DISPLAY_RGB565_TEST_BOUNCE_LINES;
+#endif
+  size_t frame_pixels = static_cast<size_t>(config.width) * config.height;
+  size_t bounce_pixels = static_cast<size_t>(config.width) * bounce_lines;
+  CHECK_GT(bounce_pixels, 0);
+  CHECK_EQ(frame_pixels % bounce_pixels, 0);
+  CHECK_EQ((frame_pixels / bounce_pixels) % 2, 0);
+  cfg.bounce_buffer_size_px = bounce_pixels;
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0)
   cfg.dma_burst_size = 32;
+#endif
 #endif
 
   if (config.bswap) {
@@ -125,26 +215,47 @@ AllocatedPanel AllocatePanel(const Config& config) {
 
   cfg.flags.fb_in_psram = 1;  // allocate frame buffer in PSRAM
 
+  void* context = nullptr;
+  roo::byte* buf = nullptr;
+#if defined(ROO_DISPLAY_RGB_BOUNCE_CALLBACK)
+  // Small single-descriptor bounce buffers hit a separate SDK restart-link
+  // EOF defect. Keep the original multi-descriptor geometry on affected SDKs.
+  CHECK_GT(bounce_pixels * 2, 4095);
+  buf = static_cast<roo::byte*>(heap_caps_aligned_calloc(
+      64, frame_pixels, 2, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  CHECK_NE(buf, nullptr) << "Cannot allocate RGB framebuffer";
+  void* memory = heap_caps_malloc(sizeof(BounceBufferContext),
+                                  MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  CHECK_NE(memory, nullptr) << "Cannot allocate RGB callback context";
+  context = new (memory) BounceBufferContext(buf, frame_pixels, bounce_pixels);
+  cfg.num_fbs = 0;
+  cfg.flags.no_fb = 1;
+#endif
+
   esp_lcd_panel_handle_t handle;
   ESP_ERROR_CHECK(esp_lcd_new_rgb_panel(&cfg, &handle));
+#if defined(ROO_DISPLAY_RGB_BOUNCE_CALLBACK)
+  esp_lcd_rgb_panel_event_callbacks_t callbacks = {};
+  callbacks.on_bounce_empty = FillBounceBuffer;
+  ESP_ERROR_CHECK(
+      esp_lcd_rgb_panel_register_event_callbacks(handle, &callbacks, context));
+#endif
   ESP_ERROR_CHECK(esp_lcd_panel_reset(handle));
   ESP_ERROR_CHECK(esp_lcd_panel_init(handle));
 
-  roo::byte* buf;
-  esp_lcd_rgb_panel_get_frame_buffer(handle, 1, (void**)&buf);
-  return {buf, handle};
+#if !defined(ROO_DISPLAY_RGB_BOUNCE_CALLBACK)
+  ESP_ERROR_CHECK(esp_lcd_rgb_panel_get_frame_buffer(handle, 1, (void**)&buf));
+#endif
+  return {buf, handle, context};
 }
 
 template <>
 void ParallelRgb565<FLUSH_MODE_AGGRESSIVE>::init() {
-  if (panel_handle_ != nullptr) {
-    buffer_.reset();
-    esp_lcd_panel_del(panel_handle_);
-    panel_handle_ = nullptr;
-  }
+  releasePanel();
   async_blit_init();
   auto panel = AllocatePanel(cfg_);
   panel_handle_ = panel.handle;
+  panel_context_ = panel.context;
   buffer_.reset(new Dev(cfg_.width, cfg_.height, panel.buffer,
                         ::roo_display::internal::Rgb565Dma()));
   buffer_->setOrientation(orientation());
@@ -262,14 +373,11 @@ inline FlushRange ResolveFlushRangeForRects(const Config& cfg,
 
 template <>
 void ParallelRgb565<FLUSH_MODE_BUFFERED>::init() {
-  if (panel_handle_ != nullptr) {
-    buffer_.reset();
-    esp_lcd_panel_del(panel_handle_);
-    panel_handle_ = nullptr;
-  }
+  releasePanel();
   async_blit_init();
   auto panel = AllocatePanel(cfg_);
   panel_handle_ = panel.handle;
+  panel_context_ = panel.context;
   buffer_.reset(new Dev(cfg_.width, cfg_.height, panel.buffer, Rgb565()));
   buffer_->setOrientation(orientation());
 }
@@ -411,14 +519,11 @@ void ParallelRgb565<FLUSH_MODE_BUFFERED>::drawDirectRectAsync(
 
 template <>
 void ParallelRgb565<FLUSH_MODE_LAZY>::init() {
-  if (panel_handle_ != nullptr) {
-    buffer_.reset();
-    esp_lcd_panel_del(panel_handle_);
-    panel_handle_ = nullptr;
-  }
+  releasePanel();
   async_blit_init();
   auto panel = AllocatePanel(cfg_);
   panel_handle_ = panel.handle;
+  panel_context_ = panel.context;
   buffer_.reset(new Dev(cfg_.width, cfg_.height, panel.buffer, Rgb565()));
   buffer_->setOrientation(orientation());
 }

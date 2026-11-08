@@ -94,7 +94,8 @@ const DisplayOutput::Capabilities& ReferenceDisplayDevice::getCapabilities()
     const {
   static const Capabilities kBlendable(/*supports_blending=*/true,
                                        /*supports_blit_copy=*/true);
-  static const Capabilities kNotBlendable;
+  static const Capabilities kNotBlendable(/*supports_blending=*/false,
+                                          /*supports_blit_copy=*/true);
   return blendable_ ? kBlendable : kNotBlendable;
 }
 
@@ -203,7 +204,7 @@ void ReferenceDisplayDevice::blitCopy(int16_t src_x0, int16_t src_y0,
                                       int16_t src_x1, int16_t src_y1,
                                       int16_t dst_x0, int16_t dst_y0) {
   if (dst_x0 == src_x0 && dst_y0 == src_y0) return;
-  if (!blendable_ || src_x1 < src_x0 || src_y1 < src_y0) return;
+  if (src_x1 < src_x0 || src_y1 < src_y0) return;
   output_device_->blitCopy(src_x0, src_y0, src_x1, src_y1, dst_x0, dst_y0);
   int16_t w = src_x1 - src_x0;
   int16_t h = src_y1 - src_y0;

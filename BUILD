@@ -94,6 +94,12 @@ cc_library(
 )
 
 cc_test(
+    name = "reference_device_test",
+    srcs = ["test/reference_device_test.cpp"],
+    deps = UNIT_TEST_DEPS + ["//fake:reference_device"],
+)
+
+cc_test(
     name = "background_filter_test",
     srcs = [
         "test/background_filter_test.cpp",

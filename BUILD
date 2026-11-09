@@ -498,6 +498,16 @@ cc_test(
 )
 
 cc_test(
+    name = "driver_st7701_test",
+    srcs = ["test/driver_st7701_test.cpp"],
+    linkstatic = 1,
+    deps = UNIT_TEST_DEPS + [
+        "@roo_testing//roo_testing/microcontrollers/esp32:core",
+        "@roo_testing//roo_testing/transducers/voltage",
+    ],
+)
+
+cc_test(
     name = "driver_st7735_test",
     srcs = [
         "test/driver_st7735_test.cpp",

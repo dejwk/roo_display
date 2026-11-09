@@ -1,4 +1,7 @@
+#include <cstdint>
+#include <initializer_list>
 #include <type_traits>
+#include <vector>
 
 #include "gtest/gtest.h"
 #include "roo_display/driver/TFT_eSPI_adapter.h"
@@ -10,6 +13,7 @@
 #include "roo_display/driver/ili9486.h"
 #include "roo_display/driver/ili9488.h"
 #include "roo_display/driver/ssd1327.h"
+#include "roo_display/driver/st7701.h"
 #include "roo_display/driver/st7735.h"
 #include "roo_display/driver/st7789.h"
 #include "roo_display/driver/st7796s.h"
@@ -77,6 +81,91 @@ TEST(DriverCompileTest, InstantiateDriverTemplates) {
 #endif
 
   SUCCEED();
+}
+
+// Verifies bank-specific ST7701S command IDs retain their datasheet values,
+// including addresses reused by different banks in the Makerfabs sequence.
+TEST(DriverCompileTest, St7701CommandIds) {
+  using namespace roo_display::st7701;
+
+  EXPECT_EQ(CMD2BKXSEL, 0xFF);
+  EXPECT_EQ(BK0_PVGAMCTRL, 0xB0);
+  EXPECT_EQ(BK0_NVGAMCTRL, 0xB1);
+  EXPECT_EQ(BK0_LNESET, 0xC0);
+  EXPECT_EQ(BK0_PORCTRL, 0xC1);
+  EXPECT_EQ(BK0_INVSET, 0xC2);
+  EXPECT_EQ(BK0_COLCTRL, 0xCD);
+
+  EXPECT_EQ(BK1_VRHS, 0xB0);
+  EXPECT_EQ(BK1_VCOMS, 0xB1);
+  EXPECT_EQ(BK1_VGHSS, 0xB2);
+  EXPECT_EQ(BK1_TESTCMD, 0xB3);
+  EXPECT_EQ(BK1_VGLS, 0xB5);
+  EXPECT_EQ(BK1_PWCTRL1, 0xB7);
+  EXPECT_EQ(BK1_PWCTRL2, 0xB8);
+  EXPECT_EQ(BK1_SPD1, 0xC1);
+  EXPECT_EQ(BK1_SPD2, 0xC2);
+
+  EXPECT_EQ(BK1_GIP_E0, 0xE0);
+  EXPECT_EQ(BK1_GIP_E1, 0xE1);
+  EXPECT_EQ(BK1_GIP_E5, 0xE5);
+  EXPECT_EQ(BK1_GIP_ED, 0xED);
+  EXPECT_EQ(BK3_E5, 0xE5);
+
+  EXPECT_EQ(SWRESET, 0x01);
+  EXPECT_EQ(SLPOUT, 0x11);
+  EXPECT_EQ(INVON, 0x21);
+  EXPECT_EQ(DISPON, 0x29);
+  EXPECT_EQ(MADCTL, 0x36);
+  EXPECT_EQ(COLMOD, 0x3A);
+}
+
+struct RecordedSt7701Command {
+  uint8_t command;
+  std::vector<uint8_t> parameters;
+  uint32_t delay_ms;
+};
+
+struct RecordingSt7701Target {
+  std::vector<RecordedSt7701Command> commands;
+
+  void writeCommand(roo_display::st7701::Command command,
+                    std::initializer_list<uint8_t> parameters = {},
+                    uint32_t delay_ms = 0) {
+    commands.push_back({command, std::vector<uint8_t>(parameters), delay_ms});
+  }
+};
+
+// Verifies reset and sleep-out delays, bank selection, panel timing, and the
+// RGB color order used by the Makerfabs startup sequence.
+TEST(DriverCompileTest, St7701StartupSequence) {
+  RecordingSt7701Target target;
+  roo_display::st7701::Init().init(target);
+
+  ASSERT_EQ(target.commands.size(), 37U);
+  EXPECT_EQ(target.commands[0].command, 0x01);
+  EXPECT_EQ(target.commands[0].delay_ms, 120U);
+  EXPECT_EQ(target.commands[1].command, 0xFF);
+  EXPECT_EQ(target.commands[1].parameters.back(), 0x10);
+  EXPECT_EQ(target.commands[3].command, 0xC1);
+  EXPECT_EQ(target.commands[3].parameters, std::vector<uint8_t>({0x0D, 0x02}));
+  EXPECT_EQ(target.commands[4].command, 0xC2);
+  EXPECT_EQ(target.commands[4].parameters, std::vector<uint8_t>({0x31, 0x05}));
+  EXPECT_EQ(target.commands[8].command, 0xFF);
+  EXPECT_EQ(target.commands[8].parameters.back(), 0x11);
+  EXPECT_EQ(target.commands[19].command, 0xE1);
+  EXPECT_EQ(target.commands[19].parameters.size(), 11U);
+  EXPECT_EQ(target.commands[30].command, 0xFF);
+  EXPECT_EQ(target.commands[30].parameters.back(), 0x13);
+  EXPECT_EQ(target.commands[31].command, 0xE5);
+  EXPECT_EQ(target.commands[32].command, 0xFF);
+  EXPECT_EQ(target.commands[32].parameters.back(), 0x00);
+  EXPECT_EQ(target.commands[33].command, 0x21);
+  EXPECT_EQ(target.commands[34].command, 0x3A);
+  EXPECT_EQ(target.commands[34].parameters, std::vector<uint8_t>({0x60}));
+  EXPECT_EQ(target.commands[35].command, 0x11);
+  EXPECT_EQ(target.commands[35].delay_ms, 120U);
+  EXPECT_EQ(target.commands[36].command, 0x29);
 }
 
 }  // namespace

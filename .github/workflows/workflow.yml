@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   build_and_test:
-    uses: dejwk/roo_testing/.github/workflows/client-ci.yml@f2e3d44466fb8f6603611762ccf59dc2542a5a23 # roo_testing 2.6.0
+    uses: dejwk/roo_testing/.github/workflows/client-ci.yml@e8d1ad9299d01eff945f417ac407df71d698bff5 # roo_testing 2.7.0
     with:
       profiles: '["arduino_esp32", "idf_esp32"]'
       run_tests: true
@@ -28,7 +28,7 @@ jobs:
         --linkopt=-ldl
 
   touch_transport:
-    uses: dejwk/roo_testing/.github/workflows/client-ci.yml@f2e3d44466fb8f6603611762ccf59dc2542a5a23 # roo_testing 2.6.0
+    uses: dejwk/roo_testing/.github/workflows/client-ci.yml@e8d1ad9299d01eff945f417ac407df71d698bff5 # roo_testing 2.7.0
     with:
       profiles: '["arduino_esp32", "idf_esp32", "arduino_esp32s3", "idf_esp32s3", "arduino_esp32c3", "idf_esp32c3", "arduino_rp2040", "arduino_rp2040_freertos"]'
       build_targets: '//:touch_xpt2046'

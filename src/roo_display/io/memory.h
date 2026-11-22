@@ -2,6 +2,7 @@
 
 #include "roo_backport.h"
 #include "roo_backport/byte.h"
+#include "roo_io.h"
 #include "roo_io/memory/memory_iterable.h"
 
 namespace roo_display {

@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "roo_backport.h"
 #include "roo_backport/byte.h"
 #include "roo_display/hal/esp32/memory.h"
 #include "roo_display/hal/esp32/spi_irq.h"

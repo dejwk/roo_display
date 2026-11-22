@@ -36,6 +36,7 @@ struct Emulator {
 #include "roo_fonts/NotoSansMono_Regular/12.h"
 #include "roo_fonts/NotoSans_Bold/15.h"
 #include "roo_fonts/NotoSans_Bold/27.h"
+#include "roo_fonts_basic.h"
 #include "roo_fonts/NotoSans_Condensed/12.h"
 #include "roo_fonts/NotoSans_Italic/18.h"
 #include "roo_fonts/NotoSans_Italic/90.h"

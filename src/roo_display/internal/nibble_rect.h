@@ -5,6 +5,7 @@
 #include "roo_display/color/color.h"
 #include "roo_display/core/box.h"
 #include "roo_display/core/buffered_drawing.h"
+#include "roo_io.h"
 #include "roo_io/memory/fill.h"
 
 namespace roo_display {

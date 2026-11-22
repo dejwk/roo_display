@@ -5,6 +5,7 @@
 #include <random>
 
 #include "gtest/gtest-param-test.h"
+#include "roo_io.h"
 #include "roo_io/data/byte_order.h"
 #include "testing_display_device.h"
 

@@ -1,5 +1,6 @@
 #include "roo_display/font/font.h"
 
+#include "roo_io.h"
 #include "roo_io/text/unicode.h"
 #include "roo_logging.h"
 

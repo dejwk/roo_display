@@ -10,6 +10,7 @@
 #include "roo_display/internal/byte_order.h"
 #include "roo_display/internal/color_format.h"
 #include "roo_display/internal/color_io.h"
+#include "roo_io.h"
 #include "roo_io/data/byte_order.h"
 #include "roo_io/data/read.h"
 #include "roo_io/memory/load.h"

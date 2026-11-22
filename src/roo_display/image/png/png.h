@@ -7,6 +7,7 @@
 #include "roo_display/color/color_mode_indexed.h"
 #include "roo_display/color/color_modes.h"
 #include "roo_display/image/png/lib/PNGdec.h"
+#include "roo_io.h"
 #include "roo_io/core/multipass_input_stream.h"
 
 #ifdef ARDUINO

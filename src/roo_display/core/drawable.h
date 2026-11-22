@@ -3,6 +3,7 @@
 #include "roo_display/color/blending.h"
 #include "roo_display/color/color.h"
 #include "roo_display/core/box.h"
+#include "roo_logging.h"
 #include "roo_logging/stream.h"
 
 namespace roo_display {

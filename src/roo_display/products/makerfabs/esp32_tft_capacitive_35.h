@@ -18,8 +18,10 @@
 #include "roo_display/products/combo_device.h"
 
 #if defined(ARDUINO)
+#include "roo_io.h"
 #include "roo_io/fs/esp32/arduino/sdspi.h"
 #else
+#include "roo_io.h"
 #include "roo_io/fs/esp32/esp-idf/sdspi.h"
 #endif
 

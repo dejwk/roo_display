@@ -74,6 +74,7 @@
 #include "roo_display/image/image.h"
 #include "roo_display/internal/raw_streamable_overlay.h"
 #include "roo_display/io/memory.h"
+#include "roo_io.h"
 #include "roo_io/core/input_iterator.h"
 #include "roo_io/text/unicode.h"
 #include "roo_logging.h"

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "roo_io.h"
 #include "roo_io/data/byte_order.h"
 
 namespace roo_display {

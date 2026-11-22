@@ -4,6 +4,7 @@
 #include "roo_display/color/color_modes.h"
 #include "roo_display/image/image_stream.h"
 #include "roo_display/io/memory.h"
+#include "roo_io.h"
 #include "roo_io/memory/memory_iterable.h"
 #include "testing.h"
 

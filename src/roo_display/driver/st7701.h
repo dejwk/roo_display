@@ -8,6 +8,7 @@
 #if defined(ESP_PLATFORM)
 #include "esp_rom_sys.h"
 #include "roo_display/driver/common/gpio_setter.h"
+#include "roo_threads.h"
 #include "roo_threads/thread.h"
 #include "roo_time.h"
 #endif

@@ -3,6 +3,7 @@
 #include "roo_backport.h"
 #include "roo_backport/byte.h"
 #include "roo_display/hal/spi_settings.h"
+#include "roo_io.h"
 #include "roo_io/data/byte_order.h"
 #include "soc/spi_reg.h"
 

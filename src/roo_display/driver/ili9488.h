@@ -4,6 +4,7 @@
 
 #include "roo_display/driver/common/addr_window_device.h"
 #include "roo_display/transport/spi.h"
+#include "roo_io.h"
 #include "roo_io/data/byte_order.h"
 #include "roo_threads.h"
 #include "roo_threads/thread.h"

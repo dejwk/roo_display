@@ -12,9 +12,11 @@
 //   ScrimFiller(Color color);                        // stores raw scrim
 //   void operator()(roo::byte* p, uint32_t count);   // blends count pixels
 
+#include "roo_backport.h"
 #include "roo_backport/byte.h"
 #include "roo_display/color/color.h"
 #include "roo_display/color/color_modes.h"
+#include "roo_io.h"
 #include "roo_io/data/byte_order.h"
 
 namespace roo_display {

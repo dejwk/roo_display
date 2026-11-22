@@ -14,6 +14,7 @@
 #include "roo_display/hal/config.h"
 #include "roo_display/hal/i2c.h"
 #include "roo_display/products/combo_device.h"
+#include "roo_io.h"
 #include "roo_io/fs/esp32/base_vfs_filesystem.h"
 
 #if !defined(ESP_PLATFORM) || !(CONFIG_IDF_TARGET_ESP32S3)

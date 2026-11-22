@@ -35,6 +35,7 @@ Display display(device);
 #include "roo_display/ui/text_label.h"
 #include "roo_display/ui/tile.h"
 #include "roo_fonts/NotoSans_Bold/27.h"
+#include "roo_io.h"
 #include "roo_io/text/string_printf.h"
 
 void setup() {

@@ -2,6 +2,7 @@
 
 #include "roo_display/core/buffered_drawing.h"
 #include "roo_display/hal/progmem.h"
+#include "roo_io.h"
 #include "roo_io/text/unicode.h"
 
 namespace roo_display {

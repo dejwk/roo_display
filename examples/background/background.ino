@@ -38,6 +38,7 @@ struct Emulator {
 #include "roo_display/font/font.h"
 #include "roo_display/ui/string_printer.h"
 #include "roo_display/ui/text_label.h"
+#include "roo_fonts_basic.h"
 #include "roo_fonts/NotoSans_Italic/12.h"
 #include "roo_fonts/NotoSans_Italic/18.h"
 #include "roo_fonts/NotoSans_Italic/27.h"

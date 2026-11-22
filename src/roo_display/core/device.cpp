@@ -1,5 +1,6 @@
 #include "roo_display/core/device.h"
 
+#include "roo_io.h"
 #include "roo_io/memory/fill.h"
 
 namespace roo_display {

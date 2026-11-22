@@ -5,9 +5,11 @@
 #include <cstdint>
 #include <cstring>
 
+#include "roo_backport.h"
 #include "roo_backport/byte.h"
 #include "roo_display/hal/esp32/spi_dma.h"
 #include "roo_display/hal/esp32/spi_reg.h"
+#include "roo_io.h"
 #include "roo_io/memory/fill.h"
 #include "roo_logging.h"
 

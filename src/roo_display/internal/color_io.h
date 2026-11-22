@@ -10,6 +10,7 @@
 #include "roo_display/color/color.h"
 #include "roo_display/color/pixel_order.h"
 #include "roo_display/color/traits.h"
+#include "roo_io.h"
 #include "roo_io/data/byte_order.h"
 #include "roo_io/memory/compare.h"
 

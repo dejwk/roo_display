@@ -68,6 +68,7 @@ Display display(device);
 #include "roo_display/ui/text_label.h"
 #include "roo_display/ui/tile.h"
 // Needs "dejwk/roo_fonts_basic".
+#include "roo_fonts_basic.h"
 #include "roo_fonts/NotoSans_Condensed/15.h"
 
 void setup() {

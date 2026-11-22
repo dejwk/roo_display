@@ -11,6 +11,7 @@
 #include "roo_display/hal/async_blit.h"
 #include "roo_display/hal/blit.h"
 #include "roo_display/internal/color_format.h"
+#include "roo_io.h"
 #include "roo_io/memory/fill.h"
 #include "roo_io/memory/store.h"
 

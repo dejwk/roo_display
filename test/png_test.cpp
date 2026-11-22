@@ -9,6 +9,7 @@
 
 #include "roo_display/color/color.h"
 #include "roo_display/core/streamable.h"
+#include "roo_io.h"
 #include "roo_io/fs/posix/posix_mount.h"
 #include "roo_io/memory/memory_resource.h"
 

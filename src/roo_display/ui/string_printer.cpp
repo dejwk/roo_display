@@ -1,5 +1,6 @@
 #include "roo_display/ui/string_printer.h"
 
+#include "roo_io.h"
 #include "roo_io/text/string_printf.h"
 
 namespace roo_display {

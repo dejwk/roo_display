@@ -5,8 +5,10 @@
 #include <type_traits>
 #include <utility>
 
+#include "roo_backport.h"
 #include "roo_backport/byte.h"
 #include "roo_display/hal/gpio.h"
+#include "roo_io.h"
 #include "roo_io/spi/spi.h"
 
 namespace roo_display {

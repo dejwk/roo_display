@@ -14,6 +14,7 @@
 #include "esp_lcd_panel_io.h"
 #include "roo_display/hal/esp32/gpio.h"
 #include "roo_display/internal/byte_order.h"
+#include "roo_io.h"
 #include "roo_io/data/byte_order.h"
 #include "soc/lcd_cam_reg.h"
 #include "soc/lcd_cam_struct.h"

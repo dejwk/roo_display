@@ -9,9 +9,11 @@
 #include "roo_display/products/makerfabs/esp32s3_parallel_ips_capacitive.h"
 
 #if defined(ARDUINO)
+#include "roo_io.h"
 #include "roo_io/fs/esp32/arduino/sdmmc.h"
 #include "roo_io/fs/esp32/arduino/sdspi.h"
 #else
+#include "roo_io.h"
 #include "roo_io/fs/esp32/esp-idf/sdmmc.h"
 #include "roo_io/fs/esp32/esp-idf/sdspi.h"
 #endif

@@ -5,6 +5,7 @@
 #include "roo_display/color/blending.h"
 #include "roo_display/color/color.h"
 #include "roo_display/color/interpolation.h"
+#include "roo_io.h"
 #include "roo_io/memory/load.h"
 
 namespace roo_display {

@@ -1,13 +1,14 @@
 # roo_display 3.5.0
 
-- Added support for the Makerfabs 4-inch 480 × 480 ESP32-S3 board with an ST7701S display, GT911 touch, and SPI SD card slot.
+- Added support for the Makerfabs 4-inch 480 × 480 ESP32-S3 board with an ST7701S display, GT911 touch, and an SPI SD card slot.
 - Fixed persistent display corruption after RGB DMA underruns on ESP32-S3 with ESP-IDF 5.3–5.5. The display now recovers after a brief glitch.
-- Sped up front-to-back rendering by combining visible regions into larger fills and limiting clip-mask memory to drawable bounds. Fixed inverted mask checks and preserved turbo-mode skipping.
-- Migrated standard XPT2046 touch to scoped `roo_io` SPI transactions while preserving existing constructors and custom SPI/GPIO policies. Reads batch ADC conversions, limit pressure settling, reject invalid or failed samples, and attempt to restore PENIRQ before releasing chip select and the bus.
-- Exposed borrowed SPI bus handles and added shared-bus tests with an ILI9341 display under Arduino and native ESP-IDF. The standalone `:touch_xpt2046` Bazel target has CI coverage on ESP32, ESP32-S3, and ESP32-C3 under Arduino and ESP-IDF, plus bare-metal and FreeRTOS Arduino-Pico.
+- Sped up front-to-back rendering by merging visible regions into larger fills and limiting clip-mask memory to drawable bounds. Fixed inverted mask checks and preserved turbo-mode skipping.
+- Migrated the standard XPT2046 touch driver to scoped `roo_io` SPI transactions while retaining existing constructors and custom SPI/GPIO policies. Reads batch ADC conversions, bound pressure settling, reject invalid or failed samples, and attempt to restore PENIRQ before releasing chip select and the bus.
+- Exposed borrowed SPI bus handles and tested XPT2046 and ILI9341 on a shared bus under Arduino and native ESP-IDF. Added CI coverage for the standalone `:touch_xpt2046` Bazel target on ESP32, ESP32-S3, and ESP32-C3 under both frameworks, plus bare-metal and FreeRTOS Arduino-Pico.
 - Adapted the synchronous Arduino SPI display transport to Arduino-Pico’s pin and transfer APIs, with headless ST77xx rendering tests.
-- Fixed framebuffer copying in the reference display when blending is disabled and improved Arduino dependency discovery for nested headers.
-- Updated `roo_io` to 2.5.0, `roo_backport` to 1.3.0, `roo_collections` to 2.0.2, and `roo_testing` to 2.7.0 for Bazel and CI.
+- Fixed reference-display framebuffer copying and capability reporting when blending is disabled. Bulk blits now transfer pixel-buffer ownership to the viewport, with sanitizer coverage for multicolor copies.
+- Improved Arduino dependency discovery for nested headers.
+- Updated `roo_io` to 2.5.0, `roo_backport` to 1.3.0, and `roo_collections` to 2.0.2. Updated `roo_testing` to 2.7.1 in Bazel and the shared CI workflow to 2.7.0.
 
 ---
 

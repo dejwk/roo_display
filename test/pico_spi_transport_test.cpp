@@ -1,7 +1,10 @@
 #include <Arduino.h>
 
 #include <array>
+#include <memory>
+#include <utility>
 
+#include "fake/roo_display/fake/viewport_pixels.h"
 #include "gtest/gtest.h"
 #include "roo_display/hal/arduino/spi.h"
 #include "roo_display/hal/gpio.h"
@@ -25,11 +28,13 @@ class Framebuffer : public roo_testing_transducers::Viewport {
     }
   }
 
-  /// Copies a model-supplied rectangle.
+  /// Copies and releases the owned pixel array.
   void drawRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
-                const uint32_t* colors) override {
+                roo_display::internal::ViewportPixels colors) override {
+    std::unique_ptr<const uint32_t[]> owned_pixels(std::move(colors));
+    const uint32_t* pixel = owned_pixels.get();
     for (int y = y0; y <= y1; ++y) {
-      for (int x = x0; x <= x1; ++x) fillRect(x, y, x, y, *colors++);
+      for (int x = x0; x <= x1; ++x) fillRect(x, y, x, y, *pixel++);
     }
   }
   std::array<uint32_t, 16> pixels{};

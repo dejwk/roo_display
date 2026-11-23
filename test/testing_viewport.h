@@ -1,8 +1,11 @@
 #pragma once
 
 #include <algorithm>
+#include <memory>
+#include <utility>
 #include <vector>
 
+#include "fake/roo_display/fake/viewport_pixels.h"
 #include "roo_testing/transducers/ui/viewport/viewport.h"
 
 namespace testing {
@@ -25,8 +28,10 @@ class TestViewport : public roo_testing_transducers::Viewport {
     }
   }
 
+  /// Copies and releases the owned pixel array.
   void drawRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
-                const uint32_t* color_argb) override {
+                roo_display::internal::ViewportPixels color_argb) override {
+    std::unique_ptr<const uint32_t[]> pixels(std::move(color_argb));
     clampToBounds(x0, y0, x1, y1);
     if (x0 > x1 || y0 > y1) return;
     int16_t width = x1 - x0 + 1;
@@ -34,7 +39,7 @@ class TestViewport : public roo_testing_transducers::Viewport {
     size_t idx = 0;
     for (int16_t y = 0; y < height; ++y) {
       for (int16_t x = 0; x < width; ++x) {
-        buffer_[index(x0 + x, y0 + y)] = color_argb[idx++];
+        buffer_[index(x0 + x, y0 + y)] = pixels[idx++];
       }
     }
   }

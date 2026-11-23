@@ -1,7 +1,10 @@
 #include "fake/roo_display/fake/reference_device.h"
 
 #include <algorithm>
+#include <memory>
+#include <utility>
 
+#include "fake/roo_display/fake/viewport_pixels.h"
 #include "roo_display/color/blending.h"
 #include "roo_display/color/color.h"
 #include "roo_time.h"
@@ -127,7 +130,7 @@ void ReferenceDisplayDevice::blitRect(int16_t x0, int16_t y0, int16_t x1,
   if (area == 0) return;
 
   readback_color_tmp_.resize(area);
-  uint32_t* viewport_buffer = new uint32_t[area];
+  std::unique_ptr<uint32_t[]> viewport_buffer(new uint32_t[area]);
   bool uniform =
       rasterizable_->readColorRect(x0, y0, x1, y1, readback_color_tmp_.data());
   if (uniform) {
@@ -141,7 +144,9 @@ void ReferenceDisplayDevice::blitRect(int16_t x0, int16_t y0, int16_t x1,
     }
   }
 
-  viewport_.drawRect(x0, y0, x1, y1, viewport_buffer);
+  viewport_.drawRect(
+      x0, y0, x1, y1,
+      internal::TransferViewportPixels(std::move(viewport_buffer)));
 }
 
 Color ReferenceDisplayDevice::preblend(roo_display::BlendingMode mode,

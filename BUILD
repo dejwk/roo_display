@@ -64,6 +64,7 @@ cc_test(
     }),
     deps = [
         ":roo_display",
+        "//fake:viewport_pixels",
         "@roo_testing//:esp_idf_gtest_main",
         "@roo_testing//roo_testing/devices/display/ili9341:spi",
         "@roo_testing//roo_testing/microcontrollers/esp32:core",
@@ -89,6 +90,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":roo_display",
+        "//fake:viewport_pixels",
         "@roo_testing//:arduino_gtest_main",
     ],
 )
@@ -591,6 +593,7 @@ cc_test(
     linkstatic = True,
     deps = [
         ":roo_display",
+        "//fake:viewport_pixels",
         "@roo_testing//roo_testing/devices/display/ili9341:spi",
         "@roo_testing//roo_testing/devices/touch/xpt2046:spi",
         "@roo_testing//roo_testing/microcontrollers/esp32:core",
@@ -610,6 +613,7 @@ cc_test(
     linkstatic = 1,
     deps = [
         ":roo_display",
+        "//fake:viewport_pixels",
         "@roo_testing//roo_testing/devices/touch/ft6x36",
         "@roo_testing//roo_testing/microcontrollers/esp32:core",
         "@roo_testing//roo_testing/transducers/ui/viewport",
@@ -694,6 +698,7 @@ cc_test(
     ],
     deps = [
         ":arduino_spi",
+        "//fake:viewport_pixels",
         "@roo_testing//:arduino_gtest_main",
         "@roo_testing//roo_testing/devices/display/st77xx:spi",
         "@roo_testing//roo_testing/microcontrollers/rp2040:pico",
@@ -751,6 +756,7 @@ cc_test(
     ],
     deps = [
         ":touch_xpt2046",
+        "//fake:viewport_pixels",
         "@roo_testing//roo_testing/devices/touch/xpt2046:spi",
         "@roo_testing//roo_testing/transducers/ui/viewport",
     ] + select({

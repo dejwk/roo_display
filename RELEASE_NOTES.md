@@ -1,13 +1,13 @@
 # roo_display 3.5.0
 
-- Add a focused XPT2046 target and verify scoped SPI touch behavior on ESP32/S3/C3 and both Arduino-Pico runtimes; align Roo I/O/testing dependencies.
-
-- Use roo_io scoped SPI transactions for standard XPT2046 touch transports,
-  preserving constructors and custom SPI/GPIO policies. Batch conversions,
-  reject invalid/failed samples, bound pressure settling, and attempt PENIRQ
-  restoration before releasing CS and the bus.
-- Expose borrowed bus handles from SPI wrappers and test Arduino/native IDF
-  touch behavior alongside an existing panel driver on the shared bus.
+- Added support for the Makerfabs 4-inch 480 × 480 ESP32-S3 board with an ST7701S display, GT911 touch, and SPI SD card slot.
+- Fixed persistent display corruption after RGB DMA underruns on ESP32-S3 with ESP-IDF 5.3–5.5. The display now recovers after a brief glitch.
+- Sped up front-to-back rendering by combining visible regions into larger fills and limiting clip-mask memory to drawable bounds. Fixed inverted mask checks and preserved turbo-mode skipping.
+- Migrated standard XPT2046 touch to scoped `roo_io` SPI transactions while preserving existing constructors and custom SPI/GPIO policies. Reads batch ADC conversions, limit pressure settling, reject invalid or failed samples, and attempt to restore PENIRQ before releasing chip select and the bus.
+- Exposed borrowed SPI bus handles and added shared-bus tests with an ILI9341 display under Arduino and native ESP-IDF. The standalone `:touch_xpt2046` Bazel target has CI coverage on ESP32, ESP32-S3, and ESP32-C3 under Arduino and ESP-IDF, plus bare-metal and FreeRTOS Arduino-Pico.
+- Adapted the synchronous Arduino SPI display transport to Arduino-Pico’s pin and transfer APIs, with headless ST77xx rendering tests.
+- Fixed framebuffer copying in the reference display when blending is disabled and improved Arduino dependency discovery for nested headers.
+- Updated `roo_io` to 2.5.0, `roo_backport` to 1.3.0, `roo_collections` to 2.0.2, and `roo_testing` to 2.7.0 for Bazel and CI.
 
 ---
 
